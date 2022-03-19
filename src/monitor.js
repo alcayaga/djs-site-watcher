@@ -253,6 +253,8 @@ client.on('message', (message) => {
 function update() {
   let channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
 
+  var firstChange = true;
+
   for (let i = 0; i < sitesToMonitor.length; i++) {
     const url = sitesToMonitor[i].url;
     got(url).then(response => {
@@ -295,6 +297,12 @@ function update() {
         }
 
         //Send update to Discord channel
+        if (firstChange)
+        {
+          firstChange = false;
+          channel.send("Detecté cambios @everyone");
+        }
+
         var embed = new Discord.MessageEmbed();
         embed.setTitle(`🔎 ¡Cambio en ${title}!  🐸`);
         embed.addField(`URL`, `${sitesToMonitor[i].url}`);
