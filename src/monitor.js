@@ -50,8 +50,32 @@ client.on('ready', () => {
 
 //Events on message
 client.on('message', (message) => {
+  if (!message.author.bot && process.env.DISCORDJS_APCHANNEL_ID === message.channel.id) {
+      ap_regex = /(Cu[aá]ndo(.*)Apple Pay(.*)Chile)|((Alguna?|Alg[uú]n|Se sabe)(.*)(noticia|novedad|algo|cahu[ií]n|filtraci[oó]n)(.*)\?)|(llegar[aá](.*)pronto(.*)\?)|(no (hay|habr[aá]) Apple Pay)|(para qu[eé] fecha lo activen)|(creen que salga mañana)|(nada a[uú]n\?)/gi;
+      ap_message = message.content.trim();
+
+      //console.log(ap_message);
+      //console.log(message.channel.id);
+      //console.log(message.channelId);
+
+
+      var ap_match = ap_regex.exec(ap_message);
+
+      if (ap_match != null) {
+        //console.log("Holi!");
+        //console.log(message.channelId);
+        message.reply('hoy no hay Apple Pay, mañana sí!');
+        return;
+
+      }
+      else {
+        //console.log("Fail");
+      }
+  }
+
+
   //Check if message starts with prefix and remove prefix from string
-  if (!message.content.startsWith(PREFIX) || message.author.bot) return;
+  if (!message.content.startsWith(PREFIX) || message.author.bot || process.env.DISCORDJS_TEXTCHANNEL_ID !== message.channel.id || message.author.username !== "ElectroTuned") return;
   var args = [];
   console.log(`[${message.author.tag}]: ${message.content}`);
   const argsTemp = message.content.slice(PREFIX.length).trim();
@@ -232,6 +256,7 @@ function update() {
     got(url).then(response => {
       //Get content of site
       const dom = new JSDOM(response.body);
+      //console.log(dom.window.document.documentElement.outerHTML);
 
       //If css is selected, only get that part
       if (sitesToMonitor[i].css)
@@ -239,6 +264,11 @@ function update() {
       //If no css is selected get the whole head
       else
         var content = dom.window.document.querySelector('head').textContent;
+
+      //console.log(content);
+
+
+
 
       //hash the content of the site, so only a short string is saved
       var hash = crypto.createHash('md5').update(content).digest('hex');
@@ -249,17 +279,26 @@ function update() {
 
       //Check if new has differs from last hash
       if (sitesToMonitor[i].hash != hash) {
+        console.log("Change detected!")
+
         var prevUpdate = sitesToMonitor[i].lastUpdated;
         sitesToMonitor[i].lastUpdated = time.toLocaleString();
         sitesToMonitor[i].hash = hash;
 
+        var title = dom.window.document.title;
+
+        if (title === "")
+        {
+          title = sitesToMonitor[i].id;
+        }
+
         //Send update to Discord channel
         var embed = new Discord.MessageEmbed();
-        embed.setTitle(`🔎 ${sitesToMonitor[i].id} changed!`);
+        embed.setTitle(`🔎 Cambio en ${title} ! 🐸`);
         embed.addField(`URL`, `${sitesToMonitor[i].url}`);
-        embed.addField(`CSS`, `\`${sitesToMonitor[i].css}\``);
-        embed.addField(`Previous change`, `${prevUpdate}`, true);
-        embed.addField(`Updated on`, `${sitesToMonitor[i].lastUpdated}`, true);
+        //embed.addField(`CSS`, `\`${sitesToMonitor[i].css}\``);
+        embed.addField(`Último cambio`, `${prevUpdate}`, true);
+        embed.addField(`Actualizado`, `${sitesToMonitor[i].lastUpdated}`, true);
         embed.setColor('0x6058f3');
         channel.send(embed);
 
