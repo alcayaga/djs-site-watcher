@@ -27,6 +27,8 @@ var sitesToMonitor = [];
 const settingsFile = './src/settings.json';
 var cronTime = { interval: 5 };
 
+const forcedSite = 'deadbeefdeadbeefdeadbeefdeadbeef';
+
 //Events when bot comes online
 client.on('ready', () => {
   //Load saved sites
@@ -279,7 +281,7 @@ function update() {
 
       //Check if new has differs from last hash
       if (sitesToMonitor[i].hash != hash) {
-        console.log("Change detected!")
+        console.log(`Change detected! ${sitesToMonitor[i].url}`);
 
         var prevUpdate = sitesToMonitor[i].lastUpdated;
         sitesToMonitor[i].lastUpdated = time.toLocaleString();
@@ -294,7 +296,7 @@ function update() {
 
         //Send update to Discord channel
         var embed = new Discord.MessageEmbed();
-        embed.setTitle(`🔎 Cambio en ${title} ! 🐸`);
+        embed.setTitle(`🔎 ¡Cambio en ${title}!  🐸`);
         embed.addField(`URL`, `${sitesToMonitor[i].url}`);
         //embed.addField(`CSS`, `\`${sitesToMonitor[i].css}\``);
         embed.addField(`Último cambio`, `${prevUpdate}`, true);
@@ -304,11 +306,14 @@ function update() {
 
         //Save the new data in the file
         fs.outputJSON(file, sitesToMonitor, { spaces: 2 }, err => {
-          if (err) console.log(err)
+          if (err) console.log(err);
         });
       }
     }).catch(err => {
-      return console.log(`Error: ${err}`);
+      if (sitesToMonitor[i].hash !== forcedSite)
+      {
+        return console.log(`${sitesToMonitor[i].url} : ${err}`);
+      }
     });
   }
 }
