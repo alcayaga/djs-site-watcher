@@ -53,7 +53,7 @@ client.on('ready', () => {
 //Events on message
 client.on('message', (message) => {
   if (!message.author.bot && process.env.DISCORDJS_APCHANNEL_ID === message.channel.id) {
-      ap_regex = /(Cu[aá]ndo(.*)Apple Pay(.*)Chile)|((Alguna?|Alg[uú]n|Se sabe)(.*)(noticia|novedad|algo|cahu[ií]n|filtraci[oó]n)(.*)\?)|(llegar[aá](.*)pronto(.*)\?)|(no (hay|habr[aá]) Apple Pay)|(para qu[eé] fecha lo activen)|(creen que salga mañana)|(nada a[uú]n\?)/gi;
+      ap_regex = /(Cu[aá]ndo(.*)Apple Pay(.*)Chile)|((Alguna?|Alg[uú]n|Se sabe)(.*)(noticia|novedad|algo|cahu[ií]n|filtraci[oó]n)(.*)\?)|(llegar[aá](.*)pronto(.*)\?)|(no (hay|habr[aá]) Apple Pay)|(para qu[eé] fecha lo activen)|(creen que salga mañana)|(nada a[uú]n\?)|(mañana Apple Pay(.*)\?)/gi;
       ap_message = message.content.trim();
 
       //console.log(ap_message);
