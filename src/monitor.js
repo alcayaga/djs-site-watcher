@@ -184,7 +184,7 @@ client.on('message', (message) => {
 
           //Send confirmation message
           var embed = new Discord.MessageEmbed();
-          embed.addField(`Site added:`, `Name: ${site.id}\nURL: ${site.url}\nCSS: \`${site.css}\`\n`)
+          embed.addField(`Monitoreando ahora:`, `Dominio: ${site.id}\nURL: ${site.url}\nCSS: \`${site.css}\`\n`)
           embed.setColor('0x6058f3');
           message.channel.send(embed);
 
@@ -215,7 +215,7 @@ client.on('message', (message) => {
 
         var embed = new Discord.MessageEmbed();
         for (let i = 0; i < sitesToMonitor.length; i++) {
-          embed.setTitle(`${sitesToMonitor.length} site(s) being monitored:`);
+          embed.setTitle(`${sitesToMonitor.length} sitio(s) están siendo monitoreados:`);
           embed.addField(`${sitesToMonitor[i].id}`, `URL: ${sitesToMonitor[i].url}\nCSS: \`${sitesToMonitor[i].css}\`\nChecked: ${sitesToMonitor[i].lastChecked}\nUpdated: ${sitesToMonitor[i].lastUpdated}\nRemove: \`!remove ${i + 1}\``);
           embed.setColor('0x6058f3');
         }
