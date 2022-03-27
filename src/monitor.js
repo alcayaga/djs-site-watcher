@@ -27,6 +27,9 @@ var sitesToMonitor = [];
 const settingsFile = './src/settings.json';
 var cronTime = { interval: 5 };
 
+const responsesFile = './src/responses.json';
+var responses = []; 
+
 const forcedSite = 'deadbeefdeadbeefdeadbeefdeadbeef';
 
 //Events when bot comes online
@@ -41,6 +44,15 @@ client.on('ready', () => {
   console.log(tempJson);
   cronTime = tempJson;
 
+  // Load responses
+  tempJson = fs.readJSONSync(responsesFile);
+  console.log(tempJson);
+  responses = tempJson;
+
+  for (var i = 0; i < responses.length; i++) {
+    responses[i].trigger_regex = new RegExp(responses[i].trigger, 'i');
+  }
+
   //Start monitoring
   if (cronTime.interval < 60)
     cronUpdate.setTime(new CronTime(`0 */${cronTime.interval} * * * *`));
@@ -53,25 +65,28 @@ client.on('ready', () => {
 //Events on message
 client.on('message', (message) => {
   if (!message.author.bot && process.env.DISCORDJS_APCHANNEL_ID === message.channel.id) {
-      ap_regex = /(Cu[aá]ndo(.*)Apple Pay(.*)Chile)|((Alguna?|Alg[uú]n|Se sabe)(.*)(noticia|novedad|algo|cahu[ií]n|filtraci[oó]n)(.*)\?)|(llegar[aá](.*)pronto(.*)\?)|(no (hay|habr[aá]) Apple Pay)|(para qu[eé] fecha lo activen)|(creen que salga mañana)|(nada a[uú]n\?)|(mañana Apple Pay(.*)\?)/gi;
-      ap_message = message.content.trim();
+      var ap_message = message.content.trim();
 
-      //console.log(ap_message);
-      //console.log(message.channel.id);
-      //console.log(message.channelId);
+      for (let response of responses)
+      {
+        var ap_match = response.trigger_regex.exec(ap_message);
+
+        if (ap_match != null) {
+          reply_id = Math.floor(Math.random() * response.replies.length);
+          reply = response.replies[reply_id];
 
 
-      var ap_match = ap_regex.exec(ap_message);
+          if (reply.img_response !== "") {
+            const img = new Discord.MessageAttachment(reply.img_response);
+            message.channel.send(img);
+          }
 
-      if (ap_match != null) {
-        //console.log("Holi!");
-        //console.log(message.channelId);
-        message.reply('hoy no hay Apple Pay, mañana sí!');
-        return;
+          if (reply.text_response !== "") {
+            message.reply(reply.text_response);
+          }
 
-      }
-      else {
-        //console.log("Fail");
+          return;
+        }
       }
   }
 
