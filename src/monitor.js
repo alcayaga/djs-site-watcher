@@ -150,8 +150,16 @@ client.on('message', (message) => {
           const dom = new JSDOM(response.body);
 
           //Get css element
-          if (site.css)
-            var content = dom.window.document.querySelector(site.css).textContent;
+          if (site.css) {
+            var selector = dom.window.document.querySelector(site.css);
+
+            if (selector) {
+              var content = selector.textContent;  
+            }
+            else {
+              var content = '';
+            }
+          }
           //Get head is no css element is selected
           else
             var content = dom.window.document.querySelector('head').textContent;
@@ -278,8 +286,18 @@ function update() {
       //console.log(dom.window.document.documentElement.outerHTML);
 
       //If css is selected, only get that part
-      if (sitesToMonitor[i].css)
-        var content = dom.window.document.querySelector(sitesToMonitor[i].css).textContent;
+      if (sitesToMonitor[i].css) {
+        var selector = dom.window.document.querySelector(sitesToMonitor[i].css);
+
+        if (selector) {
+          var content = selector.textContent;  
+        }
+        else
+        {
+          var content = '';
+        }
+        
+      }
       //If no css is selected get the whole head
       else
         var content = dom.window.document.querySelector('head').textContent;
