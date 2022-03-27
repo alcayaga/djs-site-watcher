@@ -92,7 +92,7 @@ client.on('message', (message) => {
 
 
   //Check if message starts with prefix and remove prefix from string
-  if (!message.content.startsWith(PREFIX) || message.author.bot || process.env.DISCORDJS_TEXTCHANNEL_ID !== message.channel.id || message.author.username !== "ElectroTuned") return;
+  if (!message.content.startsWith(PREFIX) || message.author.bot || process.env.DISCORDJS_TEXTCHANNEL_ID !== message.channel.id || !message.member.roles.cache.has(process.env.DISCORDJS_ROLE_ID)) return;
   var args = [];
   console.log(`[${message.author.tag}]: ${message.content}`);
   const argsTemp = message.content.slice(PREFIX.length).trim();
