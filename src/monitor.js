@@ -149,6 +149,8 @@ client.on('message', (message) => {
         got(site.url).then(response => {
           const dom = new JSDOM(response.body);
 
+          var warning = false;
+
           //Get css element
           if (site.css) {
             var selector = dom.window.document.querySelector(site.css);
@@ -158,6 +160,7 @@ client.on('message', (message) => {
             }
             else {
               var content = '';
+              warning = true;
             }
           }
           //Get head is no css element is selected
@@ -182,9 +185,15 @@ client.on('message', (message) => {
             if (err) console.log(err)
           });
 
+          var warning_message = '';
+
+          if (warning) {
+            warning_message = '\n**Atención:** No se encontró el selector CSS solicitado'
+          }
+
           //Send confirmation message
           var embed = new Discord.MessageEmbed();
-          embed.addField(`Monitoreando ahora:`, `Dominio: ${site.id}\nURL: ${site.url}\nCSS: \`${site.css}\`\n`)
+          embed.addField(`Monitoreando ahora:`, `Dominio: ${site.id}\nURL: ${site.url}\nCSS: \`${site.css}\`${warning_message}\n`)
           embed.setColor('0x6058f3');
           message.channel.send(embed);
 
@@ -302,7 +311,7 @@ function update() {
       else
         var content = dom.window.document.querySelector('head').textContent;
 
-      //console.log(content);
+      // console.log(content);
 
 
 
@@ -317,6 +326,7 @@ function update() {
       //Check if new has differs from last hash
       if (sitesToMonitor[i].hash != hash) {
         console.log(`Change detected! ${sitesToMonitor[i].url}`);
+        console.log(content);
 
         var prevUpdate = sitesToMonitor[i].lastUpdated;
         sitesToMonitor[i].lastUpdated = time.toLocaleString();
