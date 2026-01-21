@@ -96,10 +96,13 @@ client.on('ready', () => {
   }  
 
   //Start monitoring
-  if (settings.interval < 60)
+  if (settings.interval < 60) {
     cronUpdate.setTime(new CronTime(`0 */${settings.interval} * * * *`));
-  else
+    carrierCron.setTime(new CronTime(`0 */${settings.interval} * * * *`));
+  } else {
     cronUpdate.setTime(new CronTime(`0 0 * * * *`));
+    carrierCron.setTime(new CronTime(`0 0 * * * *`));
+  }
   
   cronUpdate.start();
   carrierCron.start();
