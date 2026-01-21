@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "start": "node ./src/monitor.js",
     "dev": "nodemon ./src/monitor.js"
   },
@@ -14,11 +14,15 @@
   "dependencies": {
     "cron": "^1.8.2",
     "crypto": "^1.0.1",
+    "diff": "^8.0.3",
     "discord.js": "^12.5.3",
     "dotenv": "^8.2.0",
     "fs-extra": "^9.0.1",
     "got": "^11.8.0",
     "jsdom": "^16.4.0",
     "plist": "^3.1.0"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0"
   }
 }
