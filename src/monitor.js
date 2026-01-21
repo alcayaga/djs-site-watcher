@@ -60,10 +60,20 @@ client.on('ready', () => {
     cronUpdate.setTime(new CronTime(`0 0 * * * *`));
   cronUpdate.start();
   console.log(`[${client.user.tag}] Ready...\n[${client.user.tag}] Running an interval of ${cronTime.interval} minute(s).`);
+
+
+  console.log('Waiting!');
+  var waitTill = new Date(new Date().getTime() + 1500);
+  while(waitTill > new Date()){}
+
+  console.log('Done!');
 })
 
-//Events on message
 client.on('message', (message) => {
+  //console.log('Start msg');
+
+  //return;
+
   if (!message.author.bot && process.env.DISCORDJS_APCHANNEL_ID === message.channel.id) {
       var ap_message = message.content.trim();
 
@@ -72,6 +82,11 @@ client.on('message', (message) => {
         var ap_match = response.trigger_regex.exec(ap_message);
 
         if (ap_match != null) {
+          message.channel.startTyping();
+          
+          var waitTill = new Date(new Date().getTime() + 3 * 1000);
+          while(waitTill > new Date()){}
+
           reply_id = Math.floor(Math.random() * response.replies.length);
           reply = response.replies[reply_id];
 
@@ -85,14 +100,17 @@ client.on('message', (message) => {
             message.reply(reply.text_response);
           }
 
+          message.channel.stopTyping();
+
           return;
         }
       }
   }
 
+  // console.log('Not a response')
 
   //Check if message starts with prefix and remove prefix from string
-  if (!message.content.startsWith(PREFIX) || message.author.bot || process.env.DISCORDJS_TEXTCHANNEL_ID !== message.channel.id || !message.member.roles.cache.has(process.env.DISCORDJS_ROLE_ID)) return;
+  if (!message.content.startsWith(PREFIX) || message.author.bot || process.env.DISCORDJS_ADMINCHANNEL_ID !== message.channel.id || !message.member.roles.cache.has(process.env.DISCORDJS_ROLE_ID)) return;
   var args = [];
   console.log(`[${message.author.tag}]: ${message.content}`);
   const argsTemp = message.content.slice(PREFIX.length).trim();
@@ -146,8 +164,16 @@ client.on('message', (message) => {
         };
 
         //Check if site is valid
-        got(site.url).then(response => {
-          const dom = new JSDOM(response.body);
+        //got(site.url).then(response => {
+        JSDOM.fromURL(site.url, {runScripts: "dangerously", resources: "usable",pretendToBeVisual: true }).then(dom => {
+          //const dom = new JSDOM(response.body, {runScripts: "dangerously", resources: "usable",pretendToBeVisual: true });
+          //const w = dom.window;
+
+          console.log('start');
+          var waitTill = new Date(new Date().getTime() + 10 * 1000);
+          while(waitTill > new Date()){}
+
+
 
           var warning = false;
 
@@ -166,6 +192,8 @@ client.on('message', (message) => {
           //Get head is no css element is selected
           else
             var content = dom.window.document.querySelector('head').textContent;
+
+          console.log(content);
 
           //Hash the site content so only a short string is saved
           var hash = crypto.createHash('md5').update(content).digest('hex');
@@ -279,10 +307,15 @@ client.on('message', (message) => {
     default:
       message.channel.send('Invalid command...\nType `!help` for a list of commands.');
   }
+
 })
+
+
 
 //Update the sites
 function update() {
+  console.log('Start Update');
+
   let channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
 
   var firstChange = true;
@@ -311,7 +344,7 @@ function update() {
       else
         var content = dom.window.document.querySelector('head').textContent;
 
-      // console.log(content);
+      //console.log(content);
 
 
 
@@ -343,7 +376,7 @@ function update() {
         if (firstChange)
         {
           firstChange = false;
-          channel.send("Detecté cambios @everyone");
+          channel.send("Detecté cambios");
         }
 
         var embed = new Discord.MessageEmbed();
