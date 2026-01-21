@@ -20,7 +20,7 @@
 
 ## This project is obsolete!
 
-Discord changed the way bots work, and this bot is not working anymore because of that. I won't work on this project anymore so feel free to fork this project and create your own version based on this (and feel free to submit pull requests).
+This bot is built on an old version of Discord.js (v12) and uses message content, a feature that is now restricted for verified bots. While it may still work on unverified servers, it is no longer maintained and may break at any time. Feel free to fork this project and create your own version based on this.
 
 ## Features
 
@@ -34,6 +34,7 @@ List of features of the site-watcher bot:
 - Checking on a specified interval (1-60 minutes, default `5`).
 - Manually update tracked sites
 - Show list of tracked sites
+- Monitor Apple Carrier Bundles
 - Open source!
 
 ## Install
@@ -47,10 +48,12 @@ Downloading the project:
 
 Configuring the bot:
 
-1. Open the `.env` file.
+1. Create a `.env` file from the `.env.example`.
 2. Add your discord bot token after `DISCORDJS_BOT_TOKEN=`. You can get this token from [discord.com/developers/applications](https://discord.com/developers/applications).
 3. Add the channel ID from the channel you want the update notifications in after `DISCORDJS_TEXTCHANNEL_ID=`. You can get this ID by right clicking the channel in discord and selecting `Copy ID`.  Make sure `Developer Mode` is on by going to `Settings → Appearance → Advanced → Developer Mode → ON`. Make sure the bot has permission to post in this channel.
-4. If you want to change the prefix (default "`!`"), you can change it in the `./src/monitor.js` file (`const PREFIX = '!';`).
+4. Add the channel ID from the channel you want the admin commands to be used in after `DISCORDJS_ADMINCHANNEL_ID=`.
+5. Add the role ID that is allowed to use the admin commands after `DISCORDJS_ROLE_ID=`.
+6. If you want to change the prefix (default "`!`"), you can change it in the `./src/monitor.js` file (`const PREFIX = '!';`).
 
 For starting and using the bot, see [Usage](#Usage).
 
@@ -59,8 +62,8 @@ The simplest method to monitor a site:
 1. Invite the bot to your Discord server by replacing `123456789012345678` in the following link with your bot's client id: `https://discord.com/oauth2/authorize?client_id=123456789012345678&scope=bot&permissions=8`. 
 1. Open the command line in the cloned repository folder by opening the `cmd.bat` file.
 2. Start the bot by typing `npm start`.
-3. In Discord (the bot should now be online), add a website with the `!add <URL>` command.
-4. Done! The added site is now being monitored.   
+3. In Discord (the bot should now be online), add a website with the `!add <URL>` command in the configured admin channel.
+4. Done! The added site is now being monitored.
 <sub>By default, the watch interval for every website is 5 minutes, but you can easily change this with the `!interval` command followed by the interval in minutes.</sub>
 
 For all other options, see [Commands](#Commands).
@@ -208,14 +211,17 @@ When off:
 
 ---
 
-## Contribute
-Im currently not updating the bot with new features, however I'll try to fix bugs that are reported. If you'd like you can add new features or fix bugs by forking the repository and creating a pull request.   
-   
-Features I want to implement at some point:   
-- [ ] Multi-server support   
-- [ ] Configuration via Discord, not via config file   
-- [ ] Docker image support   
-- [ ] More options for setting interval (seconds/hours/days etc.)   
+### `!carrier <status|start|stop>`
+Manage the carrier monitor.
+
+**Parameters**
+`status` Show the status of the carrier monitor.
+`start` Start the carrier monitor.
+`stop` Stop the carrier monitor.
+
+**Example**
+`!carrier status`
+
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
