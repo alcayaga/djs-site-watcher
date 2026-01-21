@@ -1,0 +1,12 @@
+[
+  {
+    "trigger": "TEST_APPLE_BOT",
+    "replies":
+    [
+      {
+        "text_response": "<:hello:1098441756908978210>",
+        "img_response": ""
+      }
+    ]
+  }
+]

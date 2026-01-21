@@ -20,12 +20,15 @@ const { JSDOM } = jsdom;
 var crypto = require('crypto');
 const fs = require('fs-extra');
 
+const carrierMonitor = require('./carrier_monitor.js');
+
+
 const PREFIX = '!'; //Change this to anything you like as a prefix
 var regexp = /[^\s"]+|"([^"]*)"/gi;
 const file = './src/sites.json';
 var sitesToMonitor = [];
 const settingsFile = './src/settings.json';
-var cronTime = { interval: 5 };
+var settings = { interval: 5, debug: false };
 
 const responsesFile = './src/responses.json';
 var responses = []; 
@@ -42,7 +45,7 @@ client.on('ready', () => {
   //Load saved settings
   tempJson = fs.readJSONSync(settingsFile);
   console.log(tempJson);
-  cronTime = tempJson;
+  settings = tempJson;
 
   // Load responses
   tempJson = fs.readJSONSync(responsesFile);
@@ -53,13 +56,30 @@ client.on('ready', () => {
     responses[i].trigger_regex = new RegExp(responses[i].trigger, 'i');
   }
 
+  //Initialize carrier monitor
+  carrierMonitor.initialize(client, settings.debug);
+
+  if (settings.debug) {
+    console.log('DEBUG MODE ENABLED');
+    update();
+    carrierMonitor.check(client, true).then(() => {
+      setTimeout(() => {
+        process.exit();
+      }, 5000);
+    });
+    return;
+  }  
+
   //Start monitoring
-  if (cronTime.interval < 60)
-    cronUpdate.setTime(new CronTime(`0 */${cronTime.interval} * * * *`));
+  if (settings.interval < 60)
+    cronUpdate.setTime(new CronTime(`0 */${settings.interval} * * * *`));
   else
     cronUpdate.setTime(new CronTime(`0 0 * * * *`));
+  
   cronUpdate.start();
-  console.log(`[${client.user.tag}] Ready...\n[${client.user.tag}] Running an interval of ${cronTime.interval} minute(s).`);
+  carrierCron.start();
+
+  console.log(`[${client.user.tag}] Ready...\n[${client.user.tag}] Running an interval of ${settings.interval} minute(s).`);
 
 
   console.log('Waiting!');
@@ -142,6 +162,7 @@ client.on('message', (message) => {
         embed.addField('\`!start\`', 'Start automatic monitoring on set interval, default \`on\`.');
         embed.addField('\`!stop\`', 'Stop monitoring.');
         embed.addField('\`!status\`', 'Show monitoring status.');
+        embed.addField('\`!carrier <status|start|stop>\`', 'Manage the carrier monitor.');  
         message.channel.send(embed);
       } break;
     case "ADD":
@@ -274,14 +295,21 @@ client.on('message', (message) => {
         } else {
           cronUpdate.setTime(new CronTime(`0 0 * * * *`));
         }
-        cronTime.interval = Math.round(args[0]);
+        settings.interval = Math.round(args[0]);
 
-        fs.outputJSON(settingsFile, cronTime, { spaces: 2 }, err => {
+        fs.outputJSON(settingsFile, settings, { spaces: 2 }, err => {
           if (err) console.log(err)
         });
 
-        message.channel.send(`Interval set to \`${cronTime.interval}\` minutes.`);
+        message.channel.send(`Interval set to \`${settings.interval}\` minutes.`);
         cronUpdate.start();
+
+        if (Math.round(args[0]) < 60) {
+          carrierCron.setTime(new CronTime(`0 */${Math.round(args[0])} * * * *`));
+        } else {
+          carrierCron.setTime(new CronTime(`0 0 * * * *`));
+        }
+        carrierCron.start();
       } break;
     case "START":
       {
@@ -301,8 +329,29 @@ client.on('message', (message) => {
       {
         var time = new Date();
         console.log('Status: ', cronUpdate.running);
-        if (cronUpdate.running) message.channel.send(`Site Watcher is running with an interval of \`${cronTime.interval}\` minute(s).`);
+        if (cronUpdate.running) message.channel.send(`Site Watcher is running with an interval of \`${settings.interval}\` minute(s).`);
         else message.channel.send('Site Watcher is not running. Use `!start` to start monitoring websites.');
+      } break;
+    case "CARRIER":
+      {
+        if (args.length === 0) return message.channel.send('Usage: `!carrier <status|start|stop>');
+        const subCommand = args.shift().toLowerCase();
+        switch (subCommand) {
+          case 'status':
+            var status = carrierCron.running ? 'running' : 'not running';
+            message.channel.send(`Carrier monitor is ${status}.`);
+            break;
+          case 'start':
+            carrierCron.start();
+            message.channel.send('Carrier monitor started.');
+            break;
+          case 'stop':
+            carrierCron.stop();
+            message.channel.send('Carrier monitor stopped.');
+            break;
+          default:
+            message.channel.send('Invalid command... Usage: `!carrier <status|start|stop>');
+        }
       } break;
     default:
       message.channel.send('Invalid command...\nType `!help` for a list of commands.');
@@ -314,7 +363,7 @@ client.on('message', (message) => {
 
 //Update the sites
 function update() {
-  console.log('Start Update');
+  //console.log('Start Update');
 
   let channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
 
@@ -403,10 +452,14 @@ function update() {
 }
 
 //Update on set interval
-const cronUpdate = new CronJob(`0 */${cronTime.interval} * * * *`, function () {
+const cronUpdate = new CronJob(`0 */${settings.interval} * * * *`, function () {
   var time = new Date();
   console.log(`Cron executed at ${time.toLocaleString()}`);
   update();
+}, null, false);
+
+const carrierCron = new CronJob(`0 */${settings.interval} * * * *`, function () {
+  carrierMonitor.check(client);
 }, null, false);
 
 client.login(process.env.DISCORDJS_BOT_TOKEN);
