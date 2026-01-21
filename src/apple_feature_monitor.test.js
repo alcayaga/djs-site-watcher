@@ -123,5 +123,36 @@ describe('Apple Feature Monitor', () => {
             expect(mockChannel.send).not.toHaveBeenCalled();
             consoleErrorSpy.mockRestore();
         });
+
+        test('should handle old data structure gracefully', async () => {
+            const oldDataStructure = {
+                'Feature 1': ['Spanish (Chile)'], // Old array format
+                'Feature 2': ['Some other region']
+            };
+            const mockHtmlWithNewRegion = `
+                <html>
+                <body>
+                    <section id="feature-1" class="features">
+                        <h2>Feature 1</h2>
+                        <ul>
+                            <li>Spanish (Chile)</li>
+                            <li>Spanish (Latin America)</li>
+                        </ul>
+                    </section>
+                </body>
+                </html>
+            `;
+            got.mockResolvedValue({ body: mockHtmlWithNewRegion });
+
+            fs.readJSON.mockResolvedValue(oldDataStructure);
+            await initialize();
+            await check(mockClient);
+
+            // Should notify for the new region in Feature 1
+            expect(mockChannel.send).toHaveBeenCalledTimes(1);
+            const sentEmbed = mockChannel.send.mock.calls[0][0];
+            expect(sentEmbed.addField).toHaveBeenCalledWith('Función', 'Feature 1');
+            expect(sentEmbed.addField).toHaveBeenCalledWith('Región/Idioma', 'Spanish (Latin America)');
+        });
     });
 });

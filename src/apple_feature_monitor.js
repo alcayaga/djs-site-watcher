@@ -70,8 +70,12 @@ async function check(client) {
                 hasChanges = true;
             } else {
                 // Existing feature, check for new regions
+                const monitored = monitoredFeatures[feature];
+                // Handle both old (array) and new (object) data structures for backward compatibility.
+                const monitoredRegions = Array.isArray(monitored) ? monitored : monitored.regions;
+
                 currentFeatures[feature].regions.forEach(region => {
-                    if (!monitoredFeatures[feature].regions.includes(region)) {
+                    if (!monitoredRegions.includes(region)) {
                         notify(feature, region, currentFeatures[feature].id, client);
                         hasChanges = true;
                     }
