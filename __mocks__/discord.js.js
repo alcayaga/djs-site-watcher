@@ -1,8 +1,11 @@
+const mockChannel = {
+  send: jest.fn(),
+};
+
 const mockSetTitle = jest.fn().mockReturnThis();
 const mockAddField = jest.fn().mockReturnThis();
 const mockSetColor = jest.fn().mockReturnThis();
 
-// Mock MessageEmbed as a class
 const MockMessageEmbed = jest.fn(function() {
   this.setTitle = mockSetTitle;
   this.addField = mockAddField;
@@ -14,9 +17,7 @@ module.exports = {
     on: jest.fn(),
     channels: {
       cache: {
-        get: jest.fn(() => ({
-          send: jest.fn(),
-        })),
+        get: jest.fn(() => mockChannel), // Always return the same mockChannel
       },
     },
     login: jest.fn(),
