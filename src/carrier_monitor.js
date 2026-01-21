@@ -21,9 +21,6 @@ async function initialize(client, debug = false) {
     } catch (err) {
         console.log('Cannot read carriers.json');
     }
-    if (!debug) {
-        await check(client);
-    }
 }
 
 async function check(client, debug = false) {
