@@ -1,21 +1,21 @@
 const mockHtml = `
 <html>
 <body>
-    <section class="features">
+    <section id="feature-1" class="features">
         <h2>Feature 1</h2>
         <ul>
             <li>Spanish (Chile)</li>
             <li>English (US)</li>
         </ul>
     </section>
-    <section class="features">
+    <section id="feature-2" class="features">
         <h2>Feature 2</h2>
         <ul>
             <li>English (UK)</li>
             <li>Spanish (Latin America)</li>
         </ul>
     </section>
-    <section class="features">
+    <section id="feature-3-scl" class="features">
         <h2>Feature 3 (SCL)</h2>
         <ul>
             <li>Some City (SCL)</li>
@@ -67,19 +67,22 @@ describe('Apple Feature Monitor', () => {
             const firstCall = mockChannel.send.mock.calls[0][0];
             expect(firstCall.addField).toHaveBeenCalledWith('Función', 'Feature 1');
             expect(firstCall.addField).toHaveBeenCalledWith('Región/Idioma', 'Spanish (Chile)');
+            expect(firstCall.addField).toHaveBeenCalledWith('URL', 'https://www.apple.com/ios/feature-availability/#feature-1');
 
             const secondCall = mockChannel.send.mock.calls[1][0];
             expect(secondCall.addField).toHaveBeenCalledWith('Función', 'Feature 2');
             expect(secondCall.addField).toHaveBeenCalledWith('Región/Idioma', 'Spanish (Latin America)');
+            expect(secondCall.addField).toHaveBeenCalledWith('URL', 'https://www.apple.com/ios/feature-availability/#feature-2');
             
             const thirdCall = mockChannel.send.mock.calls[2][0];
             expect(thirdCall.addField).toHaveBeenCalledWith('Función', 'Feature 3 (SCL)');
             expect(thirdCall.addField).toHaveBeenCalledWith('Región/Idioma', 'Some City (SCL)');
+            expect(thirdCall.addField).toHaveBeenCalledWith('URL', 'https://www.apple.com/ios/feature-availability/#feature-3-scl');
         });
 
         test('should detect a new region for an existing feature and notify', async () => {
             const initialFeatures = {
-                'Feature 1': ['Some other region']
+                'Feature 1': { regions: ['Some other region'], id: 'feature-1' }
             };
             fs.readJSON.mockResolvedValue(initialFeatures);
             await initialize();
@@ -92,13 +95,14 @@ describe('Apple Feature Monitor', () => {
             const firstCall = mockChannel.send.mock.calls[0][0];
             expect(firstCall.addField).toHaveBeenCalledWith('Función', 'Feature 1');
             expect(firstCall.addField).toHaveBeenCalledWith('Región/Idioma', 'Spanish (Chile)');
+            expect(firstCall.addField).toHaveBeenCalledWith('URL', 'https://www.apple.com/ios/feature-availability/#feature-1');
         });
 
         test('should not notify if no changes are detected', async () => {
             const initialFeatures = {
-                'Feature 1': ['Spanish (Chile)'],
-                'Feature 2': ['Spanish (Latin America)'],
-                'Feature 3 (SCL)': ['Some City (SCL)']
+                'Feature 1': { regions: ['Spanish (Chile)'], id: 'feature-1' },
+                'Feature 2': { regions: ['Spanish (Latin America)'], id: 'feature-2' },
+                'Feature 3 (SCL)': { regions: ['Some City (SCL)'], id: 'feature-3-scl' }
             };
             fs.readJSON.mockResolvedValue(initialFeatures);
             await initialize();

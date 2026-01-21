@@ -43,6 +43,7 @@ async function check(client) {
             const featureNameElement = section.querySelector('h2');
             if (!featureNameElement) return;
             const featureName = featureNameElement.textContent.trim();
+            const featureId = section.id;
             
             const regions = [];
             const listItems = section.querySelectorAll('li');
@@ -54,7 +55,7 @@ async function check(client) {
             });
 
             if (regions.length > 0) {
-                currentFeatures[featureName] = regions;
+                currentFeatures[featureName] = { regions, id: featureId };
             }
         });
 
@@ -63,15 +64,15 @@ async function check(client) {
         for (const feature in currentFeatures) {
             if (!monitoredFeatures[feature]) {
                 // New feature
-                currentFeatures[feature].forEach(region => {
-                    notify(feature, region, client);
+                currentFeatures[feature].regions.forEach(region => {
+                    notify(feature, region, currentFeatures[feature].id, client);
                 });
                 hasChanges = true;
             } else {
                 // Existing feature, check for new regions
-                currentFeatures[feature].forEach(region => {
-                    if (!monitoredFeatures[feature].includes(region)) {
-                        notify(feature, region, client);
+                currentFeatures[feature].regions.forEach(region => {
+                    if (!monitoredFeatures[feature].regions.includes(region)) {
+                        notify(feature, region, currentFeatures[feature].id, client);
                         hasChanges = true;
                     }
                 });
@@ -92,16 +93,19 @@ async function check(client) {
  * Sends a notification to a Discord channel about a new feature.
  * @param {string} feature The name of the new feature.
  * @param {string} region The region where the feature is now available.
+ * @param {string} anchor The anchor ID for the feature on the page.
  * @param {Discord.Client} client The active Discord client instance.
  */
-function notify(feature, region, client) {
+function notify(feature, region, anchor, client) {
     console.log(`New Apple feature found: ${feature} in ${region}`);
     const channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
     if (channel) {
+        const url = `${APPLE_FEATURE_URL}#${anchor}`;
         const embed = new Discord.MessageEmbed();
         embed.setTitle(`🌟 ¡Nueva función de Apple disponible!`);
         embed.addField('Función', feature);
         embed.addField('Región/Idioma', region);
+        embed.addField('URL', url);
         embed.setColor('#0071E3');
         channel.send(embed);
     }
