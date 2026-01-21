@@ -2,7 +2,10 @@
  * @author Noël Vissers
  * @project Site Watcher
  * @version 1.0.0
- * 
+ *
+ * This bot monitors a list of websites for changes and sends a notification to a Discord channel when a change is detected.
+ * It is managed via Discord commands and runs on a configurable interval.
+ *
  * Invite link: https://discord.com/oauth2/authorize?client_id=123456789012345678&scope=bot&permissions=8
  * (replace 123456789012345678 with your client id from https://discord.com/developers/applications)
  * Start: npm start
@@ -25,6 +28,7 @@ const carrierMonitor = require('./carrier_monitor.js');
 
 
 const PREFIX = '!'; //Change this to anything you like as a prefix
+//This regex is used to parse command arguments. It splits on spaces, but treats text inside quotes as a single argument.
 var regexp = /[^\s"]+|"([^"]*)"/gi;
 const file = './src/sites.json';
 var sitesToMonitor = [];
@@ -36,14 +40,21 @@ var responses = [];
 
 const forcedSite = 'deadbeefdeadbeefdeadbeefdeadbeef';
 
-//Events when bot comes online
+/**
+ * This event is triggered when the bot successfully logs in and is ready to operate.
+ * It handles the initialization of the bot's state, including:
+ *  - Loading monitored sites, settings, and responses from JSON files.
+ *  - Initializing the carrier monitor.
+ *  - Starting the cron jobs for periodic checks.
+ */
 client.on('ready', () => {
   //Load saved sites
   var tempJson = fs.readJSONSync(file);
   console.log(tempJson);
   sitesToMonitor = [...tempJson];
 
-  // Initialize lastContent for existing sites if it's missing
+  // Initialize lastContent for existing sites if it's missing.
+  // This is a fallback to prevent errors if a site was added manually to the JSON file.
   for (let i = 0; i < sitesToMonitor.length; i++) {
     if (!sitesToMonitor[i].lastContent) {
       const url = sitesToMonitor[i].url;
@@ -117,11 +128,16 @@ client.on('ready', () => {
   console.log('Done!');
 })
 
+/**
+ * This event is triggered for every message sent in any channel the bot has access to.
+ * It's the main entry point for command handling.
+ */
 client.on('message', (message) => {
   //console.log('Start msg');
 
   //return;
 
+  // This section handles automatic replies based on configured triggers in a specific channel.
   if (!message.author.bot && process.env.DISCORDJS_APCHANNEL_ID === message.channel.id) {
       var ap_message = message.content.trim();
 
@@ -157,7 +173,8 @@ client.on('message', (message) => {
 
   // console.log('Not a response')
 
-  //Check if message starts with prefix and remove prefix from string
+  // This section handles administrative commands.
+  // It checks for the command prefix, and verifies that the message is from a non-bot user with the correct role in the admin channel.
   if (!message.content.startsWith(PREFIX) || message.author.bot || process.env.DISCORDJS_ADMINCHANNEL_ID !== message.channel.id || !message.member.roles.cache.has(process.env.DISCORDJS_ROLE_ID)) return;
   var args = [];
   console.log(`[${message.author.tag}]: ${message.content}`);
@@ -175,6 +192,7 @@ client.on('message', (message) => {
   //Make command uppercase so !help and !Help both work (including all other commands)
   const CMD_NAME = args.shift().toLowerCase();
 
+  // The switch statement directs the bot to the appropriate logic based on the command provided by the user.
   switch (CMD_NAME.toUpperCase()) {
     case "HELP":
       {
@@ -384,17 +402,29 @@ client.on('message', (message) => {
 
 
 
-//Update the sites
+/**
+ * Checks all monitored websites for changes.
+ * It fetches the content of each site, generates an MD5 hash of the content,
+ * and compares it with the previously stored hash. If the hashes differ,
+ * it generates a diff and sends a notification to the specified Discord channel.
+ *
+ * @param {Discord.Client} clientInstance The active Discord client instance.
+ * @param {Array<object>} sitesArray An array of site objects to monitor.
+ * @param {Discord.Channel} channelInstance The Discord channel to send notifications to.
+ * @param {string} file The path to the JSON file where site data is stored.
+ */
 async function update(clientInstance, sitesArray, channelInstance, file) {
   let channel = channelInstance;
   const changedSitesDetails = []; // To store details of all changed sites
 
   const checkPromises = sitesArray.map(async (site, index) => {
     try {
+      // Fetch the website's content
       const response = await got(site.url);
       const dom = new JSDOM(response.body);
       let content = '';
 
+      // Extract text content using the specified CSS selector, or from the <head> if no selector is provided.
       if (site.css) {
         const selector = dom.window.document.querySelector(site.css);
         content = selector ? selector.textContent : '';
@@ -402,12 +432,14 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
         content = dom.window.document.querySelector('head').textContent;
       }
 
+      // Generate an MD5 hash of the content for efficient change detection.
       const hash = crypto.createHash('md5').update(content).digest('hex');
 
+      // If the new hash is different from the old one, the site has changed.
       if (site.hash !== hash) {
         const oldContent = site.lastContent || ''; // Capture old content before updating, defaulting to empty string
         
-        // Update site data
+        // Update site data with the new hash and content
         site.lastChecked = new Date().toLocaleString();
         site.lastUpdated = new Date().toLocaleString();
         site.hash = hash;
@@ -435,10 +467,12 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
     }
   });
 
+  // If any sites have changed, send a single "changes detected" message.
   if (changedSitesDetails.length > 0) {
     channel.send("Detecté cambios"); // Send this once at the beginning of detected changes
   }
 
+  // Process and send a notification for each changed site.
   for (const { index, oldContent, newContent, dom } of changedSitesDetails) {
     console.log(`Change detected! ${sitesArray[index].url}`);
     console.log(newContent);
@@ -448,6 +482,7 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
       title = sitesArray[index].id;
     }
 
+    // Generate a line-by-line diff of the content.
     const changes = diff.diffLines(oldContent, newContent);
     let diffString = '';
     changes.forEach((part) => {
@@ -458,7 +493,8 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
       
       if (!part.value) return;
 
-      // Trim the last newline to avoid a dangling prefix, then add it back later.
+      // Prefix each line of the diff with an emoji to indicate the change type.
+      // This handles multiline parts correctly.
       const endsWithNewline = part.value.endsWith('\n');
       const valueToProcess = endsWithNewline ? part.value.slice(0, -1) : part.value;
 
@@ -471,10 +507,12 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
       }
     });
 
+    // Truncate the diff string if it's too long for a Discord message.
     if (diffString.length > 1900) {
       diffString = diffString.substring(0, 1900) + '\n... (truncated)';
     }
 
+    // Create and send an embed with details about the change.
     var embed = new Discord.MessageEmbed();
     embed.setTitle(`🔎 ¡Cambio en ${title}!  🐸`);
     embed.addField(`URL`, `${sitesArray[index].url}`);
@@ -482,10 +520,11 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
     embed.addField(`Actualizado`, `${sitesArray[index].lastUpdated}`, true);
     embed.setColor('0x6058f3');
     channel.send(embed);
+    // Send the formatted diff in a code block.
     channel.send(`\`\`\`diff\n${diffString}\n\`\`\``);
   }
 
-  // Save the new data in the file only once after all checks and updates
+  // Save the updated site data back to the JSON file.
   if (changedSitesDetails.length > 0) {
     fs.outputJSON(file, sitesArray, { spaces: 2 }, err => {
       if (err) console.log(err);
@@ -493,7 +532,7 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
   }
 }
 
-//Update on set interval
+// These cron jobs periodically trigger the update functions for websites and carriers.
 const cronUpdate = new CronJob(`0 */${settings.interval} * * * *`, function () {
   var time = new Date();
   console.log(`Cron executed at ${time.toLocaleString()}`);
@@ -504,6 +543,7 @@ const carrierCron = new CronJob(`0 */${settings.interval} * * * *`, function () 
   carrierMonitor.check(client);
 }, null, false);
 
+// This ensures the bot only logs in when the script is run directly, not when required as a module.
 if (require.main === module) {
   client.login(process.env.DISCORDJS_BOT_TOKEN);
 }

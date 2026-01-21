@@ -1,13 +1,21 @@
+/**
+ * This module is responsible for monitoring Apple's servers for updates to iOS Carrier Bundles.
+ * It periodically fetches a property list (plist) file from Apple, parses it, and checks
+ * for new versions of carrier settings for a predefined list of carriers.
+ * If an update is found, it sends a notification to a Discord channel.
+ */
 
 const got = require('got');
 const plist = require('plist');
 const fs = require('fs-extra');
 const Discord = require('discord.js');
 
+// The URL to Apple's property list file containing carrier bundle information.
 const anana = 'https://s.mzstatic.com/version';
 const file = './src/carriers.json';
 var carriersToMonitor = [];
 
+// The list of specific carrier bundles to monitor for updates.
 const carriers = [
     'EntelPCS_cl',
     'movistar_cl',
@@ -15,6 +23,12 @@ const carriers = [
     'Nextel_cl'
 ];
 
+/**
+ * Initializes the carrier monitor by loading the last known carrier data from a local JSON file.
+ * This data is used to compare against the fresh data fetched from Apple's servers.
+ * @param {Discord.Client} client The active Discord client instance.
+ * @param {boolean} debug A flag to enable or disable debug mode.
+ */
 async function initialize(client, debug = false) {
     try {
         carriersToMonitor = await fs.readJSON(file);
@@ -23,6 +37,12 @@ async function initialize(client, debug = false) {
     }
 }
 
+/**
+ * Fetches the latest carrier bundle data from Apple's servers,
+ * compares it against the locally stored versions, and triggers notifications for any changes.
+ * @param {Discord.Client} client The active Discord client instance.
+ * @param {boolean} debug A flag to enable or disable debug mode.
+ */
 async function check(client, debug = false) {
     console.log('Checking for new carrier bundles...');
     try {
@@ -35,6 +55,9 @@ async function check(client, debug = false) {
             if (bundles[carrier]) {
                 const carrierData = bundles[carrier];
                 const versions = Object.keys(carrierData).filter(k => k !== 'ByProductType');
+                
+                // Sort version numbers to correctly identify the latest version.
+                // This handles versions like "15.5" vs "15.4.1" correctly.
                 versions.sort((a, b) => {
                     const aParts = a.split('.').map(Number);
                     const bParts = b.split('.').map(Number);
@@ -54,6 +77,7 @@ async function check(client, debug = false) {
 
                 let existingCarrier = carriersToMonitor.find(c => c.id === carrier);
                 if (existingCarrier) {
+                    // If the carrier is already being monitored, check if the version or build has changed.
                     if (existingCarrier.version !== latestVersion || existingCarrier.build !== latestBuild) {
                         existingCarrier.version = latestVersion;
                         existingCarrier.build = latestBuild;
@@ -63,6 +87,7 @@ async function check(client, debug = false) {
                         changes = true;
                     }
                 } else {
+                    // If it's a new carrier (not in our local file yet), add it and notify.
                     const newCarrier = {
                         id: carrier,
                         version: latestVersion,
@@ -85,6 +110,11 @@ async function check(client, debug = false) {
     }
 }
 
+/**
+ * Sends a notification to a Discord channel about a new carrier bundle version.
+ * @param {object} carrier The carrier object containing details about the update.
+ * @param {Discord.Client} client The active Discord client instance.
+ */
 function notify(carrier, client) {
     console.log('New carrier bundle version found:');
     console.log(carrier);
