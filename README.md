@@ -206,6 +206,7 @@ When running:
 When off:   
 ![statusOff](./.github/pictures/statusOff.png)
 
+---
 
 ## Contribute
 Im currently not updating the bot with new features, however I'll try to fix bugs that are reported. If you'd like you can add new features or fix bugs by forking the repository and creating a pull request.   
