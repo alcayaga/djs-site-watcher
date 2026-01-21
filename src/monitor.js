@@ -405,7 +405,7 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
       const hash = crypto.createHash('md5').update(content).digest('hex');
 
       if (site.hash !== hash) {
-        const oldContent = site.lastContent; // Capture old content before updating
+        const oldContent = site.lastContent || ''; // Capture old content before updating, defaulting to empty string
         
         // Update site data
         site.lastChecked = new Date().toLocaleString();
