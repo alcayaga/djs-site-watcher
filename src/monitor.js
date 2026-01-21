@@ -448,14 +448,26 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
       title = sitesArray[index].id;
     }
 
-    const changes = diff.diffWords(oldContent, newContent);
+    const changes = diff.diffLines(oldContent, newContent);
     let diffString = '';
     changes.forEach((part) => {
-      if (part.added || part.removed) { // Only add if there's an actual change
-        const color = part.added ? '🟢' : '🔴';
-        diffString += color + part.value;
-      } else if (diffString.length < 1800) { // Add context if diff isn't too long
-        diffString += '⚪' + part.value;
+      const prefix = part.added ? '🟢' : part.removed ? '🔴' : '⚪';
+      if ((!part.added && !part.removed) && diffString.length >= 1800) {
+        return;
+      }
+      
+      if (!part.value) return;
+
+      // Trim the last newline to avoid a dangling prefix, then add it back later.
+      const endsWithNewline = part.value.endsWith('\n');
+      const valueToProcess = endsWithNewline ? part.value.slice(0, -1) : part.value;
+
+      const prefixedLines = valueToProcess.split('\n').map(line => prefix + line).join('\n');
+      
+      diffString += prefixedLines;
+
+      if (endsWithNewline) {
+        diffString += '\n';
       }
     });
 

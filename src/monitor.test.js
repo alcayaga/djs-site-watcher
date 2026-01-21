@@ -106,6 +106,7 @@ describe('Monitor Diff Functionality', () => {
     expect(sentEmbed.setTitle).toHaveBeenCalledWith(expect.stringContaining('🔎 ¡Cambio en Test Site!  🐸'));
     expect(sentEmbed.addField).toHaveBeenCalledWith('URL', 'http://test-site.com');
     expect(sentEmbed.setColor).toHaveBeenCalledWith('0x6058f3');
+    expect(sentEmbed.addField).not.toHaveBeenCalledWith('Cambios', expect.anything());
 
     // The third call should be the diff in a code block
     expect(mockChannel.send).toHaveBeenCalledWith(expect.stringContaining('```diff\n'));
@@ -122,5 +123,40 @@ describe('Monitor Diff Functionality', () => {
     // Expect channel.send not to have been called with "Detecté cambios" or diff
     expect(mockChannel.send).not.toHaveBeenCalledWith("Detecté cambios");
     expect(mockChannel.send).not.toHaveBeenCalledWith(expect.stringContaining('```diff\n'));
+  });
+
+  test('should format multiline diffs correctly', async () => {
+    const initialContent = 'line 1\nline 2\nline 3';
+    const updatedContent = 'line 1\nline two\nline 3';
+
+    // Override mock for this test
+    const crypto = require('crypto');
+    const mockUpdate = jest.fn(content => {
+      let hash;
+      if (content === initialContent) hash = 'hash-initial-multiline';
+      else if (content === updatedContent) hash = 'hash-updated-multiline';
+      else hash = 'mockedHash-default';
+      return { digest: () => hash };
+    });
+    crypto.createHash.mockReturnValue({ update: mockUpdate });
+
+    mockSitesToMonitor[0].lastContent = initialContent;
+    mockSitesToMonitor[0].hash = 'hash-initial-multiline';
+
+    require('got').mockResolvedValueOnce({ body: updatedContent });
+
+    await update(mockClient, mockSitesToMonitor, mockChannel, mockFile);
+
+    const expectedDiff = '```diff\n' +
+      '⚪line 1\n' +
+      '🔴line 2\n' +
+      '🟢line two\n' +
+      '⚪line 3\n```';
+      
+    // call[0] = "Detecté cambios"
+    // call[1] = embed
+    // call[2] = "Cambios"
+    // call[3] = diff
+    expect(mockChannel.send.mock.calls[2][0]).toBe(expectedDiff);
   });
 });
