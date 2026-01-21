@@ -19,6 +19,7 @@ const jsdom = require('jsdom');
 const { JSDOM } = jsdom;
 var crypto = require('crypto');
 const fs = require('fs-extra');
+const diff = require('diff');
 
 const carrierMonitor = require('./carrier_monitor.js');
 
@@ -42,6 +43,30 @@ client.on('ready', () => {
   console.log(tempJson);
   sitesToMonitor = [...tempJson];
 
+  // Initialize lastContent for existing sites if it's missing
+  for (let i = 0; i < sitesToMonitor.length; i++) {
+    if (!sitesToMonitor[i].lastContent) {
+      const url = sitesToMonitor[i].url;
+      const css = sitesToMonitor[i].css;
+      got(url).then(response => {
+        const dom = new JSDOM(response.body);
+        let content = '';
+        if (css) {
+          const selector = dom.window.document.querySelector(css);
+          content = selector ? selector.textContent : '';
+        } else {
+          content = dom.window.document.querySelector('head').textContent;
+        }
+        sitesToMonitor[i].lastContent = content;
+        fs.outputJSON(file, sitesToMonitor, { spaces: 2 }, err => {
+          if (err) console.log(err);
+        });
+      }).catch(err => {
+        console.log(`Error initializing lastContent for ${url}: ${err}`);
+      });
+    }
+  }
+
   //Load saved settings
   tempJson = fs.readJSONSync(settingsFile);
   console.log(tempJson);
@@ -61,7 +86,7 @@ client.on('ready', () => {
 
   if (settings.debug) {
     console.log('DEBUG MODE ENABLED');
-    update();
+    update(client, sitesToMonitor, client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID), file);
     carrierMonitor.check(client, true).then(() => {
       setTimeout(() => {
         process.exit();
@@ -181,20 +206,14 @@ client.on('message', (message) => {
           css: selector,
           lastChecked: 0,
           lastUpdated: 0,
-          hash: 0
+          hash: 0,
+          lastContent: '',
+
         };
 
         //Check if site is valid
-        //got(site.url).then(response => {
-        JSDOM.fromURL(site.url, {runScripts: "dangerously", resources: "usable",pretendToBeVisual: true }).then(dom => {
-          //const dom = new JSDOM(response.body, {runScripts: "dangerously", resources: "usable",pretendToBeVisual: true });
-          //const w = dom.window;
-
-          console.log('start');
-          var waitTill = new Date(new Date().getTime() + 10 * 1000);
-          while(waitTill > new Date()){}
-
-
+        got(site.url).then(response => {
+          const dom = new JSDOM(response.body);
 
           var warning = false;
 
@@ -203,7 +222,7 @@ client.on('message', (message) => {
             var selector = dom.window.document.querySelector(site.css);
 
             if (selector) {
-              var content = selector.textContent;  
+              var content = selector.textContent;
             }
             else {
               var content = '';
@@ -224,6 +243,7 @@ client.on('message', (message) => {
           site.lastChecked = time.toLocaleString();
           site.lastUpdated = time.toLocaleString();
           site.hash = hash;
+          site.lastContent = content; // Initialize lastContent
 
           //Add site to site array
           sitesToMonitor.push(site);
@@ -284,7 +304,7 @@ client.on('message', (message) => {
     case "UPDATE":
       {
         message.channel.send(`Updating \`${sitesToMonitor.length}\` site(s)...`);
-        update();
+        update(client, sitesToMonitor, message.channel, file);
         message.channel.send(`Done...`);
       } break;
     case "INTERVAL":
@@ -362,91 +382,98 @@ client.on('message', (message) => {
 
 
 //Update the sites
-function update() {
-  //console.log('Start Update');
+async function update(clientInstance, sitesArray, channelInstance, file) {
+  let channel = channelInstance;
+  const changedSitesDetails = []; // To store details of all changed sites
 
-  let channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
-
-  var firstChange = true;
-
-  for (let i = 0; i < sitesToMonitor.length; i++) {
-    const url = sitesToMonitor[i].url;
-    got(url).then(response => {
-      //Get content of site
+  const checkPromises = sitesArray.map(async (site, index) => {
+    try {
+      const response = await got(site.url);
       const dom = new JSDOM(response.body);
-      //console.log(dom.window.document.documentElement.outerHTML);
+      let content = '';
 
-      //If css is selected, only get that part
-      if (sitesToMonitor[i].css) {
-        var selector = dom.window.document.querySelector(sitesToMonitor[i].css);
+      if (site.css) {
+        const selector = dom.window.document.querySelector(site.css);
+        content = selector ? selector.textContent : '';
+      } else {
+        content = dom.window.document.querySelector('head').textContent;
+      }
 
-        if (selector) {
-          var content = selector.textContent;  
-        }
-        else
-        {
-          var content = '';
-        }
+      const hash = crypto.createHash('md5').update(content).digest('hex');
+
+      if (site.hash !== hash) {
+        const oldContent = site.lastContent; // Capture old content before updating
         
+        // Update site data
+        site.lastChecked = new Date().toLocaleString();
+        site.lastUpdated = new Date().toLocaleString();
+        site.hash = hash;
+        site.lastContent = content;
+
+        return { changed: true, index, oldContent, newContent: content, dom };
+      } else {
+        site.lastChecked = new Date().toLocaleString(); // Update last checked even if no change
+        return { changed: false };
       }
-      //If no css is selected get the whole head
-      else
-        var content = dom.window.document.querySelector('head').textContent;
-
-      //console.log(content);
-
-
-
-
-      //hash the content of the site, so only a short string is saved
-      var hash = crypto.createHash('md5').update(content).digest('hex');
-
-      //Update the time for when the last check was
-      var time = new Date();
-      sitesToMonitor[i].lastChecked = time.toLocaleString();
-
-      //Check if new has differs from last hash
-      if (sitesToMonitor[i].hash != hash) {
-        console.log(`Change detected! ${sitesToMonitor[i].url}`);
-        console.log(content);
-
-        var prevUpdate = sitesToMonitor[i].lastUpdated;
-        sitesToMonitor[i].lastUpdated = time.toLocaleString();
-        sitesToMonitor[i].hash = hash;
-
-        var title = dom.window.document.title;
-
-        if (title === "")
-        {
-          title = sitesToMonitor[i].id;
-        }
-
-        //Send update to Discord channel
-        if (firstChange)
-        {
-          firstChange = false;
-          channel.send("Detecté cambios");
-        }
-
-        var embed = new Discord.MessageEmbed();
-        embed.setTitle(`🔎 ¡Cambio en ${title}!  🐸`);
-        embed.addField(`URL`, `${sitesToMonitor[i].url}`);
-        //embed.addField(`CSS`, `\`${sitesToMonitor[i].css}\``);
-        embed.addField(`Último cambio`, `${prevUpdate}`, true);
-        embed.addField(`Actualizado`, `${sitesToMonitor[i].lastUpdated}`, true);
-        embed.setColor('0x6058f3');
-        channel.send(embed);
-
-        //Save the new data in the file
-        fs.outputJSON(file, sitesToMonitor, { spaces: 2 }, err => {
-          if (err) console.log(err);
-        });
+    } catch (err) {
+      if (site.hash !== forcedSite) {
+        console.log(`${site.url} : ${err}`);
       }
-    }).catch(err => {
-      if (sitesToMonitor[i].hash !== forcedSite)
-      {
-        return console.log(`${sitesToMonitor[i].url} : ${err}`);
+      return { changed: false }; // Return false on error
+    }
+  });
+
+  const results = await Promise.all(checkPromises);
+
+  // Filter out sites that actually changed
+  results.forEach(result => {
+    if (result.changed) {
+      changedSitesDetails.push(result);
+    }
+  });
+
+  if (changedSitesDetails.length > 0) {
+    channel.send("Detecté cambios"); // Send this once at the beginning of detected changes
+  }
+
+  for (const { index, oldContent, newContent, dom } of changedSitesDetails) {
+    console.log(`Change detected! ${sitesArray[index].url}`);
+    console.log(newContent);
+
+    var title = dom.window.document.title;
+    if (title === "") {
+      title = sitesArray[index].id;
+    }
+
+    const changes = diff.diffWords(oldContent, newContent);
+    let diffString = '';
+    changes.forEach((part) => {
+      if (part.added || part.removed) { // Only add if there's an actual change
+        const color = part.added ? '🟢' : '🔴';
+        diffString += color + part.value;
+      } else if (diffString.length < 1800) { // Add context if diff isn't too long
+        diffString += '⚪' + part.value;
       }
+    });
+
+    if (diffString.length > 1900) {
+      diffString = diffString.substring(0, 1900) + '\n... (truncated)';
+    }
+
+    var embed = new Discord.MessageEmbed();
+    embed.setTitle(`🔎 ¡Cambio en ${title}!  🐸`);
+    embed.addField(`URL`, `${sitesArray[index].url}`);
+    embed.addField(`Último cambio`, `${sitesArray[index].lastUpdated}`, true);
+    embed.addField(`Actualizado`, `${sitesArray[index].lastUpdated}`, true);
+    embed.setColor('0x6058f3');
+    channel.send(embed);
+    channel.send(`\`\`\`diff\n${diffString}\n\`\`\``);
+  }
+
+  // Save the new data in the file only once after all checks and updates
+  if (changedSitesDetails.length > 0) {
+    fs.outputJSON(file, sitesArray, { spaces: 2 }, err => {
+      if (err) console.log(err);
     });
   }
 }
@@ -455,11 +482,15 @@ function update() {
 const cronUpdate = new CronJob(`0 */${settings.interval} * * * *`, function () {
   var time = new Date();
   console.log(`Cron executed at ${time.toLocaleString()}`);
-  update();
+  update(client, sitesToMonitor, client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID), file);
 }, null, false);
 
 const carrierCron = new CronJob(`0 */${settings.interval} * * * *`, function () {
   carrierMonitor.check(client);
 }, null, false);
 
-client.login(process.env.DISCORDJS_BOT_TOKEN);
+if (require.main === module) {
+  client.login(process.env.DISCORDJS_BOT_TOKEN);
+}
+
+module.exports = { update };
