@@ -133,13 +133,11 @@ function notifyDiff(configName, diffString, client, url) {
     const channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
     if (channel) {
         const embed = new Discord.MessageEmbed();
-        embed.setTitle(`🔎 ¡Cambio en Apple Pay ${configName}!`);
+        embed.setTitle(`🔎 ¡Cambio en Apple Pay ${configName} for CL region!`);
         embed.addField(`URL`, `${url}`);
         embed.setColor('#0071E3');
         channel.send(embed);
-        channel.send(` 
-${diffString}
- `);
+        channel.send(`\`\`\`diff\n${diffString}\n\`\`\``);
     }
 }
 
@@ -156,7 +154,7 @@ function notifyNewMarketGeo(configName, geo, client, url) {
         const embed = new Discord.MessageEmbed();
         embed.setTitle(`🌟 ¡Nuevo MarketGeo de Apple Pay encontrado en ${configName}!`);
         embed.addField('Región', geo.Region, true);
-        embed.addField('Nombre Localizado', geo.LocalizedName, true);
+        embed.addField('Nombre Localizado', geo.LocalizedName.en, true);
         embed.addField('URL de MarketGeos', url);
         embed.setColor('#0071E3');
         channel.send(embed);
