@@ -1,3 +1,4 @@
+const { ApplePayMonitor } = require('./apple_pay_monitor');
 const fs = require('fs-extra');
 const got = require('got');
 const Discord = require('discord.js');
@@ -8,122 +9,146 @@ jest.mock('got');
 jest.mock('discord.js');
 jest.mock('crypto');
 
-const RESPONSES_FILE = './src/apple_pay_responses.json';
-
-describe('Apple Pay Monitor', () => {
+describe('ApplePayMonitor', () => {
+    let monitor;
     let mockClient;
     let mockChannel;
-    let applePayMonitor;
-    let fs;
-    let got;
-    let Discord;
-    let crypto;
 
     beforeEach(() => {
-        jest.resetModules(); // This is key to resetting state between tests
+        // Reset mocks before each test
+        fs.readJSON.mockReset();
+        fs.outputJSON.mockReset();
+        got.mockReset();
+        crypto.createHash.mockClear();
 
-        // Re-require modules to get fresh mocks
-        fs = require('fs-extra');
-        got = require('got');
-        Discord = require('discord.js');
-        crypto = require('crypto');
-        applePayMonitor = require('./apple_pay_monitor');
-
-        mockClient = new Discord.Client();
-        mockChannel = mockClient.channels.cache.get();
-
-        // Setup default mock implementations
-        fs.readJSON.mockResolvedValue({});
-        fs.outputJSON.mockResolvedValue();
-        got.mockResolvedValue({ body: {} });
+        // Setup mock for crypto
         crypto.createHash.mockReturnValue({
             update: jest.fn().mockReturnThis(),
             digest: jest.fn().mockReturnValue('mock-hash'),
         });
-        process.env.DISCORDJS_TEXTCHANNEL_ID = 'mock-channel-id';
-    });
 
-    afterEach(() => {
-        jest.clearAllMocks();
+        // Setup mock for Discord
+        mockChannel = { send: jest.fn() };
+        mockClient = {
+            channels: {
+                cache: {
+                    get: jest.fn().mockReturnValue(mockChannel),
+                },
+            },
+        };
+        process.env.DISCORDJS_TEXTCHANNEL_ID = 'mock-channel-id';
+
+        // Create a new instance of the monitor for each test
+        monitor = new ApplePayMonitor();
     });
 
     describe('initialize', () => {
-        it('should load existing data from file', async () => {
-            const mockData = { config: { hash: '123', data: 'test' } };
-            fs.readJSON.mockResolvedValue(mockData);
-            await applePayMonitor.initialize();
-            expect(fs.readJSON).toHaveBeenCalledWith(RESPONSES_FILE);
+        it('should load data from file if it exists', async () => {
+            const testData = { config: { hash: 'old-hash' } };
+            fs.readJSON.mockResolvedValue(testData);
+
+            await monitor.initialize();
+
+            expect(fs.readJSON).toHaveBeenCalledWith('./src/apple_pay_responses.json');
+            expect(monitor.monitoredData).toEqual(testData);
         });
 
-        it('should handle error when reading file', async () => {
+        it('should start with empty data if file does not exist', async () => {
             fs.readJSON.mockRejectedValue(new Error('File not found'));
             const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-            await applePayMonitor.initialize();
-            expect(consoleLogSpy).toHaveBeenCalledWith(`Cannot read ${RESPONSES_FILE}, starting fresh.`);
+
+            await monitor.initialize();
+
+            expect(monitor.monitoredData).toEqual({});
+            expect(consoleLogSpy).toHaveBeenCalledWith('Cannot read ./src/apple_pay_responses.json, starting fresh.');
             consoleLogSpy.mockRestore();
         });
     });
 
     describe('check', () => {
         const mockConfigData = {
-            SupportedRegions: {
-                CL: {
-                    someKey: 'someValue',
-                    anotherKey: 'anotherValue',
-                },
-            },
+            SupportedRegions: { CL: { someKey: 'someValue' } },
             MarketGeosURL: 'https://example.com/marketgeos.json',
         };
+        const mockMarketGeosData = { MarketGeos: [] };
 
-        const mockMarketGeosData = {
-            MarketGeos: [
-                { Region: 'CL', identifier: 'geo1' },
-                { Region: 'US', identifier: 'geo2' },
-            ],
-        };
-
-        const generateHash = (data) => {
-            return crypto.createHash('md5').update(JSON.stringify(data, null, 2)).digest('hex');
-        };
-
-        it('should not detect changes or send notifications if data is unchanged', async () => {
-            // Mock initial state from file system
-            const initialMonitoredData = {
-                config: {
-                    hash: generateHash(mockConfigData.SupportedRegions.CL),
-                    data: JSON.stringify(mockConfigData.SupportedRegions.CL),
-                    marketgeos: {
-                        url: mockConfigData.MarketGeosURL,
-                        identifiers: mockMarketGeosData.MarketGeos.filter(geo => geo.Region === 'CL').map(geo => geo.identifier),
-                    },
-                },
-                'config-alt': {
-                    hash: generateHash(mockConfigData.SupportedRegions.CL),
-                    data: JSON.stringify(mockConfigData.SupportedRegions.CL),
-                    marketgeos: {
-                        url: mockConfigData.MarketGeosURL,
-                        identifiers: mockMarketGeosData.MarketGeos.filter(geo => geo.Region === 'CL').map(geo => geo.identifier),
-                    },
-                },
-            };
-            fs.readJSON.mockResolvedValueOnce(initialMonitoredData);
-            await applePayMonitor.initialize();
-
-            // Mock got responses to return the same data
+        beforeEach(() => {
+            // Setup default 'got' mock for check tests
             got.mockImplementation((url) => {
-                if (url === 'https://smp-device-content.apple.com/static/region/v2/config.json' || url === 'https://smp-device-content.apple.com/static/region/v2/config-alt.json') {
-                    return { body: mockConfigData };
+                if (url.includes('marketgeos')) {
+                    return Promise.resolve({ body: mockMarketGeosData });
                 }
-                if (url === 'https://example.com/marketgeos.json') {
-                    return { body: mockMarketGeosData };
-                }
-                throw new Error(`Unexpected URL for got.get: ${url}`);
+                return Promise.resolve({ body: mockConfigData });
             });
+        });
 
-            await applePayMonitor.check(mockClient);
+        it('should detect and notify on SupportedRegions change', async () => {
+            // 1. Setup initial state
+            monitor.monitoredData = {
+                config: { hash: 'old-hash', data: '{}' },
+                'config-alt': { hash: 'old-hash', data: '{}' },
+            };
 
-            expect(got).toHaveBeenCalledTimes(4); // 2 config URLs + 2 marketGeos URLs
-            expect(mockChannel.send).not.toHaveBeenCalled();
+            // 2. Mock notifyDiff to spy on it directly
+            const notifySpy = jest.spyOn(monitor, 'notifyDiff').mockImplementation();
+
+            // 3. Run check
+            await monitor.check(mockClient);
+
+            // 4. Assert
+            expect(notifySpy).toHaveBeenCalledTimes(2);
+            expect(fs.outputJSON).toHaveBeenCalledTimes(1);
+            expect(monitor.monitoredData.config.hash).toBe('mock-hash');
+        });
+
+        it('should detect and notify on new MarketGeo', async () => {
+            // 1. Setup initial state
+            monitor.monitoredData = {
+                config: { hash: 'mock-hash', marketgeos: { identifiers: [] } },
+                'config-alt': { hash: 'mock-hash', marketgeos: { identifiers: [] } },
+            };
+
+            // 2. Mock 'got' to return new market geo data
+            const newMarketGeosData = {
+                MarketGeos: [{ Region: 'CL', identifier: 'new-geo', LocalizedName: { en: 'New Geo' } }],
+            };
+            got.mockImplementation((url) => {
+                if (url.includes('marketgeos')) {
+                    return Promise.resolve({ body: newMarketGeosData });
+                }
+                return Promise.resolve({ body: mockConfigData });
+            });
+            
+            // 3. Mock notifyNewMarketGeo to spy on it
+            const notifySpy = jest.spyOn(monitor, 'notifyNewMarketGeo').mockImplementation();
+
+            // 4. Run check
+            await monitor.check(mockClient);
+
+            // 5. Assert
+            expect(notifySpy).toHaveBeenCalledTimes(2);
+            expect(notifySpy).toHaveBeenCalledWith('config', expect.any(Object), mockClient, mockConfigData.MarketGeosURL);
+            expect(fs.outputJSON).toHaveBeenCalledTimes(1);
+            expect(monitor.monitoredData.config.marketgeos.identifiers).toEqual(['new-geo']);
+        });
+
+        it('should not notify if there are no changes', async () => {
+            // 1. Setup initial state to match the mock response
+            monitor.monitoredData = {
+                config: { hash: 'mock-hash', marketgeos: { identifiers: [] } },
+                'config-alt': { hash: 'mock-hash', marketgeos: { identifiers: [] } },
+            };
+
+            // 2. Spy on notification methods
+            const notifyDiffSpy = jest.spyOn(monitor, 'notifyDiff');
+            const notifyNewMarketGeoSpy = jest.spyOn(monitor, 'notifyNewMarketGeo');
+
+            // 3. Run check
+            await monitor.check(mockClient);
+
+            // 4. Assert
+            expect(notifyDiffSpy).not.toHaveBeenCalled();
+            expect(notifyNewMarketGeoSpy).not.toHaveBeenCalled();
             expect(fs.outputJSON).not.toHaveBeenCalled();
         });
     });
