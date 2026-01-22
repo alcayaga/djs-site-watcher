@@ -1,0 +1,18 @@
+{
+  "config": {
+    "hash": "033b29a9d79d5ed0732f78c23e8cc765",
+    "data": "{\"TapToProvisionEnabled\":true,\"TapToProvisionFirstProvisioningEnabled\":true,\"BuddyManualProvisioningEnabled\":true,\"BuddyProvisioningEnabled\":true,\"ManualProvisioningEnabled\":true,\"serverURL\":\"https://smp-device.apple.com/broker\",\"ServerControlledProvisioningEnabled\":true,\"CameraFirstProvisioningEnabled\":true,\"PaymentSetupFeaturedNetworks\":[3,4],\"PaymentSetupFeaturedNetworksV3\":[\"MasterCard\",\"Visa\"],\"PaymentSetupImageManifestURLV3\":\"https://smp-device-content.apple.com/static/hero/v3/heroManifest_V3-3d11e8fa-170c-44aa-b51a-7d1b25561f97.json\",\"FindWithoutNumberEnabled\":false,\"SupportsV3\":true,\"PaymentServicesURL\":\"https://smp-paymentservices.apple.com/paymentservices\",\"PaymentServicesMerchantURL\":\"https://apple-pay-gateway.apple.com/paymentservices\"}",
+    "marketgeos": {
+      "url": "",
+      "identifiers": []
+    }
+  },
+  "config-alt": {
+    "hash": "033b29a9d79d5ed0732f78c23e8cc765",
+    "data": "{\"TapToProvisionEnabled\":true,\"TapToProvisionFirstProvisioningEnabled\":true,\"BuddyManualProvisioningEnabled\":true,\"BuddyProvisioningEnabled\":true,\"ManualProvisioningEnabled\":true,\"serverURL\":\"https://smp-device.apple.com/broker\",\"ServerControlledProvisioningEnabled\":true,\"CameraFirstProvisioningEnabled\":true,\"PaymentSetupFeaturedNetworks\":[3,4],\"PaymentSetupFeaturedNetworksV3\":[\"MasterCard\",\"Visa\"],\"PaymentSetupImageManifestURLV3\":\"https://smp-device-content.apple.com/static/hero/v3/heroManifest_V3-3d11e8fa-170c-44aa-b51a-7d1b25561f97.json\",\"FindWithoutNumberEnabled\":false,\"SupportsV3\":true,\"PaymentServicesURL\":\"https://smp-paymentservices.apple.com/paymentservices\",\"PaymentServicesMerchantURL\":\"https://apple-pay-gateway.apple.com/paymentservices\"}",
+    "marketgeos": {
+      "url": "",
+      "identifiers": []
+    }
+  }
+}
