@@ -1,0 +1,11 @@
+[
+    {
+        "id": "www.apple.com",
+        "url": "https://www.apple.com/cl/apple-pay/banks/cl/es-cl.html",
+        "css": "#banks",
+        "lastChecked": "1/21/2026, 12:00:01 PM",
+        "lastUpdated": "1/20/2026, 7:15:34 PM",
+        "hash": "621b778c8e41315dbe95618c86d054bc",
+        "lastContent": "\n        Banco Bice\n        Banco de Chile\n        Banco de Crédito e Inversiones\n        Banco Internacional\n        Banco Ripley\n        Banco Security\n        Cencosud\n        Coopeuch\n        Falabella (Mastercard)\n        Itaú\n        Pomelo CardsSample\n        Prex\n        Santander\n        Scotiabank\n\t"
+    }
+]

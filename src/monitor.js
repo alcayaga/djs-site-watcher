@@ -49,10 +49,17 @@ const forcedSite = 'deadbeefdeadbeefdeadbeefdeadbeef';
  *  - Starting the cron jobs for periodic checks.
  */
 client.on('ready', () => {
-  //Load saved sites
-  var tempJson = fs.readJSONSync(file);
-  console.log(tempJson);
-  sitesToMonitor = [...tempJson];
+  try {
+    // Attempt to load saved sites
+    const tempJson = fs.readJSONSync(file);
+    console.log(tempJson);
+    sitesToMonitor = [...tempJson];
+  } catch (err) {
+      // If file doesn't exist or is invalid, start fresh and create it
+      console.log(`Could not read ${file}, creating a new one.`);
+      sitesToMonitor = [];
+  }
+
 
   // Initialize lastContent for existing sites if it's missing.
   // This is a fallback to prevent errors if a site was added manually to the JSON file.
@@ -79,15 +86,25 @@ client.on('ready', () => {
     }
   }
 
-  //Load saved settings
-  tempJson = fs.readJSONSync(settingsFile);
-  console.log(tempJson);
-  settings = tempJson;
+  try {
+    // Load saved settings
+    const tempJson = fs.readJSONSync(settingsFile);
+    console.log(tempJson);
+    settings = tempJson;
+  } catch (err) {
+      console.log(`Could not read ${settingsFile}.`);
+  }
 
-  // Load responses
-  tempJson = fs.readJSONSync(responsesFile);
-  console.log(tempJson);
-  responses = tempJson;
+  try {
+      // Load responses
+      const tempJson = fs.readJSONSync(responsesFile);
+      //console.log(tempJson);
+      responses = tempJson;
+  } catch (err) {
+      console.log(`Could not read ${responsesFile}.`);
+      responses = [];
+
+  }
 
   for (var i = 0; i < responses.length; i++) {
     responses[i].trigger_regex = new RegExp(responses[i].trigger, 'i');
