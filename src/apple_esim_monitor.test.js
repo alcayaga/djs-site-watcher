@@ -101,7 +101,7 @@ describe('Apple eSIM Monitor', () => {
      * Tests for the check function.
      */
     describe('check', () => {
-        test('should detect new carriers and capabilities, then notify', async () => {
+        test('should detect new carriers and capabilities for Chile, then notify', async () => {
             fs.readJSON.mockResolvedValue({}); // No data monitored initially
             await initialize();
             await check(mockClient);
@@ -116,14 +116,16 @@ describe('Apple eSIM Monitor', () => {
 
             const quickTransfer = movistarEmbeds.find(e => e.fields.some(f => f.value === 'Wireless carriers that support eSIM Quick Transfer'));
             expect(quickTransfer).toBeDefined();
+            expect(quickTransfer.fields).toContainEqual({ name: 'Capacidad', value: 'Wireless carriers that support eSIM Quick Transfer' });
             
             const otherMethods = movistarEmbeds.find(e => e.fields.some(f => f.value === 'Wireless carriers that support other eSIM activation methods'));
             expect(otherMethods).toBeDefined();
+            expect(otherMethods.fields).toContainEqual({ name: 'Capacidad', value: 'Wireless carriers that support other eSIM activation methods' });
         });
 
-        test('should detect removed carriers and notify', async () => {
+        test('should detect removed carriers for Chile and notify', async () => {
             const initialESIMData = {
-                Chile: [
+                'Chile': [
                     { name: 'CarrierToRemove', link: 'some-link', capability: 'Some Capability' },
                 ]
             };
@@ -137,11 +139,11 @@ describe('Apple eSIM Monitor', () => {
 
             const sentEmbeds = mockChannel.send.mock.calls.map(call => call[0]);
 
-            const removedEmbed = sentEmbeds.find(embed => embed.title.includes('Removed'));
+            const removedEmbed = sentEmbeds.find(embed => embed.title.includes('eliminado'));
             expect(removedEmbed).toBeDefined();
-            expect(removedEmbed.fields).toContainEqual({ name: 'Carrier', value: '[CarrierToRemove](some-link)' });
+            expect(removedEmbed.fields).toContainEqual({ name: 'Operador', value: '[CarrierToRemove](some-link)' });
 
-            const addedEmbeds = sentEmbeds.filter(embed => embed.title.includes('Added'));
+            const addedEmbeds = sentEmbeds.filter(embed => embed.title.includes('agregado'));
             expect(addedEmbeds.length).toBe(5);
         });
 

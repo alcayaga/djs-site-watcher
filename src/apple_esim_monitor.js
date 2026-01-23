@@ -135,9 +135,9 @@ function notify(country, carrier, client, type = 'added') {
     const channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
     if (channel) {
         const embed = new Discord.MessageEmbed();
-        embed.setTitle(`📱 eSIM Carrier ${type === 'added' ? 'Added' : 'Removed'} in ${country}!`);
-        embed.addField('Carrier', `[${carrier.name}](${carrier.link})`);
-        embed.addField('Capability', carrier.capability);
+        embed.setTitle(`📱 ¡Operador de eSIM ${type === 'added' ? 'agregado' : 'eliminado'} en ${country}!`);
+        embed.addField('Operador', `[${carrier.name}](${carrier.link})`);
+        embed.addField('Capacidad', carrier.capability);
         embed.setColor(type === 'added' ? '#4CAF50' : '#F44336'); // Green for added, Red for removed
         channel.send(embed);
     }
