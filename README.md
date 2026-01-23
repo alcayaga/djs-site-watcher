@@ -36,6 +36,7 @@ List of features of the site-watcher bot:
 - Show list of tracked sites
 - Monitor Apple Carrier Bundles
 - Monitor Apple Pay Configurations
+- Monitor Apple eSIM Carrier Support
 - Open source!
 
 ## Install
@@ -222,6 +223,19 @@ Manage the carrier monitor.
 
 **Example**
 `!carrier status`
+
+---
+
+### `!esim <status|start|stop>`
+Manage the eSIM monitor.
+
+**Parameters**
+`status` Show the status of the eSIM monitor.
+`start` Start the eSIM monitor.
+`stop` Stop the eSIM monitor.
+
+**Example**
+`!esim status`
 
 
 ## License
