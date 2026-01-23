@@ -1,6 +1,7 @@
 /**
- * This module is responsible for monitoring Apple's feature availability page
+ * @fileoverview This module is responsible for monitoring Apple's feature availability page
  * for new features in specific regions.
+ * @module apple_feature_monitor
  */
 
 const got = require('got');
@@ -14,6 +15,8 @@ let monitoredFeatures = {};
 
 /**
  * Initializes the monitor by loading the last known features from a local JSON file.
+ * If the file does not exist, it starts with an empty list of features.
+ * @async
  */
 async function initialize() {
     try {
@@ -28,6 +31,7 @@ async function initialize() {
  * Fetches the latest feature data from Apple's page,
  * compares it against the stored data, and triggers notifications on changes.
  * @param {Discord.Client} client The active Discord client instance.
+ * @async
  */
 async function check(client) {
     console.log('Checking for new Apple features...');

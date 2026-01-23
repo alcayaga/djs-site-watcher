@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Tests for the Apple Feature Monitor module.
+ * @jest-environment node
+ */
+
 const mockHtml = `
 <html>
 <body>
@@ -29,6 +34,9 @@ jest.mock('fs-extra');
 jest.mock('got');
 jest.mock('discord.js');
 
+/**
+ * Test suite for the Apple Feature Monitor.
+ */
 describe('Apple Feature Monitor', () => {
     let mockClient;
     let mockChannel;
@@ -54,7 +62,13 @@ describe('Apple Feature Monitor', () => {
         process.env.DISCORDJS_TEXTCHANNEL_ID = 'mock-channel-id';
     });
 
+    /**
+     * Tests for the check function.
+     */
     describe('check', () => {
+        /**
+         * Test case to verify that a new feature is detected and a notification is sent.
+         */
         test('should detect a new feature and notify', async () => {
             fs.readJSON.mockResolvedValue({}); // No features monitored initially
             await initialize();
@@ -80,6 +94,9 @@ describe('Apple Feature Monitor', () => {
             expect(thirdCall.addField).toHaveBeenCalledWith('URL', 'https://www.apple.com/ios/feature-availability/#feature-3-scl');
         });
 
+        /**
+         * Test case to verify that a new region for an existing feature is detected and a notification is sent.
+         */
         test('should detect a new region for an existing feature and notify', async () => {
             const initialFeatures = {
                 'Feature 1': { regions: ['Some other region'], id: 'feature-1' }
@@ -98,6 +115,9 @@ describe('Apple Feature Monitor', () => {
             expect(firstCall.addField).toHaveBeenCalledWith('URL', 'https://www.apple.com/ios/feature-availability/#feature-1');
         });
 
+        /**
+         * Test case to verify that no notification is sent if no changes are detected.
+         */
         test('should not notify if no changes are detected', async () => {
             const initialFeatures = {
                 'Feature 1': { regions: ['Spanish (Chile)'], id: 'feature-1' },
@@ -113,6 +133,9 @@ describe('Apple Feature Monitor', () => {
             expect(fs.outputJSON).not.toHaveBeenCalled();
         });
 
+        /**
+         * Test case to verify that an error is handled when fetching feature data.
+         */
         test('should handle error when fetching feature data', async () => {
             got.mockRejectedValue(new Error('Fetch error'));
             const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -124,6 +147,9 @@ describe('Apple Feature Monitor', () => {
             consoleErrorSpy.mockRestore();
         });
 
+        /**
+         * Test case to verify that the old data structure is handled gracefully.
+         */
         test('should handle old data structure gracefully', async () => {
             const oldDataStructure = {
                 'Feature 1': ['Spanish (Chile)'], // Old array format
