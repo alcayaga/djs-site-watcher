@@ -35,6 +35,7 @@ List of features of the site-watcher bot:
 - Manually update tracked sites
 - Show list of tracked sites
 - Monitor Apple Carrier Bundles
+- Monitor Apple Pay Configurations
 - Open source!
 
 ## Install
