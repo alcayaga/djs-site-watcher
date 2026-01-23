@@ -141,6 +141,7 @@ client.on('ready', () => {
   }
   
   cronUpdate.start();
+  carrierCron.start();
   appleFeatureCron.start();
   applePayCron.start();
 
