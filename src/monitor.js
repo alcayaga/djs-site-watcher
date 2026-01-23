@@ -26,6 +26,7 @@ const diff = require('diff');
 
 const carrierMonitor = require('./carrier_monitor.js');
 const appleFeatureMonitor = require('./apple_feature_monitor.js');
+const applePayMonitor = require('./apple_pay_monitor.js');
 
 
 const PREFIX = '!'; //Change this to anything you like as a prefix
@@ -113,6 +114,7 @@ client.on('ready', () => {
   //Initialize carrier monitor
   carrierMonitor.initialize(client, settings.debug);
   appleFeatureMonitor.initialize();
+  applePayMonitor.initialize();
 
   if (settings.debug) {
     console.log('DEBUG MODE ENABLED');
@@ -130,15 +132,18 @@ client.on('ready', () => {
     cronUpdate.setTime(new CronTime(`0 */${settings.interval} * * * *`));
     carrierCron.setTime(new CronTime(`0 */${settings.interval} * * * *`));
     appleFeatureCron.setTime(new CronTime(`0 */${settings.interval} * * * *`));
+    applePayCron.setTime(new CronTime(`0 */${settings.interval} * * * *`));
   } else {
     cronUpdate.setTime(new CronTime(`0 0 * * * *`));
     carrierCron.setTime(new CronTime(`0 0 * * * *`));
     appleFeatureCron.setTime(new CronTime(`0 0 * * * *`));
+    applePayCron.setTime(new CronTime(`0 0 * * * *`));
   }
   
   cronUpdate.start();
   carrierCron.start();
   appleFeatureCron.start();
+  applePayCron.start();
 
   console.log(`[${client.user.tag}] Ready...\n[${client.user.tag}] Running an interval of ${settings.interval} minute(s).`);
 
@@ -370,12 +375,15 @@ client.on('message', (message) => {
         if (Math.round(args[0]) < 60) {
           carrierCron.setTime(new CronTime(`0 */${Math.round(args[0])} * * * *`));
           appleFeatureCron.setTime(new CronTime(`0 */${Math.round(args[0])} * * * *`));
+          applePayCron.setTime(new CronTime(`0 */${Math.round(args[0])} * * * *`));
         } else {
           carrierCron.setTime(new CronTime(`0 0 * * * *`));
           appleFeatureCron.setTime(new CronTime(`0 0 * * * *`));
+          applePayCron.setTime(new CronTime(`0 0 * * * *`));
         }
         carrierCron.start();
         appleFeatureCron.start();
+        applePayCron.start();
       } break;
     case "START":
       {
@@ -570,6 +578,10 @@ const carrierCron = new CronJob(`0 */${settings.interval} * * * *`, function () 
 
 const appleFeatureCron = new CronJob(`0 */${settings.interval} * * * *`, function () {
     appleFeatureMonitor.check(client);
+}, null, false);
+
+const applePayCron = new CronJob(`0 */${settings.interval} * * * *`, function () {
+    applePayMonitor.check(client);
 }, null, false);
 
 // This ensures the bot only logs in when the script is run directly, not when required as a module.
