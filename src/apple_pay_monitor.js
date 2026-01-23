@@ -6,14 +6,22 @@ const diff = require('diff');
 
 const RESPONSES_FILE = './src/apple_pay_responses.json';
 
+/**
+ * Monitors Apple's Pay configuration files for changes, specifically for the 'CL' region.
+ * This class encapsulates the logic for fetching, comparing, and reporting changes.
+ */
 class ApplePayMonitor {
     constructor() {
         this.monitoredData = {};
         this.CONFIG_URL = 'https://smp-device-content.apple.com/static/region/v2/config.json';
-        //this.CONFIG_ALT_URL = 'https://smp-device-content.apple.com/static/region/v2/config-alt.json';
-        this.CONFIG_ALT_URL = 'https://test.alcayaga.net/config.json';
+        this.CONFIG_ALT_URL = 'https://smp-device-content.apple.com/static/region/v2/config-alt.json';
+        //this.CONFIG_ALT_URL = 'https://test.alcayaga.net/config.json';
     }
 
+    /**
+     * Loads the last known response data from a local JSON file into memory.
+     * This allows the monitor to have a state to compare against on the next run.
+     */
     async initialize() {
         try {
             this.monitoredData = await fs.readJSON(RESPONSES_FILE);
@@ -23,6 +31,13 @@ class ApplePayMonitor {
         }
     }
 
+    /**
+     * Fetches the latest configuration data and compares it against the stored data.
+     * It checks for two main types of changes:
+     * 1. Changes to the 'SupportedRegions' object for 'CL'.
+     * 2. New entries in the 'MarketGeos' for 'CL'.
+     * @param {Discord.Client} client The active Discord client instance for sending notifications.
+     */
     async check(client) {
         console.log('Checking for new Apple Pay configurations...');
         let hasChanges = false;
@@ -32,6 +47,7 @@ class ApplePayMonitor {
                 const response = await got(url, { responseType: 'json' });
                 const data = response.body;
 
+                // 1. Check for changes in the 'CL' SupportedRegions object.
                 const clRegionData = data.SupportedRegions ? data.SupportedRegions['CL'] : undefined;
                 if (clRegionData) {
                     const clRegionDataString = JSON.stringify(clRegionData, null, 2);
@@ -43,10 +59,13 @@ class ApplePayMonitor {
 
                     if (this.monitoredData[key].hash !== currentHash) {
                         console.log(`Change detected in ${key} SupportedRegions['CL']`);
+                        // Only notify if we have a previous hash to compare against (i.e., not the first run).
                         if (this.monitoredData[key].hash) {
                             const oldData = this.monitoredData[key].data || '{}';
                             const oldJsonString = JSON.stringify(JSON.parse(oldData), null, 2);
                             const newJsonString = JSON.stringify(clRegionData, null, 2);
+                            // Use diffLines for a clean, readable, line-by-line text diff,
+                            // which is better for visual representation in Discord than a structural diff.
                             const changes = diff.diffLines(oldJsonString, newJsonString);
 
                             let diffString = '';
@@ -69,6 +88,7 @@ class ApplePayMonitor {
                     }
                 }
 
+                // 2. Check for new MarketGeos in the 'CL' region.
                 const marketGeosURL = data.MarketGeosURL;
                 if (marketGeosURL) {
                     if (!this.monitoredData[key].marketgeos) {
@@ -101,11 +121,15 @@ class ApplePayMonitor {
 
         await processConfigFile(this.CONFIG_URL, 'config');
         await processConfigFile(this.CONFIG_ALT_URL, 'config-alt');
+        // Persist changes to disk if any were found.
         if (hasChanges) {
             await fs.outputJSON(RESPONSES_FILE, this.monitoredData, { spaces: 2 });
         }
     }
 
+    /**
+     * Sends a notification about a change in the SupportedRegions data.
+     */
     notifyDiff(configName, diffString, client, url) {
         const channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
         if (channel) {
@@ -118,6 +142,9 @@ class ApplePayMonitor {
         }
     }
 
+    /**
+     * Sends a notification about a newly found MarketGeo.
+     */
     notifyNewMarketGeo(configName, geo, client, url) {
         const channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
         if (channel) {
