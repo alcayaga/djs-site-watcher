@@ -83,22 +83,55 @@ describe('ApplePayMonitor', () => {
         });
 
         it('should detect and notify on SupportedRegions change', async () => {
-            // 1. Setup initial state
+            // 1. Setup initial state with old data
+            const oldCLRegionData = { someKey: 'oldValue' };
             monitor.monitoredData = {
-                config: { hash: 'old-hash', data: '{}' },
-                'config-alt': { hash: 'old-hash', data: '{}' },
+                config: { hash: 'old-hash', data: JSON.stringify(oldCLRegionData) },
+                'config-alt': { hash: 'old-hash', data: JSON.stringify(oldCLRegionData) },
             };
 
-            // 2. Mock notifyDiff to spy on it directly
-            const notifySpy = jest.spyOn(monitor, 'notifyDiff').mockImplementation();
+            // 2. Define new data that will be returned by the mocked 'got' call
+            const newCLRegionData = { someKey: 'newValue', newKey: 'a new key' };
+            const newMockConfigData = {
+                SupportedRegions: { CL: newCLRegionData },
+                MarketGeosURL: 'https://example.com/marketgeos.json',
+            };
+            const oldMockConfigData = {
+                SupportedRegions: { CL: oldCLRegionData },
+                MarketGeosURL: 'https://example.com/marketgeos.json',
+            };
+            got.mockImplementation((url) => {
+                if (url === monitor.CONFIG_URL) {
+                    return Promise.resolve({ body: newMockConfigData });
+                }
+                if (url === monitor.CONFIG_ALT_URL) {
+                    return Promise.resolve({ body: oldMockConfigData });
+                }
+                if (url.includes('marketgeos')) {
+                    return Promise.resolve({ body: mockMarketGeosData });
+                }
+                return Promise.reject(new Error(`Unexpected URL in got mock: ${url}`));
+            });
+            
+            // 3. Spy on notifyDiff to ensure it's called
+            const notifySpy = jest.spyOn(monitor, 'notifyDiff');
 
-            // 3. Run check
+            // 4. Run check
             await monitor.check(mockClient);
 
-            // 4. Assert
-            expect(notifySpy).toHaveBeenCalledTimes(2);
+            // 5. Assert
+            // One notification for the changed 'config', one for 'config-alt' (which also changes as its hash is different)
+            expect(notifySpy).toHaveBeenCalledTimes(2); 
+            expect(mockChannel.send).toHaveBeenCalledTimes(4);
+
+            // Check that the diff string for the first change is correct
+            const firstDiffString = mockChannel.send.mock.calls[1][0];
+            expect(firstDiffString).toMatch(/```diff\n/);
+            expect(firstDiffString).toContain('-   "someKey": "oldValue"');
+            expect(firstDiffString).toContain('+   "someKey": "newValue"');
+            expect(firstDiffString).toContain('+   "newKey": "a new key"');
+            
             expect(fs.outputJSON).toHaveBeenCalledTimes(1);
-            expect(monitor.monitoredData.config.hash).toBe('mock-hash');
         });
 
         it('should detect and notify on new MarketGeo', async () => {
