@@ -134,7 +134,7 @@ class ApplePayMonitor {
         const channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
         if (channel) {
             const embed = new Discord.MessageEmbed();
-            embed.setTitle(`🔎 ¡Cambio en Apple Pay ${configName} for CL region!`);
+            embed.setTitle(`🔎 ¡Cambio en la configuración de Apple Pay ${configName} para Chile!`);
             embed.addField(`URL`, `${url}`);
             embed.setColor('#0071E3');
             channel.send(embed);
@@ -149,10 +149,10 @@ class ApplePayMonitor {
         const channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
         if (channel) {
             const embed = new Discord.MessageEmbed();
-            embed.setTitle(`🌟 ¡Nuevo MarketGeo de Apple Pay encontrado en ${configName}!`);
+            embed.setTitle(`🌟 ¡Nueva región en Transit para Apple Pay en ${configName}!`);
             embed.addField('Región', geo.Region, true);
-            embed.addField('Nombre Localizado', geo.LocalizedName.en, true);
-            embed.addField('URL de MarketGeos', url);
+            embed.addField('Nombre', geo.LocalizedName.en, true);
+            embed.addField('URL', url);
             embed.setColor('#0071E3');
             channel.send(embed);
         }
