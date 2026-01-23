@@ -27,6 +27,7 @@ const diff = require('diff');
 const carrierMonitor = require('./carrier_monitor.js');
 const appleFeatureMonitor = require('./apple_feature_monitor.js');
 const applePayMonitor = require('./apple_pay_monitor.js');
+const appleEsimMonitor = require('./apple_esim_monitor.js');
 
 
 const PREFIX = '!'; //Change this to anything you like as a prefix
@@ -115,6 +116,7 @@ client.on('ready', () => {
   carrierMonitor.initialize(client, settings.debug);
   appleFeatureMonitor.initialize();
   applePayMonitor.initialize();
+  appleEsimMonitor.initialize();
 
   if (settings.debug) {
     console.log('DEBUG MODE ENABLED');
@@ -133,17 +135,20 @@ client.on('ready', () => {
     carrierCron.setTime(new CronTime(`0 */${settings.interval} * * * *`));
     appleFeatureCron.setTime(new CronTime(`0 */${settings.interval} * * * *`));
     applePayCron.setTime(new CronTime(`0 */${settings.interval} * * * *`));
+    appleEsimCron.setTime(new CronTime(`0 */${settings.interval} * * * *`));
   } else {
     cronUpdate.setTime(new CronTime(`0 0 * * * *`));
     carrierCron.setTime(new CronTime(`0 0 * * * *`));
     appleFeatureCron.setTime(new CronTime(`0 0 * * * *`));
     applePayCron.setTime(new CronTime(`0 0 * * * *`));
+    appleEsimCron.setTime(new CronTime(`0 0 * * * *`));
   }
   
   cronUpdate.start();
   carrierCron.start();
   appleFeatureCron.start();
   applePayCron.start();
+  appleEsimCron.start();
 
   console.log(`[${client.user.tag}] Ready...\n[${client.user.tag}] Running an interval of ${settings.interval} minute(s).`);
 
@@ -235,7 +240,8 @@ client.on('message', (message) => {
         embed.addField('\`!start\`', 'Start automatic monitoring on set interval, default \`on\`.');
         embed.addField('\`!stop\`', 'Stop monitoring.');
         embed.addField('\`!status\`', 'Show monitoring status.');
-        embed.addField('\`!carrier <status|start|stop>\`', 'Manage the carrier monitor.');  
+        embed.addField('\`!carrier <status|start|stop>\`', 'Manage the carrier monitor.');
+        embed.addField('\`!esim <status|start|stop>\`', 'Manage the eSIM monitor.');  
         message.channel.send(embed);
       } break;
     case "ADD":
@@ -376,14 +382,17 @@ client.on('message', (message) => {
           carrierCron.setTime(new CronTime(`0 */${Math.round(args[0])} * * * *`));
           appleFeatureCron.setTime(new CronTime(`0 */${Math.round(args[0])} * * * *`));
           applePayCron.setTime(new CronTime(`0 */${Math.round(args[0])} * * * *`));
+          appleEsimCron.setTime(new CronTime(`0 */${Math.round(args[0])} * * * *`));
         } else {
           carrierCron.setTime(new CronTime(`0 0 * * * *`));
           appleFeatureCron.setTime(new CronTime(`0 0 * * * *`));
           applePayCron.setTime(new CronTime(`0 0 * * * *`));
+          appleEsimCron.setTime(new CronTime(`0 0 * * * *`));
         }
         carrierCron.start();
         appleFeatureCron.start();
         applePayCron.start();
+        appleEsimCron.start();
       } break;
     case "START":
       {
@@ -425,6 +434,27 @@ client.on('message', (message) => {
             break;
           default:
             message.channel.send('Invalid command... Usage: `!carrier <status|start|stop>');
+        }
+      } break;
+    case "ESIM":
+      {
+        if (args.length === 0) return message.channel.send('Usage: `!esim <status|start|stop>');
+        const subCommand = args.shift().toLowerCase();
+        switch (subCommand) {
+          case 'status':
+            var status = appleEsimCron.running ? 'running' : 'not running';
+            message.channel.send(`eSIM monitor is ${status}.`);
+            break;
+          case 'start':
+            appleEsimCron.start();
+            message.channel.send('eSIM monitor started.');
+            break;
+          case 'stop':
+            appleEsimCron.stop();
+            message.channel.send('eSIM monitor stopped.');
+            break;
+          default:
+            message.channel.send('Invalid command... Usage: `!esim <status|start|stop>');
         }
       } break;
     default:
@@ -582,6 +612,10 @@ const appleFeatureCron = new CronJob(`0 */${settings.interval} * * * *`, functio
 
 const applePayCron = new CronJob(`0 */${settings.interval} * * * *`, function () {
     applePayMonitor.check(client);
+}, null, false);
+
+const appleEsimCron = new CronJob(`0 */${settings.interval} * * * *`, function () {
+    appleEsimMonitor.check(client);
 }, null, false);
 
 // This ensures the bot only logs in when the script is run directly, not when required as a module.
