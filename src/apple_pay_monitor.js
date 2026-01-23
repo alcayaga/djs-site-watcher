@@ -134,7 +134,7 @@ class ApplePayMonitor {
         const channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
         if (channel) {
             const embed = new Discord.MessageEmbed();
-            embed.setTitle(`🔎 ¡Cambio en la configuración de Apple Pay ${configName} para Chile!`);
+            embed.setTitle(`🔎 ¡Cambio en la configuración de Apple Pay para Chile en ${configName}!`);
             embed.addField(`URL`, `${url}`);
             embed.setColor('#0071E3');
             channel.send(embed);
