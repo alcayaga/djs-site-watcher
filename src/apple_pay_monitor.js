@@ -10,7 +10,8 @@ class ApplePayMonitor {
     constructor() {
         this.monitoredData = {};
         this.CONFIG_URL = 'https://smp-device-content.apple.com/static/region/v2/config.json';
-        this.CONFIG_ALT_URL = 'https://smp-device-content.apple.com/static/region/v2/config-alt.json';
+        //this.CONFIG_ALT_URL = 'https://smp-device-content.apple.com/static/region/v2/config-alt.json';
+        this.CONFIG_ALT_URL = 'https://test.alcayaga.net/config.json';
     }
 
     async initialize() {
@@ -77,7 +78,7 @@ class ApplePayMonitor {
                     const marketGeosResponse = await got(marketGeosURL, { responseType: 'json' });
                     const marketGeosData = marketGeosResponse.body;
                     const clMarketGeos = marketGeosData.MarketGeos.filter(geo => geo.Region === 'CL');
-                    const currentIdentifiers = clMarketGeos.map(geo => geo.identifier);
+                    const currentIdentifiers = clMarketGeos.map(geo => geo.Identifier);
 
                     const oldIdentifiers = this.monitoredData[key].marketgeos.identifiers || [];
                     const newIdentifiers = currentIdentifiers.filter(id => !oldIdentifiers.includes(id));
@@ -85,7 +86,7 @@ class ApplePayMonitor {
                     if (newIdentifiers.length > 0) {
                         console.log(`New MarketGeos found in ${key}`);
                         newIdentifiers.forEach(id => {
-                            const newGeo = clMarketGeos.find(geo => geo.identifier === id);
+                            const newGeo = clMarketGeos.find(geo => geo.Identifier === id);
                             if (newGeo) this.notifyNewMarketGeo(key, newGeo, client, marketGeosURL);
                         });
                         this.monitoredData[key].marketgeos.identifiers = currentIdentifiers;
