@@ -20,7 +20,8 @@ let monitoredESIMData = {};
  */
 async function initialize() {
     try {
-        monitoredESIMData = await fs.readJSON(ESIM_FILE);
+        const data = await fs.readJSON(ESIM_FILE);
+        monitoredESIMData = typeof data === 'object' && data !== null && !Array.isArray(data) ? data : {};
     } catch (err) {
         console.log(`Cannot read ${ESIM_FILE}, starting fresh.`);
         monitoredESIMData = {};

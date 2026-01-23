@@ -24,7 +24,8 @@ class ApplePayMonitor {
      */
     async initialize() {
         try {
-            this.monitoredData = await fs.readJSON(RESPONSES_FILE);
+            const data = await fs.readJSON(RESPONSES_FILE);
+            this.monitoredData = typeof data === 'object' && data !== null && !Array.isArray(data) ? data : {};
         } catch (err) {
             console.log(`Cannot read ${RESPONSES_FILE}, starting fresh.`);
             this.monitoredData = {};

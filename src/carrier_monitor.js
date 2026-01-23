@@ -27,13 +27,14 @@ const carriers = [
  * Initializes the carrier monitor by loading the last known carrier data from a local JSON file.
  * This data is used to compare against the fresh data fetched from Apple's servers.
  * @param {Discord.Client} client The active Discord client instance.
- * @param {boolean} debug A flag to enable or disable debug mode.
  */
-async function initialize(client, debug = false) {
+async function initialize(client) {
     try {
-        carriersToMonitor = await fs.readJSON(file);
+        const data = await fs.readJSON(file);
+        carriersToMonitor = Array.isArray(data) ? data : [];
     } catch (err) {
         console.log('Cannot read carriers.json');
+        carriersToMonitor = [];
     }
 }
 
@@ -41,9 +42,8 @@ async function initialize(client, debug = false) {
  * Fetches the latest carrier bundle data from Apple's servers,
  * compares it against the locally stored versions, and triggers notifications for any changes.
  * @param {Discord.Client} client The active Discord client instance.
- * @param {boolean} debug A flag to enable or disable debug mode.
  */
-async function check(client, debug = false) {
+async function check(client) {
     console.log('Checking for new carrier bundles...');
     try {
         const response = await got(anana);

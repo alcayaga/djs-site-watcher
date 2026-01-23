@@ -36,7 +36,7 @@ var regexp = /[^\s"]+|"([^"]*)"/gi;
 const file = './src/sites.json';
 var sitesToMonitor = [];
 const settingsFile = './src/settings.json';
-var settings = { interval: 5, debug: false };
+var settings = { interval: 5 };
 
 const responsesFile = './src/responses.json';
 var responses = []; 
@@ -113,21 +113,27 @@ client.on('ready', () => {
   }
 
   //Initialize carrier monitor
-  carrierMonitor.initialize(client, settings.debug);
+  carrierMonitor.initialize(client);
   appleFeatureMonitor.initialize();
   applePayMonitor.initialize();
   appleEsimMonitor.initialize();
 
-  if (settings.debug) {
+  if (process.env.DEBUG === 'true') {
     console.log('DEBUG MODE ENABLED');
     update(client, sitesToMonitor, client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID), file);
-    carrierMonitor.check(client, true).then(() => {
-      setTimeout(() => {
-        process.exit();
-      }, 5000);
+    carrierMonitor.check(client).then(() => {
+        appleFeatureMonitor.check(client).then(() => {
+            applePayMonitor.check(client).then(() => {
+                appleEsimMonitor.check(client).then(() => {
+                    setTimeout(() => {
+                        process.exit();
+                    }, 5000);
+                });
+            });
+        });
     });
     return;
-  }  
+  }
 
   //Start monitoring
   if (settings.interval < 60) {

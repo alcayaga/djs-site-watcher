@@ -20,7 +20,8 @@ let monitoredFeatures = {};
  */
 async function initialize() {
     try {
-        monitoredFeatures = await fs.readJSON(FEATURES_FILE);
+        const data = await fs.readJSON(FEATURES_FILE);
+        monitoredFeatures = typeof data === 'object' && data !== null && !Array.isArray(data) ? data : {};
     } catch (err) {
         console.log(`Cannot read ${FEATURES_FILE}, starting fresh.`);
         monitoredFeatures = {};
