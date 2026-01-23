@@ -43,20 +43,23 @@ class ApplePayMonitor {
                     if (this.monitoredData[key].hash !== currentHash) {
                         console.log(`Change detected in ${key} SupportedRegions['CL']`);
                         if (this.monitoredData[key].hash) {
-                            const oldData = this.monitoredData[key].data || '';
-                            const changes = diff.diffJson(JSON.parse(oldData), clRegionData);
+                            const oldData = this.monitoredData[key].data || '{}';
+                            const oldJsonString = JSON.stringify(JSON.parse(oldData), null, 2);
+                            const newJsonString = JSON.stringify(clRegionData, null, 2);
+                            const changes = diff.diffLines(oldJsonString, newJsonString);
+
                             let diffString = '';
                             changes.forEach((part) => {
-                                const prefix = part.added ? '🟢' : part.removed ? '🔴' : '⚪';
-                                if ((!part.added && !part.removed) && diffString.length >= 1800) return;
-                                if (!part.value) return;
-                                const endsWithNewline = part.value.endsWith('\n');
-                                const valueToProcess = endsWithNewline ? part.value.slice(0, -1) : part.value;
-                                const prefixedLines = valueToProcess.split('\n').map(line => prefix + line).join('\n');
-                                diffString += prefixedLines;
-                                if (endsWithNewline) diffString += '\n';
+                                const prefix = part.added ? '🟢 ' : part.removed ? '🔴 ' : '  ';
+                                const lines = part.value.replace(/\n$/, '').split('\n');
+                                lines.forEach(line => {
+                                    diffString += `${prefix}${line}\n`;
+                                });
                             });
-                            if (diffString.length > 1900) diffString = diffString.substring(0, 1900) + '\n... (truncated)';
+                            
+                            if (diffString.length > 1900) {
+                                diffString = diffString.substring(0, 1900) + '\n... (truncated)';
+                            }
                             this.notifyDiff(key, diffString, client, url);
                         }
                         this.monitoredData[key].hash = currentHash;
@@ -110,9 +113,7 @@ class ApplePayMonitor {
             embed.addField(`URL`, `${url}`);
             embed.setColor('#0071E3');
             channel.send(embed);
-            channel.send(`
-${diffString}
-`);
+            channel.send(`\`\`\`diff\n${diffString}\n\`\`\``);
         }
     }
 
