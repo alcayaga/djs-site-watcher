@@ -118,8 +118,9 @@ client.on('ready', () => {
   applePayMonitor.initialize();
   appleEsimMonitor.initialize();
 
-  if (process.env.DEBUG === 'true') {
-    console.log('DEBUG MODE ENABLED');
+  if (process.env.SINGLE_RUN === 'true') {
+    // Single Run mode is used for Agents to run the app themselves
+    console.log('DEBUG / SINGLE RUN MODE ENABLED');
     update(client, sitesToMonitor, client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID), file);
     carrierMonitor.check(client).then(() => {
         appleFeatureMonitor.check(client).then(() => {
@@ -483,6 +484,8 @@ client.on('message', (message) => {
  * @param {string} file The path to the JSON file where site data is stored.
  */
 async function update(clientInstance, sitesArray, channelInstance, file) {
+  console.log('Checking for websites updates...');
+
   let channel = channelInstance;
   const changedSitesDetails = []; // To store details of all changed sites
 
