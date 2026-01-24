@@ -540,8 +540,9 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
       let content = '';
 
       // Extract text content using the specified CSS selector, or from the <head> if no selector is provided.
-                  if (site.css) {
-                      const selector = dom.window.document.querySelector(site.css);        content = selector ? selector.textContent : '';
+      if (site.css) {
+        const selector = dom.window.document.querySelector(site.css);
+        content = selector ? selector.textContent : '';
       } else {
         content = dom.window.document.querySelector('head').textContent;
       }
