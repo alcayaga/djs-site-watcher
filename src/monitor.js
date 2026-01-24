@@ -114,9 +114,9 @@ client.on('ready', () => {
 
   //Initialize carrier monitor
   carrierMonitor.initialize(client);
-  appleFeatureMonitor.initialize();
-  applePayMonitor.initialize();
-  appleEsimMonitor.initialize();
+  appleFeatureMonitor.initialize(client);
+  applePayMonitor.initialize(client);
+  appleEsimMonitor.initialize(client);
 
   if (process.env.SINGLE_RUN === 'true') {
     // Single Run mode is used for Agents to run the app themselves
@@ -171,10 +171,8 @@ client.on('ready', () => {
  * This event is triggered for every message sent in any channel the bot has access to.
  * It's the main entry point for command handling.
  */
-client.on('message', (message) => {
+function handleDiscordMessage(message) {
   //console.log('Start msg');
-
-  //return;
 
   // This section handles automatic replies based on configured triggers in a specific channel.
   if (!message.author.bot && process.env.DISCORDJS_APCHANNEL_ID === message.channel.id) {
@@ -248,7 +246,9 @@ client.on('message', (message) => {
         embed.addField('\`!stop\`', 'Stop monitoring.');
         embed.addField('\`!status\`', 'Show monitoring status.');
         embed.addField('\`!carrier <status|start|stop>\`', 'Manage the carrier monitor.');
-        embed.addField('\`!esim <status|start|stop>\`', 'Manage the eSIM monitor.');  
+        embed.addField('\`!esim <status|start|stop>\`', 'Manage the eSIM monitor.');
+        embed.addField('\`!applepay <status|start|stop>\`', 'Manage the Apple Pay monitor.');
+        embed.addField('\`!applefeature <status|start|stop>\`', 'Manage the Apple Feature monitor.');
         message.channel.send(embed);
       } break;
     case "ADD":
@@ -464,12 +464,55 @@ client.on('message', (message) => {
             message.channel.send('Invalid command... Usage: `!esim <status|start|stop>');
         }
       } break;
+    case "APPLEPAY":
+      {
+        if (args.length === 0) return message.channel.send('Usage: `!applepay <status|start|stop>');
+        const subCommand = args.shift().toLowerCase();
+        switch (subCommand) {
+          case 'status':
+            var status = applePayCron.running ? 'running' : 'not running';
+            message.channel.send(`Apple Pay monitor is ${status}.`);
+            break;
+          case 'start':
+            applePayCron.start();
+            message.channel.send('Apple Pay monitor started.');
+            break;
+          case 'stop':
+            applePayCron.stop();
+            message.channel.send('Apple Pay monitor stopped.');
+            break;
+          default:
+            message.channel.send('Invalid command... Usage: `!applepay <status|start|stop>');
+        }
+      } break;
+    case "APPLEFEATURE":
+      {
+        if (args.length === 0) return message.channel.send('Usage: `!applefeature <status|start|stop>');
+        const subCommand = args.shift().toLowerCase();
+        switch (subCommand) {
+          case 'status':
+            var status = appleFeatureCron.running ? 'running' : 'not running';
+            message.channel.send(`Apple Feature monitor is ${status}.`);
+            break;
+          case 'start':
+            appleFeatureCron.start();
+            message.channel.send('Apple Feature monitor started.');
+            break;
+          case 'stop':
+            appleFeatureCron.stop();
+            message.channel.send('Apple Feature monitor stopped.');
+            break;
+          default:
+            message.channel.send('Invalid command... Usage: `!applefeature <status|start|stop>');
+        }
+      } break;
     default:
       message.channel.send('Invalid command...\nType `!help` for a list of commands.');
   }
 
-})
+}
 
+client.on('message', handleDiscordMessage); // Delegate to the new function
 
 
 /**
@@ -497,9 +540,8 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
       let content = '';
 
       // Extract text content using the specified CSS selector, or from the <head> if no selector is provided.
-      if (site.css) {
-        const selector = dom.window.document.querySelector(site.css);
-        content = selector ? selector.textContent : '';
+                  if (site.css) {
+                      const selector = dom.window.document.querySelector(site.css);        content = selector ? selector.textContent : '';
       } else {
         content = dom.window.document.querySelector('head').textContent;
       }
@@ -628,8 +670,8 @@ const appleEsimCron = new CronJob(`0 */${settings.interval} * * * *`, function (
 }, null, false);
 
 // This ensures the bot only logs in when the script is run directly, not when required as a module.
-if (require.main === module) {
+if (require.main === module && process.env.NODE_ENV !== 'test') {
   client.login(process.env.DISCORDJS_BOT_TOKEN);
 }
 
-module.exports = { update };
+module.exports = { update, client, handleDiscordMessage };

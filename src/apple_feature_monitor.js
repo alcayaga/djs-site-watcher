@@ -18,7 +18,7 @@ let monitoredFeatures = {};
  * If the file does not exist, it starts with an empty list of features.
  * @async
  */
-async function initialize() {
+async function initialize(client) {
     try {
         const data = await fs.readJSON(FEATURES_FILE);
         monitoredFeatures = typeof data === 'object' && data !== null && !Array.isArray(data) ? data : {};
