@@ -88,6 +88,9 @@ describe('Monitor Diff Functionality', () => {
     require('got').mockResolvedValue({ body: 'initial content' });
   });
 
+  /**
+   * Tests that a change is detected and a diff is sent to Discord.
+   */
   test('should detect a change and send a diff to Discord', async () => {
     // Mock got to return updated content for the `update` call
     require('got').mockResolvedValueOnce({ body: 'updated content' });
@@ -114,6 +117,9 @@ describe('Monitor Diff Functionality', () => {
     expect(mockChannel.send).toHaveBeenCalledWith(expect.stringContaining('🟢updated'));
   });
 
+  /**
+   * Tests that no diff is sent if no change is detected.
+   */
   test('should not send a diff if no change is detected', async () => {
     // Mock got to return initial content for the `update` call
     require('got').mockResolvedValueOnce({ body: 'initial content' });
@@ -125,6 +131,9 @@ describe('Monitor Diff Functionality', () => {
     expect(mockChannel.send).not.toHaveBeenCalledWith(expect.stringContaining('```diff\n'));
   });
 
+  /**
+   * Tests that multiline diffs are formatted correctly with added and removed lines.
+   */
   test('should format multiline diffs correctly', async () => {
     const initialContent = 'line 1\nline 2\nline 3';
     const updatedContent = 'line 1\nline two\nline 3';

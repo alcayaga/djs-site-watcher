@@ -1,5 +1,5 @@
 /**
- * @fileoverview This module is responsible for monitoring Apple's eSIM Carrier Support page
+ * @file This module is responsible for monitoring Apple's eSIM Carrier Support page
  * for changes in carrier availability for specific regions, especially Chile.
  * @module apple_esim_monitor
  */

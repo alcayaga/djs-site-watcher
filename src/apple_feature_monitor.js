@@ -1,5 +1,5 @@
 /**
- * @fileoverview This module is responsible for monitoring Apple's feature availability page
+ * @file This module is responsible for monitoring Apple's feature availability page
  * for new features in specific regions.
  * @module apple_feature_monitor
  */

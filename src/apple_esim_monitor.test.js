@@ -1,6 +1,5 @@
 /**
- * @fileoverview Tests for the Apple eSIM Monitor module.
- * @jest-environment node
+ * @file Tests for the Apple eSIM Monitor module.
  */
 
 const mockEsimHtml = `

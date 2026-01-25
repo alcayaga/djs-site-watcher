@@ -11,6 +11,10 @@ const RESPONSES_FILE = './src/apple_pay_responses.json';
  * This class encapsulates the logic for fetching, comparing, and reporting changes.
  */
 class ApplePayMonitor {
+    /**
+     * Initializes a new instance of the ApplePayMonitor.
+     * Sets up the initial state and configuration URLs.
+     */
     constructor() {
         this.monitoredData = {};
         this.CONFIG_URL = 'https://smp-device-content.apple.com/static/region/v2/config.json';
@@ -43,6 +47,11 @@ class ApplePayMonitor {
         console.log('Checking for new Apple Pay configurations...');
         let hasChanges = false;
 
+        /**
+         * Processes a single configuration file to check for changes.
+         * @param {string} url The URL of the configuration file to process.
+         * @param {string} key The key to use for storing the monitored data.
+         */
         const processConfigFile = async (url, key) => {
             try {
                 const response = await got(url, { responseType: 'json' });
@@ -130,6 +139,10 @@ class ApplePayMonitor {
 
     /**
      * Sends a notification about a change in the SupportedRegions data.
+     * @param {string} configName The name of the configuration that changed.
+     * @param {string} diffString The string representing the differences.
+     * @param {Discord.Client} client The Discord client instance.
+     * @param {string} url The URL of the configuration file.
      */
     notifyDiff(configName, diffString, client, url) {
         const channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
@@ -145,6 +158,10 @@ class ApplePayMonitor {
 
     /**
      * Sends a notification about a newly found MarketGeo.
+     * @param {string} configName The name of the configuration where the new geo was found.
+     * @param {object} geo The MarketGeo object.
+     * @param {Discord.Client} client The Discord client instance.
+     * @param {string} url The URL of the MarketGeos file.
      */
     notifyNewMarketGeo(configName, geo, client, url) {
         const channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);

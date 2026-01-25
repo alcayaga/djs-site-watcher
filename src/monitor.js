@@ -1,7 +1,6 @@
 /**
  * @author Noël Vissers
- * @project Site Watcher
- * @version 1.0.0
+ * @module Site Watcher
  *
  * This bot monitors a list of websites for changes and sends a notification to a Discord channel when a change is detected.
  * It is managed via Discord commands and runs on a configurable interval.
@@ -170,6 +169,8 @@ client.on('ready', () => {
 /**
  * This event is triggered for every message sent in any channel the bot has access to.
  * It's the main entry point for command handling.
+ * @param {Discord.Message} message The message object from Discord.
+ * @returns {void}
  */
 function handleDiscordMessage(message) {
   //console.log('Start msg');
