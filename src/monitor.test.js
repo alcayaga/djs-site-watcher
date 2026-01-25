@@ -27,9 +27,12 @@ jest.mock('cron', () => ({
 // Mock crypto to return a predictable hash based on content
 jest.mock('crypto', () => {
   const mockUpdate = jest.fn(content => {
-    return {
-      digest: jest.fn(() => {
-        if (content === 'initial content') return 'hash-initial';
+          return {
+            /**
+             * Mocks the digest function to return a predictable hash based on content.
+             * @returns {string} The mocked hash.
+             */
+            digest: jest.fn(() => {        if (content === 'initial content') return 'hash-initial';
         if (content === 'updated content') return 'hash-updated';
         return 'mockedHash-default'; // Fallback
       }),
@@ -145,7 +148,12 @@ describe('Monitor Diff Functionality', () => {
       if (content === initialContent) hash = 'hash-initial-multiline';
       else if (content === updatedContent) hash = 'hash-updated-multiline';
       else hash = 'mockedHash-default';
-      return { digest: () => hash };
+      return {
+        /**
+         * Mocks the digest function to return a predictable hash based on content.
+         * @returns {string} The mocked hash.
+         */
+        digest: () => hash };
     });
     crypto.createHash.mockReturnValue({ update: mockUpdate });
 
