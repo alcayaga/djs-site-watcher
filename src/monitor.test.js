@@ -1,4 +1,4 @@
-const { JSDOM } = require('jsdom');
+
 const { update } = require('./monitor'); // Import update directly
 
 // Tell Jest to use the manual mock for discord.js

@@ -1,7 +1,6 @@
 const { ApplePayMonitor } = require('./apple_pay_monitor');
 const fs = require('fs-extra');
 const got = require('got');
-const Discord = require('discord.js');
 const crypto = require('crypto');
 
 jest.mock('fs-extra');

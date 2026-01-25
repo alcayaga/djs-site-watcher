@@ -22,7 +22,7 @@ class ApplePayMonitor {
      * Loads the last known response data from a local JSON file into memory.
      * This allows the monitor to have a state to compare against on the next run.
      */
-    async initialize(client) {
+    async initialize() {
         try {
             const data = await fs.readJSON(RESPONSES_FILE);
             this.monitoredData = typeof data === 'object' && data !== null && !Array.isArray(data) ? data : {};
