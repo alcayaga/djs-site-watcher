@@ -1,7 +1,6 @@
 /**
  * @author Noël Vissers
- * @project Site Watcher
- * @version 1.0.0
+ * @module Site Watcher
  *
  * This bot monitors a list of websites for changes and sends a notification to a Discord channel when a change is detected.
  * It is managed via Discord commands and runs on a configurable interval.
@@ -162,7 +161,9 @@ client.on('ready', () => {
 
   console.log('Waiting!');
   var waitTill = new Date(new Date().getTime() + 1500);
-  while(waitTill > new Date()){}
+  while(waitTill > new Date()){
+    // Block thread
+  }
 
   console.log('Done!');
 })
@@ -170,6 +171,8 @@ client.on('ready', () => {
 /**
  * This event is triggered for every message sent in any channel the bot has access to.
  * It's the main entry point for command handling.
+ * @param {Discord.Message} message The message object from Discord.
+ * @returns {void}
  */
 function handleDiscordMessage(message) {
   //console.log('Start msg');
@@ -181,12 +184,15 @@ function handleDiscordMessage(message) {
       for (let response of responses)
       {
         var ap_match = response.trigger_regex.exec(ap_message);
+        let reply_id, reply;
 
         if (ap_match != null) {
           message.channel.startTyping();
           
           var waitTill = new Date(new Date().getTime() + 3 * 1000);
-          while(waitTill > new Date()){}
+          while(waitTill > new Date()){
+            // Block thread
+          }
 
           reply_id = Math.floor(Math.random() * response.replies.length);
           reply = response.replies[reply_id];
@@ -256,6 +262,7 @@ function handleDiscordMessage(message) {
         if (args.length === 0) return message.channel.send('Usage: `!add <URL> (<CSS SELECTOR>)`');
         var url = args[0];
         var selector = 'head';
+        let content_;
         if (args[1]) {
           selector = args[1];
         }
@@ -280,35 +287,36 @@ function handleDiscordMessage(message) {
 
           //Get css element
           if (site.css) {
-            var selector = dom.window.document.querySelector(site.css);
+            var selector_ = dom.window.document.querySelector(site.css);
 
-            if (selector) {
-              var content = selector.textContent;
+            if (selector_) {
+              content_ = selector_.textContent;
             }
             else {
-              var content = '';
+              content_ = '';
               warning = true;
             }
           }
           //Get head is no css element is selected
           else
-            var content = dom.window.document.querySelector('head').textContent;
+            content_ = dom.window.document.querySelector('head').textContent;
 
-          console.log(content);
+          console.log(content_);
 
           //Hash the site content so only a short string is saved
-          var hash = crypto.createHash('md5').update(content).digest('hex');
+          var hash = crypto.createHash('md5').update(content_).digest('hex');
 
           //Set time for added site
           var time = new Date();
           site.lastChecked = time.toLocaleString();
           site.lastUpdated = time.toLocaleString();
           site.hash = hash;
-          site.lastContent = content; // Initialize lastContent
+          site.lastContent = content_; // Initialize lastContent
 
           //Add site to site array
           sitesToMonitor.push(site);
           console.log(sitesToMonitor);
+
 
           //Save updated array to file
           fs.outputJSON(file, sitesToMonitor, { spaces: 2 }, err => {
@@ -352,14 +360,14 @@ function handleDiscordMessage(message) {
       {
         if (sitesToMonitor.length < 1) return message.channel.send('No sites to monitor. Add one with `!add`.');
 
-        var embed = new Discord.MessageEmbed();
+        var embed_ = new Discord.MessageEmbed();
         for (let i = 0; i < sitesToMonitor.length; i++) {
-          embed.setTitle(`${sitesToMonitor.length} sitio(s) están siendo monitoreados:`);
-          embed.addField(`${sitesToMonitor[i].id}`, `URL: ${sitesToMonitor[i].url}\nCSS: \`${sitesToMonitor[i].css}\`\nChecked: ${sitesToMonitor[i].lastChecked}\nUpdated: ${sitesToMonitor[i].lastUpdated}\nRemove: \`!remove ${i + 1}\``);
-          embed.setColor('0x6058f3');
+          embed_.setTitle(`${sitesToMonitor.length} sitio(s) están siendo monitoreados:`);
+          embed_.addField(`${sitesToMonitor[i].id}`, `URL: ${sitesToMonitor[i].url}\nCSS: \`${sitesToMonitor[i].css}\`\nChecked: ${sitesToMonitor[i].lastChecked}\nUpdated: ${sitesToMonitor[i].lastUpdated}\nRemove: \`!remove ${i + 1}\``);
+          embed_.setColor('0x6058f3');
         }
 
-        message.channel.send(embed);
+        message.channel.send(embed_);
 
       } break;
     case "UPDATE":
@@ -404,20 +412,19 @@ function handleDiscordMessage(message) {
     case "START":
       {
         cronUpdate.start();
-        var time = new Date();
-        console.log(`Cron started at ${time.toLocaleString()}`);
+        var time_ = new Date();
+        console.log(`Cron started at ${time_.toLocaleString()}`);
         message.channel.send(`Started monitoring...`);
       } break;
     case "STOP":
       {
         cronUpdate.stop();
-        var time = new Date();
-        console.log(`Cron stopped at ${time.toLocaleString()}`);
+        time_ = new Date();
+        console.log(`Cron stopped at ${time_.toLocaleString()}`);
         message.channel.send('Paused website monitoring... Type `!start` to resume.');
       } break;
     case "STATUS":
       {
-        var time = new Date();
         console.log('Status: ', cronUpdate.running);
         if (cronUpdate.running) message.channel.send(`Site Watcher is running with an interval of \`${settings.interval}\` minute(s).`);
         else message.channel.send('Site Watcher is not running. Use `!start` to start monitoring websites.');
@@ -428,8 +435,8 @@ function handleDiscordMessage(message) {
         const subCommand = args.shift().toLowerCase();
         switch (subCommand) {
           case 'status':
-            var status = carrierCron.running ? 'running' : 'not running';
-            message.channel.send(`Carrier monitor is ${status}.`);
+            var status_ = carrierCron.running ? 'running' : 'not running';
+            message.channel.send(`Carrier monitor is ${status_}.`);
             break;
           case 'start':
             carrierCron.start();
@@ -449,8 +456,8 @@ function handleDiscordMessage(message) {
         const subCommand = args.shift().toLowerCase();
         switch (subCommand) {
           case 'status':
-            var status = appleEsimCron.running ? 'running' : 'not running';
-            message.channel.send(`eSIM monitor is ${status}.`);
+            status_ = appleEsimCron.running ? 'running' : 'not running';
+            message.channel.send(`eSIM monitor is ${status_}.`);
             break;
           case 'start':
             appleEsimCron.start();
@@ -470,8 +477,8 @@ function handleDiscordMessage(message) {
         const subCommand = args.shift().toLowerCase();
         switch (subCommand) {
           case 'status':
-            var status = applePayCron.running ? 'running' : 'not running';
-            message.channel.send(`Apple Pay monitor is ${status}.`);
+            status_ = applePayCron.running ? 'running' : 'not running';
+            message.channel.send(`Apple Pay monitor is ${status_}.`);
             break;
           case 'start':
             applePayCron.start();
@@ -491,8 +498,8 @@ function handleDiscordMessage(message) {
         const subCommand = args.shift().toLowerCase();
         switch (subCommand) {
           case 'status':
-            var status = appleFeatureCron.running ? 'running' : 'not running';
-            message.channel.send(`Apple Feature monitor is ${status}.`);
+            status_ = appleFeatureCron.running ? 'running' : 'not running';
+            message.channel.send(`Apple Feature monitor is ${status_}.`);
             break;
           case 'start':
             appleFeatureCron.start();
@@ -537,18 +544,18 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
       // Fetch the website's content
       const response = await got(site.url);
       const dom = new JSDOM(response.body);
-      let content = '';
+      let content_ = '';
 
       // Extract text content using the specified CSS selector, or from the <head> if no selector is provided.
       if (site.css) {
-        const selector = dom.window.document.querySelector(site.css);
-        content = selector ? selector.textContent : '';
+        const selector_ = dom.window.document.querySelector(site.css);
+        content_ = selector_ ? selector_.textContent : '';
       } else {
-        content = dom.window.document.querySelector('head').textContent;
+        content_ = dom.window.document.querySelector('head').textContent;
       }
 
       // Generate an MD5 hash of the content for efficient change detection.
-      const hash = crypto.createHash('md5').update(content).digest('hex');
+      const hash = crypto.createHash('md5').update(content_).digest('hex');
 
       // If the new hash is different from the old one, the site has changed.
       if (site.hash !== hash) {
@@ -558,9 +565,9 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
         site.lastChecked = new Date().toLocaleString();
         site.lastUpdated = new Date().toLocaleString();
         site.hash = hash;
-        site.lastContent = content;
+        site.lastContent = content_;
 
-        return { changed: true, index, oldContent, newContent: content, dom };
+        return { changed: true, index, oldContent, newContent: content_, dom };
       } else {
         site.lastChecked = new Date().toLocaleString(); // Update last checked even if no change
         return { changed: false };

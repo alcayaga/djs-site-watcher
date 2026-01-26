@@ -1,5 +1,5 @@
 /**
- * @fileoverview This module is responsible for monitoring Apple's feature availability page
+ * @file This module is responsible for monitoring Apple's feature availability page
  * for new features in specific regions.
  * @module apple_feature_monitor
  */
@@ -18,7 +18,7 @@ let monitoredFeatures = {};
  * If the file does not exist, it starts with an empty list of features.
  * @async
  */
-async function initialize(client) {
+async function initialize() {
     try {
         const data = await fs.readJSON(FEATURES_FILE);
         monitoredFeatures = typeof data === 'object' && data !== null && !Array.isArray(data) ? data : {};

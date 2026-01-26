@@ -26,9 +26,8 @@ const carriers = [
 /**
  * Initializes the carrier monitor by loading the last known carrier data from a local JSON file.
  * This data is used to compare against the fresh data fetched from Apple's servers.
- * @param {Discord.Client} client The active Discord client instance.
  */
-async function initialize(client) {
+async function initialize() {
     try {
         const data = await fs.readJSON(file);
         carriersToMonitor = Array.isArray(data) ? data : [];

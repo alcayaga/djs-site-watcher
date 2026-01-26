@@ -1,6 +1,5 @@
 /**
- * @fileoverview Tests for the Apple Feature Monitor module.
- * @jest-environment node
+ * @file Tests for the Apple Feature Monitor module.
  */
 
 const mockHtml = `

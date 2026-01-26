@@ -1,8 +1,5 @@
 
-const Discord = require('discord.js');
-const { CronJob } = require('cron');
-const fs = require('fs-extra');
-const got = require('got');
+
 
 // Mock cron
 jest.mock('cron', () => ({

@@ -1,5 +1,5 @@
 /**
- * @fileoverview This module is responsible for monitoring Apple's eSIM Carrier Support page
+ * @file This module is responsible for monitoring Apple's eSIM Carrier Support page
  * for changes in carrier availability for specific regions, especially Chile.
  * @module apple_esim_monitor
  */
@@ -18,7 +18,7 @@ let monitoredESIMData = {};
  * If the file does not exist, it starts with an empty object.
  * @async
  */
-async function initialize(client) {
+async function initialize() {
     try {
         const data = await fs.readJSON(ESIM_FILE);
         monitoredESIMData = typeof data === 'object' && data !== null && !Array.isArray(data) ? data : {};
