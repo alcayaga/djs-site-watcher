@@ -1,4 +1,6 @@
 require('dotenv').config();
+const got = require('got');
+const { JSDOM } = require('jsdom');
 const Discord = require('discord.js');
 const client = new Discord.Client();
 const storage = require('./storage');
