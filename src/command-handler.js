@@ -11,7 +11,7 @@ for (const file of commandFiles) {
 }
 
 const PREFIX = '!';
-const regexp = /[^"]+|"([^"]*)"/gi;
+const regexp = /[^\s"]+|"([^"]*)"/gi;
 
 function handleCommand(message, client, state, config, cronUpdate, carrierCron, appleFeatureCron, applePayCron, appleEsimCron) {
     if (!message.author.bot && config.DISCORDJS_APCHANNEL_ID === message.channel.id) {
