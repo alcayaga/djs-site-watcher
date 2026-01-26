@@ -1,7 +1,4 @@
-jest.mock('./storage', () => ({
-    loadSettings: jest.fn(),
-}));
-const storage = require('./storage');
+jest.mock('./storage');
 
 describe('config', () => {
     beforeEach(() => {
@@ -15,6 +12,7 @@ describe('config', () => {
     });
 
     it('should load settings from storage', () => {
+        const storage = require('./storage');
         storage.loadSettings.mockReturnValue({ interval: 10 });
         const config = require('./config');
         expect(config.interval).toBe(10);

@@ -101,14 +101,8 @@ describe('Discord Commands Test', () => {
     let mockClient;
     let mockChannel;
     let mockMember;
-    let mockSitesToMonitor;
-    let mockSettings;
-    let mockResponses;
-    let mockCronUpdate;
-    let mockCarrierCron;
-    let mockAppleFeatureCron;
-    let mockApplePayCron;
-    let mockAppleEsimCron;
+    let mockState;
+    let mockConfig;
 
     beforeAll(() => {
         process.env.DISCORDJS_ADMINCHANNEL_ID = 'admin-channel';
@@ -135,19 +129,27 @@ describe('Discord Commands Test', () => {
             member: mockMember,
         };
 
-        mockSitesToMonitor = [];
-        mockSettings = { interval: 5 };
-        mockResponses = [];
+        mockState = {
+            sitesToMonitor: [],
+            settings: { interval: 5 },
+            responses: [],
+        };
 
+        mockConfig = {
+            DISCORDJS_APCHANNEL_ID: 'ap-channel',
+            DISCORDJS_ADMINCHANNEL_ID: 'admin-channel',
+            DISCORDJS_ROLE_ID: 'admin-role',
+            interval: 5,
+        };
         mockCronUpdate = new CronJob('', () => {});
         mockCarrierCron = new CronJob('', () => {});
         mockAppleFeatureCron = new CronJob('', () => {});
         mockApplePayCron = new CronJob('', () => {});
         mockAppleEsimCron = new CronJob('', () => {});
 
-        storage.loadSites.mockReturnValue(mockSitesToMonitor);
-        storage.loadSettings.mockReturnValue(mockSettings);
-        storage.loadResponses.mockReturnValue(mockResponses);
+        storage.loadSites.mockReturnValue(mockState.sitesToMonitor);
+        storage.loadSettings.mockReturnValue(mockState.settings);
+        storage.loadResponses.mockReturnValue(mockState.responses);
 
         require('got').mockResolvedValue({ body: '<html><head><title>Example</title></head><body>Hello</body></html>' });
         require('jsdom').JSDOM.mockImplementation(() => ({
@@ -168,8 +170,8 @@ describe('Discord Commands Test', () => {
             it(`should execute the ${command.name} command`, () => {
                 const executeSpy = jest.spyOn(command, 'execute');
                 mockMessage.content = `!${command.name}`;
-                handleCommand(mockMessage, mockClient, mockSitesToMonitor, mockSettings, mockResponses, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-                expect(executeSpy).toHaveBeenCalledWith(mockMessage, [], mockClient, mockSitesToMonitor, mockSettings, mockResponses, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
+                handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
+                expect(executeSpy).toHaveBeenCalledWith(mockMessage, [], mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
             });
         });
     }
