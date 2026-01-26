@@ -13,7 +13,7 @@ for (const file of commandFiles) {
 const PREFIX = '!';
 const regexp = /[^\s"]+|"([^"]*)"/gi;
 
-function handleCommand(message, client, state, config, cronUpdate, carrierCron, appleFeatureCron, applePayCron, appleEsimCron) {
+async function handleCommand(message, client, state, config, cronUpdate, carrierCron, appleFeatureCron, applePayCron, appleEsimCron) {
     if (!message.author.bot && config.DISCORDJS_APCHANNEL_ID === message.channel.id) {
         const ap_message = message.content.trim();
 
@@ -22,10 +22,7 @@ function handleCommand(message, client, state, config, cronUpdate, carrierCron, 
             if (ap_match != null) {
                 message.channel.startTyping();
 
-                const waitTill = new Date(new Date().getTime() + 3 * 1000);
-                while (waitTill > new Date()) {
-                    // Block thread
-                }
+                await new Promise(resolve => setTimeout(resolve, 3000));
 
                 const reply_id = Math.floor(Math.random() * response.replies.length);
                 const reply = response.replies[reply_id];
