@@ -3,6 +3,15 @@ const Discord = require('discord.js');
 module.exports = {
     name: 'list',
     description: 'Show list of added sites.',
+    /**
+     * Executes the list command.
+     *
+     * @param {Discord.Message} message The message object that triggered the command.
+     * @param {string[]} args The arguments passed to the command.
+     * @param {Discord.Client} client The Discord client.
+     * @param {object} state The state of the bot.
+     * @returns {Promise<void>}
+     */
     execute(message, args, client, state) {
         try {
             if (state.sitesToMonitor.length < 1) return message.channel.send('No sites to monitor. Add one with `!add`.');

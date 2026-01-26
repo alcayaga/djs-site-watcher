@@ -1,12 +1,13 @@
 const Discord = require('discord.js');
-const fs = require('fs');
-const path = require('path');
 const { handleCommand, commands } = require('./command-handler.js');
 const storage = require('./storage.js');
-const siteMonitor = require('./site-monitor.js');
-const { CronJob, CronTime } = require('cron');
+const { CronJob } = require('cron');
 
+//
 // Mock external modules
+//
+
+// Mock cron to prevent actual cron jobs from running during tests
 jest.mock('cron', () => ({
     CronJob: jest.fn(function(cronTime, onTick) {
         this.onTick = onTick; // Store the onTick function
@@ -20,6 +21,7 @@ jest.mock('cron', () => ({
     }),
 }));
 
+// Mock storage to prevent file system operations
 jest.mock('./storage', () => ({
     loadSites: jest.fn(),
     saveSites: jest.fn(),
@@ -28,6 +30,7 @@ jest.mock('./storage', () => ({
     loadResponses: jest.fn(),
 }));
 
+// Mock site-monitor to prevent actual site checks
 jest.mock('./site-monitor', () => ({
     checkSites: jest.fn(),
 }));
@@ -37,6 +40,8 @@ jest.mock('got', () => jest.fn());
 jest.mock('jsdom', () => ({
     JSDOM: jest.fn(),
 }));
+
+// Mock crypto to prevent actual hashing
 jest.mock('crypto', () => ({
     createHash: jest.fn(() => ({
         update: jest.fn(() => ({
@@ -80,8 +85,24 @@ jest.mock('discord.js', () => ({
     Collection: jest.fn().mockImplementation(() => {
         const map = new Map();
         return {
+            /**
+             * Sets a key-value pair in the collection.
+             * @param {*} key - The key.
+             * @param {*} value - The value.
+             * @returns {Map} The map object.
+             */
             set: (key, value) => map.set(key, value),
+            /**
+             * Gets a value from the collection by key.
+             * @param {*} key - The key.
+             * @returns {*} The value.
+             */
             get: (key) => map.get(key),
+            /**
+             * Finds a value in the collection.
+             * @param {Function} fn - The function to use for finding the value.
+             * @returns {*} The value.
+             */
             find: (fn) => {
                 for (const item of map.values()) {
                     if (fn(item)) {
@@ -90,12 +111,21 @@ jest.mock('discord.js', () => ({
                 }
                 return undefined;
             },
+            /**
+             * Returns an iterator for the values in the collection.
+             * @returns {Iterator} The iterator.
+             */
             values: () => map.values(),
         };
     }),
 }));
 
-
+//
+// Test suite for Discord commands
+//
+/**
+ * Test suite for Discord commands.
+ */
 describe('Discord Commands Test', () => {
     let mockMessage;
     let mockClient;
@@ -103,18 +133,33 @@ describe('Discord Commands Test', () => {
     let mockMember;
     let mockState;
     let mockConfig;
+    let mockCronUpdate;
+    let mockCarrierCron;
+    let mockAppleFeatureCron;
+    let mockApplePayCron;
+    let mockAppleEsimCron;
 
+    /**
+     * Set up environment variables before all tests.
+     * @returns {void}
+     */
     beforeAll(() => {
         process.env.DISCORDJS_ADMINCHANNEL_ID = 'admin-channel';
         process.env.DISCORDJS_ROLE_ID = 'admin-role';
     });
 
+    /**
+     * Set up mocks before each test.
+     * @returns {void}
+     */
     beforeEach(() => {
         jest.clearAllMocks();
 
+        // Mock Discord client and channel
         mockClient = new Discord.Client(); 
         mockChannel = mockClient.channels.cache.get('admin-channel');
 
+        // Mock message and member
         mockMember = {
             roles: {
                 cache: {
@@ -129,6 +174,7 @@ describe('Discord Commands Test', () => {
             member: mockMember,
         };
 
+        // Mock state and config
         mockState = {
             sitesToMonitor: [],
             settings: { interval: 5 },
@@ -141,16 +187,20 @@ describe('Discord Commands Test', () => {
             DISCORDJS_ROLE_ID: 'admin-role',
             interval: 5,
         };
+
+        // Mock cron jobs
         mockCronUpdate = new CronJob('', () => {});
         mockCarrierCron = new CronJob('', () => {});
         mockAppleFeatureCron = new CronJob('', () => {});
         mockApplePayCron = new CronJob('', () => {});
         mockAppleEsimCron = new CronJob('', () => {});
 
+        // Mock storage functions
         storage.loadSites.mockReturnValue(mockState.sitesToMonitor);
         storage.loadSettings.mockReturnValue(mockState.settings);
         storage.loadResponses.mockReturnValue(mockState.responses);
 
+        // Mock got and jsdom
         require('got').mockResolvedValue({ body: '<html><head><title>Example</title></head><body>Hello</body></html>' });
         require('jsdom').JSDOM.mockImplementation(() => ({
             window: {
@@ -165,8 +215,16 @@ describe('Discord Commands Test', () => {
         }));
     });
 
+    // Dynamically create a test for each command
     for (const command of commands.values()) {
+        /**
+         * Test suite for the !${command.name} command.
+         */
         describe(`!${command.name} command`, () => {
+            /**
+             * Test case for executing the ${command.name} command.
+             * @returns {void}
+             */
             it(`should execute the ${command.name} command`, () => {
                 const executeSpy = jest.spyOn(command, 'execute');
                 mockMessage.content = `!${command.name}`;

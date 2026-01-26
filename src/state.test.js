@@ -7,13 +7,22 @@ jest.mock('./storage', () => ({
     loadResponses: jest.fn(),
 }));
 
+/**
+ * Test suite for the state module.
+ */
 describe('state', () => {
+    /**
+     * Before each test, clear the mock storage functions.
+     */
     beforeEach(() => {
         storage.loadSites.mockClear();
         storage.loadSettings.mockClear();
         storage.loadResponses.mockClear();
     });
 
+    /**
+     * Test case for loading sites, settings, and responses from storage.
+     */
     it('should load sites, settings, and responses from storage', () => {
         const mockSites = [{ id: 'test' }];
         const mockSettings = { interval: 10 };

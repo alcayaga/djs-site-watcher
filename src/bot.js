@@ -1,4 +1,7 @@
+// Load environment variables
 require('dotenv').config();
+
+// Import required modules
 const got = require('got');
 const { JSDOM } = require('jsdom');
 const Discord = require('discord.js');
@@ -12,35 +15,51 @@ const applePayMonitor = require('./apple_pay_monitor.js');
 const appleEsimMonitor = require('./apple_esim_monitor.js');
 const { CronJob, CronTime } = require('cron');
 
+// Load configuration and state
 const config = require('./config');
-
 const state = require('./state');
 
+//
+// Cron jobs for monitoring
+//
+
+// Cron job for website monitoring
 const cronUpdate = new CronJob(`0 */${config.interval} * * * *`, () => {
     const time = new Date();
     console.log(`Cron executed at ${time.toLocaleString()}`);
     siteMonitor.checkSites(client, state.sitesToMonitor, client.channels.cache.get(config.DISCORDJS_TEXTCHANNEL_ID));
 }, null, false);
 
+// Cron job for carrier monitoring
 const carrierCron = new CronJob(`0 */${config.interval} * * * *`, () => {
     carrierMonitor.check(client);
 }, null, false);
 
+// Cron job for Apple feature monitoring
 const appleFeatureCron = new CronJob(`0 */${config.interval} * * * *`, () => {
     appleFeatureMonitor.check(client);
 }, null, false);
 
+// Cron job for Apple Pay monitoring
 const applePayCron = new CronJob(`0 */${config.interval} * * * *`, () => {
     applePayMonitor.check(client);
 }, null, false);
 
+// Cron job for Apple eSIM monitoring
 const appleEsimCron = new CronJob(`0 */${config.interval} * * * *`, () => {
     appleEsimMonitor.check(client);
 }, null, false);
 
+//
+// Discord client events
+//
+
+// When the client is ready, run this code
 client.on('ready', () => {
+    // Load the state from storage
     state.load();
 
+    // Initialize the lastContent for each site if it's not already set
     for (const site of state.sitesToMonitor) {
         if (!site.lastContent) {
             const { url, css } = site;
@@ -61,15 +80,18 @@ client.on('ready', () => {
         }
     }
 
+    // Initialize the trigger_regex for each response
     for (const response of state.responses) {
         response.trigger_regex = new RegExp(response.trigger, 'i');
     }
 
+    // Initialize the monitors
     carrierMonitor.initialize(client);
     appleFeatureMonitor.initialize(client);
     applePayMonitor.initialize(client);
     appleEsimMonitor.initialize(client);
 
+    // If SINGLE_RUN is true, run the monitors once and then exit
     if (config.SINGLE_RUN === 'true') {
         console.log('DEBUG / SINGLE RUN MODE ENABLED');
         siteMonitor.checkSites(client, state.sitesToMonitor, client.channels.cache.get(config.DISCORDJS_TEXTCHANNEL_ID));
@@ -87,6 +109,7 @@ client.on('ready', () => {
         return;
     }
 
+    // Set the cron time based on the interval
     if (config.interval < 60) {
         cronUpdate.setTime(new CronTime(`0 */${config.interval} * * * *`));
         carrierCron.setTime(new CronTime(`0 */${config.interval} * * * *`));
@@ -101,6 +124,7 @@ client.on('ready', () => {
         appleEsimCron.setTime(new CronTime(`0 0 * * * *`));
     }
 
+    // Start the cron jobs
     cronUpdate.start();
     carrierCron.start();
     appleFeatureCron.start();
@@ -110,10 +134,12 @@ client.on('ready', () => {
     console.log(`[${client.user.tag}] Ready...\n[${client.user.tag}] Running an interval of ${config.interval} minute(s).`);
 });
 
+// When a message is sent, run this code
 client.on('message', message => {
     commandHandler.handleCommand(message, client, state, config, cronUpdate, carrierCron, appleFeatureCron, applePayCron, appleEsimCron);
 });
 
+// Login to Discord with your client's token
 if (require.main === module) {
     client.login(config.DISCORDJS_BOT_TOKEN);
 }
