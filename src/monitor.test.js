@@ -1,13 +1,15 @@
 
-const { update } = require('./monitor'); // Import update directly
+const { checkSites } = require('./site-monitor'); // Import checkSites directly
 
 // Tell Jest to use the manual mock for discord.js
 jest.mock('discord.js');
 
 // Mock external modules
-jest.mock('fs-extra', () => ({
-  readJSONSync: jest.fn(),
-  outputJSON: jest.fn(),
+jest.mock('./storage', () => ({
+  loadSites: jest.fn(),
+  saveSites: jest.fn(),
+  loadSettings: jest.fn(),
+  loadResponses: jest.fn(),
 }));
 
 jest.mock('got', () => jest.fn());
@@ -50,7 +52,7 @@ describe('Monitor Diff Functionality', () => {
   let mockClient;
   let mockChannel;
   let mockSitesToMonitor;
-  const mockFile = './src/sites.json'; // Define the mock file path
+
 
   beforeEach(() => {
     // Reset mocks before each test
@@ -73,9 +75,9 @@ describe('Monitor Diff Functionality', () => {
       },
     ];
 
-    require('fs-extra').readJSONSync.mockReturnValueOnce(mockSitesToMonitor); // For initial load
-    require('fs-extra').readJSONSync.mockReturnValueOnce({ interval: 5, debug: false }); // For settings
-    require('fs-extra').readJSONSync.mockReturnValueOnce([]); // For responses
+    require('./storage').loadSites.mockReturnValueOnce(mockSitesToMonitor); // For initial load
+    require('./storage').loadSettings.mockReturnValueOnce({ interval: 5, debug: false }); // For settings
+    require('./storage').loadResponses.mockReturnValueOnce([]); // For responses
 
     // Mock JSDOM to return a controllable DOM
     require('jsdom').JSDOM.mockImplementation((html) => ({
@@ -95,10 +97,10 @@ describe('Monitor Diff Functionality', () => {
    * Tests that a change is detected and a diff is sent to Discord.
    */
   test('should detect a change and send a diff to Discord', async () => {
-    // Mock got to return updated content for the `update` call
+    // Mock got to return updated content for the `checkSites` call
     require('got').mockResolvedValueOnce({ body: 'updated content' });
 
-    await update(mockClient, mockSitesToMonitor, mockChannel, mockFile);
+    await checkSites(mockClient, mockSitesToMonitor, mockChannel);
 
     // Expect channel.send to have been called with the diff
     expect(mockChannel.send).toHaveBeenCalledWith("Detecté cambios");
@@ -127,7 +129,7 @@ describe('Monitor Diff Functionality', () => {
     // Mock got to return initial content for the `update` call
     require('got').mockResolvedValueOnce({ body: 'initial content' });
 
-    await update(mockClient, mockSitesToMonitor, mockChannel, mockFile);
+    await checkSites(mockClient, mockSitesToMonitor, mockChannel);
 
     // Expect channel.send not to have been called with "Detecté cambios" or diff
     expect(mockChannel.send).not.toHaveBeenCalledWith("Detecté cambios");
@@ -162,7 +164,7 @@ describe('Monitor Diff Functionality', () => {
 
     require('got').mockResolvedValueOnce({ body: updatedContent });
 
-    await update(mockClient, mockSitesToMonitor, mockChannel, mockFile);
+    await checkSites(mockClient, mockSitesToMonitor, mockChannel);
 
     const expectedDiff = '```diff\n' +
       '⚪line 1\n' +

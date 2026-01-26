@@ -1,134 +1,176 @@
+const Discord = require('discord.js');
+const fs = require('fs');
+const path = require('path');
+const { handleCommand, commands } = require('./command-handler.js');
+const storage = require('./storage.js');
+const siteMonitor = require('./site-monitor.js');
+const { CronJob, CronTime } = require('cron');
 
-
-
-// Mock cron
+// Mock external modules
 jest.mock('cron', () => ({
-    CronJob: jest.fn(() => ({
-        start: jest.fn(),
-        stop: jest.fn(),
-        setTime: jest.fn(),
-        running: true,
-    })),
-    CronTime: jest.fn(),
+    CronJob: jest.fn(function(cronTime, onTick) {
+        this.onTick = onTick; // Store the onTick function
+        this.start = jest.fn();
+        this.stop = jest.fn();
+        this.setTime = jest.fn();
+        this.running = true;
+    }),
+    CronTime: jest.fn(function(time) {
+        this.time = time;
+    }),
 }));
 
-// Mock fs-extra and got
-jest.mock('fs-extra', () => ({
-    readJSONSync: jest.fn().mockReturnValue({}),
-    outputJSON: jest.fn(),
+jest.mock('./storage', () => ({
+    loadSites: jest.fn(),
+    saveSites: jest.fn(),
+    loadSettings: jest.fn(),
+    saveSettings: jest.fn(),
+    loadResponses: jest.fn(),
 }));
+
+jest.mock('./site-monitor', () => ({
+    checkSites: jest.fn(),
+}));
+
+// Mock got and jsdom globally for commands.test.js
 jest.mock('got', () => jest.fn());
+jest.mock('jsdom', () => ({
+    JSDOM: jest.fn(),
+}));
+jest.mock('crypto', () => ({
+    createHash: jest.fn(() => ({
+        update: jest.fn(() => ({
+            digest: jest.fn(() => 'mockedHash'),
+        })),
+    })),
+}));
 
-// Mock discord.js
+// Custom mock for Discord.js Client and MessageEmbed
 jest.mock('discord.js', () => ({
-    Client: jest.fn(() => {
-        const listeners = {};
-        const mockClientInstance = {
-            on: jest.fn((event, callback) => {
-                if (!listeners[event]) {
-                    listeners[event] = [];
-                }
-                listeners[event].push(callback);
-            }),
-            emit: jest.fn((event, ...args) => {
-                if (listeners[event]) {
-                    listeners[event].forEach(callback => callback(...args));
-                }
-            }),
-            listeners: jest.fn((event) => listeners[event] || []),
+    Client: jest.fn().mockImplementation(() => {
+        const mockChannel = {
+            send: jest.fn(),
+            id: 'admin-channel'
+        };
+        return {
             channels: {
                 cache: {
-                    get: jest.fn(() => ({
-                        send: jest.fn(),
-                        id: 'admin-channel' // Ensure this matches DISCORDJS_ADMINCHANNEL_ID
-                    })),
+                    get: jest.fn(() => mockChannel),
                 },
             },
             login: jest.fn(),
+            on: jest.fn(),
+            emit: jest.fn(),
         };
-        return mockClientInstance;
     }),
-    MessageEmbed: jest.fn().mockImplementation(() => ({
-        setTitle: jest.fn().mockReturnThis(),
-        addField: jest.fn().mockReturnThis(),
-        setColor: jest.fn().mockReturnThis(),
-    })),
+    MessageEmbed: jest.fn().mockImplementation(() => {
+        const embed = {
+            _title: '',
+            _color: '',
+            _fields: [],
+            setTitle: jest.fn(function(title) { this._title = title; return this; }),
+            setColor: jest.fn(function(color) { this._color = color; return this; }),
+            addField: jest.fn(function(name, value, inline) {
+                this._fields.push({ name, value, inline });
+                return this;
+            }),
+        };
+        return embed;
+    }),
+    Collection: jest.fn().mockImplementation(() => {
+        const map = new Map();
+        return {
+            set: (key, value) => map.set(key, value),
+            get: (key) => map.get(key),
+            find: (fn) => {
+                for (const item of map.values()) {
+                    if (fn(item)) {
+                        return item;
+                    }
+                }
+                return undefined;
+            },
+            values: () => map.values(),
+        };
+    }),
 }));
 
-describe('Simplified Discord Commands Test', () => {
-    let message;
-    let monitorModule;
+
+describe('Discord Commands Test', () => {
+    let mockMessage;
+    let mockClient;
+    let mockChannel;
+    let mockMember;
+    let mockSitesToMonitor;
+    let mockSettings;
+    let mockResponses;
+    let mockCronUpdate;
+    let mockCarrierCron;
+    let mockAppleFeatureCron;
+    let mockApplePayCron;
+    let mockAppleEsimCron;
 
     beforeAll(() => {
-        // Load the monitor module AFTER all mocks are defined
-        monitorModule = require('./monitor.js');
-        
         process.env.DISCORDJS_ADMINCHANNEL_ID = 'admin-channel';
         process.env.DISCORDJS_ROLE_ID = 'admin-role';
     });
 
     beforeEach(() => {
-        // Reset mocks before each test
         jest.clearAllMocks();
 
-        const mockChannel = {
-            send: jest.fn(),
-            id: 'admin-channel'
-        };
-        const mockMember = {
+        mockClient = new Discord.Client(); 
+        mockChannel = mockClient.channels.cache.get('admin-channel');
+
+        mockMember = {
             roles: {
                 cache: {
                     has: jest.fn().mockReturnValue(true)
                 }
             }
         };
-
-        // Create a mock message object
-        message = {
+        mockMessage = {
             content: '',
             author: { bot: false },
             channel: mockChannel,
             member: mockMember,
         };
+
+        mockSitesToMonitor = [];
+        mockSettings = { interval: 5 };
+        mockResponses = [];
+
+        mockCronUpdate = new CronJob('', () => {});
+        mockCarrierCron = new CronJob('', () => {});
+        mockAppleFeatureCron = new CronJob('', () => {});
+        mockApplePayCron = new CronJob('', () => {});
+        mockAppleEsimCron = new CronJob('', () => {});
+
+        storage.loadSites.mockReturnValue(mockSitesToMonitor);
+        storage.loadSettings.mockReturnValue(mockSettings);
+        storage.loadResponses.mockReturnValue(mockResponses);
+
+        require('got').mockResolvedValue({ body: '<html><head><title>Example</title></head><body>Hello</body></html>' });
+        require('jsdom').JSDOM.mockImplementation(() => ({
+            window: {
+                document: {
+                    querySelector: jest.fn((selector) => {
+                        if (selector === 'head') return { textContent: '<html><head><title>Example</title></head><body>Hello</body></html>' };
+                        return null;
+                    }),
+                    title: 'Example',
+                },
+            },
+        }));
     });
 
-    describe('!applepay command', () => {
-        it('should handle !applepay status', () => {
-            message.content = '!applepay status';
-            monitorModule.client.emit('message', message);
-            expect(message.channel.send).toHaveBeenCalledWith('Apple Pay monitor is running.');
+    for (const command of commands.values()) {
+        describe(`!${command.name} command`, () => {
+            it(`should execute the ${command.name} command`, () => {
+                const executeSpy = jest.spyOn(command, 'execute');
+                mockMessage.content = `!${command.name}`;
+                handleCommand(mockMessage, mockClient, mockSitesToMonitor, mockSettings, mockResponses, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
+                expect(executeSpy).toHaveBeenCalledWith(mockMessage, [], mockClient, mockSitesToMonitor, mockSettings, mockResponses, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
+            });
         });
-
-        it('should handle !applepay start', () => {
-            message.content = '!applepay start';
-            monitorModule.client.emit('message', message);
-            expect(message.channel.send).toHaveBeenCalledWith('Apple Pay monitor started.');
-        });
-
-        it('should handle !applepay stop', () => {
-            message.content = '!applepay stop';
-            monitorModule.client.emit('message', message);
-            expect(message.channel.send).toHaveBeenCalledWith('Apple Pay monitor stopped.');
-        });
-    });
-
-    describe('!applefeature command', () => {
-        it('should handle !applefeature status', () => {
-            message.content = '!applefeature status';
-            monitorModule.client.emit('message', message);
-            expect(message.channel.send).toHaveBeenCalledWith('Apple Feature monitor is running.');
-        });
-
-        it('should handle !applefeature start', () => {
-            message.content = '!applefeature start';
-            monitorModule.client.emit('message', message);
-            expect(message.channel.send).toHaveBeenCalledWith('Apple Feature monitor started.');
-        });
-
-        it('should handle !applefeature stop', () => {
-            message.content = '!applefeature stop';
-            monitorModule.client.emit('message', message);
-            expect(message.channel.send).toHaveBeenCalledWith('Apple Feature monitor stopped.');
-        });
-    });
+    }
 });

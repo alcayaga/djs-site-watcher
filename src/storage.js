@@ -1,0 +1,72 @@
+const fs = require('fs-extra');
+
+const SITES_FILE = './src/sites.json';
+const SETTINGS_FILE = './src/settings.json';
+const RESPONSES_FILE = './src/responses.json';
+
+/**
+ * Loads the list of monitored sites from the JSON file.
+ * @returns {Array} An array of site objects.
+ */
+function loadSites() {
+  try {
+    return fs.readJSONSync(SITES_FILE);
+  } catch (err) {
+    console.log(`Could not read ${SITES_FILE}, creating a new one.`);
+    return [];
+  }
+}
+
+/**
+ * Saves the list of monitored sites to the JSON file.
+ * @param {Array} sites - The array of site objects to save.
+ */
+function saveSites(sites) {
+  fs.outputJSON(SITES_FILE, sites, { spaces: 2 }, err => {
+    if (err) console.log(err);
+  });
+}
+
+/**
+ * Loads the bot's settings from the JSON file.
+ * @returns {object} The settings object.
+ */
+function loadSettings() {
+  try {
+    return fs.readJSONSync(SETTINGS_FILE);
+  } catch (err) {
+    console.log(`Could not read ${SETTINGS_FILE}.`);
+    return { interval: 5 };
+  }
+}
+
+/**
+ * Saves the bot's settings to the JSON file.
+ * @param {object} settings - The settings object to save.
+ */
+function saveSettings(settings) {
+    fs.outputJSON(SETTINGS_FILE, settings, { spaces: 2 }, err => {
+        if (err) console.log(err)
+    });
+}
+
+/**
+ * Loads the bot's responses from the JSON file.
+ * @returns {Array} An array of response objects.
+ */
+function loadResponses() {
+    try {
+        return fs.readJSONSync(RESPONSES_FILE);
+    } catch (err) {
+        console.log(`Could not read ${RESPONSES_FILE}.`);
+        return [];
+    }
+}
+
+module.exports = {
+  loadSites,
+  saveSites,
+  loadSettings,
+  saveSettings,
+  loadResponses,
+};
