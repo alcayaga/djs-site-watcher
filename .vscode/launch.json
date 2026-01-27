@@ -11,7 +11,7 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/src/monitor.js"
+            "program": "${workspaceFolder}/src/bot.js"
         },
         {
             "type": "node",
@@ -20,7 +20,7 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/src/monitor.js",
+            "program": "${workspaceFolder}/src/bot.js",
             "env": {
                 "SINGLE_RUN": "true"
             }
