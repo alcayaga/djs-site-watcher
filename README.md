@@ -1,20 +1,15 @@
-<p align="center">
-  <img alt="SiteWatcher" src="./.github/pictures/icon.png" height="140" />
-  <h3 align="center">site-watcher</h3>
-  <p align="center">A Discord bot that alerts you when (part of) a website changes.</p>
-</p>
+<div align="center">
 
-<p align="center">
-  <a href="https://github.com/noelvissers/site-watcher/actions?query=workflow%3A%22Node.js+CI%22" alt="Pipeline status">
-    <img src="https://github.com/noelvissers/site-watcher/workflows/Node.js%20CI/badge.svg?branch=master"/>
-  </a>
-  <a href="https://github.com/noelvissers/site-watcher/releases" alt="Version">
-    <img src="https://img.shields.io/github/v/release/noelvissers/site-watcher"/>
-  </a>
-  <a href="https://opensource.org/licenses/MIT" alt="Licence">
-    <img src="https://img.shields.io/badge/License-MIT-blue.svg"/>
-  </a>
-</p>
+![SiteWatcher](./.github/pictures/icon.png)
+
+### site-watcher
+
+A Discord bot that alerts you when (part of) a website changes.
+
+[![Node.js CI](https://github.com/alcayaga/djs-site-watcher/actions/workflows/nodejs.yml/badge.svg)](https://github.com/alcayaga/djs-site-watcher/actions/workflows/nodejs.yml) [![Version](https://img.shields.io/github/v/release/alcayaga/site-watcher)](https://github.com/alcayaga/site-watcher/releases) 
+[![Licence](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
+</div>
 
 ---
 
