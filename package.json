@@ -2,11 +2,11 @@
   "name": "discordbot-websitemonitor",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/bot.js",
   "scripts": {
     "test": "jest",
-    "start": "node ./src/monitor.js",
-    "dev": "nodemon ./src/monitor.js",
+    "start": "node ./src/bot.js",
+    "dev": "nodemon ./src/bot.js",
     "lint": "eslint ."
   },
   "keywords": [],
