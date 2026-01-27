@@ -44,6 +44,7 @@ async function check(client) {
         const currentFeatures = {};
         const keywords = ['chile', 'spanish (latin america)', 'scl'];
 
+        // 1. Parse the website
         sections.forEach(section => {
             const featureNameElement = section.querySelector('h2');
             if (!featureNameElement) return;
@@ -64,15 +65,19 @@ async function check(client) {
             }
         });
 
-        // Compare with monitored features and notify if there are changes
-        let hasChanges = false;
+        // 2. Compare with monitored features and collect all changes into an array
+        const changesDetected = [];
+
         for (const feature in currentFeatures) {
             if (!monitoredFeatures[feature]) {
-                // New feature
+                // New feature found
                 currentFeatures[feature].regions.forEach(region => {
-                    notify(feature, region, currentFeatures[feature].id, client);
+                    changesDetected.push({
+                        feature: feature,
+                        region: region,
+                        anchor: currentFeatures[feature].id
+                    });
                 });
-                hasChanges = true;
             } else {
                 // Existing feature, check for new regions
                 const monitored = monitoredFeatures[feature];
@@ -81,16 +86,37 @@ async function check(client) {
 
                 currentFeatures[feature].regions.forEach(region => {
                     if (!monitoredRegions.includes(region)) {
-                        notify(feature, region, currentFeatures[feature].id, client);
-                        hasChanges = true;
+                        changesDetected.push({
+                            feature: feature,
+                            region: region,
+                            anchor: currentFeatures[feature].id
+                        });
                     }
                 });
             }
         }
 
-        if (hasChanges) {
+        // 3. Process Notifications (Rate Limited)
+        if (changesDetected.length > 0) {
+            console.log(`Found ${changesDetected.length} changes.`);
+            
+            // Save state immediately
             monitoredFeatures = currentFeatures;
             await fs.outputJSON(FEATURES_FILE, monitoredFeatures, { spaces: 2 });
+
+            const NOTIFICATION_LIMIT = 5;
+            const individualUpdates = changesDetected.slice(0, NOTIFICATION_LIMIT);
+            const groupedUpdates = changesDetected.slice(NOTIFICATION_LIMIT);
+
+            // Send individual notifications for the first 10
+            for (const change of individualUpdates) {
+                notify(change.feature, change.region, change.anchor, client);
+            }
+
+            // Send summary notification for the rest
+            if (groupedUpdates.length > 0) {
+                notifySummary(groupedUpdates, client);
+            }
         }
         
     } catch (err) {
@@ -116,6 +142,35 @@ function notify(feature, region, anchor, client) {
         embed.addField('Región/Idioma', region);
         embed.addField('URL', url);
         embed.setColor('#0071E3');
+        channel.send(embed);
+    }
+}
+
+/**
+ * Sends a summary notification for excess changes.
+ * @param {Array} changes List of change objects {feature, region, anchor}
+ * @param {Discord.Client} client The active Discord client instance.
+ */
+function notifySummary(changes, client) {
+    console.log(`Summarizing ${changes.length} additional changes.`);
+    const channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
+    if (channel) {
+        const embed = new Discord.MessageEmbed();
+        embed.setTitle(`...y ${changes.length} actualizaciones más`);
+        
+        // Build a list string. Note: Discord fields have a 1024 char limit.
+        // We map to "• Feature Name (Region)" format
+        let description = changes.map(c => `• **${c.feature}** (${c.region})`).join('\n');
+
+        // Simple truncation check to avoid API errors if the list is massive
+        if (description.length > 4090) {
+            description = description.substring(0, 4000) + '...\n(Lista truncada)';
+        }
+
+        embed.setDescription(description);
+        embed.setColor('#0071E3');
+        embed.setFooter(`Total detectado en este ciclo: ${changes.length + 10}`);
+        
         channel.send(embed);
     }
 }
