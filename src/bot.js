@@ -99,9 +99,11 @@ client.on('ready', () => {
             appleFeatureMonitor.check(client).then(() => {
                 applePayMonitor.check(client).then(() => {
                     appleEsimMonitor.check(client).then(() => {
-                        setTimeout(() => {
-                            process.exit();
-                        }, 5000);
+                        if (process.env.NODE_ENV !== 'test') {
+                            setTimeout(() => {
+                                process.exit();
+                            }, 5000);
+                        }
                     });
                 });
             });

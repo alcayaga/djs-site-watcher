@@ -1,5 +1,5 @@
 const Discord = require('discord.js');
-const { handleCommand, commands } = require('./command-handler.js');
+const { handleCommand } = require('./command-handler.js');
 const storage = require('./storage.js');
 const { CronJob } = require('cron');
 
@@ -52,8 +52,24 @@ jest.mock('discord.js', () => {
     const Collection = jest.fn(() => {
         const map = new Map();
         return {
+            /**
+             * Sets a key-value pair in the collection.
+             * @param {*} key - The key.
+             * @param {*} value - The value.
+             * @returns {void}
+             */
             set: (key, value) => map.set(key, value),
+            /**
+             * Gets a value by its key.
+             * @param {*} key - The key.
+             * @returns {*} The value.
+             */
             get: (key) => map.get(key),
+            /**
+             * Finds a value in the collection.
+             * @param {Function} fn - The function to test for each element.
+             * @returns {*} The first element that satisfies the provided testing function.
+             */
             find: (fn) => {
                 for (const item of map.values()) {
                     if (fn(item)) {
@@ -62,6 +78,10 @@ jest.mock('discord.js', () => {
                 }
                 return undefined;
             },
+            /**
+             * Returns an iterator for the values in the collection.
+             * @returns {Iterator} An iterator for the values.
+             */
             values: () => map.values(),
         };
     });

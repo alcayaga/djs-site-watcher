@@ -11,19 +11,6 @@ jest.mock('cron', () => ({
     }),
 }));
 
-jest.mock('cron', () => ({
-    CronJob: jest.fn(function(cronTime, onTick) {
-        this.onTick = onTick; // Store the onTick function
-        this.start = jest.fn();
-        this.stop = jest.fn();
-        this.setTime = jest.fn();
-        this.running = true;
-    }),
-    CronTime: jest.fn(function(time) {
-        this.time = time;
-    }),
-}));
-
 const Discord = require('discord.js');
 const storage = require('./storage.js');
 const got = require('got');
@@ -54,8 +41,24 @@ jest.mock('discord.js', () => {
     const Collection = jest.fn(() => {
         const map = new Map();
         return {
+            /**
+             * Sets a key-value pair in the collection.
+             * @param {*} key - The key.
+             * @param {*} value - The value.
+             * @returns {void}
+             */
             set: (key, value) => map.set(key, value),
+            /**
+             * Gets a value by its key.
+             * @param {*} key - The key.
+             * @returns {*} The value.
+             */
             get: (key) => map.get(key),
+            /**
+             * Finds a value in the collection.
+             * @param {Function} fn - The function to test for each element.
+             * @returns {*} The first element that satisfies the provided testing function.
+             */
             find: (fn) => {
                 for (const item of map.values()) {
                     if (fn(item)) {
@@ -64,6 +67,10 @@ jest.mock('discord.js', () => {
                 }
                 return undefined;
             },
+            /**
+             * Returns an iterator for the values in the collection.
+             * @returns {Iterator} An iterator for the values.
+             */
             values: () => map.values(),
         };
     });
@@ -92,10 +99,15 @@ jest.mock('discord.js', () => {
     };
 });
 
+/**
+ * Test suite for the main bot functionality.
+ */
 describe('Bot', () => {
     let client;
-    let bot;
 
+    /**
+     * Resets mocks and initializes a new Discord client before each test.
+     */
     beforeEach(() => {
         jest.clearAllMocks();
         
@@ -103,11 +115,17 @@ describe('Bot', () => {
         storage.loadSettings.mockReturnValue({ interval: 5 });
         storage.loadResponses.mockReturnValue([]);
 
+        require('./bot.js');
         client = new Discord.Client();
-        bot = require('./bot.js');
     });
 
-    describe('initialization', () => {
+    /**
+     * Tests the initialization process of the bot.
+     */
+describe('initialization', () => {
+        /**
+         * Test case to verify that the bot fetches and sets `lastContent` for sites missing it during initialization.
+         */
         it('should fetch and set lastContent for sites that are missing it', async () => {
             const sitesWithoutLastContent = [{
                 id: 'example.com',
