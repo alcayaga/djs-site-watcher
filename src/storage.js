@@ -45,7 +45,14 @@ function loadSettings() {
  * @param {object} settings - The settings object to save.
  */
 function saveSettings(settings) {
-    fs.outputJSON(SETTINGS_FILE, settings, { spaces: 2 }, err => {
+    const settingsToSave = { ...settings };
+    delete settingsToSave.DISCORDJS_BOT_TOKEN;
+    delete settingsToSave.DISCORDJS_TEXTCHANNEL_ID;
+    delete settingsToSave.DISCORDJS_ADMINCHANNEL_ID;
+    delete settingsToSave.DISCORDJS_ROLE_ID;
+    delete settingsToSave.SINGLE_RUN;
+
+    fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 }, err => {
         if (err) console.log(err)
     });
 }

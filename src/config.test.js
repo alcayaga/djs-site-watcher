@@ -16,6 +16,8 @@ describe('config', () => {
      */
     it('should load environment variables', () => {
         process.env.DISCORDJS_BOT_TOKEN = 'test-token';
+        const storage = require('./storage');
+        storage.loadSettings.mockReturnValue({});
         const config = require('./config');
         expect(config.DISCORDJS_BOT_TOKEN).toBe('test-token');
     });
