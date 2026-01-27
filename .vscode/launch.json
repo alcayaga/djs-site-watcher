@@ -7,11 +7,23 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Program",
+            "name": "Debug Monitor (Standard)",
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/src/bot.js"
+            "program": "${workspaceFolder}/src/monitor.js"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug Monitor (Single Run)",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}/src/monitor.js",
+            "env": {
+                "SINGLE_RUN": "true"
+            }
         }
     ]
 }
