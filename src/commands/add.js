@@ -7,6 +7,14 @@ const storage = require('../storage');
 module.exports = {
     name: 'add',
     description: 'Add site to monitor with optional CSS selector.',
+    /**
+     * Executes the add command.
+     * @param {Discord.Message} message The message object.
+     * @param {string[]} args The arguments array.
+     * @param {Discord.Client} client The Discord client.
+     * @param {object} state The state object.
+     * @returns {Promise<void>}
+     */
     async execute(message, args, client, state) {
         try {
             if (args.length === 0) return message.channel.send('Usage: `!add <URL> (<CSS SELECTOR>)`');

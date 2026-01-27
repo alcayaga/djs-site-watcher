@@ -48,12 +48,18 @@ jest.mock('crypto', () => {
   };
 });
 
+/**
+ * Test suite for Monitor Diff Functionality.
+ */
 describe('Monitor Diff Functionality', () => {
   let mockClient;
   let mockChannel;
   let mockSitesToMonitor;
 
-
+  /**
+   * Resets mocks before each test.
+   * @returns {void}
+   */
   beforeEach(() => {
     // Reset mocks before each test
     jest.clearAllMocks();
@@ -95,6 +101,7 @@ describe('Monitor Diff Functionality', () => {
 
   /**
    * Tests that a change is detected and a diff is sent to Discord.
+   * @returns {Promise<void>}
    */
   test('should detect a change and send a diff to Discord', async () => {
     // Mock got to return updated content for the `checkSites` call
@@ -124,6 +131,7 @@ describe('Monitor Diff Functionality', () => {
 
   /**
    * Tests that no diff is sent if no change is detected.
+   * @returns {Promise<void>}
    */
   test('should not send a diff if no change is detected', async () => {
     // Mock got to return initial content for the `update` call
@@ -138,6 +146,7 @@ describe('Monitor Diff Functionality', () => {
 
   /**
    * Tests that multiline diffs are formatted correctly with added and removed lines.
+   * @returns {Promise<void>}
    */
   test('should format multiline diffs correctly', async () => {
     const initialContent = 'line 1\nline 2\nline 3';

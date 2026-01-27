@@ -3,6 +3,14 @@ const storage = require('../storage');
 module.exports = {
     name: 'remove',
     description: 'Remove site from list.',
+    /**
+     * Executes the remove command.
+     * @param {Discord.Message} message The message object.
+     * @param {string[]} args The arguments array.
+     * @param {Discord.Client} client The Discord client.
+     * @param {object} state The state object.
+     * @returns {void}
+     */
     execute(message, args, client, state) {
         try {
             if (args.length === 0 || isNaN(args[0])) return message.channel.send('Usage: `!remove <NR [1-99]>`');

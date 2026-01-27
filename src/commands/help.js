@@ -3,6 +3,11 @@ const Discord = require('discord.js');
 module.exports = {
     name: 'help',
     description: 'Show all commands.',
+    /**
+     * Executes the help command.
+     * @param {Discord.Message} message The message object.
+     * @returns {void}
+     */
     execute(message) {
         const embed = new Discord.MessageEmbed();
         embed.setTitle("Commands");
