@@ -6,7 +6,7 @@
 
 A Discord bot that alerts you when (part of) a website changes.
 
-[![Node.js CI](https://github.com/alcayaga/djs-site-watcher/actions/workflows/nodejs.yml/badge.svg)](https://github.com/alcayaga/djs-site-watcher/actions/workflows/nodejs.yml) [![Version](https://img.shields.io/github/v/release/alcayaga/site-watcher)](https://github.com/alcayaga/site-watcher/releases) 
+[![Node.js CI](https://github.com/alcayaga/djs-site-watcher/actions/workflows/nodejs.yml/badge.svg)](https://github.com/alcayaga/djs-site-watcher/actions/workflows/nodejs.yml) [![Version](https://img.shields.io/github/v/release/alcayaga/djs-site-watcher)](https://github.com/alcayaga/site-watcher/releases) 
 [![Licence](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 </div>
