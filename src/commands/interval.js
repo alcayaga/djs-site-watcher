@@ -21,15 +21,9 @@ module.exports = {
             
             const newInterval = Math.round(args[0]);
 
-            if (newInterval < 60) {
-                cronUpdate.setTime(new CronTime(`0 */${newInterval} * * * *`));
-            } else {
-                cronUpdate.setTime(new CronTime(`0 0 * * * *`));
-            }
             config.interval = newInterval;
             storage.saveSettings(config);
             message.channel.send(`Interval set to ${config.interval} minutes.`);
-            cronUpdate.start();
 
             // Use MonitorManager to set intervals and start all monitors
             monitorManager.setAllIntervals(newInterval);
