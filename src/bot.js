@@ -9,10 +9,7 @@ const client = new Discord.Client();
 const storage = require('./storage');
 const commandHandler = require('./command-handler');
 const siteMonitor = require('./site-monitor');
-const carrierMonitor = require('./carrier_monitor.js');
-const appleFeatureMonitor = require('./apple_feature_monitor.js');
-const applePayMonitor = require('./apple_pay_monitor.js');
-const appleEsimMonitor = require('./apple_esim_monitor.js');
+const monitorManager = require('./MonitorManager'); // Import MonitorManager
 const { CronJob, CronTime } = require('cron');
 
 // Load configuration and state
@@ -30,32 +27,13 @@ const cronUpdate = new CronJob(`0 */${config.interval} * * * *`, () => {
     siteMonitor.checkSites(client, state.sitesToMonitor, client.channels.cache.get(config.DISCORDJS_TEXTCHANNEL_ID));
 }, null, false);
 
-// Cron job for carrier monitoring
-const carrierCron = new CronJob(`0 */${config.interval} * * * *`, () => {
-    carrierMonitor.check(client);
-}, null, false);
-
-// Cron job for Apple feature monitoring
-const appleFeatureCron = new CronJob(`0 */${config.interval} * * * *`, () => {
-    appleFeatureMonitor.check(client);
-}, null, false);
-
-// Cron job for Apple Pay monitoring
-const applePayCron = new CronJob(`0 */${config.interval} * * * *`, () => {
-    applePayMonitor.check(client);
-}, null, false);
-
-// Cron job for Apple eSIM monitoring
-const appleEsimCron = new CronJob(`0 */${config.interval} * * * *`, () => {
-    appleEsimMonitor.check(client);
-}, null, false);
 
 //
 // Discord client events
 //
 
 // When the client is ready, run this code
-client.on('ready', () => {
+client.on('ready', async () => { // Made async to await monitorManager.initialize
     // Load the state from storage
     state.load();
 
@@ -85,60 +63,41 @@ client.on('ready', () => {
         response.trigger_regex = new RegExp(response.trigger, 'i');
     }
 
-    // Initialize the monitors
-    carrierMonitor.initialize(client);
-    appleFeatureMonitor.initialize(client);
-    applePayMonitor.initialize(client);
-    appleEsimMonitor.initialize(client);
+    // Initialize the MonitorManager and all configured monitors
+    await monitorManager.initialize(client);
 
     // If SINGLE_RUN is true, run the monitors once and then exit
     if (config.SINGLE_RUN === 'true') {
         console.log('DEBUG / SINGLE RUN MODE ENABLED');
         siteMonitor.checkSites(client, state.sitesToMonitor, client.channels.cache.get(config.DISCORDJS_TEXTCHANNEL_ID));
-        carrierMonitor.check(client).then(() => {
-            appleFeatureMonitor.check(client).then(() => {
-                applePayMonitor.check(client).then(() => {
-                    appleEsimMonitor.check(client).then(() => {
-                        if (process.env.NODE_ENV !== 'test') {
-                            setTimeout(() => {
-                                process.exit();
-                            }, 5000);
-                        }
-                    });
-                });
-            });
-        });
+        await monitorManager.checkAll(client); // Use MonitorManager to check all monitors
+        if (process.env.NODE_ENV !== 'test') {
+            setTimeout(() => {
+                process.exit();
+            }, 5000);
+        }
         return;
     }
 
     // Set the cron time based on the interval
     if (config.interval < 60) {
         cronUpdate.setTime(new CronTime(`0 */${config.interval} * * * *`));
-        carrierCron.setTime(new CronTime(`0 */${config.interval} * * * *`));
-        appleFeatureCron.setTime(new CronTime(`0 */${config.interval} * * * *`));
-        applePayCron.setTime(new CronTime(`0 */${config.interval} * * * *`));
-        appleEsimCron.setTime(new CronTime(`0 */${config.interval} * * * *`));
+        monitorManager.setAllIntervals(config.interval); // Use MonitorManager to set all monitor intervals
     } else {
         cronUpdate.setTime(new CronTime(`0 0 * * * *`));
-        carrierCron.setTime(new CronTime(`0 0 * * * *`));
-        appleFeatureCron.setTime(new CronTime(`0 0 * * * *`));
-        applePayCron.setTime(new CronTime(`0 0 * * * *`));
-        appleEsimCron.setTime(new CronTime(`0 0 * * * *`));
+        monitorManager.setAllIntervals(60); // Use MonitorManager to set all monitor intervals
     }
 
     // Start the cron jobs
     cronUpdate.start();
-    carrierCron.start();
-    appleFeatureCron.start();
-    applePayCron.start();
-    appleEsimCron.start();
+    monitorManager.startAll(); // Use MonitorManager to start all monitors
 
     console.log(`[${client.user.tag}] Ready...\n[${client.user.tag}] Running an interval of ${config.interval} minute(s).`);
 });
 
 // When a message is sent, run this code
 client.on('message', message => {
-    commandHandler.handleCommand(message, client, state, config, cronUpdate, carrierCron, appleFeatureCron, applePayCron, appleEsimCron);
+    commandHandler.handleCommand(message, client, state, config, cronUpdate, monitorManager); // Pass monitorManager
 });
 
 // Login to Discord with your client's token
