@@ -20,7 +20,7 @@ class SiteMonitor extends Monitor {
      */
     async check(client) {
         console.log(`Checking for ${this.name} updates...`);
-        let sitesArray = this.state.sites || [];
+        let sitesArray = Array.isArray(this.state) ? this.state : [];
         let hasChanges = false;
 
         const checkPromises = sitesArray.map(async (site) => {
@@ -59,20 +59,21 @@ class SiteMonitor extends Monitor {
         const updatedSites = await Promise.all(checkPromises);
 
         if (hasChanges) {
-            await this.saveState({ sites: updatedSites });
+            await this.saveState(updatedSites);
         }
     }
     
     /**
      * Overrides the base loadState to load from the `sites.json` file.
-     * @returns {Promise<object>} The loaded state.
+     * @returns {Promise<Array>} The loaded state.
      */
     async loadState() {
         try {
-            return { sites: await storage.read(this.config.file) };
+            const sites = await storage.read(this.config.file);
+            return Array.isArray(sites) ? sites : [];
         } catch (error) {
             console.log(`Could not load state for ${this.name} from ${this.config.file}. Starting fresh.`);
-            return { sites: [] };
+            return [];
         }
     }
 
