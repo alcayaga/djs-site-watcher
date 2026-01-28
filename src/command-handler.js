@@ -23,12 +23,9 @@ const regexp = /[^\s"]+|"([^"]*)"/gi;
  * @param {object} state The application state.
  * @param {object} config The application configuration.
  * @param {object} cronUpdate The cron job for updating sites.
- * @param {object} carrierCron The cron job for updating carriers.
- * @param {object} appleFeatureCron The cron job for updating Apple features.
- * @param {object} applePayCron The cron job for updating Apple Pay.
- * @param {object} appleEsimCron The cron job for updating Apple eSIM.
+ * @param {object} monitorManager The MonitorManager instance.
  */
-async function handleCommand(message, client, state, config, cronUpdate, carrierCron, appleFeatureCron, applePayCron, appleEsimCron) {
+async function handleCommand(message, client, state, config, cronUpdate, monitorManager) {
     // AP Channel auto-responses
     if (!message.author.bot && config.DISCORDJS_APCHANNEL_ID === message.channel.id) {
         const ap_message = message.content.trim();
@@ -84,7 +81,7 @@ async function handleCommand(message, client, state, config, cronUpdate, carrier
 
     // Execute command
     try {
-        command.execute(message, args, client, state, config, cronUpdate, carrierCron, appleFeatureCron, applePayCron, appleEsimCron);
+        command.execute(message, args, client, state, config, cronUpdate, monitorManager);
     } catch (error) {
         console.error(error);
         message.reply('there was an error trying to execute that command!');
