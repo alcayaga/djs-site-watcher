@@ -16,6 +16,11 @@ config.SINGLE_RUN = process.env.SINGLE_RUN;
 
 config.monitors = [
     {
+        name: 'Site',
+        enabled: true,
+        file: './src/sites.json',
+    },
+    {
         name: 'AppleEsim',
         enabled: true,
         url: 'https://support.apple.com/en-us/101569',
