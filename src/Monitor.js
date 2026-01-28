@@ -1,4 +1,4 @@
-const { CronJob } = require('cron');
+const { CronJob, CronTime } = require('cron'); // Import CronTime
 const got = require('got');
 const storage = require('./storage');
 const config = require('./config');
@@ -56,7 +56,7 @@ class Monitor {
      * @param {string} cronTime The new cron time string.
      */
     setInterval(cronTime) {
-        this.cronJob.setTime(cronTime);
+        this.cronJob.setTime(new CronTime(cronTime));
     }
 
     /**
