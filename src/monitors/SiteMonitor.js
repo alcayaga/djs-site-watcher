@@ -4,6 +4,7 @@ const Monitor = require('../Monitor');
 const crypto = require('crypto');
 const diff = require('diff');
 const got = require('got');
+const storage = require('../storage');
 
 class SiteMonitor extends Monitor {
     /**
@@ -68,7 +69,7 @@ class SiteMonitor extends Monitor {
      */
     async loadState() {
         try {
-            return { sites: await this.storage.read(this.config.file) };
+            return { sites: await storage.read(this.config.file) };
         } catch (error) {
             console.log(`Could not load state for ${this.name} from ${this.config.file}. Starting fresh.`);
             return { sites: [] };
