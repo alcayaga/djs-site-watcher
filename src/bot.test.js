@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 jest.mock('cron', () => ({
     CronJob: jest.fn(function(cronTime, onTick) {
         this.onTick = onTick;
@@ -12,7 +11,7 @@ jest.mock('cron', () => ({
     }),
 }));
 
-const MockMonitorClass = jest.fn().mockImplementation(function(name, monitorConfig) {
+const _MockMonitorClass = jest.fn().mockImplementation(function(name, monitorConfig) {
     this.name = name;
     this.monitorConfig = monitorConfig;
     this.check = jest.fn(); // Revert to simple jest.fn()
@@ -36,12 +35,12 @@ jest.mock('./config', () => ({
     PREFIX: '!',
 }));
 
-const Discord = require('discord.js'); // Keep Discord as it's used
+const _Discord = require('discord.js'); // Keep Discord as it's used
 const storage = require('./storage.js'); // Keep storage as it's used
 const got = require('got');
 const { JSDOM } = require('jsdom');
 const state = require('./state');
-const MonitorManager = require('./MonitorManager'); // Keep MonitorManager as it's used
+const _MonitorManager = require('./MonitorManager'); // Keep MonitorManager as it's used
 
 // Fully mock MonitorManager
 jest.mock('./MonitorManager', () => ({
