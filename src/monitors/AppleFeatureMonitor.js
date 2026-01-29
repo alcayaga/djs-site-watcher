@@ -3,6 +3,10 @@ const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const config = require('../config');
 
+/**
+ * Monitor for Apple Feature availability in various regions.
+ * Extends the base Monitor class to provide specific logic for parsing, comparing, and notifying about new features or regions.
+ */
 class AppleFeatureMonitor extends Monitor {
     /**
      * Parses the HTML content to extract feature availability for configured keywords.

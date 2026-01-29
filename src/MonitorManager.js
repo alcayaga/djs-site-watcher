@@ -1,8 +1,13 @@
 const config = require('./config');
-const fs = require('fs');
-const path = require('path');
 
+/**
+ * Manages the loading, initialization, and control of various monitor instances.
+ * This class acts as a central hub for all monitors in the application.
+ */
 class MonitorManager {
+    /**
+     * Creates an instance of MonitorManager.
+     */
     constructor() {
         this.monitors = [];
     }
@@ -10,17 +15,18 @@ class MonitorManager {
     /**
      * Loads, instantiates, and initializes all monitors based on the config.
      * @param {Discord.Client} client The Discord client instance.
+     * @param {Array<Monitor>} monitorClasses A list of monitor classes to load.
      */
-    async initialize(client) {
-        const monitorFiles = fs.readdirSync(path.join(__dirname, 'monitors')).map(file => path.parse(file).name);
+    async initialize(client, monitorClasses = []) {
+        const monitorClassMap = new Map(monitorClasses.map(m => [m.name, m]));
 
         for (const monitorConfig of config.monitors) {
             if (monitorConfig.enabled) {
                 const monitorName = monitorConfig.name;
-                const expectedFileName = `${monitorName}Monitor`;
-                if (monitorFiles.includes(expectedFileName)) {
+                const MonitorClass = monitorClassMap.get(`${monitorName}Monitor`);
+
+                if (MonitorClass) {
                     try {
-                        const MonitorClass = require(`./monitors/${expectedFileName}`);
                         const monitorInstance = new MonitorClass(monitorName, monitorConfig);
                         await monitorInstance.initialize(client);
                         this.monitors.push(monitorInstance);
@@ -28,7 +34,7 @@ class MonitorManager {
                         console.error(`Error loading monitor ${monitorName}:`, e);
                     }
                 } else {
-                    console.error(`Monitor "${monitorName}" is enabled in config, but no matching "${expectedFileName}.js" file was found in "src/monitors/".`);
+                    console.error(`Monitor "${monitorName}" is enabled in config, but no matching monitor class was provided.`);
                 }
             }
         }

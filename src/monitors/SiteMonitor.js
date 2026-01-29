@@ -6,6 +6,10 @@ const diff = require('diff');
 const got = require('got');
 const storage = require('../storage');
 
+/**
+ * Monitor for changes on arbitrary websites based on CSS selectors.
+ * Extends the base Monitor class to provide specific logic for fetching, parsing, comparing, and notifying about website content changes.
+ */
 class SiteMonitor extends Monitor {
     /**
      * An empty parse method to satisfy the abstract class, as parsing is handled in the check method.

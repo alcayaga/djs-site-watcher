@@ -3,6 +3,10 @@ const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const config = require('../config');
 
+/**
+ * Monitor for Apple eSIM carrier availability.
+ * Extends the base Monitor class to provide specific logic for parsing, comparing, and notifying about eSIM carrier changes.
+ */
 class AppleEsimMonitor extends Monitor {
     /**
      * Parses the HTML content to extract eSIM carrier data for the configured country.

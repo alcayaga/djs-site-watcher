@@ -1,5 +1,6 @@
 const storage = require('../storage');
-const { CronTime } = require('cron');
+/* eslint-disable-next-line no-unused-vars */
+const config = require('../config');
 
 module.exports = {
     name: 'interval',
@@ -9,9 +10,9 @@ module.exports = {
      * @param {Discord.Message} message The message object.
      * @param {string[]} args The arguments array.
      * @param {Discord.Client} client The Discord client.
-     * @param {object} state The state object.
+     * @param {object} state The application state.
      * @param {object} config The configuration object.
-     * @param {CronJob} cronUpdate The main cron job.
+     * @param {object} cronUpdate The main cron job.
      * @param {object} monitorManager The MonitorManager instance.
      * @returns {void}
      */

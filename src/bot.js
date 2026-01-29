@@ -4,10 +4,11 @@ require('dotenv').config();
 // Import required modules
 const Discord = require('discord.js');
 const client = new Discord.Client();
-const storage = require('./storage');
+// const storage = require('./storage'); // Removed
 const commandHandler = require('./command-handler');
-const monitorManager = require('./MonitorManager'); // Import MonitorManager
-const { CronTime } = require('cron');
+const monitorManager = require('./MonitorManager');
+const fs = require('fs'); // New import
+const path = require('path'); // New import
 
 // Load configuration and state
 const config = require('./config');
@@ -19,7 +20,7 @@ const state = require('./state');
 //
 
 // When the client is ready, run this code
-client.on('ready', async () => { // Made async to await monitorManager.initialize
+client.on('ready', async () => {
     // Load the state from storage
     state.load();
 
@@ -28,8 +29,21 @@ client.on('ready', async () => { // Made async to await monitorManager.initializ
         response.trigger_regex = new RegExp(response.trigger, 'i');
     }
 
+    // Dynamically load all monitor classes
+    const monitorClasses = [];
+    const monitorFiles = fs.readdirSync(path.join(__dirname, 'monitors'))
+        .filter(file => file.endsWith('.js'));
+
+    for (const file of monitorFiles) {
+        const MonitorClass = require(`./monitors/${file}`);
+        // Ensure the class has a 'name' property as expected by MonitorManager
+        // e.g., if filename is 'AppleEsimMonitor.js', class name should be 'AppleEsimMonitor'
+        // Object.defineProperty(MonitorClass, 'name', { value: path.parse(file).name }); // This line is not needed, as the class name is already the file name.
+        monitorClasses.push(MonitorClass);
+    }
+
     // Initialize the MonitorManager and all configured monitors
-    await monitorManager.initialize(client);
+    await monitorManager.initialize(client, monitorClasses); // Pass monitorClasses
 
     // If SINGLE_RUN is true, run the monitors once and then exit
     if (config.SINGLE_RUN === 'true') {
@@ -66,4 +80,6 @@ client.on('message', message => {
 if (require.main === module) {
     client.login(config.DISCORDJS_BOT_TOKEN);
 }
+
+module.exports = { client };
 
