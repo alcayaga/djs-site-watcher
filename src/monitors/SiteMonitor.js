@@ -80,7 +80,7 @@ class SiteMonitor extends Monitor {
                 return data.sites;
             }
             return [];
-        } catch (error) {
+        } catch {
             console.log(`Could not load state for ${this.name} from ${this.config.file}. Starting fresh.`);
             return [];
         }

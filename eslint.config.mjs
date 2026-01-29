@@ -57,6 +57,16 @@ export default defineConfig([
         ...globals.jest,
       },
     },
+    rules: {
+      ...jest.configs["flat/recommended"].rules,
+      "jest/no-disabled-tests": "warn",
+      "jest/no-focused-tests": "error",
+      "jest/consistent-test-it": ["warn", { fn: "it" }],
+      "jest/prefer-to-have-length": "warn",
+      "jest/valid-expect": "error",
+      "jest/no-conditional-expect": "warn",
+      "jest/no-identical-title": "error",
+    },
   },
   // JSDoc overrides for test files
   {
@@ -67,6 +77,16 @@ export default defineConfig([
     rules: {
       "jsdoc/require-jsdoc": "off",
       "jsdoc/require-description": "off",
+      "no-unused-vars": [
+        "error",
+        {
+          "vars": "all",
+          "args": "after-used",
+          "ignoreRestSiblings": true,
+          "argsIgnorePattern": "^_",
+          "varsIgnorePattern": "^_"
+        }
+      ],
     },
   },
 ]);

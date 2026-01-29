@@ -1,9 +1,8 @@
-/* eslint-disable no-unused-vars */
 const { handleCommand } = require('./command-handler');
-const Discord = require('discord.js');
-const storage = require('./storage');
-const config = require('./config');
-const MonitorManager = require('./MonitorManager');
+const _Discord = require('discord.js');
+const _storage = require('./storage');
+const _config = require('./config');
+const _MonitorManager = require('./MonitorManager');
 
 // Mock discord.js with a manual mock for Collection
 jest.mock('discord.js', () => {
@@ -58,7 +57,7 @@ describe('Discord Commands Functionality Test', () => {
         
         // Re-require mocked modules to get fresh mocks for each test
         const storageMock = require('./storage');
-        const configMock = require('./config');
+        const _configMock = require('./config');
         mockMonitorManager = require('./MonitorManager'); // This is now the mocked instance
 
         mockChannel = {

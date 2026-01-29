@@ -91,7 +91,7 @@ describe('SiteMonitor', () => {
     });
 
     // Existing tests for check method
-    test('should detect a change and notify', async () => {
+    it('should detect a change and notify', async () => {
         const notifySpy = jest.spyOn(siteMonitor, 'notify'); // Spy on notify for this test
         const response = { body: 'updated content' };
         got.mockResolvedValue(response); // Override default got mock for this test
@@ -112,7 +112,7 @@ describe('SiteMonitor', () => {
         notifySpy.mockRestore(); // Clean up spy
     });
 
-    test('should not notify if no change is detected', async () => {
+    it('should not notify if no change is detected', async () => {
         const notifySpy = jest.spyOn(siteMonitor, 'notify'); // Spy on notify for this test
         const response = { body: 'initial content' };
         got.mockResolvedValue(response); // Override default got mock for this test
