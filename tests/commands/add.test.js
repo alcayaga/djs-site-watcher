@@ -1,4 +1,4 @@
-const add = require('../../src/../src/commands/add');
+const add = require('../../src/commands/add');
 const storage = require('../../src/storage');
 const got = require('got');
 
