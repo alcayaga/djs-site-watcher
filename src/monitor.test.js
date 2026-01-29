@@ -116,8 +116,8 @@ describe('Monitor Diff Functionality', () => {
 
     // The third call should be the diff in a code block
     expect(mockChannel.send).toHaveBeenCalledWith(expect.stringContaining('```diff\n'));
-    expect(mockChannel.send).toHaveBeenCalledWith(expect.stringContaining('🔴initial'));
-    expect(mockChannel.send).toHaveBeenCalledWith(expect.stringContaining('🟢updated'));
+    expect(mockChannel.send).toHaveBeenCalledWith(expect.stringContaining('🔴 initial'));
+    expect(mockChannel.send).toHaveBeenCalledWith(expect.stringContaining('🟢 updated'));
   });
 
   /**
@@ -165,14 +165,14 @@ describe('Monitor Diff Functionality', () => {
     await update(mockClient, mockSitesToMonitor, mockChannel, mockFile);
 
     const expectedDiff = '```diff\n' +
-      '⚪line 2\n' +
-      '⚪line 3\n' +
-      '⚪line 4\n' +
-      '🔴line 5\n' +
-      '🟢changed line 5\n' +
-      '⚪line 6\n' +
-      '⚪line 7\n' +
-      '⚪line 8\n' +
+      '⚪ line 2\n' +
+      '⚪ line 3\n' +
+      '⚪ line 4\n' +
+      '🔴 line 5\n' +
+      '🟢 changed line 5\n' +
+      '⚪ line 6\n' +
+      '⚪ line 7\n' +
+      '⚪ line 8\n' +
       '\n```';
       
     expect(mockChannel.send.mock.calls[2][0]).toBe(expectedDiff);
@@ -209,10 +209,10 @@ describe('Monitor Diff Functionality', () => {
     await update(mockClient, mockSitesToMonitor, mockChannel, mockFile);
 
     const expectedDiff = '```diff\n' +
-      '⚪line 1\n' +
-      '🔴line 2\n' +
-      '🟢line two\n' +
-      '⚪line 3\n' +
+      '⚪ line 1\n' +
+      '🔴 line 2\n' +
+      '🟢 line two\n' +
+      '⚪ line 3\n' +
       '\n```';
       
     // call[0] = "Detecté cambios"

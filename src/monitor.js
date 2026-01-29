@@ -647,9 +647,9 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
     allLines.forEach((line, index) => {
       if (linesToKeep.has(index)) {
         if (lastIndex !== -1 && index !== lastIndex + 1) {
-          diffString += '...\n';
+          diffString += '... \n';
         }
-        const prefix = line.type === 'added' ? '🟢' : line.type === 'removed' ? '🔴' : '⚪';
+        const prefix = line.type === 'added' ? '🟢 ' : line.type === 'removed' ? '🔴 ' : '⚪ ';
         diffString += prefix + line.content + '\n';
         lastIndex = index;
       }
