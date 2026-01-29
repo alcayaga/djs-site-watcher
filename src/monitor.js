@@ -23,6 +23,19 @@ var crypto = require('crypto');
 const fs = require('fs-extra');
 const diff = require('diff');
 
+/**
+ * Cleans the extracted text content by trimming each line and removing empty lines.
+ * @param {string} text The text to clean.
+ * @returns {string} The cleaned text.
+ */
+const cleanText = (text) => {
+  if (!text) return '';
+  return text.split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .join('\n');
+};
+
 const carrierMonitor = require('./carrier_monitor.js');
 const appleFeatureMonitor = require('./apple_feature_monitor.js');
 const applePayMonitor = require('./apple_pay_monitor.js');
@@ -567,7 +580,11 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
         site.hash = hash;
         site.lastContent = content_;
 
-        return { changed: true, index, oldContent, newContent: content_, dom };
+        // Only notify if the cleaned text actually changed to avoid spamming whitespace-only changes.
+        if (cleanText(oldContent) !== cleanText(content_)) {
+          return { changed: true, index, oldContent, newContent: content_, dom };
+        }
+        return { changed: false };
       } else {
         site.lastChecked = new Date().toLocaleString(); // Update last checked even if no change
         return { changed: false };
@@ -605,7 +622,7 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
     }
 
     // Generate a line-by-line diff of the content.
-    const changes = diff.diffLines(oldContent, newContent);
+    const changes = diff.diffLines(cleanText(oldContent), cleanText(newContent));
     let diffString = '';
     changes.forEach((part) => {
       const prefix = part.added ? '🟢' : part.removed ? '🔴' : '⚪';
