@@ -31,4 +31,26 @@ describe('config', () => {
         const config = require('../src/config');
         expect(config.interval).toBe(10);
     });
+
+    /**
+     * Test case for DISCORDJS_APCHANNEL_ID.
+     */
+    it('should load DISCORDJS_APCHANNEL_ID from env', () => {
+        process.env.DISCORDJS_APCHANNEL_ID = 'ap-channel-id';
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({});
+        const config = require('../src/config');
+        expect(config.DISCORDJS_APCHANNEL_ID).toBe('ap-channel-id');
+    });
+
+    /**
+     * Test case ensuring loaded monitors are not overwritten.
+     */
+    it('should prioritize loaded monitors over defaults', () => {
+        const customMonitors = [{ name: 'CustomMonitor', enabled: true }];
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({ monitors: customMonitors });
+        const config = require('../src/config');
+        expect(config.monitors).toEqual(customMonitors);
+    });
 });
