@@ -168,7 +168,8 @@ describe('Monitor Diff Functionality', () => {
       '⚪line 1\n' +
       '🔴line 2\n' +
       '🟢line two\n' +
-      '⚪line 3\n```';
+      '⚪line 3\n' +
+      '\n```';
       
     // call[0] = "Detecté cambios"
     // call[1] = embed

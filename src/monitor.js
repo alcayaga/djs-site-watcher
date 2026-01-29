@@ -633,17 +633,13 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
       if (!part.value) return;
 
       // Prefix each line of the diff with an emoji to indicate the change type.
-      // This handles multiline parts correctly.
-      const endsWithNewline = part.value.endsWith('\n');
-      const valueToProcess = endsWithNewline ? part.value.slice(0, -1) : part.value;
+      // This handles multiline parts correctly and ensures each line ends with a newline.
+      const valueToProcess = part.value.endsWith('\n') ? part.value.slice(0, -1) : part.value;
+      const lines = valueToProcess.split('\n');
 
-      const prefixedLines = valueToProcess.split('\n').map(line => prefix + line).join('\n');
-      
-      diffString += prefixedLines;
-
-      if (endsWithNewline) {
-        diffString += '\n';
-      }
+      lines.forEach(line => {
+        diffString += prefix + line + '\n';
+      });
     });
 
     // Truncate the diff string if it's too long for a Discord message.
