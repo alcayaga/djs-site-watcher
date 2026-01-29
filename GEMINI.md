@@ -11,27 +11,51 @@
     * Treat this as legacy code. Actively identify technical debt and propose architectural improvements or modernizations alongside your implementation tasks.
 
 ## 2. Interaction & Git Workflow
-**CRITICAL:** You must adhere to the following strict approval loop for all changes.
 
 ### Phase 1: Implementation & Review
 1.  **Branching:** Always start a new task on a fresh branch (`feature/xyz`, `fix/xyz`). Never work directly on `master`.
 2.  **Development:** Implement the core logic/feature first.
-3.  **Feedback:** Present the implementation for review. **Do not generate commit messages yet.**
 
-### Phase 2: Committing
-* **Atomic Commits:** adhere to the "One Idea = One Commit" rule. Isolate features, bug fixes, and refactors.
+### Phase 2: Testing & Committing Logic
+**GLOBAL PRE-COMMIT RULE:** Before creating ANY commit, you **must** run `npm run lint` and fix any style/linting errors.
+
+* **Scenario A: Bug Fixes & Simple Changes (TDD Style)**
+    1.  **Test First:** Write or modify the test case to reproduce the bug or verify the simple change.
+    2.  **Verify:** Ensure the test passes.
+    3.  **Lint:** Run `npm run lint`.
+    4.  **Commit:** Commit the code and the test **together** in a single commit.
+
+* **Scenario B: Large Features & Complex Refactors**
+    1.  **Implement:** Focus on the implementation logic first.
+    2.  **Regression Check:** Run **existing** tests (`npm test`) to ensure the new code hasn't broken current functionality.
+    3.  **Lint:** Run `npm run lint`.
+    4.  **Commit Implementation:** Commit the working feature code.
+    5.  **New Tests:** Add comprehensive tests for the new feature in a **separate subsequent commit** to keep the history clean.
+
+### Phase 3: Committing Standards
+* **Approvals:** You have autonomy to execute commits
+* **Atomic Commits:** Adhere to the "One Idea = One Commit" rule. Isolate features, bug fixes, and refactors.
 * **Message Formatting:**
     * **NO** backticks (`) or quotes ("") around filenames or code symbols in the commit message (this breaks the local console).
     * Use standard conventional commits format where possible (e.g., `feat:`, `fix:`, `refactor:`).
-* **Strict Approval Protocol:**
-    * After staging files, you **MUST** output the full, final git commit message text.
-    * **WAIT** for my explicit "ok" or "approved" before executing the actual git command.
 
-### Phase 3: Testing & PR
-1.  **Post-Implementation Testing:** Once the feature code is committed, write the tests in a **separate** subsequent commit.
-2.  **Pull Request:**
+### Phase 4: PR & Finalization
+1.  **Pull Request:**
     * Draft the PR description/title.
     * **WAIT** for my explicit "ok" or "approved" before submitting the draft via `gh`.
+
+## Testing Strategy
+When validating changes, ALWAYS follow this strict execution order:
+
+1. **Targeted Test (First):**
+   - Run the specific test file associated with the modified component.
+   - Example: `npm test -- path/to/specific.test.js`
+   - Goal: Fail fast on immediate errors.
+
+2. **Full Regression (Second):**
+   - **Condition:** Execute this ONLY if the targeted test passes.
+   - Command: `npm test` (or your full suite command)
+   - Goal: Ensure no side effects broke other parts of the system.
 
 ## 3. Environment & Testing Strategy
 * **Unit Testing (`npm test`):**
