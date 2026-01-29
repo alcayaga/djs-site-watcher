@@ -93,7 +93,7 @@ class SiteMonitor extends Monitor {
      */
     notify(client, change) {
         const { site, oldContent, newContent, dom } = change;
-        const channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
+        const channel = this.getNotificationChannel(client);
         if (!channel) {
             console.error(`Notification channel not found for ${this.name}.`);
             return;

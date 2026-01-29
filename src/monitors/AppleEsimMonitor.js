@@ -1,7 +1,6 @@
 const { JSDOM } = require('jsdom');
 const Discord = require('discord.js');
 const Monitor = require('../Monitor');
-const config = require('../config');
 
 /**
  * Monitor for Apple eSIM carrier availability.
@@ -91,7 +90,7 @@ class AppleEsimMonitor extends Monitor {
      * @param {{added: Array, removed: Array}} changes The changes to notify about.
      */
     notify(client, changes) {
-        const channel = client.channels.cache.get(config.DISCORDJS_TEXTCHANNEL_ID);
+        const channel = this.getNotificationChannel(client);
         if (!channel) {
             console.error(`Notification channel not found for ${this.name}.`);
             return;

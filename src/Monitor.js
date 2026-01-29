@@ -89,6 +89,34 @@ class Monitor {
     }
 
     /**
+     * Gets the notification channel for the monitor.
+     * Returns a mock channel that logs to console if SINGLE_RUN is enabled.
+     * @param {Discord.Client} client The Discord client instance.
+     * @returns {object|Discord.TextChannel} The notification channel or a mock channel.
+     */
+    getNotificationChannel(client) {
+        if (config.SINGLE_RUN === 'true') {
+            return {
+                /**
+                 * Mocks the Discord channel send method by logging to console.
+                 * @param {string|object} content The message content or embed object.
+                 */
+                send: (content) => {
+                    if (typeof content === 'object' && content.title) {
+                        console.log(`[SINGLE_RUN] [EMBED] ${content.title}`);
+                        if (content.fields) {
+                            content.fields.forEach(f => console.log(`  ${f.name}: ${f.value}`));
+                        }
+                    } else {
+                        console.log(`[SINGLE_RUN] [TEXT] ${content}`);
+                    }
+                }
+            };
+        }
+        return client.channels.cache.get(config.DISCORDJS_TEXTCHANNEL_ID);
+    }
+
+    /**
      * Fetches the data from the monitor's URL.
      * @returns {Promise<string>} The fetched data.
      */
@@ -118,7 +146,7 @@ class Monitor {
      */
     notify(client, changes) {
         console.log(`Changes detected for ${this.name}:`, changes);
-        const channel = client.channels.cache.get(config.DISCORDJS_TEXTCHANNEL_ID);
+        const channel = this.getNotificationChannel(client);
         if (channel) {
             channel.send(`Detected changes for ${this.name}!`);
         }
