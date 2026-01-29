@@ -1,16 +1,16 @@
 let mockChannelSend = jest.fn();
 let mockClientChannelsCacheGet = jest.fn();
 
-const Monitor = require('./Monitor');
+const Monitor = require('../src/Monitor');
 const { CronJob, CronTime } = require('cron');
 const got = require('got');
-const storage = require('./storage');
+const storage = require('../src/storage');
 const Discord = require('discord.js');
 
 
 jest.mock('cron');
 jest.mock('got');
-jest.mock('./storage');
+jest.mock('../src/storage');
 
 jest.mock('discord.js', () => {
     const mClient = {
@@ -23,7 +23,7 @@ jest.mock('discord.js', () => {
     return { Client: jest.fn(() => mClient) };
 });
 
-jest.mock('./config', () => ({
+jest.mock('../src/config', () => ({
     interval: 5,
     DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
 }));

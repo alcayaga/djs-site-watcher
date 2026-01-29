@@ -1,5 +1,5 @@
-require('./MonitorManager');
-require('./config');
+require('../src/MonitorManager');
+require('../src/config');
 const Discord = require('discord.js');
 
 // Helper to create a mock Monitor class with necessary methods
@@ -32,7 +32,7 @@ const createMockMonitorClass = (className) => {
 };
 
 // Mock config for MonitorManager
-jest.mock('./config', () => ({
+jest.mock('../src/config', () => ({
     monitors: [
         { name: 'TestMonitor', enabled: true, file: 'test.json' },
         { name: 'DisabledMonitor', enabled: false },
@@ -55,7 +55,7 @@ describe('MonitorManager', () => {
         // Mock the module path where MonitorManager expects to find TestMonitorMonitor
         jest.doMock('./monitors/TestMonitorMonitor', () => MockTestMonitorClass, { virtual: true });
         
-        monitorManager = require('./MonitorManager');
+        monitorManager = require('../src/MonitorManager');
         client = new Discord.Client();
     });
 

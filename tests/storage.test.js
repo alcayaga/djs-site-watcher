@@ -1,4 +1,4 @@
-const storage = require('./storage');
+const storage = require('../src/storage');
 const fs = require('fs-extra');
 
 jest.mock('fs-extra');
