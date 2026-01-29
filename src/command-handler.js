@@ -4,7 +4,7 @@ const path = require('path');
 
 // Load all commands from the commands directory
 const commands = new Discord.Collection();
-const commandFiles = fs.readdirSync(path.join(__dirname, 'commands')).filter(file => file.endsWith('.js'));
+const commandFiles = fs.readdirSync(path.join(__dirname, 'commands')).filter(file => file.endsWith('.js') && !file.endsWith('.test.js'));
 
 for (const file of commandFiles) {
     const command = require(`./commands/${file}`);
