@@ -23,6 +23,19 @@ var crypto = require('crypto');
 const fs = require('fs-extra');
 const diff = require('diff');
 
+/**
+ * Cleans the extracted text content by trimming each line and removing empty lines.
+ * @param {string} text The text to clean.
+ * @returns {string} The cleaned text.
+ */
+const cleanText = (text) => {
+  if (!text) return '';
+  return text.split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .join('\n');
+};
+
 const carrierMonitor = require('./carrier_monitor.js');
 const appleFeatureMonitor = require('./apple_feature_monitor.js');
 const applePayMonitor = require('./apple_pay_monitor.js');
@@ -567,7 +580,11 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
         site.hash = hash;
         site.lastContent = content_;
 
-        return { changed: true, index, oldContent, newContent: content_, dom };
+        // Only notify if the cleaned text actually changed to avoid spamming whitespace-only changes.
+        if (cleanText(oldContent) !== cleanText(content_)) {
+          return { changed: true, index, oldContent, newContent: content_, dom };
+        }
+        return { changed: false };
       } else {
         site.lastChecked = new Date().toLocaleString(); // Update last checked even if no change
         return { changed: false };
@@ -605,27 +622,36 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
     }
 
     // Generate a line-by-line diff of the content.
-    const changes = diff.diffLines(oldContent, newContent);
-    let diffString = '';
+    const changes = diff.diffLines(cleanText(oldContent), cleanText(newContent));
+    const allLines = [];
     changes.forEach((part) => {
-      const prefix = part.added ? '🟢' : part.removed ? '🔴' : '⚪';
-      if ((!part.added && !part.removed) && diffString.length >= 1800) {
-        return;
-      }
-      
+      const type = part.added ? 'added' : part.removed ? 'removed' : 'context';
       if (!part.value) return;
+      const valueToProcess = part.value.endsWith('\n') ? part.value.slice(0, -1) : part.value;
+      const lines = valueToProcess.split('\n');
+      lines.forEach(line => allLines.push({ content: line, type }));
+    });
 
-      // Prefix each line of the diff with an emoji to indicate the change type.
-      // This handles multiline parts correctly.
-      const endsWithNewline = part.value.endsWith('\n');
-      const valueToProcess = endsWithNewline ? part.value.slice(0, -1) : part.value;
+    const CONTEXT_LINES = 3;
+    const linesToKeep = new Set();
+    allLines.forEach((line, index) => {
+      if (line.type !== 'context') {
+        for (let i = Math.max(0, index - CONTEXT_LINES); i <= Math.min(allLines.length - 1, index + CONTEXT_LINES); i++) {
+          linesToKeep.add(i);
+        }
+      }
+    });
 
-      const prefixedLines = valueToProcess.split('\n').map(line => prefix + line).join('\n');
-      
-      diffString += prefixedLines;
-
-      if (endsWithNewline) {
-        diffString += '\n';
+    let diffString = '';
+    let lastIndex = -1;
+    allLines.forEach((line, index) => {
+      if (linesToKeep.has(index)) {
+        if (lastIndex !== -1 && index !== lastIndex + 1) {
+          diffString += '... \n';
+        }
+        const prefix = line.type === 'added' ? '🟢 ' : line.type === 'removed' ? '🔴 ' : '⚪ ';
+        diffString += prefix + line.content + '\n';
+        lastIndex = index;
       }
     });
 
