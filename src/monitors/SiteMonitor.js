@@ -73,8 +73,13 @@ class SiteMonitor extends Monitor {
      */
     async loadState() {
         try {
-            const sites = await storage.read(this.config.file);
-            return Array.isArray(sites) ? sites : [];
+            const data = await storage.read(this.config.file);
+            if (Array.isArray(data)) {
+                return data;
+            } else if (data && Array.isArray(data.sites)) {
+                return data.sites;
+            }
+            return [];
         } catch (error) {
             console.log(`Could not load state for ${this.name} from ${this.config.file}. Starting fresh.`);
             return [];

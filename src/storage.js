@@ -10,7 +10,13 @@ const RESPONSES_FILE = './src/responses.json';
  */
 function loadSites() {
   try {
-    return fs.readJSONSync(SITES_FILE);
+    const data = fs.readJSONSync(SITES_FILE);
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data && Array.isArray(data.sites)) {
+      return data.sites;
+    }
+    return [];
   } catch (err) {
     console.log(`Could not read ${SITES_FILE}, creating a new one.`);
     return [];
