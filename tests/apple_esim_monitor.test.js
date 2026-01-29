@@ -1,9 +1,9 @@
-const AppleEsimMonitor = require('./monitors/AppleEsimMonitor');
-require('./Monitor'); // Only require, no assignment
+const AppleEsimMonitor = require('../src/monitors/AppleEsimMonitor');
+require('../src/Monitor'); // Only require, no assignment
 // const { JSDOM } = require('jsdom'); // Not used directly, but mocked globally
 const Discord = require('discord.js');
 const got = require('got');
-require('./storage'); // Only require, no assignment
+require('../src/storage'); // Only require, no assignment
 
 // Mock external modules
 jest.mock('jsdom', () => {
@@ -26,8 +26,8 @@ jest.mock('jsdom', () => {
 });
 jest.mock('discord.js');
 jest.mock('got');
-jest.mock('./storage');
-jest.mock('./config', () => ({
+jest.mock('../src/storage');
+jest.mock('../src/config', () => ({
     DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
     interval: 5,
 }));

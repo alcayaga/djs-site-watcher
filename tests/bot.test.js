@@ -21,7 +21,7 @@ const _MockMonitorClass = jest.fn().mockImplementation(function(name, monitorCon
 });
 
 // Mock config first, as it's a deep dependency
-jest.mock('./config', () => ({
+jest.mock('../src/config', () => ({
     interval: 5,
     monitors: [
         { name: 'AppleEsim', enabled: true, url: 'http://apple.com/esim', file: './src/apple_esim.json', country: 'Chile' },
@@ -36,14 +36,14 @@ jest.mock('./config', () => ({
 }));
 
 const _Discord = require('discord.js'); // Keep Discord as it's used
-const storage = require('./storage.js'); // Keep storage as it's used
+const storage = require('../src/storage.js'); // Keep storage as it's used
 const got = require('got');
 const { JSDOM } = require('jsdom');
-const state = require('./state');
-const _MonitorManager = require('./MonitorManager'); // Keep MonitorManager as it's used
+const state = require('../src/state');
+const _MonitorManager = require('../src/MonitorManager'); // Keep MonitorManager as it's used
 
 // Fully mock MonitorManager
-jest.mock('./MonitorManager', () => ({
+jest.mock('../src/MonitorManager', () => ({
     initialize: jest.fn(),
     startAll: jest.fn(),
     stopAll: jest.fn(),
@@ -55,7 +55,7 @@ jest.mock('./MonitorManager', () => ({
 }));
 
 
-jest.mock('./storage', () => ({
+jest.mock('../src/storage', () => ({
     loadSites: jest.fn(),
     saveSites: jest.fn(),
     loadSettings: jest.fn(),
@@ -134,8 +134,8 @@ describe('Bot', () => {
         jest.resetModules();
         jest.clearAllMocks();
 
-        // Re-introduce const storage = require('./storage.js'); in beforeEach for mocking
-        const storage = require('./storage.js');
+        // Re-introduce const storage = require('../src/storage.js'); in beforeEach for mocking
+        const storage = require('../src/storage.js');
         storage.loadSites.mockReturnValue([]);
         storage.loadResponses.mockReturnValue([]);
         storage.loadSettings.mockImplementation(() => ({
@@ -143,7 +143,7 @@ describe('Bot', () => {
             monitors: [],
         }));
 
-        const bot = require('./bot.js');
+        const bot = require('../src/bot.js');
         client = bot.client;
     });
 

@@ -1,8 +1,8 @@
-const { handleCommand } = require('./command-handler');
+const { handleCommand } = require('../src/command-handler');
 const _Discord = require('discord.js');
-const _storage = require('./storage');
-const _config = require('./config');
-const _MonitorManager = require('./MonitorManager');
+const _storage = require('../src/storage');
+const _config = require('../src/config');
+const _MonitorManager = require('../src/MonitorManager');
 
 // Mock discord.js with a manual mock for Collection
 jest.mock('discord.js', () => {
@@ -29,7 +29,7 @@ jest.mock('discord.js', () => {
     };
 });
 // Mock storage with loadSettings implementation
-jest.mock('./storage', () => ({
+jest.mock('../src/storage', () => ({
     loadSites: jest.fn(),
     saveSites: jest.fn(),
     loadSettings: jest.fn().mockReturnValue({ interval: 5, debug: false }), // Provide default mock implementation here
@@ -37,8 +37,8 @@ jest.mock('./storage', () => ({
     loadResponses: jest.fn(),
     saveResponses: jest.fn(),
 }));
-jest.mock('./config');
-jest.mock('./MonitorManager', () => ({
+jest.mock('../src/config');
+jest.mock('../src/MonitorManager', () => ({
     initialize: jest.fn(),
     startAll: jest.fn(),
     stopAll: jest.fn(),
@@ -56,9 +56,9 @@ describe('Discord Commands Functionality Test', () => {
         jest.clearAllMocks();
         
         // Re-require mocked modules to get fresh mocks for each test
-        const storageMock = require('./storage');
-        const _configMock = require('./config');
-        mockMonitorManager = require('./MonitorManager'); // This is now the mocked instance
+        const storageMock = require('../src/storage');
+        const _configMock = require('../src/config');
+        mockMonitorManager = require('../src/MonitorManager'); // This is now the mocked instance
 
         mockChannel = {
             id: 'mockAdminChannelId',

@@ -1,5 +1,5 @@
 // Mock external modules at the top-level
-jest.doMock('./storage', () => ({
+jest.doMock('../src/storage', () => ({
     read: jest.fn(),
     write: jest.fn(),
     loadSettings: jest.fn().mockReturnValue({
@@ -8,11 +8,11 @@ jest.doMock('./storage', () => ({
     }),
 }));
 
-const SiteMonitor = require('./monitors/SiteMonitor');
+const SiteMonitor = require('../src/monitors/SiteMonitor');
 const Discord = require('discord.js');
 const got = require('got');
 const { JSDOM } = require('jsdom');
-const storage = require('./storage');
+const storage = require('../src/storage');
 const crypto = require('crypto');
 const diff = require('diff');
 

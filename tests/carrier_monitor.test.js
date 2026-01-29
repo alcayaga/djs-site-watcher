@@ -1,16 +1,16 @@
-const CarrierMonitor = require('./monitors/CarrierMonitor');
-const Monitor = require('./Monitor');
+const CarrierMonitor = require('../src/monitors/CarrierMonitor');
+const Monitor = require('../src/Monitor');
 const Discord = require('discord.js');
 const got = require('got');
-require('./storage'); // Only require, no assignment
+require('../src/storage'); // Only require, no assignment
 const plist = require('plist');
 
 // Mock external modules
 jest.mock('plist');
 jest.mock('discord.js');
 jest.mock('got');
-jest.mock('./storage');
-jest.mock('./config', () => ({
+jest.mock('../src/storage');
+jest.mock('../src/config', () => ({
     DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
     interval: 5,
 }));
