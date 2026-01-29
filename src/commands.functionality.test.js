@@ -1,19 +1,45 @@
-const { handleCommand } = require('../command-handler');
+/* eslint-disable no-unused-vars */
+const { handleCommand } = require('./command-handler');
 const Discord = require('discord.js');
-const storage = require('../storage');
-const config = require('../config');
-const MonitorManager = require('../MonitorManager');
+const storage = require('./storage');
+const config = require('./config');
+const MonitorManager = require('./MonitorManager');
 
-jest.mock('../storage', () => ({
+// Mock discord.js with a manual mock for Collection
+jest.mock('discord.js', () => {
+    const originalDiscord = jest.requireActual('discord.js');
+    const Collection = jest.fn(() => {
+        const map = new Map();
+        return {
+            set: (key, value) => map.set(key, value),
+            get: (key) => map.get(key),
+            find: (fn) => {
+                for (const item of map.values()) {
+                    if (fn(item)) {
+                        return item;
+                    }
+                }
+                return undefined;
+            },
+            values: () => map.values(),
+        };
+    });
+    return {
+        ...originalDiscord,
+        Collection,
+    };
+});
+// Mock storage with loadSettings implementation
+jest.mock('./storage', () => ({
     loadSites: jest.fn(),
     saveSites: jest.fn(),
-    loadSettings: jest.fn(),
+    loadSettings: jest.fn().mockReturnValue({ interval: 5, debug: false }), // Provide default mock implementation here
     saveSettings: jest.fn(),
     loadResponses: jest.fn(),
     saveResponses: jest.fn(),
 }));
-
-jest.mock('../MonitorManager', () => ({
+jest.mock('./config');
+jest.mock('./MonitorManager', () => ({
     initialize: jest.fn(),
     startAll: jest.fn(),
     stopAll: jest.fn(),
@@ -30,7 +56,13 @@ describe('Discord Commands Functionality Test', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         
+        // Re-require mocked modules to get fresh mocks for each test
+        const storageMock = require('./storage');
+        const configMock = require('./config');
+        mockMonitorManager = require('./MonitorManager'); // This is now the mocked instance
+
         mockChannel = {
+            id: 'mockAdminChannelId',
             send: jest.fn().mockResolvedValue(true),
             startTyping: jest.fn(),
             stopTyping: jest.fn(),
@@ -46,9 +78,12 @@ describe('Discord Commands Functionality Test', () => {
 
         mockMessage = {
             channel: mockChannel,
+            author: { bot: false },
             member: {
                 roles: {
-                    cache: new Map([['mockRoleId', true]]),
+                    cache: {
+                        has: jest.fn(() => true),
+                    },
                 },
             },
             reply: jest.fn(),
@@ -73,8 +108,8 @@ describe('Discord Commands Functionality Test', () => {
             running: true,
         };
 
-        // Mock the MonitorManager instance
-        mockMonitorManager = MonitorManager;
+        // Configure mocks for specific test needs
+        storageMock.loadSettings.mockReturnValue(mockConfig);
     });
 
     describe('!interval command', () => {
@@ -87,11 +122,14 @@ describe('Discord Commands Functionality Test', () => {
     });
 
     describe('!monitor command', () => {
+        let mockMonitors;
         beforeEach(() => {
-            // Setup mock monitors for MonitorManager
-            const mockMonitors = [
+            // Setup mock monitors for MonitorManager to cover all types
+            mockMonitors = [
                 { name: 'AppleEsim', start: jest.fn(), stop: jest.fn(), check: jest.fn(), getStatus: () => ({ name: 'AppleEsim', isRunning: true }) },
                 { name: 'Carrier', start: jest.fn(), stop: jest.fn(), check: jest.fn(), getStatus: () => ({ name: 'Carrier', isRunning: false }) },
+                { name: 'ApplePay', start: jest.fn(), stop: jest.fn(), check: jest.fn(), getStatus: () => ({ name: 'ApplePay', isRunning: true }) },
+                { name: 'AppleFeature', start: jest.fn(), stop: jest.fn(), check: jest.fn(), getStatus: () => ({ name: 'AppleFeature', isRunning: false }) },
             ];
             mockMonitorManager.getAllMonitors.mockReturnValue(mockMonitors);
             mockMonitorManager.getMonitor.mockImplementation(name => mockMonitors.find(m => m.name.toLowerCase() === name.toLowerCase()));
@@ -101,8 +139,8 @@ describe('Discord Commands Functionality Test', () => {
             mockMessage.content = '!monitor start all';
             await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
             expect(mockMonitorManager.getAllMonitors).toHaveBeenCalled();
-            mockMonitorManager.getAllMonitors().forEach(monitor => expect(monitor.start).toHaveBeenCalled());
-            expect(mockChannel.send).toHaveBeenCalledWith('Started monitor(s): AppleEsim, Carrier.');
+            mockMonitors.forEach(monitor => expect(monitor.start).toHaveBeenCalled()); // Check all mocked monitors
+            expect(mockChannel.send).toHaveBeenCalledWith('Started monitor(s): AppleEsim, Carrier, ApplePay, AppleFeature.');
         });
         
         it('should stop a specific monitor with `!monitor stop AppleEsim`', async () => {
@@ -116,7 +154,7 @@ describe('Discord Commands Functionality Test', () => {
         it('should get the status of all monitors with `!monitor status`', async () => {
             mockMessage.content = '!monitor status';
             await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
-            expect(mockChannel.send).toHaveBeenCalledWith('Monitor Status:\nAppleEsim: Running 🟢\nCarrier: Stopped 🔴');
+            expect(mockChannel.send).toHaveBeenCalledWith('Monitor Status:\nAppleEsim: Running 🟢\nCarrier: Stopped 🔴\nApplePay: Running 🟢\nAppleFeature: Stopped 🔴');
         });
 
         it('should trigger a check for a specific monitor with `!monitor check Carrier`', async () => {
@@ -124,6 +162,38 @@ describe('Discord Commands Functionality Test', () => {
             await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
             expect(mockMonitorManager.getMonitor('Carrier').check).toHaveBeenCalledWith(mockClient);
             expect(mockChannel.send).toHaveBeenCalledWith('Triggering check for monitor(s): Carrier.');
+        });
+
+        // New tests for ApplePay and AppleFeature from old commands.test.js
+        it('should start ApplePay monitor with `!monitor start ApplePay`', async () => {
+            mockMessage.content = '!monitor start ApplePay';
+            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
+            expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('ApplePay');
+            expect(mockMonitorManager.getMonitor('ApplePay').start).toHaveBeenCalled();
+            expect(mockChannel.send).toHaveBeenCalledWith('Started monitor(s): ApplePay.');
+        });
+
+        it('should stop AppleFeature monitor with `!monitor stop AppleFeature`', async () => {
+            mockMessage.content = '!monitor stop AppleFeature';
+            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
+            expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('AppleFeature');
+            expect(mockMonitorManager.getMonitor('AppleFeature').stop).toHaveBeenCalled();
+            expect(mockChannel.send).toHaveBeenCalledWith('Stopped monitor(s): AppleFeature.');
+        });
+
+        it('should get ApplePay monitor status with `!monitor status ApplePay`', async () => {
+            mockMessage.content = '!monitor status ApplePay';
+            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
+            expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('ApplePay');
+            expect(mockChannel.send).toHaveBeenCalledWith('Monitor Status:\nApplePay: Running 🟢');
+        });
+
+        it('should trigger a check for AppleFeature monitor with `!monitor check AppleFeature`', async () => {
+            mockMessage.content = '!monitor check AppleFeature';
+            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
+            expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('AppleFeature');
+            expect(mockMonitorManager.getMonitor('AppleFeature').check).toHaveBeenCalledWith(mockClient);
+            expect(mockChannel.send).toHaveBeenCalledWith('Triggering check for monitor(s): AppleFeature.');
         });
     });
 });
