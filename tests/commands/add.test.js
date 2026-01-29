@@ -1,8 +1,8 @@
-const add = require('./add');
-const storage = require('../storage');
+const add = require('../../src/commands/add');
+const storage = require('../../src/storage');
 const got = require('got');
 
-jest.mock('../storage');
+jest.mock('../../src/storage');
 jest.mock('got');
 jest.mock('jsdom', () => {
     return {

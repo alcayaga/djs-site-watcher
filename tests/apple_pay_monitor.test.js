@@ -1,5 +1,5 @@
 // Mock external modules at the top-level
-jest.doMock('./storage', () => ({
+jest.doMock('../src/storage', () => ({
     read: jest.fn(),
     write: jest.fn(),
     loadSettings: jest.fn().mockReturnValue({
@@ -8,11 +8,11 @@ jest.doMock('./storage', () => ({
     }),
 }));
 
-const ApplePayMonitor = require('./monitors/ApplePayMonitor');
+const ApplePayMonitor = require('../src/monitors/ApplePayMonitor');
 // const { JSDOM } = require('jsdom'); // Not used directly, but mocked globally
 const Discord = require('discord.js');
 const got = require('got');
-require('./storage'); // Only require, no assignment
+require('../src/storage'); // Only require, no assignment
 const diff = require('diff');
 // const crypto = require('crypto'); // Not used directly, but mocked globally
 
@@ -23,8 +23,8 @@ let mockChannel = {};
 jest.mock('jsdom'); // Still mock, even if not used, for consistency
 jest.mock('discord.js');
 jest.mock('got');
-jest.mock('./storage');
-jest.mock('./config', () => ({
+jest.mock('../src/storage');
+jest.mock('../src/config', () => ({
     DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
     interval: 5,
 }));

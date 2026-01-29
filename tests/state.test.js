@@ -1,7 +1,7 @@
-const state = require('./state');
-const storage = require('./storage');
+const state = require('../src/state');
+const storage = require('../src/storage');
 
-jest.mock('./storage', () => ({
+jest.mock('../src/storage', () => ({
     loadSites: jest.fn(),
     loadSettings: jest.fn(),
     loadResponses: jest.fn(),

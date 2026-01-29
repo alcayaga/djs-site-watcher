@@ -1,4 +1,4 @@
-jest.mock('./storage');
+jest.mock('../src/storage');
 
 /**
  * Test suite for the config module.
@@ -16,9 +16,9 @@ describe('config', () => {
      */
     it('should load environment variables', () => {
         process.env.DISCORDJS_BOT_TOKEN = 'test-token';
-        const storage = require('./storage');
+        const storage = require('../src/storage');
         storage.loadSettings.mockReturnValue({});
-        const config = require('./config');
+        const config = require('../src/config');
         expect(config.DISCORDJS_BOT_TOKEN).toBe('test-token');
     });
 
@@ -26,9 +26,9 @@ describe('config', () => {
      * Test case for loading settings from storage.
      */
     it('should load settings from storage', () => {
-        const storage = require('./storage');
+        const storage = require('../src/storage');
         storage.loadSettings.mockReturnValue({ interval: 10 });
-        const config = require('./config');
+        const config = require('../src/config');
         expect(config.interval).toBe(10);
     });
 });

@@ -1,9 +1,9 @@
-const AppleFeatureMonitor = require('./monitors/AppleFeatureMonitor');
-const Monitor = require('./Monitor');
+const AppleFeatureMonitor = require('../src/monitors/AppleFeatureMonitor');
+const Monitor = require('../src/Monitor');
 // const { JSDOM } = require('jsdom'); // Comment out direct import
 const Discord = require('discord.js');
 const got = require('got');
-require('./storage'); // Only require, no assignment
+require('../src/storage'); // Only require, no assignment
 
 // Mock external modules
 jest.mock('jsdom', () => {
@@ -24,8 +24,8 @@ jest.mock('jsdom', () => {
 });
 jest.mock('discord.js');
 jest.mock('got');
-jest.mock('./storage');
-jest.mock('./config', () => ({
+jest.mock('../src/storage');
+jest.mock('../src/config', () => ({
     DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
     interval: 5,
 }));
