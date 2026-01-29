@@ -141,7 +141,7 @@ class Monitor {
     async loadState() {
         try {
             return await storage.read(this.config.file);
-        } catch (error) {
+        } catch {
             console.log(`Could not load state for ${this.name} from ${this.config.file}. Starting fresh.`);
             return {};
         }

@@ -17,7 +17,7 @@ function loadSites() {
       return data.sites;
     }
     return [];
-  } catch (err) {
+  } catch {
     console.log(`Could not read ${SITES_FILE}, creating a new one.`);
     return [];
   }
@@ -28,9 +28,8 @@ function loadSites() {
  * @param {Array} sites - The array of site objects to save.
  */
 function saveSites(sites) {
-  fs.outputJSON(SITES_FILE, sites, { spaces: 2 }, err => {
-    if (err) console.log(err);
-  });
+  fs.outputJSON(SITES_FILE, sites, { spaces: 2 })
+    .catch(err => console.log(err));
 }
 
 /**
@@ -40,7 +39,7 @@ function saveSites(sites) {
 function loadSettings() {
   try {
     return fs.readJSONSync(SETTINGS_FILE);
-  } catch (err) {
+  } catch {
     console.log(`Could not read ${SETTINGS_FILE}.`);
     return { interval: 5 };
   }
@@ -58,9 +57,8 @@ function saveSettings(settings) {
     delete settingsToSave.DISCORDJS_ROLE_ID;
     delete settingsToSave.SINGLE_RUN;
 
-    fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 }, err => {
-        if (err) console.log(err)
-    });
+    fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 })
+        .catch(err => console.log(err));
 }
 
 /**
@@ -70,7 +68,7 @@ function saveSettings(settings) {
 function loadResponses() {
     try {
         return fs.readJSONSync(RESPONSES_FILE);
-    } catch (err) {
+    } catch {
         console.log(`Could not read ${RESPONSES_FILE}.`);
         return [];
     }
@@ -84,7 +82,7 @@ function loadResponses() {
 async function read(file) {
     try {
         return await fs.readJSON(file);
-    } catch (err) {
+    } catch {
         console.log(`Could not read ${file}.`);
         return {};
     }
