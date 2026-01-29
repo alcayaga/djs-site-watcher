@@ -49,6 +49,11 @@ config.monitors = [
         configAltUrl: 'https://smp-device-content.apple.com/static/region/v2/config-alt.json',
         region: 'CL',
     },
+    {
+        name: 'Site',
+        enabled: true,
+        file: './src/sites.json',
+    },
 ];
 
 module.exports = config;
