@@ -173,7 +173,7 @@ class ApplePayMonitor extends Monitor {
      * @param {{changes: Array}} detectedChanges Object containing an array of changes.
      */
     notify(client, detectedChanges) {
-        const channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
+        const channel = this.getNotificationChannel(client);
         if (!channel) {
             console.error(`Notification channel not found for ${this.name}.`);
             return;

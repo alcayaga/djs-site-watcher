@@ -8,6 +8,11 @@ jest.doMock('../src/storage', () => ({
     }),
 }));
 
+jest.mock('../src/config', () => ({
+    DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
+    interval: 5,
+}));
+
 const SiteMonitor = require('../src/monitors/SiteMonitor');
 const Discord = require('discord.js');
 const got = require('got');
