@@ -135,6 +135,50 @@ describe('Monitor Diff Functionality', () => {
   });
 
   /**
+   * Tests that multiline diffs are formatted correctly with added and removed lines and limited context.
+   */
+  test('should format multiline diffs correctly with limited context', async () => {
+    const initialContent = 'line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8';
+    const updatedContent = 'line 1\nline 2\nline 3\nline 4\nchanged line 5\nline 6\nline 7\nline 8';
+
+    // Override mock for this test
+    const crypto = require('crypto');
+    const mockUpdate = jest.fn(content => {
+      let hash;
+      if (content === initialContent) hash = 'hash-initial-context';
+      else if (content === updatedContent) hash = 'hash-updated-context';
+      else hash = 'mockedHash-default';
+      return {
+        /**
+         * Mocks the digest function to return a predictable hash based on content.
+         * @returns {string} The mocked hash.
+         */
+        digest: () => hash };
+    });
+    crypto.createHash.mockReturnValue({ update: mockUpdate });
+
+    mockSitesToMonitor[0].lastContent = initialContent;
+    mockSitesToMonitor[0].hash = 'hash-initial-context';
+
+    require('got').mockResolvedValueOnce({ body: updatedContent });
+
+    await update(mockClient, mockSitesToMonitor, mockChannel, mockFile);
+
+    const expectedDiff = '```diff\n' +
+      '⚪line 2\n' +
+      '⚪line 3\n' +
+      '⚪line 4\n' +
+      '🔴line 5\n' +
+      '🟢changed line 5\n' +
+      '⚪line 6\n' +
+      '⚪line 7\n' +
+      '⚪line 8\n' +
+      '\n```';
+      
+    expect(mockChannel.send.mock.calls[2][0]).toBe(expectedDiff);
+  });
+
+  /**
    * Tests that multiline diffs are formatted correctly with added and removed lines.
    */
   test('should format multiline diffs correctly', async () => {

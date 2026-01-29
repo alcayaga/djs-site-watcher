@@ -623,23 +623,36 @@ async function update(clientInstance, sitesArray, channelInstance, file) {
 
     // Generate a line-by-line diff of the content.
     const changes = diff.diffLines(cleanText(oldContent), cleanText(newContent));
-    let diffString = '';
+    const allLines = [];
     changes.forEach((part) => {
-      const prefix = part.added ? '🟢' : part.removed ? '🔴' : '⚪';
-      if ((!part.added && !part.removed) && diffString.length >= 1800) {
-        return;
-      }
-      
+      const type = part.added ? 'added' : part.removed ? 'removed' : 'context';
       if (!part.value) return;
-
-      // Prefix each line of the diff with an emoji to indicate the change type.
-      // This handles multiline parts correctly and ensures each line ends with a newline.
       const valueToProcess = part.value.endsWith('\n') ? part.value.slice(0, -1) : part.value;
       const lines = valueToProcess.split('\n');
+      lines.forEach(line => allLines.push({ content: line, type }));
+    });
 
-      lines.forEach(line => {
-        diffString += prefix + line + '\n';
-      });
+    const CONTEXT_LINES = 3;
+    const linesToKeep = new Set();
+    allLines.forEach((line, index) => {
+      if (line.type !== 'context') {
+        for (let i = Math.max(0, index - CONTEXT_LINES); i <= Math.min(allLines.length - 1, index + CONTEXT_LINES); i++) {
+          linesToKeep.add(i);
+        }
+      }
+    });
+
+    let diffString = '';
+    let lastIndex = -1;
+    allLines.forEach((line, index) => {
+      if (linesToKeep.has(index)) {
+        if (lastIndex !== -1 && index !== lastIndex + 1) {
+          diffString += '...\n';
+        }
+        const prefix = line.type === 'added' ? '🟢' : line.type === 'removed' ? '🔴' : '⚪';
+        diffString += prefix + line.content + '\n';
+        lastIndex = index;
+      }
     });
 
     // Truncate the diff string if it's too long for a Discord message.
