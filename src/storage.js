@@ -10,7 +10,13 @@ const RESPONSES_FILE = './src/responses.json';
  */
 function loadSites() {
   try {
-    return fs.readJSONSync(SITES_FILE);
+    const data = fs.readJSONSync(SITES_FILE);
+    if (Array.isArray(data)) {
+      return data;
+    } else if (data && Array.isArray(data.sites)) {
+      return data.sites;
+    }
+    return [];
   } catch (err) {
     console.log(`Could not read ${SITES_FILE}, creating a new one.`);
     return [];
@@ -70,10 +76,35 @@ function loadResponses() {
     }
 }
 
+/**
+ * Reads a JSON file.
+ * @param {string} file - The path to the file.
+ * @returns {Promise<object>} The parsed JSON object.
+ */
+async function read(file) {
+    try {
+        return await fs.readJSON(file);
+    } catch (err) {
+        console.log(`Could not read ${file}.`);
+        return {};
+    }
+}
+
+/**
+ * Writes data to a JSON file.
+ * @param {string} file - The path to the file.
+ * @param {object} data - The data to write.
+ */
+async function write(file, data) {
+    await fs.outputJSON(file, data, { spaces: 2 });
+}
+
 module.exports = {
   loadSites,
   saveSites,
   loadSettings,
   saveSettings,
   loadResponses,
+  read,
+  write,
 };

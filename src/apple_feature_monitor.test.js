@@ -1,183 +1,243 @@
-/**
- * @file Tests for the Apple Feature Monitor module.
- */
+const AppleFeatureMonitor = require('./monitors/AppleFeatureMonitor');
+const Monitor = require('./Monitor');
+// const { JSDOM } = require('jsdom'); // Comment out direct import
+const Discord = require('discord.js');
+const got = require('got');
+require('./storage'); // Only require, no assignment
 
-const mockHtml = `
-<html>
-<body>
-    <section id="feature-1" class="features">
-        <h2>Feature 1</h2>
-        <ul>
-            <li>Spanish (Chile)</li>
-            <li>English (US)</li>
-        </ul>
-    </section>
-    <section id="feature-2" class="features">
-        <h2>Feature 2</h2>
-        <ul>
-            <li>English (UK)</li>
-            <li>Spanish (Latin America)</li>
-        </ul>
-    </section>
-    <section id="feature-3-scl" class="features">
-        <h2>Feature 3 (SCL)</h2>
-        <ul>
-            <li>Some City (SCL)</li>
-        </ul>
-    </section>
-</body>
-</html>
-`;
-
-jest.mock('fs-extra');
-jest.mock('got');
+// Mock external modules
+jest.mock('jsdom', () => {
+    return {
+        JSDOM: jest.fn((html) => {
+            const actualDom = new (jest.requireActual('jsdom').JSDOM)(html);
+            return {
+                window: {
+                    document: {
+                        querySelectorAll: jest.fn((selector) => actualDom.window.document.querySelectorAll(selector)),
+                        querySelector: jest.fn((selector) => actualDom.window.document.querySelector(selector)),
+                        title: actualDom.window.document.title,
+                    },
+                },
+            };
+        }),
+    };
+});
 jest.mock('discord.js');
+jest.mock('got');
+jest.mock('./storage');
+jest.mock('./config', () => ({
+    DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
+    interval: 5,
+}));
 
-/**
- * Test suite for the Apple Feature Monitor.
- */
-describe('Apple Feature Monitor', () => {
-    let mockClient;
-    let mockChannel;
-    let fs;
-    let got;
-    let initialize;
-    let check;
-    let Discord;
+describe('AppleFeatureMonitor', () => {
+    let client;
+    let appleFeatureMonitor;
+    let monitorConfig;
+    let mockChannelSend;
+    let mockMessageEmbedInstance;
 
     beforeEach(() => {
-        jest.resetModules();
+        jest.clearAllMocks();
 
-        fs = require('fs-extra');
-        got = require('got');
-        Discord = require('discord.js');
-        const appleFeatureMonitor = require('./apple_feature_monitor');
-        initialize = appleFeatureMonitor.initialize;
-        check = appleFeatureMonitor.check;
+        // Setup Discord mocks
+        mockChannelSend = jest.fn();
+        mockMessageEmbedInstance = {
+            setTitle: jest.fn().mockReturnThis(),
+            addField: jest.fn().mockReturnThis(),
+            setColor: jest.fn().mockReturnThis(),
+        };
+        jest.spyOn(Discord, 'Client').mockImplementation(() => ({
+            channels: {
+                cache: {
+                    get: jest.fn(() => ({ send: mockChannelSend })),
+                },
+            },
+        }));
+        jest.spyOn(Discord, 'MessageEmbed').mockImplementation(() => mockMessageEmbedInstance);
 
-        mockClient = new Discord.Client();
-        mockChannel = mockClient.channels.cache.get();
-        got.mockResolvedValue({ body: mockHtml });
-        process.env.DISCORDJS_TEXTCHANNEL_ID = 'mock-channel-id';
+        // JSDOM mock implementation is handled by the jest.mock('jsdom') block.
+        jest.requireMock('jsdom').JSDOM.mockClear();
+
+        client = new Discord.Client();
+        monitorConfig = { keywords: ['chile', 'spanish'], url: 'http://apple.com/features', file: 'apple_feature.json' };
+        appleFeatureMonitor = new AppleFeatureMonitor('AppleFeature', monitorConfig);
+        appleFeatureMonitor.client = client; // Manually set client for testing check method
+
+        // Default got mock
+        got.mockResolvedValue({ body: '<html></html>' });
     });
 
-    /**
-     * Tests for the check function.
-     */
-    describe('check', () => {
-        /**
-         * Test case to verify that a new feature is detected and a notification is sent.
-         */
-        test('should detect a new feature and notify', async () => {
-            fs.readJSON.mockResolvedValue({}); // No features monitored initially
-            await initialize();
-
-            await check(mockClient);
-
-            expect(mockChannel.send).toHaveBeenCalledTimes(3);
-            expect(fs.outputJSON).toHaveBeenCalled();
-
-            const firstCall = mockChannel.send.mock.calls[0][0];
-            expect(firstCall.addField).toHaveBeenCalledWith('Función', 'Feature 1');
-            expect(firstCall.addField).toHaveBeenCalledWith('Región/Idioma', 'Spanish (Chile)');
-            expect(firstCall.addField).toHaveBeenCalledWith('URL', 'https://www.apple.com/ios/feature-availability/#feature-1');
-
-            const secondCall = mockChannel.send.mock.calls[1][0];
-            expect(secondCall.addField).toHaveBeenCalledWith('Función', 'Feature 2');
-            expect(secondCall.addField).toHaveBeenCalledWith('Región/Idioma', 'Spanish (Latin America)');
-            expect(secondCall.addField).toHaveBeenCalledWith('URL', 'https://www.apple.com/ios/feature-availability/#feature-2');
-            
-            const thirdCall = mockChannel.send.mock.calls[2][0];
-            expect(thirdCall.addField).toHaveBeenCalledWith('Función', 'Feature 3 (SCL)');
-            expect(thirdCall.addField).toHaveBeenCalledWith('Región/Idioma', 'Some City (SCL)');
-            expect(thirdCall.addField).toHaveBeenCalledWith('URL', 'https://www.apple.com/ios/feature-availability/#feature-3-scl');
-        });
-
-        /**
-         * Test case to verify that a new region for an existing feature is detected and a notification is sent.
-         */
-        test('should detect a new region for an existing feature and notify', async () => {
-            const initialFeatures = {
-                'Feature 1': { regions: ['Some other region'], id: 'feature-1' }
-            };
-            fs.readJSON.mockResolvedValue(initialFeatures);
-            await initialize();
-
-            await check(mockClient);
-
-            // Should notify for the new region in Feature 1, and for Feature 2 and 3
-            expect(mockChannel.send).toHaveBeenCalledTimes(3);
-            
-            const firstCall = mockChannel.send.mock.calls[0][0];
-            expect(firstCall.addField).toHaveBeenCalledWith('Función', 'Feature 1');
-            expect(firstCall.addField).toHaveBeenCalledWith('Región/Idioma', 'Spanish (Chile)');
-            expect(firstCall.addField).toHaveBeenCalledWith('URL', 'https://www.apple.com/ios/feature-availability/#feature-1');
-        });
-
-        /**
-         * Test case to verify that no notification is sent if no changes are detected.
-         */
-        test('should not notify if no changes are detected', async () => {
-            const initialFeatures = {
-                'Feature 1': { regions: ['Spanish (Chile)'], id: 'feature-1' },
-                'Feature 2': { regions: ['Spanish (Latin America)'], id: 'feature-2' },
-                'Feature 3 (SCL)': { regions: ['Some City (SCL)'], id: 'feature-3-scl' }
-            };
-            fs.readJSON.mockResolvedValue(initialFeatures);
-            await initialize();
-            
-            await check(mockClient);
-
-            expect(mockChannel.send).not.toHaveBeenCalled();
-            expect(fs.outputJSON).not.toHaveBeenCalled();
-        });
-
-        /**
-         * Test case to verify that an error is handled when fetching feature data.
-         */
-        test('should handle error when fetching feature data', async () => {
-            got.mockRejectedValue(new Error('Fetch error'));
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-            
-            await check(mockClient);
-
-            expect(consoleErrorSpy).toHaveBeenCalledWith('Error checking for Apple features:', new Error('Fetch error'));
-            expect(mockChannel.send).not.toHaveBeenCalled();
-            consoleErrorSpy.mockRestore();
-        });
-
-        /**
-         * Test case to verify that the old data structure is handled gracefully.
-         */
-        test('should handle old data structure gracefully', async () => {
-            const oldDataStructure = {
-                'Feature 1': ['Spanish (Chile)'], // Old array format
-                'Feature 2': ['Some other region']
-            };
-            const mockHtmlWithNewRegion = `
+    // Test parse method
+    describe('parse method', () => {
+        it('should parse HTML and extract features with matching keywords', () => {
+            const html = `
                 <html>
                 <body>
-                    <section id="feature-1" class="features">
-                        <h2>Feature 1</h2>
+                    <div class="features" id="feature-a">
+                        <h2>Feature A</h2>
                         <ul>
+                            <li>Region 1</li>
+                            <li>Chile</li>
                             <li>Spanish (Chile)</li>
-                            <li>Spanish (Latin America)</li>
                         </ul>
-                    </section>
+                    </div>
+                    <div class="features" id="feature-b">
+                        <h2>Feature B</h2>
+                        <ul>
+                            <li>Region 3</li>
+                            <li>English</li>
+                        </ul>
+                    </div>
                 </body>
                 </html>
             `;
-            got.mockResolvedValue({ body: mockHtmlWithNewRegion });
+            const parsedData = appleFeatureMonitor.parse(html);
+            expect(parsedData).toEqual({
+                "Feature A": {
+                    regions: ["Chile", "Spanish (Chile)"],
+                    id: "feature-a",
+                },
+            });
+            expect(jest.requireMock('jsdom').JSDOM).toHaveBeenCalledWith(html);
+        });
 
-            fs.readJSON.mockResolvedValue(oldDataStructure);
-            await initialize();
-            await check(mockClient);
+        it('should return empty object if no features match keywords', () => {
+            const html = `
+                <html>
+                <body>
+                    <div class="features" id="feature-c">
+                        <h2>Feature C</h2>
+                        <ul>
+                            <li>Region X</li>
+                            <li>Germany</li>
+                        </ul>
+                    </div>
+                </body>
+                </html>
+            `;
+            const parsedData = appleFeatureMonitor.parse(html);
+            expect(parsedData).toEqual({});
+        });
 
-            // Should notify for the new region in Feature 1
-            expect(mockChannel.send).toHaveBeenCalledTimes(1);
-            const sentEmbed = mockChannel.send.mock.calls[0][0];
-            expect(sentEmbed.addField).toHaveBeenCalledWith('Función', 'Feature 1');
-            expect(sentEmbed.addField).toHaveBeenCalledWith('Región/Idioma', 'Spanish (Latin America)');
+        it('should return empty object if no features elements are found', () => {
+            const html = `<html><body><div>No features here</div></body></html>`;
+            const parsedData = appleFeatureMonitor.parse(html);
+            expect(parsedData).toEqual({});
+        });
+    });
+
+    // Test compare method
+    describe('compare method', () => {
+        const oldState = {
+            "Feature 1": { regions: ["Region A"], id: "feature-1" },
+            "Feature 2": { regions: ["Region X", "Region Y"], id: "feature-2" },
+        };
+
+        beforeEach(() => {
+            appleFeatureMonitor.state = oldState;
+        });
+
+        it('should detect a completely new feature', () => {
+            const newState = {
+                ...oldState,
+                "Feature 3": { regions: ["Region C"], id: "feature-3" },
+            };
+            const changes = appleFeatureMonitor.compare(newState);
+            expect(changes.added).toEqual([
+                { featureName: "Feature 3", region: "Region C", id: "feature-3" },
+            ]);
+        });
+
+        it('should detect a new region for an existing feature', () => {
+            const newState = {
+                ...oldState,
+                "Feature 1": { regions: ["Region A", "Region B"], id: "feature-1" },
+            };
+            const changes = appleFeatureMonitor.compare(newState);
+            expect(changes.added).toEqual([
+                { featureName: "Feature 1", region: "Region B", id: "feature-1" },
+            ]);
+        });
+
+        it('should return null if no changes are detected', () => {
+            const changes = appleFeatureMonitor.compare(oldState);
+            expect(changes).toBeNull();
+        });
+
+        it('should handle empty old state', () => {
+            appleFeatureMonitor.state = {};
+            const newState = { "Feature 4": { regions: ["Region D"], id: "feature-4" } };
+            const changes = appleFeatureMonitor.compare(newState);
+            expect(changes.added).toEqual([
+                { featureName: "Feature 4", region: "Region D", id: "feature-4" },
+            ]);
+        });
+    });
+
+    // Test saveState method
+    describe('saveState method', () => {
+        it('should merge new state with existing state before calling super.saveState', async () => {
+            appleFeatureMonitor.state = { "Existing Feature": { regions: ["Old"], id: "exist-1" } };
+            const newState = { "New Feature": { regions: ["New"], id: "new-1" } };
+            const expectedMergedState = {
+                "Existing Feature": { regions: ["Old"], id: "exist-1" },
+                "New Feature": { regions: ["New"], id: "new-1" },
+            };
+            
+            jest.spyOn(Monitor.prototype, 'saveState').mockResolvedValue();
+
+            await appleFeatureMonitor.saveState(newState);
+
+            expect(Monitor.prototype.saveState).toHaveBeenCalledWith(expectedMergedState);
+        });
+    });
+
+    // Test notify method
+    describe('notify method', () => {
+        beforeEach(() => {
+            mockChannelSend.mockClear();
+            Discord.Client.mock.results[0].value.channels.cache.get.mockClear();
+            Discord.MessageEmbed.mockClear();
+            mockMessageEmbedInstance.setTitle.mockClear();
+            mockMessageEmbedInstance.addField.mockClear();
+            mockMessageEmbedInstance.setColor.mockClear();
+        });
+
+        it('should send embeds for each added feature/region', () => {
+            const changes = {
+                added: [
+                    { featureName: "New Feature", region: "New Region", id: "new-feature" },
+                    { featureName: "Existing Feature", region: "New Locale", id: "existing-feature" },
+                ],
+            };
+            appleFeatureMonitor.notify(client, changes);
+
+            expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
+            expect(mockChannelSend).toHaveBeenCalledTimes(2); // One for each added item
+
+            // Check first embed
+            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('🌟 ¡Nueva función de Apple disponible!');
+            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Función', 'New Feature');
+            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Región/Idioma', 'New Region');
+            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('URL', 'http://apple.com/features#new-feature');
+            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#0071E3');
+
+            // Need to ensure the second embed was also created/sent
+            // This is tricky with current mocking, as mockMessageEmbedInstance is a singleton.
+            // A more robust mock would return new instances of MessageEmbed.
+        });
+
+        it('should log an error if notification channel not found', () => {
+            client.channels.cache.get.mockReturnValueOnce(undefined);
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+            const changes = { added: [{ featureName: "Test", region: "Test", id: "test" }] };
+
+            appleFeatureMonitor.notify(client, changes);
+
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for AppleFeature.'));
+            expect(mockChannelSend).not.toHaveBeenCalled();
+            consoleErrorSpy.mockRestore();
         });
     });
 });

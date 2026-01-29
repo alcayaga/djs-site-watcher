@@ -1,141 +1,237 @@
-const mockPlist = `
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>MobileDeviceCarrierBundlesByProductVersion</key>
-    <dict>
-        <key>EntelPCS_cl</key>
-        <dict>
-            <key>1.0</key>
-            <dict>
-                <key>BuildVersion</key>
-                <string>1.0.0</string>
-                <key>BundleURL</key>
-                <string>http://example.com/entel_1.0.ipcc</string>
-            </dict>
-            <key>2.0</key>
-            <dict>
-                <key>BuildVersion</key>
-                <string>2.0.0</string>
-                <key>BundleURL</key>
-                <string>http://example.com/entel_2.0.ipcc</string>
-            </dict>
-        </dict>
-        <key>movistar_cl</key>
-        <dict>
-            <key>10.0</key>
-            <dict>
-                <key>BuildVersion</key>
-                <string>10.0.0</string>
-                <key>BundleURL</key>
-                <string>http://example.com/movistar_10.0.ipcc</string>
-            </dict>
-        </dict>
-    </dict>
-</dict>
-</plist>
-`;
+const CarrierMonitor = require('./monitors/CarrierMonitor');
+const Monitor = require('./Monitor');
+const Discord = require('discord.js');
+const got = require('got');
+require('./storage'); // Only require, no assignment
+const plist = require('plist');
 
-jest.mock('fs-extra');
-jest.mock('got');
+// Mock external modules
+jest.mock('plist');
 jest.mock('discord.js');
+jest.mock('got');
+jest.mock('./storage');
+jest.mock('./config', () => ({
+    DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
+    interval: 5,
+}));
 
-describe('Carrier Monitor', () => {
-    let mockClient;
-    let mockChannel;
-    let fs;
-    let got;
-    let initialize;
-    let check;
-    let Discord;
+describe('CarrierMonitor', () => {
+    let client;
+    let carrierMonitor;
+    let monitorConfig;
+    let mockChannelSend;
+    let mockMessageEmbedInstance;
 
     beforeEach(() => {
-        jest.resetModules(); // This is key to resetting state between tests
+        jest.clearAllMocks();
 
-        fs = require('fs-extra');
-        got = require('got');
-        Discord = require('discord.js');
-        const carrierMonitor = require('./carrier_monitor');
-        initialize = carrierMonitor.initialize;
-        check = carrierMonitor.check;
+        // Setup Discord mocks
+        mockChannelSend = jest.fn();
+        mockMessageEmbedInstance = {
+            setTitle: jest.fn().mockReturnThis(),
+            addField: jest.fn().mockReturnThis(),
+            setColor: jest.fn().mockReturnThis(),
+        };
+        jest.spyOn(Discord, 'Client').mockImplementation(() => ({
+            channels: {
+                cache: {
+                    get: jest.fn(() => ({ send: mockChannelSend })),
+                },
+            },
+        }));
+        jest.spyOn(Discord, 'MessageEmbed').mockImplementation(() => mockMessageEmbedInstance);
 
-        mockClient = new Discord.Client();
-        mockChannel = mockClient.channels.cache.get();
-        got.mockResolvedValue({ body: mockPlist });
-        process.env.DISCORDJS_TEXTCHANNEL_ID = 'mock-channel-id';
+        client = new Discord.Client();
+        monitorConfig = { carriers: ['Verizon_US', 'ATT_US'], file: 'carrier.json' };
+        carrierMonitor = new CarrierMonitor('Carrier', monitorConfig);
+        carrierMonitor.client = client; // Manually set client for testing check method
+
+        // Default got mock
+        got.mockResolvedValue({ body: 'dummy plist content' });
     });
 
-    describe('initialize', () => {
-        test('should load existing carriers from file', async () => {
-            const mockCarriers = [{ id: 'EntelPCS_cl', version: '1.0', build: '1.0.0' }];
-            fs.readJSON.mockResolvedValue(mockCarriers);
-            await initialize(mockClient);
-            expect(fs.readJSON).toHaveBeenCalledWith('./src/carriers.json');
+    // Test parse method
+    describe('parse method', () => {
+        it('should parse plist and extract carrier bundle info for configured carriers', () => {
+            const mockPlistData = {
+                MobileDeviceCarrierBundlesByProductVersion: {
+                    'Verizon_US': {
+                        '47.0': { BuildVersion: '47.0.1', BundleURL: 'http://verizon.com/47.0' },
+                        '48.0': { BuildVersion: '48.0.0', BundleURL: 'http://verizon.com/48.0' },
+                    },
+                    'ATT_US': {
+                        '46.0': { BuildVersion: '46.0.0', BundleURL: 'http://att.com/46.0' },
+                    },
+                    'TMobile_US': { // Not configured to monitor
+                        '1.0': { BuildVersion: '1.0.0', BundleURL: 'http://tmobile.com/1.0' },
+                    },
+                },
+            };
+            plist.parse.mockReturnValueOnce(mockPlistData);
+
+            const parsedData = carrierMonitor.parse('dummy plist content');
+            expect(plist.parse).toHaveBeenCalledWith('dummy plist content');
+            expect(parsedData).toEqual({
+                'Verizon_US': { id: 'Verizon_US', version: '48.0', build: '48.0.0', url: 'http://verizon.com/48.0' },
+                'ATT_US': { id: 'ATT_US', version: '46.0', build: '46.0.0', url: 'http://att.com/46.0' },
+            });
         });
 
-        test('should handle error when reading carriers file', async () => {
-            fs.readJSON.mockRejectedValue(new Error('File not found'));
-            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-            await initialize(mockClient);
-            expect(consoleLogSpy).toHaveBeenCalledWith('Cannot read carriers.json');
-            consoleLogSpy.mockRestore();
+        it('should handle carriers not present in plist data', () => {
+            const mockPlistData = {
+                MobileDeviceCarrierBundlesByProductVersion: {
+                    'ATT_US': {
+                        '46.0': { BuildVersion: '46.0.0', BundleURL: 'http://att.com/46.0' },
+                    },
+                },
+            };
+            plist.parse.mockReturnValueOnce(mockPlistData);
+
+            const parsedData = carrierMonitor.parse('dummy plist content');
+            expect(parsedData).toEqual({
+                'ATT_US': { id: 'ATT_US', version: '46.0', build: '46.0.0', url: 'http://att.com/46.0' },
+            });
+            // Verizon_US should be absent as it's not in mockPlistData
+        });
+
+        it('should return empty object if no carriers are configured', () => {
+            carrierMonitor.config.carriers = [];
+            const mockPlistData = { MobileDeviceCarrierBundlesByProductVersion: {} };
+            plist.parse.mockReturnValueOnce(mockPlistData);
+            
+            const parsedData = carrierMonitor.parse('dummy plist content');
+            expect(parsedData).toEqual({});
+        });
+
+        it('should return empty object if plist parsing fails or returns unexpected structure', () => {
+            plist.parse.mockReturnValueOnce({}); // Empty or malformed plist
+            
+            const parsedData = carrierMonitor.parse('malformed plist');
+            expect(parsedData).toEqual({});
         });
     });
 
-    describe('check', () => {
-        test('should detect a new carrier version and notify', async () => {
-            const initialCarriers = [
-                { id: 'EntelPCS_cl', version: '1.0', build: '1.0.0' },
-                { id: 'movistar_cl', version: '10.0', build: '10.0.0' }
-            ];
-            fs.readJSON.mockResolvedValue(initialCarriers);
-            await initialize(mockClient);
+    // Test compare method
+    describe('compare method', () => {
+        const oldState = {
+            'Verizon_US': { id: 'Verizon_US', version: '47.0', build: '47.0.0', url: 'http://v.com/47' },
+            'ATT_US': { id: 'ATT_US', version: '46.0', build: '46.0.0', url: 'http://a.com/46' },
+        };
 
-            await check(mockClient);
-
-            expect(mockChannel.send).toHaveBeenCalledTimes(1);
-            const sentEmbed = mockChannel.send.mock.calls[0][0];
-            expect(sentEmbed).toBeInstanceOf(Discord.MessageEmbed);
-            expect(sentEmbed.setTitle).toHaveBeenCalledWith('📲 ¡Nuevo Carrier Bundle para EntelPCS_cl!');
-            expect(sentEmbed.addField).toHaveBeenCalledWith('Versión', '2.0');
-            expect(fs.outputJSON).toHaveBeenCalled();
-        });
-        
-        test('should detect a new carrier and notify', async () => {
-            const initialCarriers = [{ id: 'SomeOtherCarrier', version: '1.0', build: '1.0.0' }];
-            fs.readJSON.mockResolvedValue(initialCarriers);
-            await initialize(mockClient);
-
-            await check(mockClient);
-
-            expect(mockChannel.send).toHaveBeenCalledTimes(2);
-            expect(fs.outputJSON).toHaveBeenCalled();
+        beforeEach(() => {
+            carrierMonitor.state = oldState;
         });
 
-        test('should not notify if no changes are detected', async () => {
-            const initialCarriers = [
-                { id: 'EntelPCS_cl', version: '2.0', build: '2.0.0', url: 'http://example.com/entel_2.0.ipcc' },
-                { id: 'movistar_cl', version: '10.0', build: '10.0.0', url: 'http://example.com/movistar_10.0.ipcc' }
-            ];
-            fs.readJSON.mockResolvedValue(initialCarriers);
-            await initialize(mockClient);
+        it('should detect a completely new carrier', () => {
+            const newData = {
+                ...oldState,
+                'TMobile_US': { id: 'TMobile_US', version: '1.0', build: '1.0.0', url: 'http://t.com/1' },
+            };
+            const changes = carrierMonitor.compare(newData);
+            expect(changes.updated).toEqual([
+                expect.objectContaining({ id: 'TMobile_US', version: '1.0', build: '1.0.0' }),
+            ]);
+        });
+
+        it('should detect a new version for an existing carrier', () => {
+            const newData = {
+                ...oldState,
+                'Verizon_US': { id: 'Verizon_US', version: '48.0', build: '47.0.0', url: 'http://v.com/48' },
+            };
+            const changes = carrierMonitor.compare(newData);
+            expect(changes.updated).toEqual([
+                expect.objectContaining({ id: 'Verizon_US', version: '48.0', build: '47.0.0' }),
+            ]);
+        });
+
+        it('should detect a new build for an existing carrier', () => {
+            const newData = {
+                ...oldState,
+                'Verizon_US': { id: 'Verizon_US', version: '47.0', build: '47.0.1', url: 'http://v.com/47' },
+            };
+            const changes = carrierMonitor.compare(newData);
+            expect(changes.updated).toEqual([
+                expect.objectContaining({ id: 'Verizon_US', version: '47.0', build: '47.0.1' }),
+            ]);
+        });
+
+        it('should return null if no changes are detected', () => {
+            const changes = carrierMonitor.compare(oldState);
+            expect(changes).toBeNull();
+        });
+
+        it('should handle empty old state', () => {
+            carrierMonitor.state = {};
+            const newData = {
+                'Verizon_US': { id: 'Verizon_US', version: '47.0', build: '47.0.0', url: 'http://v.com/47' },
+            };
+            const changes = carrierMonitor.compare(newData);
+            expect(changes.updated).toEqual([
+                expect.objectContaining({ id: 'Verizon_US', version: '47.0', build: '47.0.0' }),
+            ]);
+        });
+    });
+
+    // Test saveState method
+    describe('saveState method', () => {
+        it('should merge new state with existing state before calling super.saveState', async () => {
+            carrierMonitor.state = { "Existing Carrier": { version: '1.0', build: '1.0.0' } };
+            const newState = { "New Carrier": { version: '2.0', build: '2.0.0' } };
+            const expectedMergedState = {
+                "Existing Carrier": { version: '1.0', build: '1.0.0' },
+                "New Carrier": { version: '2.0', build: '2.0.0' },
+            };
             
-            await check(mockClient);
+            jest.spyOn(Monitor.prototype, 'saveState').mockResolvedValue();
 
-            expect(mockChannel.send).not.toHaveBeenCalled();
-            expect(fs.outputJSON).not.toHaveBeenCalled();
+            await carrierMonitor.saveState(newState);
+
+            expect(Monitor.prototype.saveState).toHaveBeenCalledWith(expectedMergedState);
+        });
+    });
+
+    // Test notify method
+    describe('notify method', () => {
+        beforeEach(() => {
+            mockChannelSend.mockClear();
+            Discord.Client.mock.results[0].value.channels.cache.get.mockClear();
+            Discord.MessageEmbed.mockClear();
+            mockMessageEmbedInstance.setTitle.mockClear();
+            mockMessageEmbedInstance.addField.mockClear();
+            mockMessageEmbedInstance.setColor.mockClear();
         });
 
-        test('should handle error when fetching carrier data', async () => {
-            got.mockRejectedValue(new Error('Fetch error'));
-            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-            
-            await check(mockClient);
+        it('should send embeds for each updated carrier', () => {
+            const changes = {
+                updated: [
+                    { id: 'Verizon_US', version: '48.0', build: '48.0.0', url: 'http://v.com/48', lastUpdated: 'now' },
+                    { id: 'ATT_US', version: '47.0', build: '47.0.1', url: 'http://a.com/47', lastUpdated: 'soon' },
+                ],
+            };
+            carrierMonitor.notify(client, changes);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(new Error('Fetch error'));
-            expect(mockChannel.send).not.toHaveBeenCalled();
-            consoleLogSpy.mockRestore();
+            expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
+            expect(mockChannelSend).toHaveBeenCalledTimes(2); // One for each updated item
+
+            // Check first embed
+            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📲 ¡Nuevo Carrier Bundle para Verizon_US!');
+            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Versión', '48.0');
+            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Build', '48.0.0');
+            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('URL', 'http://v.com/48');
+            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Actualizado', 'now');
+            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('0x00FF00');
+        });
+
+        it('should log an error if notification channel not found', () => {
+            client.channels.cache.get.mockReturnValueOnce(undefined);
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+            const changes = { updated: [{ id: 'Verizon_US', version: '48.0', build: '48.0.0', url: 'http://v.com/48', lastUpdated: 'now' }] };
+
+            carrierMonitor.notify(client, changes);
+
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for Carrier.'));
+            expect(mockChannelSend).not.toHaveBeenCalled();
+            consoleErrorSpy.mockRestore();
         });
     });
 });

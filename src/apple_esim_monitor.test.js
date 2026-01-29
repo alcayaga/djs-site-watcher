@@ -1,189 +1,246 @@
-/**
- * @file Tests for the Apple eSIM Monitor module.
- */
+const AppleEsimMonitor = require('./monitors/AppleEsimMonitor');
+require('./Monitor'); // Only require, no assignment
+// const { JSDOM } = require('jsdom'); // Not used directly, but mocked globally
+const Discord = require('discord.js');
+const got = require('got');
+require('./storage'); // Only require, no assignment
 
-const mockEsimHtml = `
-<html>
-<body>
-    <h2 class="gb-header TAG_123 active">Armenia</h2>
-    <ul><li><p><a href="https://www.google.com">Ucom</a></p></li></ul>
-
-    <h2 class="gb-header TAG_456 active">Chile</h2>
-    <h3 class="gb-header TAG_456 active">Wireless carriers that support eSIM Quick Transfer</h3>
-    <ul class="list gb-list TAG_456 active undecorated-list"><li class="gb-list_item"><p class="gb-paragraph"><a href="https://atencionalcliente.movistar.cl/telefonia-movil/como-funciona-la-esim/" class="gb-anchor">Movistar</a></p></li></ul>
-    
-    <div class="gb-group">
-        <h3 class="gb-header TAG_456 active">Wireless carriers that support other eSIM activation methods</h3>
-        <p class="gb-paragraph TAG_456 active">These carriers support other ways of activating eSIM on iPhone, like scanning a QR code or using a carrier app.</p>
-        <ul class="list gb-list TAG_456 active undecorated-list">
-            <li class="gb-list_item"><p class="gb-paragraph"><a href="https://www.clarochile.cl/personas/servicios/servicios-moviles/esim/" class="gb-anchor">Claro</a></p></li>
-            <li class="gb-list_item"><p class="gb-paragraph"><a href="https://ayuda.entel.cl/hc/es-419/articles/4406998318739--C%C3%B3mo-podr%C3%A1-adquirir-una-eSIM-" class="gb-anchor">Entel</a></p></li>
-            <li class="gb-list_item"><p class="gb-paragraph"><a href="https://atencionalcliente.movistar.cl/telefonia-movil/como-funciona-la-esim/" class="gb-anchor">Movistar</a></p></li>
-            <li class="gb-list_item"><p class="gb-paragraph"><a href="https://www.wom.cl/centro-de-ayuda/quiero-la-esim-como-actualizo-mi-correo-electronico-para-recibir-el-qr-de-activacion/" class="gb-anchor">WOM</a></p></li>
-        </ul>
-    </div>
-
-    <h2 class="gb-header TAG_789 active">Colombia</h2>
-    <ul><li><p><a href="https://www.google.com">Claro</a></p></li></ul>
-</body>
-</html>
-`;
-
-jest.mock('fs-extra');
-jest.mock('got');
-jest.mock('discord.js', () => {
-    const originalDiscord = jest.requireActual('discord.js');
-    
-    const MessageEmbed = jest.fn(() => ({
-        title: '',
-        fields: [],
-        setTitle: jest.fn(function(title) {
-            this.title = title;
-            return this;
-        }),
-        setColor: jest.fn().mockReturnThis(),
-        addField: jest.fn(function(name, value) {
-            this.fields.push({ name, value });
-            return this;
-        }),
-    }));
-
+// Mock external modules
+jest.mock('jsdom', () => {
+    // Return a class that, when instantiated, mimics JSDOM.
     return {
-        ...originalDiscord,
-        Client: jest.fn(() => ({
-            channels: {
-                cache: {
-                    get: jest.fn(() => ({
-                        send: jest.fn().mockResolvedValue(true),
-                    })),
+        JSDOM: jest.fn((html) => {
+            // Create a real JSDOM instance once here using jest.requireActual
+            const actualDom = new (jest.requireActual('jsdom').JSDOM)(html); 
+            return {
+                window: {
+                    document: {
+                        querySelectorAll: jest.fn((selector) => actualDom.window.document.querySelectorAll(selector)),
+                        querySelector: jest.fn((selector) => actualDom.window.document.querySelector(selector)),
+                        title: actualDom.window.document.title,
+                    },
                 },
-            },
-        })),
-        MessageEmbed,
+            };
+        }),
     };
 });
+jest.mock('discord.js');
+jest.mock('got');
+jest.mock('./storage');
+jest.mock('./config', () => ({
+    DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
+    interval: 5,
+}));
 
-/**
- * Test suite for the Apple eSIM Monitor.
- */
-describe('Apple eSIM Monitor', () => {
-    let mockClient;
-    let mockChannel;
-    let fs;
-    let got;
-    let initialize;
-    let check;
-    let Discord;
+describe('AppleEsimMonitor', () => {
+    let client;
+    let appleEsimMonitor;
+    let monitorConfig;
+    let mockChannelSend;
+    let mockMessageEmbedInstance;
 
     beforeEach(() => {
-        jest.resetModules();
+        jest.clearAllMocks();
 
-        fs = require('fs-extra');
-        got = require('got');
-        Discord = require('discord.js');
-        const appleEsimMonitor = require('./apple_esim_monitor');
-        initialize = appleEsimMonitor.initialize;
-        check = appleEsimMonitor.check;
-
-        mockClient = new Discord.Client();
-        // Mock the client's channels.cache.get method
-        mockChannel = {
-            send: jest.fn(() => Promise.resolve()),
+        // Setup Discord mocks
+        mockChannelSend = jest.fn();
+        mockMessageEmbedInstance = {
+            setTitle: jest.fn().mockReturnThis(),
+            addField: jest.fn().mockReturnThis(),
+            setColor: jest.fn().mockReturnThis(),
         };
-        mockClient.channels.cache.get = jest.fn(() => mockChannel);
+        jest.spyOn(Discord, 'Client').mockImplementation(() => ({
+            channels: {
+                cache: {
+                    get: jest.fn(() => ({ send: mockChannelSend })),
+                },
+            },
+        }));
+        jest.spyOn(Discord, 'MessageEmbed').mockImplementation(() => mockMessageEmbedInstance);
 
-        got.mockResolvedValue({ body: mockEsimHtml });
-        process.env.DISCORDJS_TEXTCHANNEL_ID = 'mock-channel-id';
+        // JSDOM mock implementation is handled by the jest.mock('jsdom') block.
+        // We just need to clear its calls.
+        jest.requireMock('jsdom').JSDOM.mockClear();
+
+        client = new Discord.Client();
+        monitorConfig = { country: 'Chile', file: 'apple_esim.json' };
+        appleEsimMonitor = new AppleEsimMonitor('AppleEsim', monitorConfig);
+        appleEsimMonitor.client = client; // Manually set client for testing check method
+
+        // Default got mock
+        got.mockResolvedValue({ body: '<html></html>' });
     });
 
-    /**
-     * Tests for the check function.
-     */
-    describe('check', () => {
-        test('should detect new carriers and capabilities for Chile, then notify', async () => {
-            fs.readJSON.mockResolvedValue({}); // No data monitored initially
-            await initialize();
-            await check(mockClient);
-
-            expect(mockChannel.send).toHaveBeenCalledTimes(5);
-            expect(fs.outputJSON).toHaveBeenCalled();
-
-            const sentEmbeds = mockChannel.send.mock.calls.map(call => call[0]);
-            
-            const movistarEmbeds = sentEmbeds.filter(embed => embed.fields.some(f => f.value.includes('Movistar')));
-            expect(movistarEmbeds.length).toBe(2);
-
-            const quickTransfer = movistarEmbeds.find(e => e.fields.some(f => f.value === 'Wireless carriers that support eSIM Quick Transfer'));
-            expect(quickTransfer).toBeDefined();
-            expect(quickTransfer.fields).toContainEqual({ name: 'Capacidad', value: 'Wireless carriers that support eSIM Quick Transfer' });
-            
-            const otherMethods = movistarEmbeds.find(e => e.fields.some(f => f.value === 'Wireless carriers that support other eSIM activation methods'));
-            expect(otherMethods).toBeDefined();
-            expect(otherMethods.fields).toContainEqual({ name: 'Capacidad', value: 'Wireless carriers that support other eSIM activation methods' });
+    // Test parse method
+    describe('parse method', () => {
+        it('should parse HTML and extract eSIM carriers for the specified country', () => {
+            const html = `
+                <html>
+                <body>
+                    <h2>Chile</h2>
+                    <h3>General</h3>
+                    <ul>
+                        <li><a href="http://carrier1.com">Carrier 1</a></li>
+                        <li><a href="http://carrier2.com">Carrier 2</a></li>
+                    </ul>
+                    <h3>Specific Capability</h3>
+                    <ul>
+                        <li><a href="http://carrier3.com">Carrier 3</a></li>
+                    </ul>
+                    <h2>Another Country</h2>
+                    <ul>
+                        <li><a href="http://carrierX.com">Carrier X</a></li>
+                    </ul>
+                </body>
+                </html>
+            `;
+            const parsedData = appleEsimMonitor.parse(html);
+            expect(parsedData).toEqual({
+                Chile: [
+                    { name: 'Carrier 1', link: 'http://carrier1.com/', capability: 'General' },
+                    { name: 'Carrier 2', link: 'http://carrier2.com/', capability: 'General' },
+                    { name: 'Carrier 3', link: 'http://carrier3.com/', capability: 'Specific Capability' },
+                ],
+            });
+            expect(jest.requireMock('jsdom').JSDOM).toHaveBeenCalledWith(html);
         });
 
-        test('should detect removed carriers for Chile and notify', async () => {
-            const initialESIMData = {
-                'Chile': [
-                    { name: 'CarrierToRemove', link: 'some-link', capability: 'Some Capability' },
-                ]
-            };
-            fs.readJSON.mockResolvedValue(initialESIMData);
-            await initialize();
-            
-            await check(mockClient);
+        it('should return old state if country heading is not found', () => {
+            appleEsimMonitor.state = { Chile: [{ name: 'Old Carrier', link: 'old.com', capability: 'General' }] };
+            const html = `<html><body><h2>Not Chile</h2></body></html>`;
+            const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
-            // 5 carriers are new, 1 is removed.
-            expect(mockChannel.send).toHaveBeenCalledTimes(6);
-
-            const sentEmbeds = mockChannel.send.mock.calls.map(call => call[0]);
-
-            const removedEmbed = sentEmbeds.find(embed => embed.title.includes('eliminado'));
-            expect(removedEmbed).toBeDefined();
-            expect(removedEmbed.fields).toContainEqual({ name: 'Operador', value: '[CarrierToRemove](some-link)' });
-
-            const addedEmbeds = sentEmbeds.filter(embed => embed.title.includes('agregado'));
-            expect(addedEmbeds.length).toBe(5);
+            const parsedData = appleEsimMonitor.parse(html);
+            expect(parsedData).toEqual(appleEsimMonitor.state); // Should return the old state
+            expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('Could not find section for Chile'));
+            expect(jest.requireMock('jsdom').JSDOM).toHaveBeenCalledWith(html);
+            consoleWarnSpy.mockRestore();
         });
 
-        test('should not notify if no changes are detected', async () => {
-            const initialESIMData = {
-                "Chile": [
-                    {
-                        "name": "Claro",
-                        "link": "https://www.clarochile.cl/personas/servicios/servicios-moviles/esim/",
-                        "capability": "Wireless carriers that support other eSIM activation methods"
-                    },
-                    {
-                        "name": "Entel",
-                        "link": "https://ayuda.entel.cl/hc/es-419/articles/4406998318739--C%C3%B3mo-podr%C3%A1-adquirir-una-eSIM-",
-                        "capability": "Wireless carriers that support other eSIM activation methods"
-                    },
-                    {
-                        "name": "Movistar",
-                        "link": "https://atencionalcliente.movistar.cl/telefonia-movil/como-funciona-la-esim/",
-                        "capability": "Wireless carriers that support eSIM Quick Transfer"
-                    },
-                    {
-                        "name": "Movistar",
-                        "link": "https://atencionalcliente.movistar.cl/telefonia-movil/como-funciona-la-esim/",
-                        "capability": "Wireless carriers that support other eSIM activation methods"
-                    },
-                    {
-                        "name": "WOM",
-                        "link": "https://www.wom.cl/centro-de-ayuda/quiero-la-esim-como-actualizo-mi-correo-electronico-para-recibir-el-qr-de-activacion/",
-                        "capability": "Wireless carriers that support other eSIM activation methods"
-                    }
-                ]
+        it('should handle empty carrier list for the country', () => {
+            const html = `<html><body><h2>Chile</h2></body></html>`;
+            const parsedData = appleEsimMonitor.parse(html);
+            expect(parsedData).toEqual({}); // Should return empty object for Chile
+            expect(jest.requireMock('jsdom').JSDOM).toHaveBeenCalledWith(html);
+        });
+    });
+
+    // Test compare method
+    describe('compare method', () => {
+        const oldCarriers = [
+            { name: 'A', link: 'a.com', capability: 'General' },
+            { name: 'B', link: 'b.com', capability: 'General' },
+        ];
+        const newCarriers = [
+            { name: 'A', link: 'a.com', capability: 'General' },
+            { name: 'C', link: 'c.com', capability: 'General' },
+        ];
+
+        beforeEach(() => {
+            appleEsimMonitor.state = { Chile: oldCarriers };
+        });
+
+        it('should detect added carriers', () => {
+            const changes = appleEsimMonitor.compare({ Chile: newCarriers });
+            expect(changes.added).toEqual([{ name: 'C', link: 'c.com', capability: 'General' }]);
+            expect(changes.removed).toEqual([{ name: 'B', link: 'b.com', capability: 'General' }]);
+        });
+
+        it('should detect removed carriers', () => {
+            const changes = appleEsimMonitor.compare({ Chile: oldCarriers.filter(c => c.name === 'A') });
+            expect(changes.removed).toEqual([{ name: 'B', link: 'b.com', capability: 'General' }]);
+            expect(changes.added).toEqual([]);
+        });
+
+        it('should detect both added and removed carriers', () => {
+            const changes = appleEsimMonitor.compare({ Chile: [{ name: 'D', link: 'd.com', capability: 'General' }] });
+            expect(changes.added).toEqual([{ name: 'D', link: 'd.com', capability: 'General' }]);
+            expect(changes.removed).toEqual(oldCarriers);
+        });
+
+        it('should return null if no changes are detected', () => {
+            const changes = appleEsimMonitor.compare({ Chile: oldCarriers });
+            expect(changes).toBeNull();
+        });
+
+        it('should handle empty old state', () => {
+            appleEsimMonitor.state = {};
+            const changes = appleEsimMonitor.compare({ Chile: newCarriers });
+            expect(changes.added).toEqual(newCarriers);
+            expect(changes.removed).toEqual([]);
+        });
+
+        it('should handle empty new data', () => {
+            const changes = appleEsimMonitor.compare({});
+            expect(changes.added).toEqual([]);
+            expect(changes.removed).toEqual(oldCarriers);
+        });
+    });
+
+    // Test notify method
+    describe('notify method', () => {
+        beforeEach(() => {
+            mockChannelSend.mockClear();
+            Discord.Client.mock.results[0].value.channels.cache.get.mockClear();
+            Discord.MessageEmbed.mockClear();
+            mockMessageEmbedInstance.setTitle.mockClear();
+            mockMessageEmbedInstance.addField.mockClear();
+            mockMessageEmbedInstance.setColor.mockClear();
+        });
+
+        it('should send embeds for added carriers', () => {
+            const changes = {
+                added: [{ name: 'New Carrier', link: 'new.com', capability: 'General' }],
+                removed: [],
             };
+            appleEsimMonitor.notify(client, changes);
 
-            fs.readJSON.mockResolvedValue(initialESIMData);
-            await initialize();
-            
-            await check(mockClient);
+            expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
+            expect(mockChannelSend).toHaveBeenCalledTimes(1);
+            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM agregado en Chile!');
+            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Operador', '[New Carrier](new.com)');
+            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Capacidad', 'General');
+            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#4CAF50');
+        });
 
-            expect(mockChannel.send).not.toHaveBeenCalled();
-            expect(fs.outputJSON).not.toHaveBeenCalled();
+        it('should send embeds for removed carriers', () => {
+            const changes = {
+                added: [],
+                removed: [{ name: 'Old Carrier', link: 'old.com', capability: 'Specific' }],
+            };
+            appleEsimMonitor.notify(client, changes);
+
+            expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
+            expect(mockChannelSend).toHaveBeenCalledTimes(1);
+            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM eliminado en Chile!');
+            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Operador', '[Old Carrier](old.com)');
+            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Capacidad', 'Specific');
+            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#F44336');
+        });
+
+        it('should send embeds for both added and removed carriers', () => {
+            const changes = {
+                added: [{ name: 'New Carrier', link: 'new.com', capability: 'General' }],
+                removed: [{ name: 'Old Carrier', link: 'old.com', capability: 'Specific' }],
+            };
+            appleEsimMonitor.notify(client, changes);
+
+            expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
+            expect(mockChannelSend).toHaveBeenCalledTimes(2); // One for added, one for removed
+            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM agregado en Chile!');
+            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM eliminado en Chile!');
+        });
+
+        it('should log an error if notification channel not found', () => {
+            client.channels.cache.get.mockReturnValueOnce(undefined);
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+            const changes = { added: [{ name: 'New', link: 'new.com', capability: 'Gen' }], removed: [] };
+
+            appleEsimMonitor.notify(client, changes);
+
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for AppleEsim.'));
+            expect(mockChannelSend).not.toHaveBeenCalled();
+            consoleErrorSpy.mockRestore();
         });
     });
 });

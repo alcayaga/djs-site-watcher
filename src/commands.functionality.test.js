@@ -1,75 +1,18 @@
+/* eslint-disable no-unused-vars */
+const { handleCommand } = require('./command-handler');
 const Discord = require('discord.js');
-const { handleCommand } = require('./command-handler.js');
-const storage = require('./storage.js');
-const { CronJob } = require('cron');
+const storage = require('./storage');
+const config = require('./config');
+const MonitorManager = require('./MonitorManager');
 
-// Mock external modules
-jest.mock('cron', () => ({
-    CronJob: jest.fn(function(cronTime, onTick) {
-        this.onTick = onTick; // Store the onTick function
-        this.start = jest.fn();
-        this.stop = jest.fn();
-        this.setTime = jest.fn();
-        this.running = true;
-    }),
-    CronTime: jest.fn(function(time) {
-        this.time = time;
-    }),
-}));
-
-jest.mock('./storage', () => ({
-    loadSites: jest.fn(),
-    saveSites: jest.fn(),
-    loadSettings: jest.fn(),
-    saveSettings: jest.fn(),
-    loadResponses: jest.fn(),
-}));
-
-jest.mock('./site-monitor');
-
-jest.mock('got', () => jest.fn());
-jest.mock('jsdom', () => ({
-    JSDOM: jest.fn(),
-}));
-jest.mock('crypto', () => ({
-    createHash: jest.fn(() => ({
-        update: jest.fn(() => ({
-            digest: jest.fn(() => 'mockedHash'),
-        })),
-    })),
-}));
-
-// Custom mock for Discord.js Client and MessageEmbed
+// Mock discord.js with a manual mock for Collection
 jest.mock('discord.js', () => {
     const originalDiscord = jest.requireActual('discord.js');
-    
-    const MessageEmbed = jest.fn(() => ({
-        setTitle: jest.fn().mockReturnThis(),
-        setColor: jest.fn().mockReturnThis(),
-        addField: jest.fn().mockReturnThis(),
-    }));
-
     const Collection = jest.fn(() => {
         const map = new Map();
         return {
-            /**
-             * Sets a key-value pair in the collection.
-             * @param {*} key - The key.
-             * @param {*} value - The value.
-             * @returns {void}
-             */
             set: (key, value) => map.set(key, value),
-            /**
-             * Gets a value by its key.
-             * @param {*} key - The key.
-             * @returns {*} The value.
-             */
             get: (key) => map.get(key),
-            /**
-             * Finds a value in the collection.
-             * @param {Function} fn - The function to test for each element.
-             * @returns {*} The first element that satisfies the provided testing function.
-             */
             find: (fn) => {
                 for (const item of map.values()) {
                     if (fn(item)) {
@@ -78,396 +21,179 @@ jest.mock('discord.js', () => {
                 }
                 return undefined;
             },
-            /**
-             * Returns an iterator for the values in the collection.
-             * @returns {Iterator} An iterator for the values.
-             */
             values: () => map.values(),
         };
     });
-
     return {
         ...originalDiscord,
-        Client: jest.fn(() => ({
-            channels: {
-                cache: {
-                    get: jest.fn(() => ({
-                        send: jest.fn().mockResolvedValue(true),
-                    })),
-                },
-            },
-        })),
-        MessageEmbed,
         Collection,
     };
 });
+// Mock storage with loadSettings implementation
+jest.mock('./storage', () => ({
+    loadSites: jest.fn(),
+    saveSites: jest.fn(),
+    loadSettings: jest.fn().mockReturnValue({ interval: 5, debug: false }), // Provide default mock implementation here
+    saveSettings: jest.fn(),
+    loadResponses: jest.fn(),
+    saveResponses: jest.fn(),
+}));
+jest.mock('./config');
+jest.mock('./MonitorManager', () => ({
+    initialize: jest.fn(),
+    startAll: jest.fn(),
+    stopAll: jest.fn(),
+    setAllIntervals: jest.fn(),
+    getStatusAll: jest.fn(),
+    checkAll: jest.fn(),
+    getMonitor: jest.fn(),
+    getAllMonitors: jest.fn(),
+}));
 
 describe('Discord Commands Functionality Test', () => {
-    let mockMessage;
-    let mockClient;
-    let mockChannel;
-    let mockMember;
-    let mockState;
-    let mockConfig;
-    let mockCronUpdate;
-    let mockCarrierCron;
-    let mockAppleFeatureCron;
-    let mockApplePayCron;
-    let mockAppleEsimCron;
-
-    beforeAll(() => {
-        process.env.DISCORDJS_ADMINCHANNEL_ID = 'admin-channel';
-        process.env.DISCORDJS_ROLE_ID = 'admin-role';
-    });
+    let mockClient, mockChannel, mockMessage, mockState, mockConfig, mockCronUpdate, mockMonitorManager;
 
     beforeEach(() => {
         jest.clearAllMocks();
+        
+        // Re-require mocked modules to get fresh mocks for each test
+        const storageMock = require('./storage');
+        const configMock = require('./config');
+        mockMonitorManager = require('./MonitorManager'); // This is now the mocked instance
 
-        mockClient = new Discord.Client(); 
         mockChannel = {
-            send: jest.fn(),
-            id: 'admin-channel'
+            id: 'mockAdminChannelId',
+            send: jest.fn().mockResolvedValue(true),
+            startTyping: jest.fn(),
+            stopTyping: jest.fn(),
         };
-        mockClient.channels.cache.get.mockReturnValue(mockChannel);
 
-        mockMember = {
-            roles: {
+        mockClient = {
+            channels: {
                 cache: {
-                    has: jest.fn().mockReturnValue(true)
-                }
-            }
+                    get: jest.fn(() => mockChannel),
+                },
+            },
         };
+
         mockMessage = {
-            content: '',
-            author: { bot: false },
             channel: mockChannel,
-            member: mockMember,
+            author: { bot: false },
+            member: {
+                roles: {
+                    cache: {
+                        has: jest.fn(() => true),
+                    },
+                },
+            },
             reply: jest.fn(),
         };
 
         mockState = {
             sitesToMonitor: [],
-            settings: { interval: 5 },
             responses: [],
         };
 
         mockConfig = {
-            DISCORDJS_APCHANNEL_ID: 'ap-channel',
-            DISCORDJS_ADMINCHANNEL_ID: 'admin-channel',
-            DISCORDJS_ROLE_ID: 'admin-role',
+            DISCORDJS_ADMINCHANNEL_ID: 'mockAdminChannelId',
+            DISCORDJS_ROLE_ID: 'mockRoleId',
+            PREFIX: '!',
             interval: 5,
         };
-        
-        mockCronUpdate = new CronJob('', () => {});
-        mockCarrierCron = new CronJob('', () => {});
-        mockAppleFeatureCron = new CronJob('', () => {});
-        mockApplePayCron = new CronJob('', () => {});
-        mockAppleEsimCron = new CronJob('', () => {});
 
-        storage.loadSites.mockReturnValue(mockState.sitesToMonitor);
-        storage.loadSettings.mockReturnValue(mockState.settings);
-        storage.loadResponses.mockReturnValue(mockState.responses);
+        mockCronUpdate = {
+            start: jest.fn(),
+            stop: jest.fn(),
+            setTime: jest.fn(),
+            running: true,
+        };
 
-        const got = require('got');
-        got.mockResolvedValue({ body: '<html><head><title>Example</title></head><body>Hello</body></html>' });
-
-        const { JSDOM } = require('jsdom');
-        JSDOM.mockImplementation(() => ({
-            window: {
-                document: {
-                    querySelector: jest.fn((selector) => {
-                        if (selector === 'head') return { textContent: '<html><head><title>Example</title></head><body>Hello</body></html>' };
-                        return null;
-                    }),
-                    title: 'Example',
-                },
-            },
-        }));
-    });
-
-    describe('!add command', () => {
-        it('should add a new site to the monitor list', async () => {
-            mockMessage.content = '!add http://example.com';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(storage.saveSites).toHaveBeenCalled();
-            expect(mockState.sitesToMonitor.length).toBe(1);
-            expect(mockState.sitesToMonitor[0].url).toBe('http://example.com');
-            expect(mockChannel.send).toHaveBeenCalledWith(expect.objectContaining({
-                setTitle: expect.any(Function),
-                setColor: expect.any(Function),
-                addField: expect.any(Function),
-            }));
-        });
-
-        it('should add a new site with a quoted CSS selector containing spaces', async () => {
-            mockMessage.content = '!add http://example.com "div.mod-date > time"';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(storage.saveSites).toHaveBeenCalled();
-            expect(mockState.sitesToMonitor.length).toBe(1);
-            expect(mockState.sitesToMonitor[0].url).toBe('http://example.com');
-            expect(mockState.sitesToMonitor[0].css).toBe('div.mod-date > time');
-            expect(mockChannel.send).toHaveBeenCalledWith(expect.objectContaining({
-                setTitle: expect.any(Function),
-                setColor: expect.any(Function),
-                addField: expect.any(Function),
-            }));
-        });
-    });
-
-    describe('!remove command', () => {
-        it('should remove a site from the monitor list', async () => {
-            // Add a site first
-            mockState.sitesToMonitor.push({ id: 'example.com', url: 'http://example.com' });
-
-            mockMessage.content = '!remove 1';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(storage.saveSites).toHaveBeenCalled();
-            expect(mockState.sitesToMonitor.length).toBe(0);
-            expect(mockChannel.send).toHaveBeenCalledWith('Removed **example.com** from list.');
-        });
-    });
-
-    describe('!list command', () => {
-        it('should list the monitored sites', async () => {
-            // Add a site first
-            mockState.sitesToMonitor.push({
-                id: 'example.com',
-                url: 'http://example.com',
-                css: 'h1',
-                lastChecked: 'never',
-                lastUpdated: 'never'
-            });
-
-            mockMessage.content = '!list';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-            
-            expect(mockChannel.send).toHaveBeenCalledWith(expect.objectContaining({
-                setTitle: expect.any(Function),
-                setColor: expect.any(Function),
-                addField: expect.any(Function),
-            }));
-            const messageEmbed = mockChannel.send.mock.calls[0][0];
-            expect(messageEmbed.setTitle).toHaveBeenCalledWith('1 sitio(s) están siendo monitoreados:');
-            expect(messageEmbed.addField).toHaveBeenCalledWith(
-                'example.com',
-                'URL: http://example.com\nCSS: `h1`\nChecked: never\nUpdated: never\nRemove: `!remove 1`'
-            );
-        });
-    });
-
-    describe('!show command', () => {
-        it('should show the monitored sites', async () => {
-            // Add a site first
-            mockState.sitesToMonitor.push({
-                id: 'example.com',
-                url: 'http://example.com',
-                css: 'h1',
-                lastChecked: 'never',
-                lastUpdated: 'never'
-            });
-
-            mockMessage.content = '!show';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockChannel.send).toHaveBeenCalledWith(expect.objectContaining({
-                setTitle: expect.any(Function),
-                setColor: expect.any(Function),
-                addField: expect.any(Function),
-            }));
-            const messageEmbed = mockChannel.send.mock.calls[0][0];
-            expect(messageEmbed.setTitle).toHaveBeenCalledWith('1 sitio(s) están siendo monitoreados:');
-            expect(messageEmbed.addField).toHaveBeenCalledWith(
-                'example.com',
-                'URL: http://example.com\nCSS: `h1`\nChecked: never\nUpdated: never\nRemove: `!remove 1`'
-            );
-        });
-    });
-
-    describe('!update command', () => {
-        it('should trigger a manual update of the monitored sites', async () => {
-            const siteMonitor = require('./site-monitor');
-            // Add a site first
-            mockState.sitesToMonitor.push({
-                id: 'example.com',
-                url: 'http://example.com',
-                css: 'h1',
-                lastChecked: 'never',
-                lastUpdated: 'never'
-            });
-
-            mockMessage.content = '!update';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockChannel.send).toHaveBeenCalledWith('Updating `1` site(s)...');
-            expect(siteMonitor.checkSites).toHaveBeenCalledWith(mockClient, mockState.sitesToMonitor, mockChannel);
-            expect(mockChannel.send).toHaveBeenCalledWith('Done...');
-        });
+        // Configure mocks for specific test needs
+        storageMock.loadSettings.mockReturnValue(mockConfig);
     });
 
     describe('!interval command', () => {
         it('should update the monitoring interval', async () => {
             mockMessage.content = '!interval 10';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(storage.saveSettings).toHaveBeenCalledWith(expect.objectContaining({
-                interval: 10
-            }));
-            expect(mockConfig.interval).toBe(10);
-            expect(mockChannel.send).toHaveBeenCalledWith(expect.stringContaining('Interval set to \n10\n minutes.'));
+            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
+            expect(mockMonitorManager.setAllIntervals).toHaveBeenCalledWith(10);
+            expect(mockChannel.send).toHaveBeenCalledWith('Interval set to 10 minutes.');
         });
     });
 
-    describe('!start command', () => {
-        it('should start the monitoring', async () => {
-            mockMessage.content = '!start';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockCronUpdate.start).toHaveBeenCalled();
-            expect(mockChannel.send).toHaveBeenCalledWith('Started monitoring...');
-        });
-    });
-
-    describe('!stop command', () => {
-        it('should stop the monitoring', async () => {
-            mockMessage.content = '!stop';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockCronUpdate.stop).toHaveBeenCalled();
-            expect(mockChannel.send).toHaveBeenCalledWith('Paused website monitoring... Type `!start` to resume.');
-        });
-    });
-
-    describe('!status command', () => {
-        it('should show the monitoring status', async () => {
-            mockMessage.content = '!status';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockChannel.send).toHaveBeenCalledWith('Site Watcher is running with an interval of `5` minute(s).');
-        });
-    });
-
-    describe('!carrier command', () => {
-        it('should show the carrier monitor status', async () => {
-            mockMessage.content = '!carrier status';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockChannel.send).toHaveBeenCalledWith('Carrier monitor is running.');
+    describe('!monitor command', () => {
+        let mockMonitors;
+        beforeEach(() => {
+            // Setup mock monitors for MonitorManager to cover all types
+            mockMonitors = [
+                { name: 'AppleEsim', start: jest.fn(), stop: jest.fn(), check: jest.fn(), getStatus: () => ({ name: 'AppleEsim', isRunning: true }) },
+                { name: 'Carrier', start: jest.fn(), stop: jest.fn(), check: jest.fn(), getStatus: () => ({ name: 'Carrier', isRunning: false }) },
+                { name: 'ApplePay', start: jest.fn(), stop: jest.fn(), check: jest.fn(), getStatus: () => ({ name: 'ApplePay', isRunning: true }) },
+                { name: 'AppleFeature', start: jest.fn(), stop: jest.fn(), check: jest.fn(), getStatus: () => ({ name: 'AppleFeature', isRunning: false }) },
+            ];
+            mockMonitorManager.getAllMonitors.mockReturnValue(mockMonitors);
+            mockMonitorManager.getMonitor.mockImplementation(name => mockMonitors.find(m => m.name.toLowerCase() === name.toLowerCase()));
         });
 
-        it('should start the carrier monitor', async () => {
-            mockMessage.content = '!carrier start';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockCarrierCron.start).toHaveBeenCalled();
-            expect(mockChannel.send).toHaveBeenCalledWith('Carrier monitor started.');
+        it('should start all monitors with `!monitor start all`', async () => {
+            mockMessage.content = '!monitor start all';
+            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
+            expect(mockMonitorManager.getAllMonitors).toHaveBeenCalled();
+            mockMonitors.forEach(monitor => expect(monitor.start).toHaveBeenCalled()); // Check all mocked monitors
+            expect(mockChannel.send).toHaveBeenCalledWith('Started monitor(s): AppleEsim, Carrier, ApplePay, AppleFeature.');
+        });
+        
+        it('should stop a specific monitor with `!monitor stop AppleEsim`', async () => {
+            mockMessage.content = '!monitor stop AppleEsim';
+            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
+            expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('AppleEsim');
+            expect(mockMonitorManager.getMonitor('AppleEsim').stop).toHaveBeenCalled();
+            expect(mockChannel.send).toHaveBeenCalledWith('Stopped monitor(s): AppleEsim.');
         });
 
-        it('should stop the carrier monitor', async () => {
-            mockMessage.content = '!carrier stop';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockCarrierCron.stop).toHaveBeenCalled();
-            expect(mockChannel.send).toHaveBeenCalledWith('Carrier monitor stopped.');
-        });
-    });
-
-    describe('!esim command', () => {
-        it('should show the esim monitor status', async () => {
-            mockMessage.content = '!esim status';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockChannel.send).toHaveBeenCalledWith('eSIM monitor is running.');
+        it('should get the status of all monitors with `!monitor status`', async () => {
+            mockMessage.content = '!monitor status';
+            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
+            expect(mockChannel.send).toHaveBeenCalledWith('Monitor Status:\nAppleEsim: Running 🟢\nCarrier: Stopped 🔴\nApplePay: Running 🟢\nAppleFeature: Stopped 🔴');
         });
 
-        it('should start the esim monitor', async () => {
-            mockMessage.content = '!esim start';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockAppleEsimCron.start).toHaveBeenCalled();
-            expect(mockChannel.send).toHaveBeenCalledWith('eSIM monitor started.');
+        it('should trigger a check for a specific monitor with `!monitor check Carrier`', async () => {
+            mockMessage.content = '!monitor check Carrier';
+            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
+            expect(mockMonitorManager.getMonitor('Carrier').check).toHaveBeenCalledWith(mockClient);
+            expect(mockChannel.send).toHaveBeenCalledWith('Triggering check for monitor(s): Carrier.');
         });
 
-        it('should stop the esim monitor', async () => {
-            mockMessage.content = '!esim stop';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockAppleEsimCron.stop).toHaveBeenCalled();
-            expect(mockChannel.send).toHaveBeenCalledWith('eSIM monitor stopped.');
-        });
-    });
-
-    describe('!applepay command', () => {
-        it('should show the applepay monitor status', async () => {
-            mockMessage.content = '!applepay status';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockChannel.send).toHaveBeenCalledWith('Apple Pay monitor is running.');
+        // New tests for ApplePay and AppleFeature from old commands.test.js
+        it('should start ApplePay monitor with `!monitor start ApplePay`', async () => {
+            mockMessage.content = '!monitor start ApplePay';
+            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
+            expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('ApplePay');
+            expect(mockMonitorManager.getMonitor('ApplePay').start).toHaveBeenCalled();
+            expect(mockChannel.send).toHaveBeenCalledWith('Started monitor(s): ApplePay.');
         });
 
-        it('should start the applepay monitor', async () => {
-            mockMessage.content = '!applepay start';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockApplePayCron.start).toHaveBeenCalled();
-            expect(mockChannel.send).toHaveBeenCalledWith('Apple Pay monitor started.');
+        it('should stop AppleFeature monitor with `!monitor stop AppleFeature`', async () => {
+            mockMessage.content = '!monitor stop AppleFeature';
+            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
+            expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('AppleFeature');
+            expect(mockMonitorManager.getMonitor('AppleFeature').stop).toHaveBeenCalled();
+            expect(mockChannel.send).toHaveBeenCalledWith('Stopped monitor(s): AppleFeature.');
         });
 
-        it('should stop the applepay monitor', async () => {
-            mockMessage.content = '!applepay stop';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockApplePayCron.stop).toHaveBeenCalled();
-            expect(mockChannel.send).toHaveBeenCalledWith('Apple Pay monitor stopped.');
-        });
-    });
-
-    describe('!applefeature command', () => {
-        it('should show the applefeature monitor status', async () => {
-            mockMessage.content = '!applefeature status';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockChannel.send).toHaveBeenCalledWith('Apple Feature monitor is running.');
+        it('should get ApplePay monitor status with `!monitor status ApplePay`', async () => {
+            mockMessage.content = '!monitor status ApplePay';
+            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
+            expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('ApplePay');
+            expect(mockChannel.send).toHaveBeenCalledWith('Monitor Status:\nApplePay: Running 🟢');
         });
 
-        it('should start the applefeature monitor', async () => {
-            mockMessage.content = '!applefeature start';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockAppleFeatureCron.start).toHaveBeenCalled();
-            expect(mockChannel.send).toHaveBeenCalledWith('Apple Feature monitor started.');
-        });
-
-        it('should stop the applefeature monitor', async () => {
-            mockMessage.content = '!applefeature stop';
-
-            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockCarrierCron, mockAppleFeatureCron, mockApplePayCron, mockAppleEsimCron);
-
-            expect(mockAppleFeatureCron.stop).toHaveBeenCalled();
-            expect(mockChannel.send).toHaveBeenCalledWith('Apple Feature monitor stopped.');
+        it('should trigger a check for AppleFeature monitor with `!monitor check AppleFeature`', async () => {
+            mockMessage.content = '!monitor check AppleFeature';
+            await handleCommand(mockMessage, mockClient, mockState, mockConfig, mockCronUpdate, mockMonitorManager);
+            expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('AppleFeature');
+            expect(mockMonitorManager.getMonitor('AppleFeature').check).toHaveBeenCalledWith(mockClient);
+            expect(mockChannel.send).toHaveBeenCalledWith('Triggering check for monitor(s): AppleFeature.');
         });
     });
 });

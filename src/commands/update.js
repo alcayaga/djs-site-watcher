@@ -1,5 +1,3 @@
-const siteMonitor = require('../site-monitor');
-
 module.exports = {
     name: 'update',
     description: 'Manually update sites.',
@@ -9,16 +7,25 @@ module.exports = {
      * @param {string[]} args The arguments array.
      * @param {Discord.Client} client The Discord client.
      * @param {object} state The state object.
+     * @param {object} config The configuration object.
+     * @param {CronJob} cronUpdate The main cron job (for site-monitor).
+     * @param {object} monitorManager The MonitorManager instance.
      * @returns {void}
      */
-    execute(message, args, client, state) {
+    execute(message, args, client, state, config, cronUpdate, monitorManager) {
         try {
-            message.channel.send(`Updating \`${state.sitesToMonitor.length}\` site(s)...`);
-            siteMonitor.checkSites(client, state.sitesToMonitor, message.channel);
-            message.channel.send(`Done...`);
+            const siteMonitor = monitorManager.getMonitor('Site');
+            if (siteMonitor) {
+                message.channel.send(`Updating \`${siteMonitor.state.sites.length}\` site(s)...`);
+                siteMonitor.check(client);
+                message.channel.send(`Done...`);
+            } else {
+                message.channel.send('Site monitor not found.');
+            }
         } catch (error) {
             console.error(error);
             message.reply('there was an error trying to execute that command!');
         }
     },
 };
+
