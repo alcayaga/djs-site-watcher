@@ -1,11 +1,21 @@
-const { JSDOM } = require('jsdom'); // Not actually used in ApplePayMonitor, but keeping for consistency if needed later
 const Discord = require('discord.js');
 const Monitor = require('../Monitor');
-const crypto = require('crypto');
 const diff = require('diff');
 const got = require('got'); // Explicitly import got as it's used directly in fetch
 
+/**
+ * Monitor for Apple Pay configuration changes, including SupportedRegions and MarketGeos.
+ * Extends the base Monitor class to provide specific logic for fetching, parsing, comparing, and notifying about Apple Pay data.
+ */
 class ApplePayMonitor extends Monitor {
+    /**
+     * Creates an instance of ApplePayMonitor.
+     * @param {string} name The name of the monitor.
+     * @param {object} monitorConfig The configuration object for this monitor.
+     * @param {string} [monitorConfig.configUrl='https://smp-device-content.apple.com/static/region/v2/config.json'] The URL for the main Apple Pay config.
+     * @param {string} [monitorConfig.configAltUrl='https://smp-device-content.apple.com/static/region/v2/config-alt.json'] The URL for the alt Apple Pay config.
+     * @param {string} [monitorConfig.region='CL'] The region code to monitor.
+     */
     constructor(name, monitorConfig) {
         super(name, monitorConfig);
         this.CONFIG_URL = monitorConfig.configUrl || 'https://smp-device-content.apple.com/static/region/v2/config.json';

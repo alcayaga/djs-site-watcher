@@ -9,8 +9,15 @@ const config = require('./config');
  *
  * @abstract
  */
+/**
+ * Abstract base class for all monitors.
+ * Each monitor instance manages its own cron job.
+ *
+ * @abstract
+ */
 class Monitor {
-    /**
+/**
+     * Creates an instance of Monitor.
      * @param {string} name The name of the monitor.
      * @param {object} monitorConfig The configuration object for this monitor.
      */

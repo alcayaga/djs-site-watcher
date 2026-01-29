@@ -1,5 +1,3 @@
-const Discord = require('discord.js');
-
 module.exports = {
     name: 'monitor',
     description: 'Manage individual or all monitors (start, stop, status, check).',
@@ -32,25 +30,29 @@ module.exports = {
         }
 
         switch (subCommand) {
-            case 'start':
+            case 'start': {
                 targetMonitors.forEach(monitor => monitor.start());
                 message.channel.send(`Started monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
                 break;
-            case 'stop':
+            }
+            case 'stop': {
                 targetMonitors.forEach(monitor => monitor.stop());
                 message.channel.send(`Stopped monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
                 break;
-            case 'status':
+            }
+            case 'status': {
                 const statuses = targetMonitors.map(monitor => {
                     const status = monitor.getStatus();
-                    return `${status.name}: ${status.isRunning ? 'Running ─' : 'Stopped ─'}`;
+                    return `${status.name}: ${status.isRunning ? 'Running 🟢' : 'Stopped 🔴'}`;
                 });
                 message.channel.send(`Monitor Status:\n${statuses.join('\n')}`);
                 break;
-            case 'check':
+            }
+            case 'check': {
                 message.channel.send(`Triggering check for monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
                 targetMonitors.forEach(monitor => monitor.check(client));
                 break;
+            }
             default:
                 message.channel.send(`Invalid subcommand. Usage: \`${config.PREFIX}monitor ${this.usage}\``);
                 break;

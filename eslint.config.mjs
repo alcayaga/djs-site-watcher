@@ -58,4 +58,15 @@ export default defineConfig([
       },
     },
   },
+  // JSDoc overrides for test files
+  {
+    files: ["**/*.test.js"],
+    plugins: {
+      jsdoc,
+    },
+    rules: {
+      "jsdoc/require-jsdoc": "off",
+      "jsdoc/require-description": "off",
+    },
+  },
 ]);
