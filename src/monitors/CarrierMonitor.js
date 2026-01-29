@@ -3,6 +3,10 @@ const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const config = require('../config');
 
+/**
+ * Monitor for Apple Carrier Bundle updates.
+ * Extends the base Monitor class to provide specific logic for parsing, comparing, and notifying about carrier bundle changes from plist data.
+ */
 class CarrierMonitor extends Monitor {
     /**
      * Parses the plist content to extract carrier bundle information.
@@ -15,6 +19,10 @@ class CarrierMonitor extends Monitor {
         const parsedData = {};
 
         const carriersToMonitor = this.config.carriers || [];
+
+        if (!bundles || typeof bundles !== 'object') {
+            return parsedData; // Return empty if bundles are not found or malformed
+        }
 
         for (const carrier of carriersToMonitor) {
             if (bundles[carrier]) {
