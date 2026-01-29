@@ -11,7 +11,8 @@
       "run_shell_command(git show)",
       "run_shell_command(git branch)",
       "run_shell_command(git remote)",
-      "run_shell_command(git add)"
+      "run_shell_command(git add)",
+      "run_shell_command(grep)"
     ],
     "autoAccept": true
   },
