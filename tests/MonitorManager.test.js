@@ -105,7 +105,7 @@ describe('MonitorManager', () => {
         });
 
         it('should check all monitors', () => {
-            monitorManager.checkAll(client);
+            monitorManager.checkAll();
             expect(monitorInstance.check).toHaveBeenCalled();
         });
 

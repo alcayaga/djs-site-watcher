@@ -46,9 +46,9 @@ client.on('ready', async () => {
     await monitorManager.initialize(client, monitorClasses); // Pass monitorClasses
 
     // If SINGLE_RUN is true, run the monitors once and then exit
-    if (config.SINGLE_RUN === 'true') {
+    if (String(config.SINGLE_RUN).toLowerCase() === 'true') {
         console.log('DEBUG / SINGLE RUN MODE ENABLED');
-        await monitorManager.checkAll(client); // Use MonitorManager to check all monitors
+        await monitorManager.checkAll(); // Use MonitorManager to check all monitors
         if (process.env.NODE_ENV !== 'test') {
             setTimeout(() => {
                 process.exit();

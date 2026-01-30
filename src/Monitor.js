@@ -93,7 +93,7 @@ class Monitor {
      * @returns {object|Discord.TextChannel} The notification channel or a mock channel.
      */
     getNotificationChannel() {
-        if (config.SINGLE_RUN === 'true') {
+        if (String(config.SINGLE_RUN).toLowerCase() === 'true') {
             return {
                 /**
                  * Mocks the Discord channel send method by logging to console.
