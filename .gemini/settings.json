@@ -31,5 +31,10 @@
   },
   "security": {
     "enablePermanentToolApproval": true
+  },
+  "context": {
+    "fileFiltering": {
+      "respectGitIgnore": false
+    }
   }
 }
