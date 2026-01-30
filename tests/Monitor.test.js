@@ -23,10 +23,13 @@ jest.mock('discord.js', () => {
     return { Client: jest.fn(() => mClient) };
 });
 
-jest.mock('../src/config', () => ({
+const config = {
     interval: 5,
     DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
-}));
+    SINGLE_RUN: 'false'
+};
+
+jest.mock('../src/config', () => config);
 
 // A concrete implementation of the abstract Monitor class for testing
 class TestMonitor extends Monitor {
@@ -137,7 +140,7 @@ describe('Monitor', () => {
             await testMonitor.check(client);
 
             expect(got).toHaveBeenCalledWith('http://test.com');
-            expect(testMonitor.notify).toHaveBeenCalledWith(client, { oldData: 'old state', newData: 'parsed-raw data' });
+            expect(testMonitor.notify).toHaveBeenCalledWith({ oldData: 'old state', newData: 'parsed-raw data' });
             expect(storage.write).toHaveBeenCalledWith('test.json', 'parsed-raw data');
             expect(testMonitor.state).toBe('parsed-raw data');
         });
@@ -169,7 +172,7 @@ describe('Monitor', () => {
 
     describe('notify method', () => {
         it('should send a message to the configured channel', () => {
-            testMonitor.notify(client, { oldData: 'a', newData: 'b' });
+            testMonitor.notify({ oldData: 'a', newData: 'b' });
             expect(mockClientChannelsCacheGet).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannelSend).toHaveBeenCalledWith('Detected changes for TestMonitor!');
         });
@@ -178,7 +181,7 @@ describe('Monitor', () => {
             mockClientChannelsCacheGet.mockReturnValueOnce(undefined); // Simulate channel not found
             const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
-            testMonitor.notify(client, {});
+            testMonitor.notify({});
 
             expect(consoleLogSpy).toHaveBeenCalledWith('Changes detected for TestMonitor:', {});
             consoleLogSpy.mockRestore();
@@ -217,6 +220,43 @@ describe('Monitor', () => {
         it('should save state to storage', async () => {
             await testMonitor.saveState('new state');
             expect(storage.write).toHaveBeenCalledWith('test.json', 'new state');
+        });
+    });
+
+    describe('getNotificationChannel method', () => {
+        it('should return Discord channel when SINGLE_RUN is false', () => {
+            config.SINGLE_RUN = 'false';
+            const expectedChannel = { send: jest.fn() };
+            mockClientChannelsCacheGet.mockReturnValue(expectedChannel);
+            
+            const channel = testMonitor.getNotificationChannel();
+            expect(mockClientChannelsCacheGet).toHaveBeenCalledWith('mockChannelId');
+            expect(channel).toBe(expectedChannel);
+        });
+
+        it('should return a mock channel when SINGLE_RUN is true', () => {
+            config.SINGLE_RUN = 'true';
+            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+            const channel = testMonitor.getNotificationChannel();
+            
+            expect(channel).toBeDefined();
+            expect(channel.send).toBeDefined();
+            
+            // Test text notification
+            channel.send('test text');
+            expect(consoleLogSpy).toHaveBeenCalledWith('[SINGLE_RUN] [TEXT] test text');
+
+            // Test null notification
+            channel.send(null);
+            expect(consoleLogSpy).toHaveBeenCalledWith('[SINGLE_RUN] [TEXT] null');
+
+            // Test embed notification
+            channel.send({ title: 'test embed', fields: [{ name: 'f1', value: 'v1' }] });
+            expect(consoleLogSpy).toHaveBeenCalledWith('[SINGLE_RUN] [EMBED] test embed');
+            expect(consoleLogSpy).toHaveBeenCalledWith('  f1: v1');
+
+            consoleLogSpy.mockRestore();
+            config.SINGLE_RUN = 'false'; // Reset for other tests
         });
     });
 });

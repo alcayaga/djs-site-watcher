@@ -169,11 +169,10 @@ class ApplePayMonitor extends Monitor {
 
     /**
      * Sends Discord notifications based on the detected changes.
-     * @param {Discord.Client} client The Discord client instance.
      * @param {{changes: Array}} detectedChanges Object containing an array of changes.
      */
-    notify(client, detectedChanges) {
-        const channel = client.channels.cache.get(process.env.DISCORDJS_TEXTCHANNEL_ID);
+    notify(detectedChanges) {
+        const channel = this.getNotificationChannel();
         if (!channel) {
             console.error(`Notification channel not found for ${this.name}.`);
             return;

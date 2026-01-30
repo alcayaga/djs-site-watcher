@@ -193,7 +193,7 @@ describe('AppleEsimMonitor', () => {
                 added: [{ name: 'New Carrier', link: 'new.com', capability: 'General' }],
                 removed: [],
             };
-            appleEsimMonitor.notify(client, changes);
+            appleEsimMonitor.notify(changes);
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannelSend).toHaveBeenCalledTimes(1);
@@ -208,7 +208,7 @@ describe('AppleEsimMonitor', () => {
                 added: [],
                 removed: [{ name: 'Old Carrier', link: 'old.com', capability: 'Specific' }],
             };
-            appleEsimMonitor.notify(client, changes);
+            appleEsimMonitor.notify(changes);
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannelSend).toHaveBeenCalledTimes(1);
@@ -223,7 +223,7 @@ describe('AppleEsimMonitor', () => {
                 added: [{ name: 'New Carrier', link: 'new.com', capability: 'General' }],
                 removed: [{ name: 'Old Carrier', link: 'old.com', capability: 'Specific' }],
             };
-            appleEsimMonitor.notify(client, changes);
+            appleEsimMonitor.notify(changes);
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannelSend).toHaveBeenCalledTimes(2); // One for added, one for removed
@@ -236,7 +236,7 @@ describe('AppleEsimMonitor', () => {
             const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             const changes = { added: [{ name: 'New', link: 'new.com', capability: 'Gen' }], removed: [] };
 
-            appleEsimMonitor.notify(client, changes);
+            appleEsimMonitor.notify(changes);
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for AppleEsim.'));
             expect(mockChannelSend).not.toHaveBeenCalled();

@@ -33,7 +33,7 @@ class Monitor {
         this.config = monitorConfig;
         this.state = {};
 
-        this.cronJob = new CronJob(`0 */${config.interval} * * * *`, () => this.check(this.client), null, false);
+        this.cronJob = new CronJob(`0 */${config.interval} * * * *`, () => this.check(), null, false);
     }
 
     /**
@@ -69,9 +69,8 @@ class Monitor {
     /**
      * The main check logic for the monitor.
      * Orchestrates fetching, parsing, comparing, and notifying.
-     * @param {Discord.Client} client The Discord client instance.
      */
-    async check(client) {
+    async check() {
         console.log(`Checking for ${this.name} updates...`);
         try {
             const data = await this.fetch();
@@ -79,13 +78,40 @@ class Monitor {
             const changes = this.compare(newData);
 
             if (changes) {
-                this.notify(client, changes);
+                this.notify(changes);
                 await this.saveState(newData);
                 this.state = newData;
             }
         } catch (error) {
             console.error(`Error checking ${this.name}:`, error);
         }
+    }
+
+    /**
+     * Gets the notification channel for the monitor.
+     * Returns a mock channel that logs to console if SINGLE_RUN is enabled.
+     * @returns {object|Discord.TextChannel} The notification channel or a mock channel.
+     */
+    getNotificationChannel() {
+        if (String(config.SINGLE_RUN).toLowerCase() === 'true') {
+            return {
+                /**
+                 * Mocks the Discord channel send method by logging to console.
+                 * @param {string|object} content The message content or embed object.
+                 */
+                send: (content) => {
+                    if (content && typeof content === 'object' && content.title) {
+                        console.log(`[SINGLE_RUN] [EMBED] ${content.title}`);
+                        if (content.fields) {
+                            content.fields.forEach(f => console.log(`  ${f.name}: ${f.value}`));
+                        }
+                    } else {
+                        console.log(`[SINGLE_RUN] [TEXT] ${content}`);
+                    }
+                }
+            };
+        }
+        return this.client.channels.cache.get(config.DISCORDJS_TEXTCHANNEL_ID);
     }
 
     /**
@@ -113,12 +139,11 @@ class Monitor {
 
     /**
      * Sends a notification about the changes.
-     * @param {Discord.Client} client The Discord client instance.
      * @param {*} changes The changes to notify about.
      */
-    notify(client, changes) {
+    notify(changes) {
         console.log(`Changes detected for ${this.name}:`, changes);
-        const channel = client.channels.cache.get(config.DISCORDJS_TEXTCHANNEL_ID);
+        const channel = this.getNotificationChannel();
         if (channel) {
             channel.send(`Detected changes for ${this.name}!`);
         }

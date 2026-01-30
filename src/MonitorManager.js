@@ -73,10 +73,9 @@ class MonitorManager {
 
     /**
      * Triggers an immediate check for all managed monitors.
-     * @param {Discord.Client} client The Discord client instance.
      */
-    checkAll(client) {
-        this.monitors.forEach(monitor => monitor.check(client));
+    checkAll() {
+        this.monitors.forEach(monitor => monitor.check());
     }
 
     /**

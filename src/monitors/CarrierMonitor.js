@@ -1,7 +1,6 @@
 const plist = require('plist');
 const Discord = require('discord.js');
 const Monitor = require('../Monitor');
-const config = require('../config');
 
 /**
  * Monitor for Apple Carrier Bundle updates.
@@ -93,11 +92,10 @@ class CarrierMonitor extends Monitor {
 
     /**
      * Sends notifications for updated carriers.
-     * @param {Discord.Client} client The Discord client instance.
      * @param {{updated: Array}} changes The changes to notify about.
      */
-    notify(client, changes) {
-        const channel = client.channels.cache.get(config.DISCORDJS_TEXTCHANNEL_ID);
+    notify(changes) {
+        const channel = this.getNotificationChannel();
         if (!channel) {
             console.error(`Notification channel not found for ${this.name}.`);
             return;
