@@ -19,6 +19,8 @@ function cleanText(text) {
         .join('\n');
 }
 
+const CONTEXT_LINES = 3;
+
 /**
  * Monitor for changes on arbitrary websites based on CSS selectors.
  * Extends the base Monitor class to provide specific logic for fetching, parsing, comparing, and notifying about website content changes.
@@ -135,7 +137,6 @@ class SiteMonitor extends Monitor {
             lines.forEach(line => allLines.push({ content: line, type }));
         });
 
-        const CONTEXT_LINES = 3;
         const linesToKeep = new Set();
         allLines.forEach((line, index) => {
             if (line.type !== 'context') {

@@ -1,6 +1,16 @@
-jest.mock('../src/storage', () => ({    read: jest.fn(),    write: jest.fn(),    loadSettings: jest.fn().mockReturnValue({        interval: 5,        debug: false,    }),}));
+jest.mock('../src/storage', () => ({
+    read: jest.fn(),
+    write: jest.fn(),
+    loadSettings: jest.fn().mockReturnValue({
+        interval: 5,
+        debug: false,
+    }),
+}));
 
-jest.mock('../src/config', () => ({    DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',    interval: 5,}));
+jest.mock('../src/config', () => ({
+    DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
+    interval: 5,
+}));
 
 const SiteMonitor = require('../src/monitors/SiteMonitor');
 const Discord = require('discord.js');
