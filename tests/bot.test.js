@@ -24,8 +24,8 @@ const _MockMonitorClass = jest.fn().mockImplementation(function(name, monitorCon
 jest.mock('../src/config', () => ({
     interval: 5,
     monitors: [
-        { name: 'AppleEsim', enabled: true, url: 'http://apple.com/esim', file: './src/apple_esim.json', country: 'Chile' },
-        { name: 'Site', enabled: true, file: './src/sites.json' },
+        { name: 'AppleEsim', enabled: true, url: 'http://apple.com/esim', file: './config/apple_esim.json', country: 'Chile' },
+        { name: 'Site', enabled: true, file: './config/sites.json' },
     ],
     DISCORDJS_BOT_TOKEN: 'mock_token',
     DISCORDJS_TEXTCHANNEL_ID: 'mock_text_channel_id',
@@ -62,6 +62,7 @@ jest.mock('../src/storage', () => ({
     loadResponses: jest.fn().mockReturnValue([]),
     read: jest.fn().mockResolvedValue({}),
     write: jest.fn().mockResolvedValue(true),
+    migrateLegacyData: jest.fn(),
 }));
 
 jest.mock('got', () => jest.fn(() => Promise.resolve({ body: '<html><body>Generic Mock HTML</body></html>' })));

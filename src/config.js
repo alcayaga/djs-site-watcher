@@ -21,14 +21,14 @@ if (!config.monitors) {
             name: 'AppleEsim',
             enabled: true,
             url: 'https://support.apple.com/en-us/101569',
-            file: './src/apple_esim.json',
+            file: './config/apple_esim.json',
             country: 'Chile',
         },
         {
             name: 'Carrier',
             enabled: true,
             url: 'https://s.mzstatic.com/version',
-            file: './src/carriers.json',
+            file: './config/carriers.json',
             carriers: [
                 'EntelPCS_cl',
                 'movistar_cl',
@@ -40,13 +40,13 @@ if (!config.monitors) {
             name: 'AppleFeature',
             enabled: true,
             url: 'https://www.apple.com/ios/feature-availability/',
-            file: './src/apple_features.json',
+            file: './config/apple_features.json',
             keywords: ['chile', 'spanish (latin america)', 'scl'],
         },
         {
             name: 'ApplePay',
             enabled: true,
-            file: './src/apple_pay_responses.json',
+            file: './config/apple_pay_responses.json',
             configUrl: 'https://smp-device-content.apple.com/static/region/v2/config.json',
             configAltUrl: 'https://smp-device-content.apple.com/static/region/v2/config-alt.json',
             region: 'CL',
@@ -54,7 +54,7 @@ if (!config.monitors) {
         {
             name: 'Site',
             enabled: true,
-            file: './src/sites.json',
+            file: './config/sites.json',
         },
     ];
 }
