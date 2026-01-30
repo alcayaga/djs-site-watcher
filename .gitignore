@@ -1,10 +1,10 @@
 node_modules/
 .DS_Store
 .env
-src/carriers.json
-src/sites.json
-src/settings.json
-src/apple_features.json
-src/responses.json
-src/apple_pay_responses.json
-src/apple_esim.json
+config/carriers.json
+config/sites.json
+config/settings.json
+config/apple_features.json
+config/responses.json
+config/apple_pay_responses.json
+config/apple_esim.json

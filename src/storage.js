@@ -1,8 +1,8 @@
 const fs = require('fs-extra');
 
-const SITES_FILE = './src/sites.json';
-const SETTINGS_FILE = './src/settings.json';
-const RESPONSES_FILE = './src/responses.json';
+const SITES_FILE = './config/sites.json';
+const SETTINGS_FILE = './config/settings.json';
+const RESPONSES_FILE = './config/responses.json';
 
 /**
  * Loads the list of monitored sites from the JSON file.
