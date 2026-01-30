@@ -16,7 +16,6 @@ jest.mock('../src/config', () => ({
 const SiteMonitor = require('../src/monitors/SiteMonitor');
 const Discord = require('discord.js');
 const got = require('got');
-const { JSDOM } = require('jsdom');
 const storage = require('../src/storage');
 const crypto = require('crypto');
 const diff = require('diff');
@@ -105,7 +104,6 @@ describe('SiteMonitor', () => {
         storage.read.mockClear();
         storage.write.mockClear();
         crypto.createHash().digest.mockClear();
-        JSDOM.mockClear();
         diff.diffLines.mockClear();
     });
 
