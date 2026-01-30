@@ -30,33 +30,30 @@ function migrateLegacyData() {
         const oldPath = path.join(LEGACY_DIR, file);
         const newPath = path.join(NEW_DIR, file);
 
-        if (fs.existsSync(oldPath)) {
-            if (!fs.existsSync(newPath)) {
-                console.log(`[Migration] Moving ${file} to ${NEW_DIR}`);
-                fs.moveSync(oldPath, newPath);
-
-                // Patch settings.json content if it was moved
-                if (file === 'settings.json') {
-                    try {
-                        let content = fs.readFileSync(newPath, 'utf8');
-                        if (content.includes('./src/')) {
-                            console.log('[Migration] Patching paths in settings.json');
-                            content = content.replace(/\.\/src\//g, './config/');
-                            fs.writeFileSync(newPath, content, 'utf8');
-                        }
-                    } catch (err) {
-                        console.error(`[Migration] Failed to patch ${file}:`, err);
-                    }
-                }
-            } else {
-                console.log(`[Migration] Skipping ${file}, already exists in ${NEW_DIR}. Please check manually if you have conflicting data.`);
-            }
+        if (fs.existsSync(oldPath) && !fs.existsSync(newPath)) {
+            console.log(`[Migration] Moving ${file} to ${NEW_DIR}`);
+            fs.moveSync(oldPath, newPath);
+        } else if (fs.existsSync(oldPath) && fs.existsSync(newPath)) {
+            console.log(`[Migration] Skipping moving ${file}, as it already exists in ${NEW_DIR}. Please check manually if you have conflicting data.`);
         }
     });
-}
 
-// Run migration immediately upon module load
-migrateLegacyData();
+    // Always try to patch settings.json if it exists in the new location
+    const settingsPath = path.join(NEW_DIR, 'settings.json');
+    if (fs.existsSync(settingsPath)) {
+        try {
+            let content = fs.readFileSync(settingsPath, 'utf8');
+            if (content.includes('./src/')) {
+                console.log('[Migration] Patching paths in settings.json');
+                content = content.replace(/\.\/src\//g, './config/');
+                fs.writeFileSync(settingsPath, content, 'utf8');
+            }
+        } catch (err) {
+            console.error('[Migration] Failed to patch settings.json. Halting execution.', err);
+            process.exit(1);
+        }
+    }
+}
 
 /**
  * Loads the list of monitored sites from the JSON file.

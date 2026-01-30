@@ -11,6 +11,9 @@ const fs = require('fs'); // New import
 const path = require('path'); // New import
 
 // Load configuration and state
+const storage = require('./storage');
+storage.migrateLegacyData();
+
 const config = require('./config');
 const state = require('./state');
 

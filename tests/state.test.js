@@ -5,6 +5,7 @@ jest.mock('../src/storage', () => ({
     loadSites: jest.fn(),
     loadSettings: jest.fn(),
     loadResponses: jest.fn(),
+    migrateLegacyData: jest.fn(),
 }));
 
 /**

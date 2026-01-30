@@ -62,6 +62,7 @@ jest.mock('../src/storage', () => ({
     loadResponses: jest.fn().mockReturnValue([]),
     read: jest.fn().mockResolvedValue({}),
     write: jest.fn().mockResolvedValue(true),
+    migrateLegacyData: jest.fn(),
 }));
 
 jest.mock('got', () => jest.fn(() => Promise.resolve({ body: '<html><body>Generic Mock HTML</body></html>' })));
