@@ -12,6 +12,17 @@
       "run_shell_command(git branch)",
       "run_shell_command(git remote)",
       "run_shell_command(git add)",
+      "run_shell_command(gh issue list)",
+      "run_shell_command(gh issue view)",
+      "run_shell_command(gh pr list)",
+      "run_shell_command(gh pr view)",
+      "run_shell_command(gh pr diff)",
+      "run_shell_command(gh pr checks)",
+      "run_shell_command(gh run list)",
+      "run_shell_command(gh run view)",
+      "run_shell_command(gh release list)",
+      "run_shell_command(gh repo view)",
+      "run_shell_command(gh search)",
       "run_shell_command(grep)"
     ],
     "autoAccept": true
