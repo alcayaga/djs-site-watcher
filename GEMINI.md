@@ -13,8 +13,12 @@
 ## 2. Interaction & Git Workflow
 
 ### Phase 1: Implementation & Review
-1.  **Branching:** Always start a new task on a fresh branch (`feature/xyz`, `fix/xyz`). Never work directly on `master`.
-2.  **Development:** Implement the core logic/feature first.
+1.  **Context (Existing PRs):**
+    * If working on an existing PR, YOU MUST gather context first:
+    * **Status & Comments:** Run `gh pr view <PR-NUMBER>`.
+    * **Code Reviews:** Run the specific review tool: `gh pr-review review view <PR-NUMBER> -R alcayaga/djs-site-watcher`.
+2.  **Branching:** Always start a new task on a fresh branch (`feature/xyz`, `fix/xyz`). Never work directly on `master`.
+3.  **Development:** Implement the core logic/feature first.
 
 ### Phase 2: Testing & Committing Logic
 **GLOBAL PRE-COMMIT RULE:** Before creating ANY commit, you **must** run `npm run lint` and fix any style/linting errors.
