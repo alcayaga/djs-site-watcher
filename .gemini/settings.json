@@ -5,6 +5,7 @@
       "replace",
       "write_todos",
       "run_shell_command(npm)",
+      "run_shell_command(node)",
       "run_shell_command(git status)",
       "run_shell_command(git log)",
       "run_shell_command(git diff)",

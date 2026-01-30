@@ -12,59 +12,64 @@
 
 ## 2. Interaction & Git Workflow
 
-### Phase 1: Implementation & Review
+### Phase 1: Context & Branching (CRITICAL)
 1.  **Context (Existing PRs):**
     * If working on an existing PR, YOU MUST gather context first:
     * **Status & Comments:** Run `gh pr view <PR-NUMBER>`.
-    * **Code Reviews:** Run the specific review tool: `gh pr-review review view <PR-NUMBER> -R alcayaga/djs-site-watcher`.
-2.  **Branching:** Always start a new task on a fresh branch (`feature/xyz`, `fix/xyz`). Never work directly on `master`.
-3.  **Development:** Implement the core logic/feature first.
+    * **Code Reviews:** Run `gh pr-review review view <PR-NUMBER> -R alcayaga/djs-site-watcher`.
+2.  **Mandatory Branch Check:**
+    * Before writing ANY code, run `git branch --show-current`.
+    * **IF** the result is `master`: **STOP.** Create a new branch immediately (`git checkout -b feature/name` or `fix/name`).
+    * **NEVER** commit directly to `master`.
 
 ### Phase 2: Testing & Committing Logic
-**GLOBAL PRE-COMMIT RULE:** Before creating ANY commit, you **must** run `npm run lint` and fix any style/linting errors.
+**GLOBAL PRE-COMMIT GAUNTLET:** You must pass **Linting** and **System Testing** before creating any commit.
 
 * **Scenario A: Bug Fixes & Simple Changes (TDD Style)**
-    1.  **Test First:** Write or modify the test case to reproduce the bug or verify the simple change.
-    2.  **Verify:** Ensure the test passes.
+    1.  **Test First:** Write/modify the test case to reproduce the bug.
+    2.  **Verify:** Ensure the unit test passes.
     3.  **Lint:** Run `npm run lint`.
-    4.  **Commit:** Commit the code and the test **together** in a single commit.
+    4.  **System Check:** Run `npm start`. (This runs the bot once to verify real-world connectivity/parsing). **If this fails, DO NOT COMMIT.**
+    5.  **Commit:** Commit the code and the test **together**.
 
 * **Scenario B: Large Features & Complex Refactors**
-    1.  **Implement:** Focus on the implementation logic first.
-    2.  **Regression Check:** Run **existing** tests (`npm test`) to ensure the new code hasn't broken current functionality.
+    1.  **Implement:** Focus on the implementation logic.
+    2.  **Regression Check:** Run `npm test` (existing tests) to ensure no breakages.
     3.  **Lint:** Run `npm run lint`.
-    4.  **Commit Implementation:** Commit the working feature code.
-    5.  **New Tests:** Add comprehensive tests for the new feature in a **separate subsequent commit** to keep the history clean.
+    4.  **System Check:** Run `npm start`. (Verifies the code works in the real environment with `SINGLE_RUN=true`). **If this fails, DO NOT COMMIT.**
+    5.  **Commit Implementation:** Commit the working feature code.
+    6.  **New Tests:** Add comprehensive tests for the new feature in a **separate subsequent commit**.
 
 ### Phase 3: Committing Standards
 * **Atomic Commits:** Adhere to the "One Idea = One Commit" rule. Isolate features, bug fixes, and refactors.
 * **Message Formatting:**
-    * **NO** backticks (`) or quotes ("") around filenames or code symbols in the commit message (this breaks the local console).
-    * Use standard conventional commits format where possible (e.g., `feat:`, `fix:`, `refactor:`).
+    * **NO** backticks (`) or quotes ("") around filenames or code symbols in the commit message.
+    * Use standard conventional commits format (e.g., `feat:`, `fix:`, `refactor:`).
 
-### Phase 4: PR & Finalization
-1.  **Pull Request:**
-    * Push the branch first
-    * Draft the PR description/title.
+### Phase 4: PR & Code Review Process
+Once the work is committed, follow this EXACT sequence:
 
-## Testing Strategy
+1.  **Push:** `git push origin <branch_name>`
+2.  **Create PR:** `gh pr create` (Draft the description).
+3.  **Wait:** Wait approximately 5 minutes for CI/CD or initial checks to populate.
+4.  **Check Reviews:**
+    * Run: `gh pr-review review view <PR-NUMBER> -R alcayaga/djs-site-watcher`
+    * **PROHIBITED:** Do NOT use `gh api` to check reviews. Use the specific tool command above.
+5.  **Trigger AI Review:**
+    * After creating the PR or pushing updates to an existing one, run this command to trigger the automated review agent:
+    * `gh pr comment <PR-NUMBER> --body "/gemini review"`
+
+## Testing Strategy Rules
 When validating changes, ALWAYS follow this strict execution order:
 
-1. **Targeted Test (First):**
-   - Run the specific test file associated with the modified component.
-   - Example: `npm test -- path/to/specific.test.js`
-   - Goal: Fail fast on immediate errors.
+1. **Targeted Unit Test:**
+   - Run the specific test file: `npm test -- path/to/specific.test.js`
+   - Goal: Fail fast.
 
-2. **Full Regression (Second):**
-   - **Condition:** Execute this ONLY if the targeted test passes.
-   - Command: `npm test` (or your full suite command)
-   - Goal: Ensure no side effects broke other parts of the system.
+2. **Full Regression:**
+   - Execute only if targeted test passes: `npm test`
 
-## 3. Environment & Testing Strategy
-* **Unit Testing (`npm test`):**
-    * Run these to verify isolated logic and new functionality without external dependencies.
-    * Ensure tests are robust and cover edge cases, not just happy paths.
-* **System Testing (`npm start`):**
-    * **Context:** The environment is already configured with `SINGLE_RUN=true`.
-    * **Behavior:** Executing `npm start` in this environment will **not** start the cron scheduler. It will execute each monitor module immediately once and then exit.
-    * **Requirement:** You **must** use this method to verify the code works in the real environment (e.g., actual network requests, file parsing) before making a commit.
+3. **System Environment Test (`npm start`):**
+   - **Context:** The environment is configured with `SINGLE_RUN=true`.
+   - **Behavior:** This executes the monitors once and exits (no cron).
+   - **Requirement:** This is MANDATORY before any commit (as defined in Phase 2) to verify file parsing and network requests.
