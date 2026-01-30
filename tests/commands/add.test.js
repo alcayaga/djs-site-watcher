@@ -6,16 +6,17 @@ jest.mock('../../src/storage');
 jest.mock('got');
 jest.mock('jsdom', () => {
     return {
-        JSDOM: jest.fn().mockImplementation(() => {
+        JSDOM: jest.fn((html) => {
+            const actualDom = new (jest.requireActual('jsdom').JSDOM)(html);
             return {
                 window: {
                     document: {
-                        querySelector: jest.fn().mockReturnValue({ textContent: 'test content' }),
-                        title: 'Test Title'
-                    }
-                }
+                        querySelector: jest.fn((selector) => actualDom.window.document.querySelector(selector)),
+                        title: actualDom.window.document.title,
+                    },
+                },
             };
-        })
+        }),
     };
 });
 

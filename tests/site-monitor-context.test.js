@@ -21,7 +21,21 @@ const crypto = require('crypto');
 const diff = require('diff');
 
 jest.mock('got');
-jest.mock('jsdom');
+jest.mock('jsdom', () => {
+    return {
+        JSDOM: jest.fn((html) => {
+            const actualDom = new (jest.requireActual('jsdom').JSDOM)(html);
+            return {
+                window: {
+                    document: {
+                        querySelector: jest.fn((selector) => actualDom.window.document.querySelector(selector)),
+                        title: actualDom.window.document.title,
+                    },
+                },
+            };
+        }),
+    };
+});
 jest.mock('crypto', () => {
     const mockUpdate = jest.fn().mockReturnThis();
     const mockDigest = jest.fn().mockReturnValue('mock-hash');
@@ -81,10 +95,10 @@ describe('SiteMonitor Context & Clean Features', () => {
 
     it('should ignore changes that are only whitespace/empty lines (CleanText)', async () => {
         const rawResponse = 'clean\n   \ncontent\n';
-        got.mockResolvedValue({ body: rawResponse });
+        const html = `<html><body>${rawResponse}</body></html>`;
+        got.mockResolvedValue({ body: html });
         
-        const dom = { window: { document: { querySelector: () => ({ textContent: rawResponse }) } } };
-        JSDOM.mockImplementation(() => dom);
+        // Removed JSDOM.mockImplementation
 
         const updateSpy = crypto.createHash().update;
         
@@ -98,9 +112,8 @@ describe('SiteMonitor Context & Clean Features', () => {
         siteMonitor.state[0].hash = 'hash-of-dirty-content';
         
         const newRawResponse = 'clean\ncontent';
-        got.mockResolvedValue({ body: newRawResponse });
-        const dom = { window: { document: { querySelector: () => ({ textContent: newRawResponse }) } } };
-        JSDOM.mockImplementation(() => dom);
+        const html = `<html><body>${newRawResponse}</body></html>`;
+        got.mockResolvedValue({ body: html });
         
         const mockDigest = jest.fn();
         mockDigest

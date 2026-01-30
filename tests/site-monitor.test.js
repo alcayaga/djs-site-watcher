@@ -23,7 +23,21 @@ const diff = require('diff');
 
 // Mock specific external dependencies
 jest.mock('got'); // Keep this top-level mock
-jest.mock('jsdom');
+jest.mock('jsdom', () => {
+    return {
+        JSDOM: jest.fn((html) => {
+            const actualDom = new (jest.requireActual('jsdom').JSDOM)(html);
+            return {
+                window: {
+                    document: {
+                        querySelector: jest.fn((selector) => actualDom.window.document.querySelector(selector)),
+                        title: actualDom.window.document.title,
+                    },
+                },
+            };
+        }),
+    };
+});
 jest.mock('crypto', () => {
     const mockUpdate = jest.fn().mockReturnThis();
     const mockDigest = jest.fn().mockReturnValue('mock-hash');
@@ -98,10 +112,11 @@ describe('SiteMonitor', () => {
     // Existing tests for check method
     it('should detect a change and notify', async () => {
         const notifySpy = jest.spyOn(siteMonitor, 'notify'); // Spy on notify for this test
-        const response = { body: 'updated content' };
-        got.mockResolvedValue(response); // Override default got mock for this test
-        const dom = { window: { document: { querySelector: () => ({ textContent: 'updated content' }), title: 'Test Site' } } };
-        JSDOM.mockImplementation(() => dom);
+        // Updated: Provide real HTML for JSDOM to parse
+        const response = { body: '<html><head><title>Test Site</title></head><body>updated content</body></html>' };
+        got.mockResolvedValue(response); 
+        // Removed: JSDOM.mockImplementation calls. The global mock handles it.
+        
         crypto.createHash().digest.mockReturnValue('new-hash');
         diff.diffLines.mockReturnValue([
             { value: 'initial', removed: true },
@@ -119,10 +134,9 @@ describe('SiteMonitor', () => {
 
     it('should not notify if no change is detected', async () => {
         const notifySpy = jest.spyOn(siteMonitor, 'notify'); // Spy on notify for this test
-        const response = { body: 'initial content' };
-        got.mockResolvedValue(response); // Override default got mock for this test
-        const dom = { window: { document: { querySelector: () => ({ textContent: 'initial content' }), title: 'Test Site' } } };
-        JSDOM.mockImplementation(() => dom);
+        const response = { body: '<html><head><title>Test Site</title></head><body>initial content</body></html>' };
+        got.mockResolvedValue(response); 
+        
         crypto.createHash().digest.mockReturnValue('old-hash');
 
         await siteMonitor.check(client);
@@ -148,11 +162,8 @@ describe('SiteMonitor', () => {
         siteMonitor.state = [legacySite];
 
         const responseContent = 'some content';
-        got.mockResolvedValue({ body: responseContent });
-        
-        JSDOM.mockImplementation(() => ({
-            window: { document: { querySelector: () => ({ textContent: responseContent }) } }
-        }));
+        const html = `<html><body>${responseContent}</body></html>`;
+        got.mockResolvedValue({ body: html });
         
         // Ensure hash matches
         crypto.createHash().digest.mockReturnValue('valid-hash');
@@ -180,11 +191,8 @@ describe('SiteMonitor', () => {
         siteMonitor.state = [siteWithEmptyContent];
 
         const responseContent = '';
-        got.mockResolvedValue({ body: responseContent });
-        
-        JSDOM.mockImplementation(() => ({
-            window: { document: { querySelector: () => ({ textContent: responseContent }) } }
-        }));
+        const html = `<html><body>${responseContent}</body></html>`;
+        got.mockResolvedValue({ body: html });
         
         crypto.createHash().digest.mockReturnValue('d41d8cd98f00b204e9800998ecf8427e');
 
