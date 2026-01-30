@@ -13,7 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "cron": "^1.8.2",
+    "cron": "^4.4.0",
     "crypto": "^1.0.1",
     "diff": "^8.0.3",
     "discord.js": "^12.5.3",
