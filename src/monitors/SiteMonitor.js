@@ -7,6 +7,19 @@ const got = require('got');
 const storage = require('../storage');
 
 /**
+ * Cleans the text by trimming lines and removing empty ones.
+ * @param {string} text The text to clean.
+ * @returns {string} The cleaned text.
+ */
+function cleanText(text) {
+    if (!text) return '';
+    return text.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .join('\n');
+}
+
+/**
  * Monitor for changes on arbitrary websites based on CSS selectors.
  * Extends the base Monitor class to provide specific logic for fetching, parsing, comparing, and notifying about website content changes.
  */
@@ -39,16 +52,27 @@ class SiteMonitor extends Monitor {
                     content = dom.window.document.querySelector('head').textContent;
                 }
 
+                content = cleanText(content);
+
                 const hash = crypto.createHash('md5').update(content).digest('hex');
 
                 if (site.hash !== hash) {
                     const oldContent = site.lastContent || '';
+                    const cleanOldContent = cleanText(oldContent);
+                    
                     site.lastChecked = new Date().toLocaleString();
                     site.lastUpdated = new Date().toLocaleString();
                     site.hash = hash;
                     site.lastContent = content;
-                    hasChanges = true;
-                    this.notify({ site, oldContent, newContent: content, dom });
+                    
+                    if (cleanOldContent !== content) {
+                        hasChanges = true;
+                        this.notify({ site, oldContent, newContent: content, dom });
+                    } else {
+                        // Silent update (Migration to clean content)
+                        hasChanges = true; 
+                        console.log(`[Migration] Updated ${site.url} to clean content format without notification.`);
+                    }
                 } else {
                     site.lastChecked = new Date().toLocaleString();
                 }
@@ -102,16 +126,36 @@ class SiteMonitor extends Monitor {
         let title = dom.window.document.title || site.id;
 
         const changes = diff.diffLines(oldContent, newContent);
-        let diffString = '';
+        const allLines = [];
         changes.forEach((part) => {
-            const prefix = part.added ? '🟢' : part.removed ? '🔴' : '⚪';
-            if ((!part.added && !part.removed) && diffString.length >= 1800) return;
+            const type = part.added ? 'added' : part.removed ? 'removed' : 'context';
             if (!part.value) return;
-            const endsWithNewline = part.value.endsWith('\n');
-            const valueToProcess = endsWithNewline ? part.value.slice(0, -1) : part.value;
-            const prefixedLines = valueToProcess.split('\n').map(line => prefix + line).join('\n');
-            diffString += prefixedLines;
-            if (endsWithNewline) diffString += '\n';
+            const valueToProcess = part.value.endsWith('\n') ? part.value.slice(0, -1) : part.value;
+            const lines = valueToProcess.split('\n');
+            lines.forEach(line => allLines.push({ content: line, type }));
+        });
+
+        const CONTEXT_LINES = 3;
+        const linesToKeep = new Set();
+        allLines.forEach((line, index) => {
+            if (line.type !== 'context') {
+                for (let i = Math.max(0, index - CONTEXT_LINES); i <= Math.min(allLines.length - 1, index + CONTEXT_LINES); i++) {
+                    linesToKeep.add(i);
+                }
+            }
+        });
+
+        let diffString = '';
+        let lastIndex = -1;
+        allLines.forEach((line, index) => {
+            if (linesToKeep.has(index)) {
+                if (lastIndex !== -1 && index !== lastIndex + 1) {
+                    diffString += '... \n';
+                }
+                const prefix = line.type === 'added' ? '🟢 ' : line.type === 'removed' ? '🔴 ' : '⚪ ';
+                diffString += prefix + line.content + '\n';
+                lastIndex = index;
+            }
         });
 
         if (diffString.length > 1900) {

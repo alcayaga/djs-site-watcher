@@ -212,7 +212,7 @@ describe('SiteMonitor', () => {
             expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Último cambio', 'some-date', true);
             expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Actualizado', 'some-date', true);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('0x6058f3');
-            expect(mockChannel.send).toHaveBeenCalledWith(' \n🔴old🟢new\n ');
+            expect(mockChannel.send).toHaveBeenCalledWith(' \n🔴 old\n🟢 new\n\n ');
         });
 
         it('should format multiline diffs correctly', () => {
@@ -224,7 +224,7 @@ describe('SiteMonitor', () => {
             ]);
             siteMonitor.notify(mockChange);
 
-            const expectedDiff = ' \n⚪line 1\n🔴line 2\n🟢line three\n⚪line 4\n ';
+            const expectedDiff = ' \n⚪ line 1\n🔴 line 2\n🟢 line three\n⚪ line 4\n\n ';
             expect(mockChannel.send).toHaveBeenCalledWith(expectedDiff);
         });
 
