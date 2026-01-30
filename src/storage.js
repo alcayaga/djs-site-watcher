@@ -152,6 +152,7 @@ async function write(file, data) {
 }
 
 module.exports = {
+  migrateLegacyData,
   loadSites,
   saveSites,
   loadSettings,
