@@ -246,6 +246,10 @@ describe('Monitor', () => {
             channel.send('test text');
             expect(consoleLogSpy).toHaveBeenCalledWith('[SINGLE_RUN] [TEXT] test text');
 
+            // Test null notification
+            channel.send(null);
+            expect(consoleLogSpy).toHaveBeenCalledWith('[SINGLE_RUN] [TEXT] null');
+
             // Test embed notification
             channel.send({ title: 'test embed', fields: [{ name: 'f1', value: 'v1' }] });
             expect(consoleLogSpy).toHaveBeenCalledWith('[SINGLE_RUN] [EMBED] test embed');

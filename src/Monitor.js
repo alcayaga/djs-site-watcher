@@ -100,7 +100,7 @@ class Monitor {
                  * @param {string|object} content The message content or embed object.
                  */
                 send: (content) => {
-                    if (typeof content === 'object' && content.title) {
+                    if (content && typeof content === 'object' && content.title) {
                         console.log(`[SINGLE_RUN] [EMBED] ${content.title}`);
                         if (content.fields) {
                             content.fields.forEach(f => console.log(`  ${f.name}: ${f.value}`));
