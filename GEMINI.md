@@ -37,7 +37,6 @@
     5.  **New Tests:** Add comprehensive tests for the new feature in a **separate subsequent commit** to keep the history clean.
 
 ### Phase 3: Committing Standards
-* **Approvals:** You have autonomy to execute commits
 * **Atomic Commits:** Adhere to the "One Idea = One Commit" rule. Isolate features, bug fixes, and refactors.
 * **Message Formatting:**
     * **NO** backticks (`) or quotes ("") around filenames or code symbols in the commit message (this breaks the local console).
@@ -45,8 +44,8 @@
 
 ### Phase 4: PR & Finalization
 1.  **Pull Request:**
+    * Push the branch first
     * Draft the PR description/title.
-    * **WAIT** for my explicit "ok" or "approved" before submitting the draft via `gh`.
 
 ## Testing Strategy
 When validating changes, ALWAYS follow this strict execution order:
@@ -68,4 +67,4 @@ When validating changes, ALWAYS follow this strict execution order:
 * **System Testing (`npm start`):**
     * **Context:** The environment is already configured with `SINGLE_RUN=true`.
     * **Behavior:** Executing `npm start` in this environment will **not** start the cron scheduler. It will execute each monitor module immediately once and then exit.
-    * **Requirement:** You **must** use this method to verify the code works in the real environment (e.g., actual network requests, file parsing) before finishing a task.
+    * **Requirement:** You **must** use this method to verify the code works in the real environment (e.g., actual network requests, file parsing) before making a commit.
