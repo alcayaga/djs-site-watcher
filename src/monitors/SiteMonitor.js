@@ -76,6 +76,11 @@ class SiteMonitor extends Monitor {
                         console.log(`[Migration] Updated ${site.url} to clean content format without notification.`);
                     }
                 } else {
+                    if (site.lastContent === undefined) {
+                        site.lastContent = content;
+                        hasChanges = true;
+                        console.log(`[Migration] Backfilled lastContent for ${site.url} without notification.`);
+                    }
                     site.lastChecked = new Date().toLocaleString();
                 }
                 return site;
