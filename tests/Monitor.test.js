@@ -140,7 +140,7 @@ describe('Monitor', () => {
             await testMonitor.check(client);
 
             expect(got).toHaveBeenCalledWith('http://test.com');
-            expect(testMonitor.notify).toHaveBeenCalledWith(client, { oldData: 'old state', newData: 'parsed-raw data' });
+            expect(testMonitor.notify).toHaveBeenCalledWith({ oldData: 'old state', newData: 'parsed-raw data' });
             expect(storage.write).toHaveBeenCalledWith('test.json', 'parsed-raw data');
             expect(testMonitor.state).toBe('parsed-raw data');
         });
@@ -172,7 +172,7 @@ describe('Monitor', () => {
 
     describe('notify method', () => {
         it('should send a message to the configured channel', () => {
-            testMonitor.notify(client, { oldData: 'a', newData: 'b' });
+            testMonitor.notify({ oldData: 'a', newData: 'b' });
             expect(mockClientChannelsCacheGet).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannelSend).toHaveBeenCalledWith('Detected changes for TestMonitor!');
         });
@@ -181,7 +181,7 @@ describe('Monitor', () => {
             mockClientChannelsCacheGet.mockReturnValueOnce(undefined); // Simulate channel not found
             const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
-            testMonitor.notify(client, {});
+            testMonitor.notify({});
 
             expect(consoleLogSpy).toHaveBeenCalledWith('Changes detected for TestMonitor:', {});
             consoleLogSpy.mockRestore();
@@ -229,7 +229,7 @@ describe('Monitor', () => {
             const expectedChannel = { send: jest.fn() };
             mockClientChannelsCacheGet.mockReturnValue(expectedChannel);
             
-            const channel = testMonitor.getNotificationChannel(client);
+            const channel = testMonitor.getNotificationChannel();
             expect(mockClientChannelsCacheGet).toHaveBeenCalledWith('mockChannelId');
             expect(channel).toBe(expectedChannel);
         });
@@ -237,7 +237,7 @@ describe('Monitor', () => {
         it('should return a mock channel when SINGLE_RUN is true', () => {
             config.SINGLE_RUN = 'true';
             const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-            const channel = testMonitor.getNotificationChannel(client);
+            const channel = testMonitor.getNotificationChannel();
             
             expect(channel).toBeDefined();
             expect(channel.send).toBeDefined();

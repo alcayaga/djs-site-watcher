@@ -20,9 +20,8 @@ class SiteMonitor extends Monitor {
 
     /**
      * Overrides the base check method to handle an array of sites.
-     * @param {Discord.Client} client The Discord client instance.
      */
-    async check(client) {
+    async check() {
         console.log(`Checking for ${this.name} updates...`);
         let sitesArray = Array.isArray(this.state) ? this.state : [];
         let hasChanges = false;
@@ -49,7 +48,7 @@ class SiteMonitor extends Monitor {
                     site.hash = hash;
                     site.lastContent = content;
                     hasChanges = true;
-                    this.notify(client, { site, oldContent, newContent: content, dom });
+                    this.notify({ site, oldContent, newContent: content, dom });
                 } else {
                     site.lastChecked = new Date().toLocaleString();
                 }
@@ -88,12 +87,11 @@ class SiteMonitor extends Monitor {
 
     /**
      * Sends a notification for a changed site.
-     * @param {Discord.Client} client The Discord client instance.
      * @param {object} change The change object containing site, old/new content, and dom.
      */
-    notify(client, change) {
+    notify(change) {
         const { site, oldContent, newContent, dom } = change;
-        const channel = this.getNotificationChannel(client);
+        const channel = this.getNotificationChannel();
         if (!channel) {
             console.error(`Notification channel not found for ${this.name}.`);
             return;

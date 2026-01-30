@@ -195,6 +195,7 @@ describe('SiteMonitor', () => {
             mockMessageEmbedInstance.setTitle.mockClear();
             mockMessageEmbedInstance.addField.mockClear();
             mockMessageEmbedInstance.setColor.mockClear();
+            siteMonitor.client = client; // Ensure client is set on instance
         });
 
         it('should send an embed and diff to the channel', () => {
@@ -202,7 +203,7 @@ describe('SiteMonitor', () => {
                 { value: 'old', removed: true },
                 { value: 'new', added: true },
             ]);
-            siteMonitor.notify(client, mockChange);
+            siteMonitor.notify(mockChange);
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannel.send).toHaveBeenCalledWith(mockMessageEmbedInstance);
@@ -221,7 +222,7 @@ describe('SiteMonitor', () => {
                 { value: 'line three\n', added: true },
                 { value: 'line 4', common: true },
             ]);
-            siteMonitor.notify(client, mockChange);
+            siteMonitor.notify(mockChange);
 
             const expectedDiff = ' \n⚪line 1\n🔴line 2\n🟢line three\n⚪line 4\n ';
             expect(mockChannel.send).toHaveBeenCalledWith(expectedDiff);
@@ -234,7 +235,7 @@ describe('SiteMonitor', () => {
                 { value: longContent, added: true },
             ]);
             
-            siteMonitor.notify(client, mockChange);
+            siteMonitor.notify(mockChange);
             // Assert that the sent message contains the truncation.
             // The actual logic is in SiteMonitor, we just check if the output includes the truncation string.
             expect(mockChannel.send).toHaveBeenCalledWith(expect.stringContaining('... (truncated)'));
@@ -245,7 +246,7 @@ describe('SiteMonitor', () => {
             const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
-            siteMonitor.notify(client, mockChange);
+            siteMonitor.notify(mockChange);
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for site-monitor.'));
             expect(mockChannel.send).not.toHaveBeenCalled();
@@ -265,7 +266,7 @@ describe('SiteMonitor', () => {
                 dom: { window: { document: { } } }, // No title
             };
             diff.diffLines.mockReturnValue([]); // Avoid diffing errors in this specific test
-            siteMonitor.notify(client, mockChangeWithoutTitle);
+            siteMonitor.notify(mockChangeWithoutTitle);
             expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('🔎 ¡Cambio en fallback-site-id!  🐸');
         });
     });

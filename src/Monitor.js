@@ -33,7 +33,7 @@ class Monitor {
         this.config = monitorConfig;
         this.state = {};
 
-        this.cronJob = new CronJob(`0 */${config.interval} * * * *`, () => this.check(this.client), null, false);
+        this.cronJob = new CronJob(`0 */${config.interval} * * * *`, () => this.check(), null, false);
     }
 
     /**
@@ -69,9 +69,8 @@ class Monitor {
     /**
      * The main check logic for the monitor.
      * Orchestrates fetching, parsing, comparing, and notifying.
-     * @param {Discord.Client} client The Discord client instance.
      */
-    async check(client) {
+    async check() {
         console.log(`Checking for ${this.name} updates...`);
         try {
             const data = await this.fetch();
@@ -79,7 +78,7 @@ class Monitor {
             const changes = this.compare(newData);
 
             if (changes) {
-                this.notify(client, changes);
+                this.notify(changes);
                 await this.saveState(newData);
                 this.state = newData;
             }
@@ -91,10 +90,9 @@ class Monitor {
     /**
      * Gets the notification channel for the monitor.
      * Returns a mock channel that logs to console if SINGLE_RUN is enabled.
-     * @param {Discord.Client} client The Discord client instance.
      * @returns {object|Discord.TextChannel} The notification channel or a mock channel.
      */
-    getNotificationChannel(client) {
+    getNotificationChannel() {
         if (config.SINGLE_RUN === 'true') {
             return {
                 /**
@@ -113,7 +111,7 @@ class Monitor {
                 }
             };
         }
-        return client.channels.cache.get(config.DISCORDJS_TEXTCHANNEL_ID);
+        return this.client.channels.cache.get(config.DISCORDJS_TEXTCHANNEL_ID);
     }
 
     /**
@@ -141,12 +139,11 @@ class Monitor {
 
     /**
      * Sends a notification about the changes.
-     * @param {Discord.Client} client The Discord client instance.
      * @param {*} changes The changes to notify about.
      */
-    notify(client, changes) {
+    notify(changes) {
         console.log(`Changes detected for ${this.name}:`, changes);
-        const channel = this.getNotificationChannel(client);
+        const channel = this.getNotificationChannel();
         if (channel) {
             channel.send(`Detected changes for ${this.name}!`);
         }

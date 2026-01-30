@@ -208,7 +208,7 @@ describe('CarrierMonitor', () => {
                     { id: 'ATT_US', version: '47.0', build: '47.0.1', url: 'http://a.com/47', lastUpdated: 'soon' },
                 ],
             };
-            carrierMonitor.notify(client, changes);
+            carrierMonitor.notify(changes);
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannelSend).toHaveBeenCalledTimes(2); // One for each updated item
@@ -227,7 +227,7 @@ describe('CarrierMonitor', () => {
             const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             const changes = { updated: [{ id: 'Verizon_US', version: '48.0', build: '48.0.0', url: 'http://v.com/48', lastUpdated: 'now' }] };
 
-            carrierMonitor.notify(client, changes);
+            carrierMonitor.notify(changes);
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for Carrier.'));
             expect(mockChannelSend).not.toHaveBeenCalled();

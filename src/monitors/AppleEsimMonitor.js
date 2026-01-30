@@ -86,11 +86,10 @@ class AppleEsimMonitor extends Monitor {
 
     /**
      * Sends notifications for added or removed carriers.
-     * @param {Discord.Client} client The Discord client instance.
      * @param {{added: Array, removed: Array}} changes The changes to notify about.
      */
-    notify(client, changes) {
-        const channel = this.getNotificationChannel(client);
+    notify(changes) {
+        const channel = this.getNotificationChannel();
         if (!channel) {
             console.error(`Notification channel not found for ${this.name}.`);
             return;

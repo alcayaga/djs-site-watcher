@@ -211,7 +211,7 @@ describe('AppleFeatureMonitor', () => {
                     { featureName: "Existing Feature", region: "New Locale", id: "existing-feature" },
                 ],
             };
-            appleFeatureMonitor.notify(client, changes);
+            appleFeatureMonitor.notify(changes);
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannelSend).toHaveBeenCalledTimes(2); // One for each added item
@@ -233,7 +233,7 @@ describe('AppleFeatureMonitor', () => {
             const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             const changes = { added: [{ featureName: "Test", region: "Test", id: "test" }] };
 
-            appleFeatureMonitor.notify(client, changes);
+            appleFeatureMonitor.notify(changes);
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for AppleFeature.'));
             expect(mockChannelSend).not.toHaveBeenCalled();

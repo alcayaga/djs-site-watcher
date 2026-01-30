@@ -322,7 +322,7 @@ describe('ApplePayMonitor', () => {
 
         it('should send embed for regionDiff change', () => {
             const changes = { changes: [{ type: 'regionDiff', configName: 'main config', diff: 'diff content', url: 'http://config.com' }] };
-            applePayMonitor.notify(client, changes);
+            applePayMonitor.notify(changes);
 
             // Fix 2: Assert against the mocked client.channels.cache.get directly
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
@@ -335,7 +335,7 @@ describe('ApplePayMonitor', () => {
 
         it('should send embed for newMarketGeo change', () => {
             const changes = { changes: [{ type: 'newMarketGeo', configName: 'alt config', geo: { name: 'New Geo', id: 'new-geo-id' }, url: 'http://alt-config.com' }] };
-            applePayMonitor.notify(client, changes);
+            applePayMonitor.notify(changes);
 
             // Fix 2: Assert against the mocked client.channels.cache.get directly
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
@@ -353,7 +353,7 @@ describe('ApplePayMonitor', () => {
             const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             const changes = { changes: [{ type: 'regionDiff', configName: 'main config', diff: 'diff content', url: 'http://config.com' }] };
 
-            applePayMonitor.notify(client, changes);
+            applePayMonitor.notify(changes);
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for ApplePay.'));
             expect(mockChannel.send).not.toHaveBeenCalled();
