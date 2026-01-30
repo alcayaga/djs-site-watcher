@@ -133,6 +133,68 @@ describe('SiteMonitor', () => {
         notifySpy.mockRestore(); // Clean up spy
     });
 
+    it('should backfill lastContent if it is missing but hash matches (Silent Migration)', async () => {
+        const notifySpy = jest.spyOn(siteMonitor, 'notify');
+        // Setup: Site has valid hash but NO lastContent (legacy state)
+        const legacySite = {
+            id: 'legacy-site.com',
+            url: 'http://legacy-site.com',
+            css: 'body',
+            lastChecked: 0,
+            lastUpdated: 0,
+            hash: 'valid-hash',
+            // lastContent is MISSING
+        };
+        siteMonitor.state = [legacySite];
+
+        const responseContent = 'some content';
+        got.mockResolvedValue({ body: responseContent });
+        
+        JSDOM.mockImplementation(() => ({
+            window: { document: { querySelector: () => ({ textContent: responseContent }) } }
+        }));
+        
+        // Ensure hash matches
+        crypto.createHash().digest.mockReturnValue('valid-hash');
+
+        await siteMonitor.check(client);
+
+        expect(siteMonitor.state[0].lastContent).toBe(responseContent);
+        expect(storage.write).toHaveBeenCalled();
+        expect(notifySpy).not.toHaveBeenCalled();
+        notifySpy.mockRestore();
+    });
+
+    it('should NOT backfill lastContent if it is present but empty string', async () => {
+        const notifySpy = jest.spyOn(siteMonitor, 'notify');
+        // Setup: Site has valid hash and lastContent is empty string (valid state)
+        const siteWithEmptyContent = {
+            id: 'empty-site.com',
+            url: 'http://empty-site.com',
+            css: 'body',
+            lastChecked: 0,
+            lastUpdated: 0,
+            hash: 'd41d8cd98f00b204e9800998ecf8427e', // MD5 of empty string
+            lastContent: '' 
+        };
+        siteMonitor.state = [siteWithEmptyContent];
+
+        const responseContent = '';
+        got.mockResolvedValue({ body: responseContent });
+        
+        JSDOM.mockImplementation(() => ({
+            window: { document: { querySelector: () => ({ textContent: responseContent }) } }
+        }));
+        
+        crypto.createHash().digest.mockReturnValue('d41d8cd98f00b204e9800998ecf8427e');
+
+        await siteMonitor.check(client);
+
+        expect(storage.write).not.toHaveBeenCalled();
+        expect(notifySpy).not.toHaveBeenCalled();
+        notifySpy.mockRestore();
+    });
+
     // New tests for parse method
     describe('parse method', () => {
         it('should do nothing and return undefined', () => {
