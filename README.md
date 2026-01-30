@@ -233,5 +233,17 @@ Manage the eSIM monitor.
 `!esim status`
 
 
+## Migration from v1
+Version 2.0.0 introduces a new configuration structure. 
+
+**Automatic Migration:**
+The bot will automatically attempt to move your legacy JSON configuration files from `src/` to the new `config/` directory upon the first run of v2.0.0. It will also patch the internal file paths in `settings.json`.
+
+**Manual Migration (Optional):**
+If you prefer to migrate manually:
+1. Create a `config/` directory at the project root.
+2. Move all `.json` files from `src/` to `config/`.
+3. In `config/settings.json`, update any `"file": "./src/..."` entries to `"file": "./config/..."`.
+
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
