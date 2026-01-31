@@ -43,20 +43,7 @@ class SiteMonitor extends Monitor {
 
         const checkPromises = sitesArray.map(async (site) => {
             try {
-                const response = await got(site.url);
-                const dom = new JSDOM(response.body);
-                let content = '';
-
-                if (site.css) {
-                    const selector = dom.window.document.querySelector(site.css);
-                    content = selector ? selector.textContent : '';
-                } else {
-                    content = dom.window.document.querySelector('head').textContent;
-                }
-
-                content = cleanText(content);
-
-                const hash = crypto.createHash('md5').update(content).digest('hex');
+                const { content, hash, dom } = await this.fetchAndProcess(site.url, site.css);
 
                 if (site.hash !== hash) {
                     const oldContent = site.lastContent || '';
@@ -95,6 +82,69 @@ class SiteMonitor extends Monitor {
         if (hasChanges) {
             await this.saveState(updatedSites);
         }
+    }
+
+    /**
+     * Fetches and processes the content of a site.
+     * @param {string} url The URL to fetch.
+     * @param {string} css The CSS selector to use.
+     * @returns {Promise<{content: string, hash: string, dom: JSDOM}>} The processed content.
+     */
+    async fetchAndProcess(url, css) {
+        const response = await got(url);
+        const dom = new JSDOM(response.body);
+        let content = '';
+
+        if (css) {
+            const selector = dom.window.document.querySelector(css);
+            content = selector ? selector.textContent : '';
+        } else {
+            content = dom.window.document.querySelector('head').textContent;
+        }
+
+        content = cleanText(content);
+        const hash = crypto.createHash('md5').update(content).digest('hex');
+
+        return { content, hash, dom };
+    }
+
+    /**
+     * Adds a new site to the monitor.
+     * @param {string} url The URL of the site.
+     * @param {string} css The CSS selector.
+     * @returns {Promise<{site: object, warning: boolean}>} The added site object and warning flag.
+     */
+    async addSite(url, css) {
+        let warning = false;
+        let result;
+        
+        result = await this.fetchAndProcess(url, css);
+
+        const { content, hash, dom } = result;
+
+        if (css && !dom.window.document.querySelector(css)) {
+            warning = true;
+        }
+
+        const time = new Date();
+        const site = {
+            id: url.split('/')[2],
+            url: url,
+            css: css,
+            lastChecked: time.toLocaleString(),
+            lastUpdated: time.toLocaleString(),
+            hash: hash,
+            lastContent: content,
+        };
+
+        if (!Array.isArray(this.state)) {
+            this.state = [];
+        }
+        
+        this.state.push(site);
+        await this.saveState(this.state);
+
+        return { site, warning };
     }
     
     /**
