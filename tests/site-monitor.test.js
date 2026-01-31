@@ -19,8 +19,10 @@ const got = require('got');
 const storage = require('../src/storage');
 const crypto = require('crypto');
 const diff = require('diff');
+const dns = require('dns');
 
 // Mock specific external dependencies
+// Removed jest.mock('dns') to avoid breaking got
 jest.mock('got'); // Keep this top-level mock
 jest.mock('jsdom', () => {
     return {
@@ -60,6 +62,9 @@ describe('SiteMonitor', () => {
 
     beforeEach(() => {
         jest.clearAllMocks(); // Clear all mocks before each test
+        
+        // Mock DNS lookup to return a public IP
+        jest.spyOn(dns.promises, 'lookup').mockResolvedValue({ address: '93.184.216.34' });
 
         // --- Mock Discord.js components directly in beforeEach ---
         mockChannelSend = jest.fn();

@@ -5,6 +5,8 @@ const crypto = require('crypto');
 const diff = require('diff');
 const got = require('got');
 const storage = require('../storage');
+const dns = require('dns').promises;
+const { URL } = require('url');
 
 /**
  * Cleans the text by trimming lines and removing empty ones.
@@ -85,12 +87,61 @@ class SiteMonitor extends Monitor {
     }
 
     /**
+     * Validates the URL to prevent SSRF and ensure it's http/https.
+     * @param {string} url The URL to validate.
+     * @returns {Promise<void>} Throws if invalid.
+     */
+    async validateUrl(url) {
+        let parsedUrl;
+        try {
+            parsedUrl = new URL(url);
+        } catch (e) {
+            throw new Error('Invalid URL format');
+        }
+
+        if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+            throw new Error('Invalid protocol. Only http and https are allowed.');
+        }
+
+        const hostname = parsedUrl.hostname;
+
+        // Check for private IP ranges (IPv4)
+        try {
+            const { address } = await dns.lookup(hostname);
+            
+            const parts = address.split('.').map(Number);
+            if (parts.length === 4) {
+                // 10.0.0.0/8
+                if (parts[0] === 10) throw new Error('Private IP access denied');
+                // 172.16.0.0/12
+                if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) throw new Error('Private IP access denied');
+                // 192.168.0.0/16
+                if (parts[0] === 192 && parts[1] === 168) throw new Error('Private IP access denied');
+                // 127.0.0.0/8
+                if (parts[0] === 127) throw new Error('Private IP access denied');
+                // 169.254.0.0/16
+                if (parts[0] === 169 && parts[1] === 254) throw new Error('Private IP access denied');
+            }
+        } catch (error) {
+             // Re-throw if it's our access denied error, otherwise wrap or allow if strictness varies.
+             // Here we block on lookup failure for safety.
+             if (error.message === 'Private IP access denied') throw error;
+             // We allow lookup errors to pass if it's just resolution failure? 
+             // No, if we can't resolve, got will fail anyway. But if we can't resolve to check IP, we shouldn't proceed if we are strict.
+             // However, let's just let the access denied error bubble up.
+             throw error; 
+        }
+    }
+
+    /**
      * Fetches and processes the content of a site.
      * @param {string} url The URL to fetch.
      * @param {string} css The CSS selector to use.
      * @returns {Promise<{content: string, hash: string, dom: JSDOM, selectorFound: boolean}>} The processed content.
      */
     async fetchAndProcess(url, css) {
+        await this.validateUrl(url);
+
         // Limit response size to 5MB to prevent DoS
         const response = await got(url, { limitName: 'responseData', maxResponseSize: 5 * 1024 * 1024 });
         const dom = new JSDOM(response.body);
