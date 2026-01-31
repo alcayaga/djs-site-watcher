@@ -28,9 +28,10 @@ List of features of the site-watcher bot:
 - Monitoring specified elements of a site, to not get notified on dynamic elements (ex. ads)
 - Checking on a specified interval (1-60 minutes, default `5`).
 - Show list of tracked sites
-- Monitor Apple Carrier Bundles
-- Monitor Apple Pay Configurations
-- Monitor Apple eSIM Carrier Support
+- Monitor Apple Carrier Bundles (`Carrier`)
+- Monitor Apple Pay Configurations (`ApplePay`)
+- Monitor Apple eSIM Carrier Support (`AppleEsim`)
+- Monitor Apple Feature Availability (`AppleFeature`)
 - Open source!
 
 ## Install
