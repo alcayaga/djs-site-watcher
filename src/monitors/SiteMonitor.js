@@ -74,7 +74,7 @@ class SiteMonitor extends Monitor {
 
         const checkPromises = sitesArray.map(async (site) => {
             try {
-                const { content, hash, selectorFound } = await this.fetchAndProcess(site.url, site.css);
+                const { content, hash } = await this.fetchAndProcess(site.url, site.css);
 
                 if (site.hash !== hash) {
                     const oldContent = site.lastContent || '';

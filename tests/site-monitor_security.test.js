@@ -1,5 +1,4 @@
 const dns = require('dns');
-const { URL } = require('url');
 
 // Spy on dns.lookup (callback style)
 const lookupSpy = jest.spyOn(dns, 'lookup');
@@ -11,7 +10,7 @@ jest.mock('got', () => {
             const { URL } = require('url');
             const hostname = new URL(url).hostname;
             return new Promise((resolve, reject) => {
-                options.dnsLookup(hostname, {}, (err, address, family) => {
+                options.dnsLookup(hostname, {}, (err, _address, _family) => {
                     if (err) return reject(err);
                     resolve({ body: '<html></html>' });
                 });
