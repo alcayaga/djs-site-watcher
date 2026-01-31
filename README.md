@@ -27,11 +27,11 @@ List of features of the site-watcher bot:
 - Remove site from watcher
 - Monitoring specified elements of a site, to not get notified on dynamic elements (ex. ads)
 - Checking on a specified interval (1-60 minutes, default `5`).
-- Manually update tracked sites
 - Show list of tracked sites
-- Monitor Apple Carrier Bundles
-- Monitor Apple Pay Configurations
-- Monitor Apple eSIM Carrier Support
+- Monitor Apple Carrier Bundles (`Carrier`)
+- Monitor Apple Pay Configurations (`ApplePay`)
+- Monitor Apple eSIM Carrier Support (`AppleEsim`)
+- Monitor Apple Feature Availability (`AppleFeature`)
 - Open source!
 
 ## Install
@@ -132,21 +132,6 @@ None.
 
 ---
 
-### `!update`
-Manually updates the sites that are being watched.
-
-**Parameters**   
-None.
-
-**Example**   
-`!update` This manually updates the sites that are being watched.   
-<sub>If a site is updated, it will push the standard update message to the default update channel.</sub>
-
-**Output**   
-![update](./.github/pictures/update.png)
-
----
-
 ### `!interval <MINUTES>`
 Set the interval/refresh rate of the watcher. Default `5` minutes.
 
@@ -161,77 +146,16 @@ Set the interval/refresh rate of the watcher. Default `5` minutes.
 
 ---
 
-### `!start`
-Start the watcher with the specified interval (default `ON` with interval of `5` minutes).   
-<sub>This uses [cron](https://www.npmjs.com/package/cron).</sub>
-
-**Parameters**   
-None.
-
-**Example**   
-`!start` This starts the watcher with the specified interval.
-
-**Output**   
-![start](./.github/pictures/start.png)
-
----
-
-### `!stop`
-Stops the watcher from automatically checking the tracked websites. Watcher can be resumed with `!start`.
-
-**Parameters**   
-None.
-
-**Example**   
-`!stop` This stops the watcher from automatically checking the tracked websites.
-
-**Output**   
-![stop](./.github/pictures/stop.png)
-
----
-
-### `!status`
-Checks if the site watcher is running.
-
-**Parameters**   
-None.
-
-**Example**   
-`!status` This checks if the site watcher is running.
-
-**Output**   
-When running:   
-![statusOn](./.github/pictures/statusOn.png)   
-   
-When off:   
-![statusOff](./.github/pictures/statusOff.png)
-
----
-
-### `!carrier <status|start|stop>`
-Manage the carrier monitor.
+### `!monitor <start|stop|status|check> [monitor_name|all]`
+Manage the monitors.
 
 **Parameters**
-`status` Show the status of the carrier monitor.
-`start` Start the carrier monitor.
-`stop` Stop the carrier monitor.
+`subcommand` One of `start`, `stop`, `status`, or `check`.
+`monitor_name` (Optional) The name of the monitor (e.g., `Site`, `Carrier`, `AppleEsim`, `ApplePay`, `AppleFeature`). Defaults to `all`.
 
 **Example**
-`!carrier status`
-
----
-
-### `!esim <status|start|stop>`
-Manage the eSIM monitor.
-
-**Parameters**
-`status` Show the status of the eSIM monitor.
-`start` Start the eSIM monitor.
-`stop` Stop the eSIM monitor.
-
-**Example**
-`!esim status`
-
+`!monitor status` Shows the status of all monitors.
+`!monitor check Carrier` Triggers a check for the Carrier monitor.
 
 ## Migration from v1
 Version 2.0.0 introduces a new configuration structure. 
