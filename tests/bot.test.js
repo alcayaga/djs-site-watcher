@@ -20,28 +20,13 @@ const _MockMonitorClass = jest.fn().mockImplementation(function(name, monitorCon
     this.initialize = jest.fn().mockResolvedValue(this);
 });
 
-// Mock config
-jest.mock('../src/config', () => ({
-    interval: 5,
-    monitors: [
-        { name: 'AppleEsim', enabled: true, url: 'http://apple.com/esim', file: './config/apple_esim.json', country: 'Chile' },
-        { name: 'Site', enabled: true, file: './config/sites.json' },
-    ],
-    DISCORDJS_BOT_TOKEN: 'mock_token',
-    DISCORDJS_TEXTCHANNEL_ID: 'mock_text_channel_id',
-    DISCORDJS_ADMINCHANNEL_ID: 'mock_admin_channel_id',
-    DISCORDJS_ROLE_ID: 'mock_role_id',
-    SINGLE_RUN: 'true',
-    PREFIX: '!',
-}));
-
 const _Discord = require('discord.js');
 const _storage = require('../src/storage.js');
 const _got = require('got');
 const _JSDOM = require('jsdom');
 const _state = require('../src/state');
 const _MonitorManager = require('../src/MonitorManager');
-const _commandHandler = require('../src/command-handler'); // Import mocked command handler
+const _commandHandler = require('../src/command-handler');
 
 // Mock MonitorManager
 jest.mock('../src/MonitorManager', () => ({
@@ -88,7 +73,7 @@ jest.mock('../src/command-handler', () => ({
 
 // Mock fs
 jest.mock('fs', () => ({
-    readdirSync: jest.fn().mockReturnValue(['SiteMonitor.js']), // Return a real monitor file name that exists in src/monitors
+    readdirSync: jest.fn().mockReturnValue(['SiteMonitor.js']),
 }));
 
 // Mock discord.js
@@ -117,7 +102,6 @@ jest.mock('discord.js', () => {
         };
     });
     
-    // Create a mock client that we can control
     const on = jest.fn();
     const login = jest.fn();
     const client = {
@@ -148,7 +132,6 @@ describe('Bot', () => {
     // Helper to get the ready callback
     function getReadyCallback() {
         const client = new (require('discord.js').Client)();
-        // find call to 'ready'
         const call = client.on.mock.calls.find(call => call[0] === 'ready');
         return call ? call[1] : null;
     }
@@ -164,14 +147,6 @@ describe('Bot', () => {
         jest.resetModules();
         jest.clearAllMocks();
 
-        // Re-setup default config mock
-        jest.mock('../src/config', () => ({
-            interval: 5,
-            monitors: [],
-            DISCORDJS_BOT_TOKEN: 'mock_token',
-            SINGLE_RUN: 'true',
-        }));
-
         const storage = require('../src/storage.js');
         storage.loadSites.mockReturnValue([]);
         storage.loadResponses.mockReturnValue([]);
@@ -182,49 +157,70 @@ describe('Bot', () => {
     });
 
     it('should initialize client and registers event handlers', () => {
+        jest.doMock('../src/config', () => ({
+            DISCORDJS_BOT_TOKEN: 'mock_token',
+        }));
         const bot = require('../src/bot.js');
         expect(bot.client).toBeDefined();
         expect(bot.client.on).toHaveBeenCalledWith('ready', expect.any(Function));
         expect(bot.client.on).toHaveBeenCalledWith('message', expect.any(Function));
     });
 
-    it('should initialize monitors and run checkAll on ready in SINGLE_RUN mode', async () => {
-        require('../src/bot.js');
-        const readyCallback = getReadyCallback();
-        expect(readyCallback).toBeDefined();
+    describe('on "ready" event', () => {
+        describe('in SINGLE_RUN mode', () => {
+            beforeEach(() => {
+                jest.doMock('../src/config', () => ({
+                    interval: 5,
+                    monitors: [],
+                    DISCORDJS_BOT_TOKEN: 'mock_token',
+                    SINGLE_RUN: 'true',
+                }));
+            });
 
-        await readyCallback();
+            it('should initialize monitors and run checkAll', async () => {
+                require('../src/bot.js');
+                const readyCallback = getReadyCallback();
+                expect(readyCallback).toBeDefined();
 
-        const monitorManager = require('../src/MonitorManager');
-        expect(monitorManager.initialize).toHaveBeenCalled();
-        expect(monitorManager.checkAll).toHaveBeenCalled();
-        expect(monitorManager.startAll).not.toHaveBeenCalled(); // Should not start cron in single run
-    });
+                await readyCallback();
 
-    it('should initialize monitors and startAll on ready in normal mode', async () => {
-        // Override config for this test
-        jest.resetModules();
-        jest.mock('../src/config', () => ({
-            interval: 10,
-            monitors: [],
-            DISCORDJS_BOT_TOKEN: 'mock_token',
-            SINGLE_RUN: 'false',
-        }));
-        
-        // Need to re-require everything since modules were reset
-        require('../src/bot.js');
-        const readyCallback = getReadyCallback();
-        
-        await readyCallback();
+                const monitorManager = require('../src/MonitorManager');
+                expect(monitorManager.initialize).toHaveBeenCalled();
+                expect(monitorManager.checkAll).toHaveBeenCalled();
+                expect(monitorManager.startAll).not.toHaveBeenCalled();
+            });
+        });
 
-        const monitorManager = require('../src/MonitorManager');
-        expect(monitorManager.initialize).toHaveBeenCalled();
-        expect(monitorManager.setAllIntervals).toHaveBeenCalledWith(10);
-        expect(monitorManager.startAll).toHaveBeenCalled();
-        expect(monitorManager.checkAll).not.toHaveBeenCalled();
+        describe('in normal mode', () => {
+            beforeEach(() => {
+                jest.doMock('../src/config', () => ({
+                    interval: 10,
+                    monitors: [],
+                    DISCORDJS_BOT_TOKEN: 'mock_token',
+                    SINGLE_RUN: 'false',
+                }));
+            });
+
+            it('should initialize monitors and start them', async () => {
+                require('../src/bot.js');
+                const readyCallback = getReadyCallback();
+                expect(readyCallback).toBeDefined();
+
+                await readyCallback();
+
+                const monitorManager = require('../src/MonitorManager');
+                expect(monitorManager.initialize).toHaveBeenCalled();
+                expect(monitorManager.setAllIntervals).toHaveBeenCalledWith(10);
+                expect(monitorManager.startAll).toHaveBeenCalled();
+                expect(monitorManager.checkAll).not.toHaveBeenCalled();
+            });
+        });
     });
 
     it('should handle incoming messages via commandHandler', () => {
+        jest.doMock('../src/config', () => ({
+            DISCORDJS_BOT_TOKEN: 'mock_token',
+        }));
         require('../src/bot.js');
         const messageCallback = getMessageCallback();
         expect(messageCallback).toBeDefined();
