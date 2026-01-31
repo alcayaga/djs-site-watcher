@@ -406,7 +406,7 @@ describe('SiteMonitor', () => {
 
         it('should not add a duplicate site', async () => {
             const existingSite = siteMonitor.state[0];
-            const { site, warning } = await siteMonitor.addSite(existingSite.url, existingSite.css);
+            const { site } = await siteMonitor.addSite(existingSite.url, existingSite.css);
 
             expect(site).toBe(existingSite);
             expect(siteMonitor.state).toHaveLength(1);

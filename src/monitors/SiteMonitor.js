@@ -153,9 +153,6 @@ class SiteMonitor extends Monitor {
             if (selectorNode) {
                 content = selectorNode.textContent;
                 selectorFound = true;
-            } else {
-                content = '';
-                selectorFound = false;
             }
         } else {
             const headNode = dom.window.document.querySelector('head');
@@ -186,7 +183,7 @@ class SiteMonitor extends Monitor {
             return { site: existingSite, warning: false };
         }
 
-        const { content, hash, dom, selectorFound } = await this.fetchAndProcess(url, css);
+        const { content, hash, selectorFound } = await this.fetchAndProcess(url, css);
         const warning = css ? !selectorFound : false;
 
         const time = new Date();
@@ -194,8 +191,8 @@ class SiteMonitor extends Monitor {
             id: url.split('/')[2],
             url: url,
             css: css,
-            lastChecked: time.toLocaleString(),
-            lastUpdated: time.toLocaleString(),
+            lastChecked: time.toISOString(),
+            lastUpdated: time.toISOString(),
             hash: hash,
             lastContent: content,
         };
