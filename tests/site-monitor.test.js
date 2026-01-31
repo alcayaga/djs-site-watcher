@@ -21,6 +21,7 @@ const crypto = require('crypto');
 const diff = require('diff');
 
 // Mock specific external dependencies
+// Removed jest.mock('dns') to avoid breaking got
 jest.mock('got'); // Keep this top-level mock
 jest.mock('jsdom', () => {
     return {
@@ -60,7 +61,7 @@ describe('SiteMonitor', () => {
 
     beforeEach(() => {
         jest.clearAllMocks(); // Clear all mocks before each test
-
+        
         // --- Mock Discord.js components directly in beforeEach ---
         mockChannelSend = jest.fn();
         mockChannel = { send: mockChannelSend };
@@ -124,7 +125,7 @@ describe('SiteMonitor', () => {
 
         await siteMonitor.check(client);
 
-        expect(got).toHaveBeenCalledWith('http://test-site.com');
+        expect(got).toHaveBeenCalledWith('http://test-site.com', expect.any(Object));
         expect(notifySpy).toHaveBeenCalled(); // Original notify should be called
         expect(storage.write).toHaveBeenCalled();
         notifySpy.mockRestore(); // Clean up spy
@@ -139,7 +140,7 @@ describe('SiteMonitor', () => {
 
         await siteMonitor.check(client);
 
-        expect(got).toHaveBeenCalledWith('http://test-site.com');
+        expect(got).toHaveBeenCalledWith('http://test-site.com', expect.any(Object));
         expect(notifySpy).not.toHaveBeenCalled(); // Original notify should not be called
         expect(storage.write).not.toHaveBeenCalled();
         notifySpy.mockRestore(); // Clean up spy
@@ -336,6 +337,76 @@ describe('SiteMonitor', () => {
             diff.diffLines.mockReturnValue([]); // Avoid diffing errors in this specific test
             siteMonitor.notify(mockChangeWithoutTitle);
             expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('🔎 ¡Cambio en fallback-site-id!  🐸');
+        });
+    });
+
+    // New tests for fetchAndProcess method
+    describe('fetchAndProcess method', () => {
+        it('should fetch, clean, and hash content', async () => {
+            const rawContent = '  content  \n';
+            const html = `<html><body>${rawContent}</body></html>`;
+            got.mockResolvedValue({ body: html });
+            
+            // Expected clean content: "content"
+            // Expected hash: MD5("content")
+            crypto.createHash().digest.mockReturnValue('mock-hash-clean');
+
+            const result = await siteMonitor.fetchAndProcess('http://example.com', 'body');
+
+            expect(got).toHaveBeenCalledWith('http://example.com', expect.any(Object));
+            expect(result.content).toBe('content');
+            expect(result.hash).toBe('mock-hash-clean');
+            expect(result.dom).toBeDefined();
+            expect(result.selectorFound).toBe(true);
+        });
+    });
+
+    // New tests for addSite method
+    describe('addSite method', () => {
+        it('should add a new site, save state, and return site object', async () => {
+            const rawContent = 'content';
+            const html = `<html><body>${rawContent}</body></html>`;
+            got.mockResolvedValue({ body: html });
+            crypto.createHash().digest.mockReturnValue('mock-hash');
+
+            const { site, warning } = await siteMonitor.addSite('http://new-site.com', 'body');
+
+            expect(site.url).toBe('http://new-site.com');
+            expect(site.lastContent).toBe('content'); // Should be cleaned (though 'content' is already clean)
+            expect(site.hash).toBe('mock-hash');
+            expect(warning).toBe(false);
+
+            expect(siteMonitor.state).toHaveLength(2); // Initial 1 + new 1
+            expect(siteMonitor.state[1]).toBe(site);
+            expect(storage.write).toHaveBeenCalledWith('sites.json', siteMonitor.state);
+        });
+
+        it('should return warning if selector not found', async () => {
+            const html = `<html><body>content</body></html>`;
+            got.mockResolvedValue({ body: html });
+            
+            // Mock querySelector to return null for the specific selector
+            // Note: Our top-level mock for JSDOM might need adjustment or we rely on specific behavior
+            // The top-level mock:
+            // querySelector: jest.fn((selector) => actualDom.window.document.querySelector(selector))
+            // This runs against actual JSDOM of the HTML string.
+            // If we search for a non-existent selector, it returns null.
+
+            const { site, warning } = await siteMonitor.addSite('http://new-site.com', '#non-existent');
+
+            expect(warning).toBe(true);
+            expect(site.css).toBe('#non-existent');
+            // lastContent should be empty string if selector not found (logic in fetchAndProcess -> selector ? text : '')
+            expect(site.lastContent).toBe(''); 
+        });
+
+        it('should not add a duplicate site', async () => {
+            const existingSite = siteMonitor.state[0];
+            const { site } = await siteMonitor.addSite(existingSite.url, existingSite.css);
+
+            expect(site).toBe(existingSite);
+            expect(siteMonitor.state).toHaveLength(1);
+            expect(storage.write).not.toHaveBeenCalled();
         });
     });
 });

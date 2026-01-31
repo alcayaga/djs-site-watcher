@@ -1,8 +1,4 @@
 const Discord = require('discord.js');
-const got = require('got');
-const { JSDOM } = require('jsdom');
-const crypto = require('crypto');
-const storage = require('../storage');
 
 module.exports = {
     name: 'add',
@@ -13,56 +9,35 @@ module.exports = {
      * @param {string[]} args The arguments array.
      * @param {Discord.Client} client The Discord client.
      * @param {object} state The state object.
+     * @param {object} config The config object.
+     * @param {object} cronUpdate The cron object.
+     * @param {object} monitorManager The monitor manager.
      * @returns {Promise<void>}
      */
-    async execute(message, args, client, state) {
+    async execute(message, args, client, state, config, cronUpdate, monitorManager) {
         try {
             if (args.length === 0) return message.channel.send('Usage: `!add <URL> (<CSS SELECTOR>)`');
             const url = args[0];
             let selector = 'head';
-            let content_;
             if (args[1]) {
                 selector = args[1];
             }
 
-            const site = {
-                id: url.split('/')[2],
-                url: url,
-                css: selector,
-                lastChecked: 0,
-                lastUpdated: 0,
-                hash: 0,
-                lastContent: '',
-            };
-
-            const response = await got(site.url);
-            const dom = new JSDOM(response.body);
-            let warning = false;
-
-            if (site.css) {
-                const selector_ = dom.window.document.querySelector(site.css);
-                if (selector_) {
-                    content_ = selector_.textContent;
-                } else {
-                    content_ = '';
-                    warning = true;
-                }
-            } else {
-                content_ = dom.window.document.querySelector('head').textContent;
+            const siteMonitor = monitorManager.getMonitor('Site');
+            if (!siteMonitor) {
+                return message.reply('Site monitor is not available.');
             }
 
-            console.log(content_);
-            const hash = crypto.createHash('md5').update(content_).digest('hex');
-            const time = new Date();
-            site.lastChecked = time.toLocaleString();
-            site.lastUpdated = time.toLocaleString();
-            site.hash = hash;
-            site.lastContent = content_;
+            const { site, warning } = await siteMonitor.addSite(url, selector);
 
-            state.sitesToMonitor.push(site);
-            console.log(state.sitesToMonitor);
-            storage.saveSites(state.sitesToMonitor);
-
+            // Update local state to match the monitor's state
+            // We can just push the new site since SiteMonitor.addSite handles the persistence and its own state
+            // But checking for duplicates first to be safe and avoid session state desync
+            const exists = state.sitesToMonitor.some(s => s.url === site.url && s.css === site.css);
+            if (!exists) {
+                state.sitesToMonitor.push(site);
+            }
+            
             let warning_message = '';
             if (warning) {
                 warning_message = '\n**Atención:** No se encontró el selector CSS solicitado'
