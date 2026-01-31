@@ -2,7 +2,11 @@
  * Configuration module that loads environment variables and settings from storage.
  * @module config
  */
-require('dotenv').config();
+try {
+    process.loadEnvFile();
+} catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+}
 
 const storage = require('./storage.js');
 

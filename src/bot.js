@@ -1,5 +1,9 @@
 // Load environment variables
-require('dotenv').config();
+try {
+    process.loadEnvFile();
+} catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+}
 
 // Import required modules
 const Discord = require('discord.js');

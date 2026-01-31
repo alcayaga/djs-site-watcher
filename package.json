@@ -13,13 +13,12 @@
   "author": "",
   "license": "ISC",
   "engines": {
-    "node": ">=14.14"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "cron": "^4.4.0",
     "diff": "^8.0.3",
     "discord.js": "^12.5.3",
-    "dotenv": "^17.2.3",
     "fs-extra": "^11.3.3",
     "got": "^11.8.0",
     "jsdom": "^26.0.0",
