@@ -130,6 +130,12 @@ class SiteMonitor extends Monitor {
         const response = await got(url, {
             limitName: 'responseData',
             maxResponseSize: 5 * 1024 * 1024,
+            /**
+             * Custom DNS lookup to prevent access to private IP addresses.
+             * @param {string} hostname The hostname to lookup.
+             * @param {object} options The lookup options.
+             * @param {function} callback The callback function.
+             */
             dnsLookup: (hostname, options, callback) => {
                 dns.lookup(hostname, options, (err, address, family) => {
                     if (err) return callback(err);
