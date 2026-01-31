@@ -124,7 +124,7 @@ describe('SiteMonitor', () => {
 
         await siteMonitor.check(client);
 
-        expect(got).toHaveBeenCalledWith('http://test-site.com');
+        expect(got).toHaveBeenCalledWith('http://test-site.com', expect.any(Object));
         expect(notifySpy).toHaveBeenCalled(); // Original notify should be called
         expect(storage.write).toHaveBeenCalled();
         notifySpy.mockRestore(); // Clean up spy
@@ -139,7 +139,7 @@ describe('SiteMonitor', () => {
 
         await siteMonitor.check(client);
 
-        expect(got).toHaveBeenCalledWith('http://test-site.com');
+        expect(got).toHaveBeenCalledWith('http://test-site.com', expect.any(Object));
         expect(notifySpy).not.toHaveBeenCalled(); // Original notify should not be called
         expect(storage.write).not.toHaveBeenCalled();
         notifySpy.mockRestore(); // Clean up spy
@@ -352,10 +352,11 @@ describe('SiteMonitor', () => {
 
             const result = await siteMonitor.fetchAndProcess('http://example.com', 'body');
 
-            expect(got).toHaveBeenCalledWith('http://example.com');
+            expect(got).toHaveBeenCalledWith('http://example.com', expect.any(Object));
             expect(result.content).toBe('content');
             expect(result.hash).toBe('mock-hash-clean');
             expect(result.dom).toBeDefined();
+            expect(result.selectorFound).toBe(true);
         });
     });
 
@@ -396,6 +397,15 @@ describe('SiteMonitor', () => {
             expect(site.css).toBe('#non-existent');
             // lastContent should be empty string if selector not found (logic in fetchAndProcess -> selector ? text : '')
             expect(site.lastContent).toBe(''); 
+        });
+
+        it('should not add a duplicate site', async () => {
+            const existingSite = siteMonitor.state[0];
+            const { site, warning } = await siteMonitor.addSite(existingSite.url, existingSite.css);
+
+            expect(site).toBe(existingSite);
+            expect(siteMonitor.state).toHaveLength(1);
+            expect(storage.write).not.toHaveBeenCalled();
         });
     });
 });

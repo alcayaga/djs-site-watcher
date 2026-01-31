@@ -88,24 +88,34 @@ class SiteMonitor extends Monitor {
      * Fetches and processes the content of a site.
      * @param {string} url The URL to fetch.
      * @param {string} css The CSS selector to use.
-     * @returns {Promise<{content: string, hash: string, dom: JSDOM}>} The processed content.
+     * @returns {Promise<{content: string, hash: string, dom: JSDOM, selectorFound: boolean}>} The processed content.
      */
     async fetchAndProcess(url, css) {
-        const response = await got(url);
+        // Limit response size to 5MB to prevent DoS
+        const response = await got(url, { limitName: 'responseData', maxResponseSize: 5 * 1024 * 1024 });
         const dom = new JSDOM(response.body);
         let content = '';
+        let selectorFound = false;
 
         if (css) {
-            const selector = dom.window.document.querySelector(css);
-            content = selector ? selector.textContent : '';
+            const selectorNode = dom.window.document.querySelector(css);
+            if (selectorNode) {
+                content = selectorNode.textContent;
+                selectorFound = true;
+            } else {
+                content = '';
+                selectorFound = false;
+            }
         } else {
-            content = dom.window.document.querySelector('head').textContent;
+            const headNode = dom.window.document.querySelector('head');
+            content = headNode ? headNode.textContent : '';
+            selectorFound = !!headNode;
         }
 
         content = cleanText(content);
         const hash = crypto.createHash('md5').update(content).digest('hex');
 
-        return { content, hash, dom };
+        return { content, hash, dom, selectorFound };
     }
 
     /**
@@ -115,16 +125,18 @@ class SiteMonitor extends Monitor {
      * @returns {Promise<{site: object, warning: boolean}>} The added site object and warning flag.
      */
     async addSite(url, css) {
-        let warning = false;
-        let result;
-        
-        result = await this.fetchAndProcess(url, css);
-
-        const { content, hash, dom } = result;
-
-        if (css && !dom.window.document.querySelector(css)) {
-            warning = true;
+        if (!Array.isArray(this.state)) {
+            this.state = [];
         }
+
+        // Check for duplicates
+        const existingSite = this.state.find(s => s.url === url && s.css === css);
+        if (existingSite) {
+            return { site: existingSite, warning: false };
+        }
+
+        const { content, hash, dom, selectorFound } = await this.fetchAndProcess(url, css);
+        const warning = css ? !selectorFound : false;
 
         const time = new Date();
         const site = {
@@ -136,10 +148,6 @@ class SiteMonitor extends Monitor {
             hash: hash,
             lastContent: content,
         };
-
-        if (!Array.isArray(this.state)) {
-            this.state = [];
-        }
         
         this.state.push(site);
         await this.saveState(this.state);

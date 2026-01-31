@@ -90,4 +90,13 @@ describe('add command', () => {
 
         expect(mockMessage.reply).toHaveBeenCalledWith('there was an error trying to execute that command!');
     });
+
+    it('should fail gracefully if state.sitesToMonitor is not an array', async () => {
+        mockState.sitesToMonitor = null; 
+        const args = ['https://example.com', '#test'];
+        
+        await add.execute(mockMessage, args, mockClient, mockState, {}, {}, mockMonitorManager);
+
+        expect(mockMessage.reply).toHaveBeenCalledWith('there was an error trying to execute that command!');
+    });
 });
