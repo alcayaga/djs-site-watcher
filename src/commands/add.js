@@ -32,7 +32,11 @@ module.exports = {
 
             // Update local state to match the monitor's state
             // We can just push the new site since SiteMonitor.addSite handles the persistence and its own state
-            state.sitesToMonitor.push(site);
+            // But checking for duplicates first to be safe and avoid session state desync
+            const exists = state.sitesToMonitor.some(s => s.url === site.url && s.css === site.css);
+            if (!exists) {
+                state.sitesToMonitor.push(site);
+            }
             
             let warning_message = '';
             if (warning) {

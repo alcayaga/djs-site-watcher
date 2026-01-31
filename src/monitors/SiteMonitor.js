@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const diff = require('diff');
 const got = require('got');
 const storage = require('../storage');
-const dns = require('dns').promises;
+const dns = require('dns');
 const { URL } = require('url');
 
 /**
@@ -19,6 +19,35 @@ function cleanText(text) {
         .map(line => line.trim())
         .filter(line => line.length > 0)
         .join('\n');
+}
+
+/**
+ * Checks if an IP address is private.
+ * @param {string} ip The IP address.
+ * @returns {boolean} True if private, false otherwise.
+ */
+function isPrivateIP(ip) {
+    const parts = ip.split('.');
+    if (parts.length === 4) { // IPv4
+        const p0 = parseInt(parts[0], 10);
+        const p1 = parseInt(parts[1], 10);
+        if (p0 === 10) return true;
+        if (p0 === 172 && p1 >= 16 && p1 <= 31) return true;
+        if (p0 === 192 && p1 === 168) return true;
+        if (p0 === 127) return true;
+        if (p0 === 169 && p1 === 254) return true;
+        return false;
+    }
+    
+    // Simple IPv6 checks
+    // Loopback
+    if (ip === '::1') return true;
+    // Unique Local Address (fc00::/7) - fc.. or fd..
+    if (ip.toLowerCase().startsWith('fc') || ip.toLowerCase().startsWith('fd')) return true;
+    // Link-Local (fe80::/10) - fe8, fe9, fea, feb
+    if (ip.toLowerCase().startsWith('fe8') || ip.toLowerCase().startsWith('fe9') || ip.toLowerCase().startsWith('fea') || ip.toLowerCase().startsWith('feb')) return true;
+    
+    return false;
 }
 
 const CONTEXT_LINES = 3;
@@ -45,7 +74,7 @@ class SiteMonitor extends Monitor {
 
         const checkPromises = sitesArray.map(async (site) => {
             try {
-                const { content, hash, dom } = await this.fetchAndProcess(site.url, site.css);
+                const { content, hash, selectorFound } = await this.fetchAndProcess(site.url, site.css);
 
                 if (site.hash !== hash) {
                     const oldContent = site.lastContent || '';
@@ -58,7 +87,7 @@ class SiteMonitor extends Monitor {
                     
                     if (cleanOldContent !== content) {
                         hasChanges = true;
-                        this.notify({ site, oldContent, newContent: content, dom });
+                        this.notify({ site, oldContent, newContent: content });
                     } else {
                         // Silent update (Migration to clean content)
                         hasChanges = true; 
@@ -87,63 +116,30 @@ class SiteMonitor extends Monitor {
     }
 
     /**
-     * Validates the URL to prevent SSRF and ensure it's http/https.
-     * @param {string} url The URL to validate.
-     * @returns {Promise<void>} Throws if invalid.
-     */
-    async validateUrl(url) {
-        let parsedUrl;
-        try {
-            parsedUrl = new URL(url);
-        } catch (e) {
-            throw new Error('Invalid URL format');
-        }
-
-        if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-            throw new Error('Invalid protocol. Only http and https are allowed.');
-        }
-
-        const hostname = parsedUrl.hostname;
-
-        // Check for private IP ranges (IPv4)
-        try {
-            const { address } = await dns.lookup(hostname);
-            
-            const parts = address.split('.').map(Number);
-            if (parts.length === 4) {
-                // 10.0.0.0/8
-                if (parts[0] === 10) throw new Error('Private IP access denied');
-                // 172.16.0.0/12
-                if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) throw new Error('Private IP access denied');
-                // 192.168.0.0/16
-                if (parts[0] === 192 && parts[1] === 168) throw new Error('Private IP access denied');
-                // 127.0.0.0/8
-                if (parts[0] === 127) throw new Error('Private IP access denied');
-                // 169.254.0.0/16
-                if (parts[0] === 169 && parts[1] === 254) throw new Error('Private IP access denied');
-            }
-        } catch (error) {
-             // Re-throw if it's our access denied error, otherwise wrap or allow if strictness varies.
-             // Here we block on lookup failure for safety.
-             if (error.message === 'Private IP access denied') throw error;
-             // We allow lookup errors to pass if it's just resolution failure? 
-             // No, if we can't resolve, got will fail anyway. But if we can't resolve to check IP, we shouldn't proceed if we are strict.
-             // However, let's just let the access denied error bubble up.
-             throw error; 
-        }
-    }
-
-    /**
      * Fetches and processes the content of a site.
      * @param {string} url The URL to fetch.
      * @param {string} css The CSS selector to use.
      * @returns {Promise<{content: string, hash: string, dom: JSDOM, selectorFound: boolean}>} The processed content.
      */
     async fetchAndProcess(url, css) {
-        await this.validateUrl(url);
+        const parsedUrl = new URL(url);
+        if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+            throw new Error('Invalid protocol. Only http and https are allowed.');
+        }
 
-        // Limit response size to 5MB to prevent DoS
-        const response = await got(url, { limitName: 'responseData', maxResponseSize: 5 * 1024 * 1024 });
+        const response = await got(url, {
+            limitName: 'responseData',
+            maxResponseSize: 5 * 1024 * 1024,
+            dnsLookup: (hostname, options, callback) => {
+                dns.lookup(hostname, options, (err, address, family) => {
+                    if (err) return callback(err);
+                    if (isPrivateIP(address)) {
+                        return callback(new Error('Private IP access denied'));
+                    }
+                    callback(null, address, family);
+                });
+            }
+        });
         const dom = new JSDOM(response.body);
         let content = '';
         let selectorFound = false;
@@ -163,7 +159,7 @@ class SiteMonitor extends Monitor {
         content = cleanText(content);
         const hash = crypto.createHash('md5').update(content).digest('hex');
 
-        return { content, hash, dom, selectorFound };
+        return { content, hash, selectorFound, dom };
     }
 
     /**
@@ -187,8 +183,15 @@ class SiteMonitor extends Monitor {
         const warning = css ? !selectorFound : false;
 
         const time = new Date();
+        let id;
+        try {
+            id = new URL(url).hostname;
+        } catch {
+            id = url.split('/')[2];
+        }
+
         const site = {
-            id: url.split('/')[2],
+            id: id,
             url: url,
             css: css,
             lastChecked: time.toISOString(),
@@ -203,8 +206,7 @@ class SiteMonitor extends Monitor {
         return { site, warning };
     }
     
-    /**
-     * Overrides the base loadState to load from the `sites.json` file.
+    /**     * Overrides the base loadState to load from the `sites.json` file.
      * @returns {Promise<Array>} The loaded state.
      */
     async loadState() {

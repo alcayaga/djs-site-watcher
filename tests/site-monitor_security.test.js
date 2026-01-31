@@ -1,10 +1,25 @@
 const dns = require('dns');
-// Spy on dns.promises.lookup BEFORE requiring SiteMonitor
-// We need to make sure the spy is in place if SiteMonitor uses it at module level (it doesn't, it uses it in method)
-const lookupSpy = jest.spyOn(dns.promises, 'lookup');
+const { URL } = require('url');
 
-jest.mock('got');
-const got = require('got');
+// Spy on dns.lookup (callback style)
+const lookupSpy = jest.spyOn(dns, 'lookup');
+
+jest.mock('got', () => {
+    return jest.fn((url, options) => {
+        if (options && options.dnsLookup) {
+            // Simulate DNS lookup execution by got
+            const { URL } = require('url');
+            const hostname = new URL(url).hostname;
+            return new Promise((resolve, reject) => {
+                options.dnsLookup(hostname, {}, (err, address, family) => {
+                    if (err) return reject(err);
+                    resolve({ body: '<html></html>' });
+                });
+            });
+        }
+        return Promise.resolve({ body: '<html></html>' });
+    });
+});
 
 const SiteMonitor = require('../src/monitors/SiteMonitor');
 
@@ -25,22 +40,28 @@ describe('SiteMonitor Security', () => {
     });
 
     it('should reject URLs resolving to private IP addresses (SSRF)', async () => {
-        lookupSpy.mockResolvedValue({ address: '192.168.1.1' });
+        lookupSpy.mockImplementation((hostname, options, cb) => cb(null, '192.168.1.1', 4));
         
         await expect(siteMonitor.fetchAndProcess('http://internal-service.local', 'body'))
             .rejects.toThrow('Private IP access denied');
     });
 
     it('should reject URLs resolving to loopback addresses', async () => {
-        lookupSpy.mockResolvedValue({ address: '127.0.0.1' });
+        lookupSpy.mockImplementation((hostname, options, cb) => cb(null, '127.0.0.1', 4));
         
         await expect(siteMonitor.fetchAndProcess('http://localhost', 'body'))
             .rejects.toThrow('Private IP access denied');
     });
 
+    it('should reject IPv6 loopback', async () => {
+        lookupSpy.mockImplementation((hostname, options, cb) => cb(null, '::1', 6));
+        
+        await expect(siteMonitor.fetchAndProcess('http://[::1]', 'body'))
+            .rejects.toThrow('Private IP access denied');
+    });
+
     it('should allow valid public URLs', async () => {
-        lookupSpy.mockResolvedValue({ address: '93.184.216.34' }); // example.com
-        got.mockResolvedValue({ body: '<html></html>' });
+        lookupSpy.mockImplementation((hostname, options, cb) => cb(null, '93.184.216.34', 4));
 
         await expect(siteMonitor.fetchAndProcess('http://example.com', 'body'))
             .resolves.not.toThrow();
