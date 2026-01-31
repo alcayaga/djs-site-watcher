@@ -12,6 +12,9 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": ">=14.14"
+  },
   "dependencies": {
     "cron": "^4.4.0",
     "diff": "^8.0.3",
