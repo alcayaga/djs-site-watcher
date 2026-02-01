@@ -34,10 +34,10 @@ async function handleInteraction(interaction, client, state, config, cronUpdate,
         return;
     }
 
-    if (interaction.isChatInputCommand()) {
-        const command = commands.get(interaction.commandName);
-        if (!command) return;
+    const command = commands.get(interaction.commandName);
+    if (!command) return;
 
+    if (interaction.isChatInputCommand()) {
         try {
             await command.execute(interaction, client, state, config, cronUpdate, monitorManager);
         } catch (error) {
@@ -53,9 +53,6 @@ async function handleInteraction(interaction, client, state, config, cronUpdate,
             }
         }
     } else if (interaction.isAutocomplete()) {
-        const command = commands.get(interaction.commandName);
-        if (!command) return;
-
         try {
             await command.autocomplete(interaction, monitorManager);
         } catch (error) {
