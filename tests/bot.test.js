@@ -132,6 +132,9 @@ jest.mock('discord.js', () => {
         },
         Partials: {
             Channel: 1
+        },
+        Events: {
+            ClientReady: 'clientReady'
         }
     };
 });

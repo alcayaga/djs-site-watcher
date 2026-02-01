@@ -1,5 +1,5 @@
 // Import required modules
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Events } = require('discord.js');
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -27,7 +27,7 @@ const state = require('./state');
 //
 
 // When the client is ready, run this code
-client.on('clientReady', async () => {
+client.on(Events.ClientReady, async () => {
     // Load the state from storage
     state.load();
 
