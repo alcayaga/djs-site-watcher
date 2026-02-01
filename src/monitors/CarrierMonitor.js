@@ -111,7 +111,7 @@ class CarrierMonitor extends Monitor {
                     { name: `URL`, value: `${carrier.url}` },
                     { name: `Actualizado`, value: `${carrier.lastUpdated}` }
                 ])
-                .setColor('0x00FF00');
+                .setColor(0x00FF00);
             channel.send({ embeds: [embed] });
         });
     }

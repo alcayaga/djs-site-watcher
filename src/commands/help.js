@@ -11,7 +11,7 @@ module.exports = {
     execute(message) {
         const embed = new Discord.EmbedBuilder();
         embed.setTitle("Commands");
-        embed.setColor('0x6058f3');
+        embed.setColor(0x6058f3);
         embed.addFields([
             { name: '`!help`', value: 'Show all commands.' },
             { name: '`!add <URL> "<CSS SELECTOR>"`', value: 'Add site to monitor with optional CSS selector.' },

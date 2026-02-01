@@ -221,7 +221,7 @@ describe('CarrierMonitor', () => {
                 { name: 'URL', value: 'http://v.com/48' },
                 { name: 'Actualizado', value: 'now' }
             ]);
-            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('0x00FF00');
+            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith(0x00FF00);
         });
 
         it('should log an error if notification channel not found', () => {

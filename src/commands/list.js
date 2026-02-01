@@ -24,7 +24,7 @@ module.exports = {
                 const chunk = sites.slice(i, i + CHUNK_SIZE);
                 const embed = new Discord.EmbedBuilder()
                     .setTitle(`${siteCount} sitio(s) están siendo monitoreados (Mostrando ${i + 1}-${Math.min(i + chunk.length, siteCount)})`)
-                    .setColor('0x6058f3');
+                    .setColor(0x6058f3);
 
                 const fields = chunk.map((site, j) => ({
                     name: site.id,

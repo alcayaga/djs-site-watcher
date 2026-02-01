@@ -283,7 +283,7 @@ describe('SiteMonitor', () => {
                 { name: 'Último cambio', value: 'some-date', inline: true },
                 { name: 'Actualizado', value: 'some-date', inline: true }
             ]);
-            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('0x6058f3');
+            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith(0x6058f3);
             expect(mockChannel.send).toHaveBeenCalledWith({
                 content: ' \n🔴 old\n🟢 new\n\n ',
                 allowedMentions: { parse: [] }

@@ -327,7 +327,7 @@ class SiteMonitor extends Monitor {
                 { name: `Último cambio`, value: `${site.lastUpdated}`, inline: true },
                 { name: `Actualizado`, value: `${site.lastUpdated}`, inline: true }
             ])
-            .setColor('0x6058f3');
+            .setColor(0x6058f3);
             
         channel.send({ embeds: [embed] });
         channel.send({ content: ` \n${diffString}\n `, allowedMentions: { parse: [] } });
