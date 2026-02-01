@@ -284,7 +284,10 @@ describe('SiteMonitor', () => {
                 { name: 'Actualizado', value: 'some-date', inline: true }
             ]);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('0x6058f3');
-            expect(mockChannel.send).toHaveBeenCalledWith(' \n🔴 old\n🟢 new\n\n ');
+            expect(mockChannel.send).toHaveBeenCalledWith({
+                content: ' \n🔴 old\n🟢 new\n\n ',
+                allowedMentions: { parse: [] }
+            });
         });
 
         it('should format multiline diffs correctly', () => {
@@ -297,7 +300,10 @@ describe('SiteMonitor', () => {
             siteMonitor.notify(mockChange);
 
             const expectedDiff = ' \n⚪ line 1\n🔴 line 2\n🟢 line three\n⚪ line 4\n\n ';
-            expect(mockChannel.send).toHaveBeenCalledWith(expectedDiff);
+            expect(mockChannel.send).toHaveBeenCalledWith({
+                content: expectedDiff,
+                allowedMentions: { parse: [] }
+            });
         });
 
         it('should truncate long diffs', () => {
@@ -310,7 +316,9 @@ describe('SiteMonitor', () => {
             siteMonitor.notify(mockChange);
             // Assert that the sent message contains the truncation.
             // The actual logic is in SiteMonitor, we just check if the output includes the truncation string.
-            expect(mockChannel.send).toHaveBeenCalledWith(expect.stringContaining('... (truncated)'));
+            expect(mockChannel.send).toHaveBeenCalledWith(expect.objectContaining({
+                content: expect.stringContaining('... (truncated)')
+            }));
         });
 
         it('should log an error if notification channel not found', () => {

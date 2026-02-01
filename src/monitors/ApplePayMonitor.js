@@ -191,7 +191,7 @@ class ApplePayMonitor extends Monitor {
                     .setTitle(`🌟 ¡Nueva región en Transit para Apple Pay en ${change.configName}!`)
                     .addFields([
                         { name: 'Región', value: this.REGION_TO_MONITOR, inline: true },
-                        { name: 'Nombre', value: change.geo.name, inline: true },
+                        { name: 'Nombre', value: change.geo.name || 'Unknown', inline: true },
                         { name: 'URL', value: change.url }
                     ])
                     .setColor('#0071E3');

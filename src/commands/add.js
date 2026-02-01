@@ -46,7 +46,7 @@ module.exports = {
             const embed = new Discord.EmbedBuilder();
             embed.addFields([{
                 name: `Monitoreando ahora:`,
-                value: `Dominio: ${site.id}\nURL: ${site.url}\nCSS: \n${site.css}${warning_message}`
+                value: `Dominio: ${site.id}\nURL: ${site.url}\nCSS: \n${site.css.substring(0, 800)}${warning_message}`
             }]);
             embed.setColor('0x6058f3');
             message.channel.send({ embeds: [embed] });

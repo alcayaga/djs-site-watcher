@@ -321,7 +321,7 @@ class SiteMonitor extends Monitor {
         }
 
         const embed = new Discord.EmbedBuilder()
-            .setTitle(`🔎 ¡Cambio en ${title}!  🐸`)
+            .setTitle(`🔎 ¡Cambio en ${title.substring(0, 240)}!  🐸`)
             .addFields([
                 { name: `URL`, value: `${site.url}` },
                 { name: `Último cambio`, value: `${site.lastUpdated}`, inline: true },
@@ -330,9 +330,7 @@ class SiteMonitor extends Monitor {
             .setColor('0x6058f3');
             
         channel.send({ embeds: [embed] });
-        channel.send(` 
-${diffString}
- `);
+        channel.send({ content: ` \n${diffString}\n `, allowedMentions: { parse: [] } });
     }
 }
 

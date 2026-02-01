@@ -20,11 +20,12 @@ module.exports = {
             embed_.setTitle(`${state.sitesToMonitor.length} sitio(s) están siendo monitoreados:`);
             embed_.setColor('0x6058f3');
 
-            for (let i = 0; i < state.sitesToMonitor.length; i++) {
-                const site = state.sitesToMonitor[i];
-                const field = `URL: ${site.url}\nCSS: \`${site.css}\`\nChecked: ${site.lastChecked}\nUpdated: ${site.lastUpdated}\nRemove: \`!remove ${i + 1}\``;
-                embed_.addFields([{ name: site.id, value: field }]);
-            }
+            const fields = state.sitesToMonitor.map((site, i) => ({
+                name: site.id,
+                value: `URL: ${site.url}\nCSS: \`${site.css}\`\nChecked: ${site.lastChecked}\nUpdated: ${site.lastUpdated}\nRemove: \`!remove ${i + 1}\``
+            }));
+
+            embed_.addFields(fields);
             message.channel.send({ embeds: [embed_] });
         } catch (error) {
             console.error(error);

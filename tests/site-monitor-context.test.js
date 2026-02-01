@@ -152,7 +152,7 @@ describe('SiteMonitor Context & Clean Features', () => {
 
         siteMonitor.notify(mockChange);
         
-        const sentMessage = mockChannel.send.mock.calls[1][0];
+        const sentMessage = mockChannel.send.mock.calls[1][0].content;
         
         expect(sentMessage).toContain('🔴 6');
         expect(sentMessage).toContain('🟢 six');
@@ -179,7 +179,7 @@ describe('SiteMonitor Context & Clean Features', () => {
         
         siteMonitor.notify(mockChange);
         
-        const sentMessage = mockChannel.send.mock.calls[1][0];
+        const sentMessage = mockChannel.send.mock.calls[1][0].content;
         expect(sentMessage).toContain('...'); 
         expect(sentMessage).toContain('⚪ 8');
         expect(sentMessage).not.toContain('⚪ 10'); 
