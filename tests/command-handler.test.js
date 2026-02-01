@@ -1,5 +1,4 @@
 const { handleInteraction } = require('../src/command-handler');
-const Discord = require('discord.js');
 
 // Mock fs and path to control command loading
 jest.mock('fs', () => ({
