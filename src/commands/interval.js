@@ -22,21 +22,15 @@ module.exports = {
      * @returns {Promise<void>}
      */
     async execute(interaction, client, state, config, cronUpdate, monitorManager) {
-        try {
-            const newInterval = interaction.options.getInteger('minutes');
+        const newInterval = interaction.options.getInteger('minutes');
 
-            config.interval = newInterval;
-            storage.saveSettings(config);
-            
-            // Use MonitorManager to set intervals and start all monitors
-            monitorManager.setAllIntervals(newInterval);
-            monitorManager.startAll();
+        config.interval = newInterval;
+        storage.saveSettings(config);
+        
+        // Use MonitorManager to set intervals and start all monitors
+        monitorManager.setAllIntervals(newInterval);
+        monitorManager.startAll();
 
-            await interaction.reply(`Interval set to ${config.interval} minutes.`);
-
-        } catch (error) {
-            console.error(error);
-            await interaction.reply({ content: 'There was an error trying to execute that command!', ephemeral: true });
-        }
+        await interaction.reply(`Interval set to ${config.interval} minutes.`);
     },
 };

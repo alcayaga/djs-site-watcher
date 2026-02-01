@@ -13,44 +13,35 @@ module.exports = {
      * @returns {Promise<void>}
      */
     async execute(interaction, client, state) {
-        try {
-            if (state.sitesToMonitor.length < 1) {
-                return interaction.reply('No sites to monitor. Add one with `/add`.');
-            }
+        if (state.sitesToMonitor.length < 1) {
+            return interaction.reply('No sites to monitor. Add one with `/add`.');
+        }
 
-            const sites = state.sitesToMonitor;
-            const siteCount = sites.length;
-            const CHUNK_SIZE = 25;
+        const sites = state.sitesToMonitor;
+        const siteCount = sites.length;
+        const CHUNK_SIZE = 25;
 
-            // Defer if it might take long, but listing is usually fast. 
-            // However, sending multiple embeds might take time.
-            await interaction.deferReply();
+        // Defer if it might take long, but listing is usually fast. 
+        // However, sending multiple embeds might take time.
+        await interaction.deferReply();
 
-            for (let i = 0; i < siteCount; i += CHUNK_SIZE) {
-                const chunk = sites.slice(i, i + CHUNK_SIZE);
-                const embed = new EmbedBuilder()
-                    .setTitle(`${siteCount} sitio(s) están siendo monitoreados (Mostrando ${i + 1}-${Math.min(i + chunk.length, siteCount)})`)
-                    .setColor(0x6058f3);
+        for (let i = 0; i < siteCount; i += CHUNK_SIZE) {
+            const chunk = sites.slice(i, i + CHUNK_SIZE);
+            const embed = new EmbedBuilder()
+                .setTitle(`${siteCount} sitio(s) están siendo monitoreados (Mostrando ${i + 1}-${Math.min(i + chunk.length, siteCount)})`)
+                .setColor(0x6058f3);
 
-                const fields = chunk.map((site, j) => ({
-                    name: site.id,
-                    value: `URL: ${site.url}\nCSS: \`${site.css}\`\nChecked: ${site.lastChecked}\nUpdated: ${site.lastUpdated}\nRemove: \`/remove ${i + j + 1}\``
-                }));
+            const fields = chunk.map((site, j) => ({
+                name: site.id,
+                value: `URL: ${site.url}\nCSS: \`${site.css}\`\nChecked: ${site.lastChecked}\nUpdated: ${site.lastUpdated}\nRemove: \`/remove ${i + j + 1}\``
+            }));
 
-                embed.addFields(fields);
-                
-                if (i === 0) {
-                    await interaction.editReply({ embeds: [embed] });
-                } else {
-                    await interaction.followUp({ embeds: [embed] });
-                }
-            }
-        } catch (error) {
-            console.error(error);
-            if (interaction.deferred || interaction.replied) {
-                await interaction.followUp({ content: 'There was an error trying to execute that command!', ephemeral: true });
+            embed.addFields(fields);
+            
+            if (i === 0) {
+                await interaction.editReply({ embeds: [embed] });
             } else {
-                await interaction.reply({ content: 'There was an error trying to execute that command!', ephemeral: true });
+                await interaction.followUp({ embeds: [embed] });
             }
         }
     },

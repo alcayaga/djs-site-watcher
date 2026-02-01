@@ -23,47 +23,37 @@ module.exports = {
      * @returns {Promise<void>}
      */
     async execute(interaction, client, state, config, cronUpdate, monitorManager) {
-        try {
-            const url = interaction.options.getString('url');
-            const selector = interaction.options.getString('selector') || 'head';
+        const url = interaction.options.getString('url');
+        const selector = interaction.options.getString('selector') || 'head';
 
-            const siteMonitor = monitorManager.getMonitor('Site');
-            if (!siteMonitor) {
-                return interaction.reply({ content: 'Site monitor is not available.', ephemeral: true });
-            }
-
-            // Defer reply since adding a site might take a moment (fetching)
-            await interaction.deferReply();
-
-            const { site, warning } = await siteMonitor.addSite(url, selector);
-
-            // Update local state to match the monitor's state
-            const exists = state.sitesToMonitor.some(s => s.url === site.url && s.css === site.css);
-            if (!exists) {
-                state.sitesToMonitor.push(site);
-            }
-            
-            let warning_message = '';
-            if (warning) {
-                warning_message = '\n**Atención:** No se encontró el selector CSS solicitado'
-            }
-
-            const embed = new EmbedBuilder();
-            embed.addFields([{ 
-                name: `Monitoreando ahora:`, 
-                value: `Dominio: ${site.id}\nURL: ${site.url}\nCSS: \n${site.css.substring(0, 800)}${warning_message}`
-            }]);
-            embed.setColor(0x6058f3);
-            
-            await interaction.editReply({ embeds: [embed] });
-        } catch (error) {
-            console.error(error);
-            // If we deferred, we must use editReply, otherwise reply
-            if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({ content: 'There was an error trying to execute that command!' });
-            } else {
-                await interaction.reply({ content: 'There was an error trying to execute that command!', ephemeral: true });
-            }
+        const siteMonitor = monitorManager.getMonitor('Site');
+        if (!siteMonitor) {
+            return interaction.reply({ content: 'Site monitor is not available.', ephemeral: true });
         }
+
+        // Defer reply since adding a site might take a moment (fetching)
+        await interaction.deferReply();
+
+        const { site, warning } = await siteMonitor.addSite(url, selector);
+
+        // Update local state to match the monitor's state
+        const exists = state.sitesToMonitor.some(s => s.url === site.url && s.css === site.css);
+        if (!exists) {
+            state.sitesToMonitor.push(site);
+        }
+        
+        let warning_message = '';
+        if (warning) {
+            warning_message = '\n**Atención:** No se encontró el selector CSS solicitado'
+        }
+
+        const embed = new EmbedBuilder();
+        embed.addFields([{ 
+            name: `Monitoreando ahora:`, 
+            value: `Dominio: ${site.id}\nURL: ${site.url}\nCSS: \n${site.css.substring(0, 800)}${warning_message}`
+        }]);
+        embed.setColor(0x6058f3);
+        
+        await interaction.editReply({ embeds: [embed] });
     },
 };

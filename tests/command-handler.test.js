@@ -39,8 +39,11 @@ describe('Command Handler', () => {
                 }
             },
             reply: jest.fn(),
+            editReply: jest.fn(),
             followUp: jest.fn(),
-            respond: jest.fn()
+            respond: jest.fn(),
+            replied: false,
+            deferred: false
         };
 
         mockClient = {};
@@ -50,18 +53,51 @@ describe('Command Handler', () => {
 
     it('should execute command if authorized', async () => {
         mockInteraction.isChatInputCommand.mockReturnValue(true);
-        // We need to re-require command-handler because it loads commands on top-level execution
-        // But Jest caches modules. We need to isolate modules or move command loading inside a function if possible.
-        // Or we rely on the fact that when `require('../src/command-handler')` runs at start of test file, 
-        // it uses the mocks we defined *above* it (jest hoists mocks).
-        
-        // However, 'commands' collection is populated at top level. 
-        // Let's verify if the mocks work as expected.
         const addCommand = require('../src/commands/add.js');
         
         await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, null, mockMonitorManager);
 
         expect(addCommand.execute).toHaveBeenCalled();
+    });
+
+    describe('Error Handling', () => {
+        it('should use reply if not deferred or replied', async () => {
+            mockInteraction.isChatInputCommand.mockReturnValue(true);
+            const addCommand = require('../src/commands/add.js');
+            addCommand.execute.mockRejectedValue(new Error('Test Fail'));
+
+            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, null, mockMonitorManager);
+
+            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                content: expect.stringContaining('error executing')
+            }));
+        });
+
+        it('should use editReply if deferred', async () => {
+            mockInteraction.isChatInputCommand.mockReturnValue(true);
+            mockInteraction.deferred = true;
+            const addCommand = require('../src/commands/add.js');
+            addCommand.execute.mockRejectedValue(new Error('Test Fail'));
+
+            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, null, mockMonitorManager);
+
+            expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
+                content: expect.stringContaining('error executing')
+            }));
+        });
+
+        it('should use followUp if replied', async () => {
+            mockInteraction.isChatInputCommand.mockReturnValue(true);
+            mockInteraction.replied = true;
+            const addCommand = require('../src/commands/add.js');
+            addCommand.execute.mockRejectedValue(new Error('Test Fail'));
+
+            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, null, mockMonitorManager);
+
+            expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
+                content: expect.stringContaining('error executing')
+            }));
+        });
     });
 
     it('should block execution if unauthorized (wrong channel)', async () => {
@@ -101,7 +137,6 @@ describe('Command Handler', () => {
         await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, null, mockMonitorManager);
 
         expect(addCommand.autocomplete).not.toHaveBeenCalled();
-        // Autocomplete should just return without reply
         expect(mockInteraction.reply).not.toHaveBeenCalled();
     });
 });

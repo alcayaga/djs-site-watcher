@@ -13,11 +13,6 @@ module.exports = {
      * @returns {Promise<void>}
      */
     async execute(interaction, client, state) {
-        try {
-            await listCommand.execute(interaction, client, state);
-        } catch (error) {
-            console.error(error);
-            await interaction.reply({ content: 'There was an error trying to execute that command!', ephemeral: true });
-        }
+        await listCommand.execute(interaction, client, state);
     },
 };

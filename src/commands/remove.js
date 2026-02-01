@@ -18,23 +18,19 @@ module.exports = {
      * @returns {Promise<void>}
      */
     async execute(interaction, client, state) {
-        try {
-            const index = interaction.options.getInteger('index');
-            
-            if (index > state.sitesToMonitor.length) {
-                return interaction.reply({ content: `Not a valid number. Usage: \
-/remove <index>\n (Max: ${state.sitesToMonitor.length})`, ephemeral: true });
-            }
-
-            const id = state.sitesToMonitor[index - 1].id;
-            state.sitesToMonitor.splice(index - 1, 1);
-            storage.saveSites(state.sitesToMonitor);
-            console.log(state.sitesToMonitor);
-            
-            await interaction.reply(`Removed **${id}** from list.`);
-        } catch (error) {
-            console.error(error);
-            await interaction.reply({ content: 'There was an error trying to execute that command!', ephemeral: true });
+        const index = interaction.options.getInteger('index');
+        
+        if (index > state.sitesToMonitor.length) {
+            return interaction.reply({ content: `Not a valid number. Usage: 
+/remove <index>
+ (Max: ${state.sitesToMonitor.length})`, ephemeral: true });
         }
+
+        const id = state.sitesToMonitor[index - 1].id;
+        state.sitesToMonitor.splice(index - 1, 1);
+        storage.saveSites(state.sitesToMonitor);
+        console.log(state.sitesToMonitor);
+        
+        await interaction.reply(`Removed **${id}** from list.`);
     },
 };

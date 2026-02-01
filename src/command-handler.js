@@ -42,10 +42,14 @@ async function handleInteraction(interaction, client, state, config, cronUpdate,
             await command.execute(interaction, client, state, config, cronUpdate, monitorManager);
         } catch (error) {
             console.error(error);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'There was an error executing this command!', ephemeral: true });
+            const errorMessage = { content: 'There was an error executing this command!', ephemeral: true };
+            
+            if (interaction.replied) {
+                await interaction.followUp(errorMessage);
+            } else if (interaction.deferred) {
+                await interaction.editReply(errorMessage);
             } else {
-                await interaction.reply({ content: 'There was an error executing this command!', ephemeral: true });
+                await interaction.reply(errorMessage);
             }
         }
     } else if (interaction.isAutocomplete()) {

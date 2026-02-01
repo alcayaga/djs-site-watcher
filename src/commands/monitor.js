@@ -55,7 +55,7 @@ module.exports = {
             : [monitorManager.getMonitor(targetMonitorName)].filter(Boolean);
 
         if (targetMonitors.length === 0) {
-            return interaction.reply({ 
+            return interaction.reply({
                 content: `Monitor "${targetMonitorName}" not found.`, 
                 ephemeral: true 
             });
@@ -82,7 +82,7 @@ module.exports = {
             }
             case 'check': {
                 await interaction.reply(`Triggering check for monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
-                await Promise.all(targetMonitors.map(monitor => monitor.check(client)));
+                await Promise.allSettled(targetMonitors.map(monitor => monitor.check(client)));
                 break;
             }
         }
