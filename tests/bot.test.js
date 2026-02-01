@@ -140,7 +140,7 @@ describe('Bot', () => {
     // Helper to get the ready callback
     function getReadyCallback() {
         const client = new (require('discord.js').Client)();
-        const call = client.on.mock.calls.find(call => call[0] === 'ready');
+        const call = client.on.mock.calls.find(call => call[0] === 'clientReady');
         return call ? call[1] : null;
     }
 
@@ -170,7 +170,7 @@ describe('Bot', () => {
         }));
         const bot = require('../src/bot.js');
         expect(bot.client).toBeDefined();
-        expect(bot.client.on).toHaveBeenCalledWith('ready', expect.any(Function));
+        expect(bot.client.on).toHaveBeenCalledWith('clientReady', expect.any(Function));
         expect(bot.client.on).toHaveBeenCalledWith('messageCreate', expect.any(Function));
     });
 

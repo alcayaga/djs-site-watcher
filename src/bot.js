@@ -27,7 +27,7 @@ const state = require('./state');
 //
 
 // When the client is ready, run this code
-client.on('ready', async () => {
+client.on('clientReady', async () => {
     // Load the state from storage
     state.load();
 
