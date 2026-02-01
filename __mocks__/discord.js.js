@@ -13,6 +13,15 @@ const MockEmbedBuilder = jest.fn(function() {
   this.setColor = mockSetColor;
 });
 
+const mockSlashCommandBuilder = jest.fn(function() {
+    this.setName = jest.fn().mockReturnThis();
+    this.setDescription = jest.fn().mockReturnThis();
+    this.addStringOption = jest.fn().mockReturnThis();
+    this.addIntegerOption = jest.fn().mockReturnThis();
+    this.addSubcommand = jest.fn().mockReturnThis();
+    this.toJSON = jest.fn().mockReturnValue({});
+});
+
 module.exports = {
   Client: jest.fn(() => {
     const listeners = {};
@@ -37,10 +46,16 @@ module.exports = {
       login: jest.fn(),
       user: {
           tag: 'TestBot#0000'
+      },
+      application: {
+          commands: {
+              set: jest.fn().mockResolvedValue([])
+          }
       }
     };
   }),
   EmbedBuilder: MockEmbedBuilder,
+  SlashCommandBuilder: mockSlashCommandBuilder,
   AttachmentBuilder: jest.fn(),
   GatewayIntentBits: {
       Guilds: 1,
@@ -49,6 +64,11 @@ module.exports = {
   },
   Partials: {
       Channel: 1
+  },
+  Events: {
+      ClientReady: 'ready',
+      InteractionCreate: 'interactionCreate',
+      MessageCreate: 'messageCreate',
   },
   Collection: Map,
 };

@@ -31,6 +31,16 @@ client.on(Events.ClientReady, async () => {
     // Load the state from storage
     state.load();
 
+    // Register Slash Commands
+    try {
+        console.log(`[${client.user.tag}] Started refreshing application (/) commands.`);
+        const commandData = commandHandler.commands.map(c => c.data.toJSON());
+        await client.application.commands.set(commandData);
+        console.log(`[${client.user.tag}] Successfully reloaded application (/) commands.`);
+    } catch (error) {
+        console.error(error);
+    }
+
     // Initialize the trigger_regex for each response
     for (const response of state.responses) {
         response.trigger_regex = new RegExp(response.trigger, 'i');
@@ -78,9 +88,14 @@ client.on(Events.ClientReady, async () => {
     console.log(`[${client.user.tag}] Ready...\n[${client.user.tag}] Running an interval of ${config.interval} minute(s).`);
 });
 
-// When a message is sent, run this code
+// Handle interactions (Slash Commands, Autocomplete)
+client.on(Events.InteractionCreate, async interaction => {
+    await commandHandler.handleInteraction(interaction, client, state, config, null, monitorManager);
+});
+
+// When a message is sent, run this code (Auto-responses only)
 client.on('messageCreate', message => {
-    commandHandler.handleCommand(message, client, state, config, null, monitorManager); // Pass null for cronUpdate
+    commandHandler.handleMessage(message, state, config);
 });
 
 // Login to Discord with your client's token

@@ -1,43 +1,75 @@
+const { SlashCommandBuilder } = require('discord.js');
+
 module.exports = {
-    name: 'monitor',
-    description: 'Manage individual or all monitors (start, stop, status, check).',
-    usage: '<start|stop|status|check> [monitor_name|all]',
+    data: new SlashCommandBuilder()
+        .setName('monitor')
+        .setDescription('Manage individual or all monitors.')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('start')
+                .setDescription('Start a monitor or all monitors.')
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('The name of the monitor')
+                        .setAutocomplete(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('stop')
+                .setDescription('Stop a monitor or all monitors.')
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('The name of the monitor')
+                        .setAutocomplete(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('status')
+                .setDescription('Show status of a monitor or all monitors.')
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('The name of the monitor')
+                        .setAutocomplete(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('check')
+                .setDescription('Trigger a check for a monitor or all monitors.')
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('The name of the monitor')
+                        .setAutocomplete(true))),
     /**
      * Executes the monitor command.
-     * @param {Discord.Message} message The message object.
-     * @param {string[]} args The arguments array.
-     * @param {Discord.Client} client The Discord client.
+     * @param {import('discord.js').ChatInputCommandInteraction} interaction The interaction object.
+     * @param {import('discord.js').Client} client The Discord client.
      * @param {object} state The state object.
      * @param {object} config The configuration object.
-     * @param {CronJob} cronUpdate The main cron job (for site-monitor).
+     * @param {object} cronUpdate The main cron job (for site-monitor).
      * @param {object} monitorManager The MonitorManager instance.
-     * @returns {void}
+     * @returns {Promise<void>}
      */
-    execute(message, args, client, state, config, cronUpdate, monitorManager) {
-        if (args.length === 0) {
-            return message.channel.send(`Usage: \`${config.PREFIX}monitor ${this.usage}\``);
-        }
-
-        const subCommand = args.shift().toLowerCase();
-        const targetMonitorName = args.shift() || 'all'; // Default to 'all' if no monitor name is provided
+    async execute(interaction, client, state, config, cronUpdate, monitorManager) {
+        const subCommand = interaction.options.getSubcommand();
+        const targetMonitorName = interaction.options.getString('name') || 'all';
 
         const targetMonitors = targetMonitorName === 'all' 
             ? monitorManager.getAllMonitors() 
-            : [monitorManager.getMonitor(targetMonitorName)].filter(Boolean); // Filter out undefined if monitor not found
+            : [monitorManager.getMonitor(targetMonitorName)].filter(Boolean);
 
         if (targetMonitors.length === 0) {
-            return message.channel.send(`Monitor "${targetMonitorName}" not found. Available monitors: ${monitorManager.getAllMonitors().map(m => m.name).join(', ')} or 'all'.`);
+            return interaction.reply({ 
+                content: `Monitor "${targetMonitorName}" not found.`, 
+                ephemeral: true 
+            });
         }
 
         switch (subCommand) {
             case 'start': {
                 targetMonitors.forEach(monitor => monitor.start());
-                message.channel.send(`Started monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
+                await interaction.reply(`Started monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
                 break;
             }
             case 'stop': {
                 targetMonitors.forEach(monitor => monitor.stop());
-                message.channel.send(`Stopped monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
+                await interaction.reply(`Stopped monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
                 break;
             }
             case 'status': {
@@ -45,17 +77,28 @@ module.exports = {
                     const status = monitor.getStatus();
                     return `${status.name}: ${status.isRunning ? 'Running 🟢' : 'Stopped 🔴'}`;
                 });
-                message.channel.send(`Monitor Status:\n${statuses.join('\n')}`);
+                await interaction.reply(`Monitor Status:\n${statuses.join('\n')}`);
                 break;
             }
             case 'check': {
-                message.channel.send(`Triggering check for monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
+                await interaction.reply(`Triggering check for monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
                 targetMonitors.forEach(monitor => monitor.check(client));
                 break;
             }
-            default:
-                message.channel.send(`Invalid subcommand. Usage: \`${config.PREFIX}monitor ${this.usage}\``);
-                break;
         }
     },
+    /**
+     * Handles autocomplete for the monitor command.
+     * @param {import('discord.js').AutocompleteInteraction} interaction The interaction object.
+     * @param {object} monitorManager The MonitorManager instance.
+     * @returns {Promise<void>}
+     */
+    async autocomplete(interaction, monitorManager) {
+        const focusedValue = interaction.options.getFocused();
+        const choices = ['all', ...monitorManager.getAllMonitors().map(m => m.name)];
+        const filtered = choices.filter(choice => choice.toLowerCase().startsWith(focusedValue.toLowerCase()));
+        await interaction.respond(
+            filtered.map(choice => ({ name: choice, value: choice }))
+        );
+    }
 };

@@ -8,24 +8,54 @@ const commandFiles = fs.readdirSync(path.join(__dirname, 'commands')).filter(fil
 
 for (const file of commandFiles) {
     const command = require(`./commands/${file}`);
-    commands.set(command.name, command);
+    commands.set(command.data.name, command);
 }
 
-const PREFIX = '!';
-const regexp = /[^\s"]+|"([^"]*)"/gi;
-
-
 /**
- * Handles incoming commands from Discord messages.
- *
- * @param {Discord.Message} message The message object from Discord.
- * @param {Discord.Client} client The Discord client instance.
+ * Handles incoming interactions (Slash Commands, Autocomplete).
+ * 
+ * @param {import('discord.js').Interaction} interaction The interaction object.
+ * @param {import('discord.js').Client} client The Discord client instance.
  * @param {object} state The application state.
  * @param {object} config The application configuration.
  * @param {object} cronUpdate The cron job for updating sites.
  * @param {object} monitorManager The MonitorManager instance.
  */
-async function handleCommand(message, client, state, config, cronUpdate, monitorManager) {
+async function handleInteraction(interaction, client, state, config, cronUpdate, monitorManager) {
+    if (interaction.isChatInputCommand()) {
+        const command = commands.get(interaction.commandName);
+        if (!command) return;
+
+        try {
+            await command.execute(interaction, client, state, config, cronUpdate, monitorManager);
+        } catch (error) {
+            console.error(error);
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({ content: 'There was an error executing this command!', ephemeral: true });
+            } else {
+                await interaction.reply({ content: 'There was an error executing this command!', ephemeral: true });
+            }
+        }
+    } else if (interaction.isAutocomplete()) {
+        const command = commands.get(interaction.commandName);
+        if (!command) return;
+
+        try {
+            await command.autocomplete(interaction, monitorManager);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+}
+
+/**
+ * Handles incoming messages for auto-responses.
+ *
+ * @param {Discord.Message} message The message object from Discord.
+ * @param {object} state The application state.
+ * @param {object} config The application configuration.
+ */
+async function handleMessage(message, state, config) {
     // AP Channel auto-responses
     if (!message.author.bot && config.DISCORDJS_APCHANNEL_ID === message.channel.id) {
         const ap_message = message.content.trim();
@@ -54,37 +84,6 @@ async function handleCommand(message, client, state, config, cronUpdate, monitor
             }
         }
     }
-    
-    // Command handling
-    if (!message.content.startsWith(PREFIX) || message.author.bot || config.DISCORDJS_ADMINCHANNEL_ID !== message.channel.id || !message.member.roles.cache.has(config.DISCORDJS_ROLE_ID)) return;
-    
-    // Parse arguments
-    const args = [];
-    const argsTemp = message.content.slice(PREFIX.length).trim();
-    let match;
-    do {
-        match = regexp.exec(argsTemp);
-        if (match != null) {
-            args.push(match[1] ? match[1] : match[0]);
-        }
-    } while (match != null);
-    
-    // Get command and aliases
-    const commandName = args.shift().toLowerCase();
-    const command = commands.get(commandName) || commands.find(cmd => cmd.aliases && cmd.aliases.includes(commandName));
-
-    if (!command) {
-        message.channel.send('Invalid command...\nType `!help` for a list of commands.');
-        return;
-    }
-
-    // Execute command
-    try {
-        command.execute(message, args, client, state, config, cronUpdate, monitorManager);
-    } catch (error) {
-        console.error(error);
-        message.reply('there was an error trying to execute that command!');
-    }
 }
 
-module.exports = { handleCommand, commands };
+module.exports = { handleInteraction, handleMessage, commands };

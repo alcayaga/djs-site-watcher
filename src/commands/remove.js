@@ -1,29 +1,40 @@
+const { SlashCommandBuilder } = require('discord.js');
 const storage = require('../storage');
 
 module.exports = {
-    name: 'remove',
-    description: 'Remove site from list.',
+    data: new SlashCommandBuilder()
+        .setName('remove')
+        .setDescription('Remove site from list.')
+        .addIntegerOption(option =>
+            option.setName('index')
+                .setDescription('The number of the site to remove (from /list)')
+                .setRequired(true)
+                .setMinValue(1)),
     /**
      * Executes the remove command.
-     * @param {Discord.Message} message The message object.
-     * @param {string[]} args The arguments array.
-     * @param {Discord.Client} client The Discord client.
+     * @param {import('discord.js').ChatInputCommandInteraction} interaction The interaction object.
+     * @param {import('discord.js').Client} client The Discord client.
      * @param {object} state The state object.
-     * @returns {void}
+     * @returns {Promise<void>}
      */
-    execute(message, args, client, state) {
+    async execute(interaction, client, state) {
         try {
-            if (args.length === 0 || isNaN(args[0])) return message.channel.send('Usage: `!remove <NR [1-99]>`');
-            if (args[0] < 1 || args[0] > 99 || args[0] > state.sitesToMonitor.length) return message.channel.send('Not a valid number. Usage: `!remove <NR [1-99]>`');
+            const index = interaction.options.getInteger('index');
+            
+            if (index > state.sitesToMonitor.length) {
+                return interaction.reply({ content: `Not a valid number. Usage: \
+/remove <index>\n (Max: ${state.sitesToMonitor.length})`, ephemeral: true });
+            }
 
-            const id = state.sitesToMonitor[args[0] - 1].id;
-            state.sitesToMonitor.splice(args[0] - 1, 1);
+            const id = state.sitesToMonitor[index - 1].id;
+            state.sitesToMonitor.splice(index - 1, 1);
             storage.saveSites(state.sitesToMonitor);
             console.log(state.sitesToMonitor);
-            message.channel.send(`Removed **${id}** from list.`);
+            
+            await interaction.reply(`Removed **${id}** from list.`);
         } catch (error) {
             console.error(error);
-            message.reply('there was an error trying to execute that command!');
+            await interaction.reply({ content: 'There was an error trying to execute that command!', ephemeral: true });
         }
     },
 };

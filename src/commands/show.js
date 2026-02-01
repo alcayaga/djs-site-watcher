@@ -1,22 +1,23 @@
+const { SlashCommandBuilder } = require('discord.js');
 const listCommand = require('./list');
 
 module.exports = {
-    name: 'show',
-    description: 'Show list of added sites.',
+    data: new SlashCommandBuilder()
+        .setName('show')
+        .setDescription('Show list of added sites (alias for /list).'),
     /**
-     * Executes the show command, which is an alias for the list command.
-     * @param {Discord.Message} message The message object.
-     * @param {string[]} args The arguments array.
-     * @param {Discord.Client} client The Discord client.
+     * Executes the show command.
+     * @param {import('discord.js').ChatInputCommandInteraction} interaction The interaction object.
+     * @param {import('discord.js').Client} client The Discord client.
      * @param {object} state The state object.
-     * @returns {void}
+     * @returns {Promise<void>}
      */
-    execute(message, args, client, state) {
+    async execute(interaction, client, state) {
         try {
-            listCommand.execute(message, args, client, state);
+            await listCommand.execute(interaction, client, state);
         } catch (error) {
             console.error(error);
-            message.reply('there was an error trying to execute that command!');
+            await interaction.reply({ content: 'There was an error trying to execute that command!', ephemeral: true });
         }
     },
 };
