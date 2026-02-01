@@ -1,6 +1,3 @@
-// Load environment variables
-require('dotenv').config();
-
 // Import required modules
 const Discord = require('discord.js');
 const client = new Discord.Client();
