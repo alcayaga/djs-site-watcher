@@ -79,10 +79,10 @@ jest.mock('fs', () => ({
 // Mock discord.js
 jest.mock('discord.js', () => {
     const originalDiscord = jest.requireActual('discord.js');
-    const MessageEmbed = jest.fn(() => ({
+    const EmbedBuilder = jest.fn(() => ({
         setTitle: jest.fn().mockReturnThis(),
         setColor: jest.fn().mockReturnThis(),
-        addField: jest.fn().mockReturnThis(),
+        addFields: jest.fn().mockReturnThis(),
     }));
 
     const Collection = jest.fn(() => {
@@ -123,8 +123,19 @@ jest.mock('discord.js', () => {
     return {
         ...originalDiscord,
         Client: jest.fn(() => client),
-        MessageEmbed,
+        EmbedBuilder,
         Collection,
+        GatewayIntentBits: {
+            Guilds: 1,
+            GuildMessages: 512,
+            MessageContent: 32768
+        },
+        Partials: {
+            Channel: 1
+        },
+        Events: {
+            ClientReady: 'clientReady'
+        }
     };
 });
 
@@ -132,14 +143,14 @@ describe('Bot', () => {
     // Helper to get the ready callback
     function getReadyCallback() {
         const client = new (require('discord.js').Client)();
-        const call = client.on.mock.calls.find(call => call[0] === 'ready');
+        const call = client.on.mock.calls.find(call => call[0] === 'clientReady');
         return call ? call[1] : null;
     }
 
     // Helper to get the message callback
     function getMessageCallback() {
         const client = new (require('discord.js').Client)();
-        const call = client.on.mock.calls.find(call => call[0] === 'message');
+        const call = client.on.mock.calls.find(call => call[0] === 'messageCreate');
         return call ? call[1] : null;
     }
 
@@ -162,8 +173,8 @@ describe('Bot', () => {
         }));
         const bot = require('../src/bot.js');
         expect(bot.client).toBeDefined();
-        expect(bot.client.on).toHaveBeenCalledWith('ready', expect.any(Function));
-        expect(bot.client.on).toHaveBeenCalledWith('message', expect.any(Function));
+        expect(bot.client.on).toHaveBeenCalledWith('clientReady', expect.any(Function));
+        expect(bot.client.on).toHaveBeenCalledWith('messageCreate', expect.any(Function));
     });
 
     describe('on "ready" event', () => {

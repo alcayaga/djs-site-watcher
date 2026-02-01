@@ -9,15 +9,17 @@ module.exports = {
      * @returns {void}
      */
     execute(message) {
-        const embed = new Discord.MessageEmbed();
+        const embed = new Discord.EmbedBuilder();
         embed.setTitle("Commands");
-        embed.setColor('0x6058f3');
-        embed.addField('`!help`', 'Show all commands.');
-        embed.addField('`!add <URL> "<CSS SELECTOR>"`', 'Add site to monitor with optional CSS selector.');
-        embed.addField('`!remove <NR>`', 'Remove site from list.');
-        embed.addField('`!list | !show`', 'Show list of added sites.');
-        embed.addField('`!interval`', 'Set update interval, default `5`.');
-        embed.addField('`!monitor <start|stop|status|check> [monitor_name|all]`', 'Manage monitors (Site, Carrier, AppleEsim, ApplePay, AppleFeature).');
-        message.channel.send(embed);
+        embed.setColor(0x6058f3);
+        embed.addFields([
+            { name: '`!help`', value: 'Show all commands.' },
+            { name: '`!add <URL> "<CSS SELECTOR>"`', value: 'Add site to monitor with optional CSS selector.' },
+            { name: '`!remove <NR>`', value: 'Remove site from list.' },
+            { name: '`!list | !show`', value: 'Show list of added sites.' },
+            { name: '`!interval`', value: 'Set update interval, default `5`.' },
+            { name: '`!monitor <start|stop|status|check> [monitor_name|all]`', value: 'Manage monitors (Site, Carrier, AppleEsim, ApplePay, AppleFeature).' }
+        ]);
+        message.channel.send({ embeds: [embed] });
     },
 };

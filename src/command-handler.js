@@ -33,7 +33,7 @@ async function handleCommand(message, client, state, config, cronUpdate, monitor
         for (const response of state.responses) {
             const ap_match = response.trigger_regex.exec(ap_message);
             if (ap_match != null) {
-                message.channel.startTyping();
+                message.channel.sendTyping();
 
                 // Wait 5 seconds before sending the response
                 await new Promise(resolve => setTimeout(resolve, 5000));
@@ -42,15 +42,14 @@ async function handleCommand(message, client, state, config, cronUpdate, monitor
                 const reply = response.replies[reply_id];
 
                 if (reply.img_response !== "") {
-                    const img = new Discord.MessageAttachment(reply.img_response);
-                    message.channel.send(img);
+                    const img = new Discord.AttachmentBuilder(reply.img_response);
+                    message.channel.send({ files: [img] });
                 }
 
                 if (reply.text_response !== "") {
                     message.reply(reply.text_response);
                 }
 
-                message.channel.stopTyping();
                 return;
             }
         }

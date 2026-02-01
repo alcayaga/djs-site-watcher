@@ -61,7 +61,7 @@ describe('SiteMonitor Context & Clean Features', () => {
         mockChannel = { send: jest.fn() };
         mockMessageEmbedInstance = {
             setTitle: jest.fn().mockReturnThis(),
-            addField: jest.fn().mockReturnThis(),
+            addFields: jest.fn().mockReturnThis(),
             setColor: jest.fn().mockReturnThis(),
         };
 
@@ -72,7 +72,7 @@ describe('SiteMonitor Context & Clean Features', () => {
                 },
             },
         }));
-        jest.spyOn(Discord, 'MessageEmbed').mockImplementation(() => mockMessageEmbedInstance);
+        jest.spyOn(Discord, 'EmbedBuilder').mockImplementation(() => mockMessageEmbedInstance);
 
         process.env.DISCORDJS_TEXTCHANNEL_ID = 'mockChannelId';
         client = new Discord.Client();
@@ -152,7 +152,7 @@ describe('SiteMonitor Context & Clean Features', () => {
 
         siteMonitor.notify(mockChange);
         
-        const sentMessage = mockChannel.send.mock.calls[1][0];
+        const sentMessage = mockChannel.send.mock.calls[1][0].content;
         
         expect(sentMessage).toContain('🔴 6');
         expect(sentMessage).toContain('🟢 six');
@@ -179,7 +179,7 @@ describe('SiteMonitor Context & Clean Features', () => {
         
         siteMonitor.notify(mockChange);
         
-        const sentMessage = mockChannel.send.mock.calls[1][0];
+        const sentMessage = mockChannel.send.mock.calls[1][0].content;
         expect(sentMessage).toContain('...'); 
         expect(sentMessage).toContain('⚪ 8');
         expect(sentMessage).not.toContain('⚪ 10'); 

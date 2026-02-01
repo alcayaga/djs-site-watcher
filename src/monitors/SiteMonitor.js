@@ -320,17 +320,17 @@ class SiteMonitor extends Monitor {
             diffString = diffString.substring(0, 1900) + '\n... (truncated)';
         }
 
-        const embed = new Discord.MessageEmbed()
-            .setTitle(`🔎 ¡Cambio en ${title}!  🐸`)
-            .addField(`URL`, `${site.url}`)
-            .addField(`Último cambio`, `${site.lastUpdated}`, true)
-            .addField(`Actualizado`, `${site.lastUpdated}`, true)
-            .setColor('0x6058f3');
+        const embed = new Discord.EmbedBuilder()
+            .setTitle(`🔎 ¡Cambio en ${title.substring(0, 240)}!  🐸`)
+            .addFields([
+                { name: `URL`, value: `${site.url}` },
+                { name: `Último cambio`, value: `${site.lastUpdated}`, inline: true },
+                { name: `Actualizado`, value: `${site.lastUpdated}`, inline: true }
+            ])
+            .setColor(0x6058f3);
             
-        channel.send(embed);
-        channel.send(` 
-${diffString}
- `);
+        channel.send({ embeds: [embed] });
+        channel.send({ content: ` \n${diffString}\n `, allowedMentions: { parse: [] } });
     }
 }
 

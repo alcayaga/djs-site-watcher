@@ -1,6 +1,13 @@
 // Import required modules
-const Discord = require('discord.js');
-const client = new Discord.Client();
+const { Client, GatewayIntentBits, Partials, Events } = require('discord.js');
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+    ],
+    partials: [Partials.Channel],
+});
 // const storage = require('./storage'); // Removed
 const commandHandler = require('./command-handler');
 const monitorManager = require('./MonitorManager');
@@ -20,7 +27,7 @@ const state = require('./state');
 //
 
 // When the client is ready, run this code
-client.on('ready', async () => {
+client.on(Events.ClientReady, async () => {
     // Load the state from storage
     state.load();
 
@@ -72,7 +79,7 @@ client.on('ready', async () => {
 });
 
 // When a message is sent, run this code
-client.on('message', message => {
+client.on('messageCreate', message => {
     commandHandler.handleCommand(message, client, state, config, null, monitorManager); // Pass null for cronUpdate
 });
 

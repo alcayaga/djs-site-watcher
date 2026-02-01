@@ -46,7 +46,7 @@ describe('AppleEsimMonitor', () => {
         mockChannelSend = jest.fn();
         mockMessageEmbedInstance = {
             setTitle: jest.fn().mockReturnThis(),
-            addField: jest.fn().mockReturnThis(),
+            addFields: jest.fn().mockReturnThis(),
             setColor: jest.fn().mockReturnThis(),
         };
         jest.spyOn(Discord, 'Client').mockImplementation(() => ({
@@ -56,7 +56,7 @@ describe('AppleEsimMonitor', () => {
                 },
             },
         }));
-        jest.spyOn(Discord, 'MessageEmbed').mockImplementation(() => mockMessageEmbedInstance);
+        jest.spyOn(Discord, 'EmbedBuilder').mockImplementation(() => mockMessageEmbedInstance);
 
         // JSDOM mock implementation is handled by the jest.mock('jsdom') block.
         // We just need to clear its calls.
@@ -182,9 +182,9 @@ describe('AppleEsimMonitor', () => {
         beforeEach(() => {
             mockChannelSend.mockClear();
             Discord.Client.mock.results[0].value.channels.cache.get.mockClear();
-            Discord.MessageEmbed.mockClear();
+            Discord.EmbedBuilder.mockClear();
             mockMessageEmbedInstance.setTitle.mockClear();
-            mockMessageEmbedInstance.addField.mockClear();
+            mockMessageEmbedInstance.addFields.mockClear();
             mockMessageEmbedInstance.setColor.mockClear();
         });
 
@@ -197,9 +197,12 @@ describe('AppleEsimMonitor', () => {
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannelSend).toHaveBeenCalledTimes(1);
+            expect(mockChannelSend).toHaveBeenCalledWith({ embeds: [mockMessageEmbedInstance] });
             expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM agregado en Chile!');
-            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Operador', '[New Carrier](new.com)');
-            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Capacidad', 'General');
+            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+                { name: 'Operador', value: '[New Carrier](new.com)' },
+                { name: 'Capacidad', value: 'General' }
+            ]);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#4CAF50');
         });
 
@@ -212,9 +215,12 @@ describe('AppleEsimMonitor', () => {
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannelSend).toHaveBeenCalledTimes(1);
+            expect(mockChannelSend).toHaveBeenCalledWith({ embeds: [mockMessageEmbedInstance] });
             expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM eliminado en Chile!');
-            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Operador', '[Old Carrier](old.com)');
-            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Capacidad', 'Specific');
+            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+                { name: 'Operador', value: '[Old Carrier](old.com)' },
+                { name: 'Capacidad', value: 'Specific' }
+            ]);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#F44336');
         });
 

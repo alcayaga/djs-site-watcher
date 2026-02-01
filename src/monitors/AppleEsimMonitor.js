@@ -98,22 +98,26 @@ class AppleEsimMonitor extends Monitor {
 
         changes.added.forEach(carrier => {
             console.log(`Apple eSIM carrier change in ${country}: ${carrier.name} was added.`);
-            const embed = new Discord.MessageEmbed()
+            const embed = new Discord.EmbedBuilder()
                 .setTitle(`📱 ¡Operador de eSIM agregado en ${country}!`)
-                .addField('Operador', `[${carrier.name}](${carrier.link})`)
-                .addField('Capacidad', carrier.capability)
+                .addFields([
+                    { name: 'Operador', value: `[${carrier.name}](${carrier.link})` },
+                    { name: 'Capacidad', value: carrier.capability }
+                ])
                 .setColor('#4CAF50'); // Green for added
-            channel.send(embed);
+            channel.send({ embeds: [embed] });
         });
 
         changes.removed.forEach(carrier => {
             console.log(`Apple eSIM carrier change in ${country}: ${carrier.name} was removed.`);
-            const embed = new Discord.MessageEmbed()
+            const embed = new Discord.EmbedBuilder()
                 .setTitle(`📱 ¡Operador de eSIM eliminado en ${country}!`)
-                .addField('Operador', `[${carrier.name}](${carrier.link})`)
-                .addField('Capacidad', carrier.capability)
+                .addFields([
+                    { name: 'Operador', value: `[${carrier.name}](${carrier.link})` },
+                    { name: 'Capacidad', value: carrier.capability }
+                ])
                 .setColor('#F44336'); // Red for removed
-            channel.send(embed);
+            channel.send({ embeds: [embed] });
         });
     }
 }
