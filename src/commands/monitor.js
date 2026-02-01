@@ -82,7 +82,7 @@ module.exports = {
             }
             case 'check': {
                 await interaction.reply(`Triggering check for monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
-                targetMonitors.forEach(monitor => monitor.check(client));
+                await Promise.all(targetMonitors.map(monitor => monitor.check(client)));
                 break;
             }
         }
