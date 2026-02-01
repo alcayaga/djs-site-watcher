@@ -67,7 +67,7 @@ describe('SiteMonitor', () => {
         mockChannel = { send: mockChannelSend };
         mockMessageEmbedInstance = {
             setTitle: jest.fn().mockReturnThis(),
-            addField: jest.fn().mockReturnThis(),
+            addFields: jest.fn().mockReturnThis(),
             setColor: jest.fn().mockReturnThis(),
         };
 
@@ -78,7 +78,7 @@ describe('SiteMonitor', () => {
                 },
             },
         }));
-        jest.spyOn(Discord, 'MessageEmbed').mockImplementation(() => mockMessageEmbedInstance);
+        jest.spyOn(Discord, 'EmbedBuilder').mockImplementation(() => mockMessageEmbedInstance);
         // --- End Mock Discord.js components ---
 
         // Set up process.env for the test
@@ -260,9 +260,9 @@ describe('SiteMonitor', () => {
             // Clear and reset local mocks for notify tests
             client.channels.cache.get.mockClear();
             mockChannelSend.mockClear();
-            Discord.MessageEmbed.mockClear();
+            Discord.EmbedBuilder.mockClear();
             mockMessageEmbedInstance.setTitle.mockClear();
-            mockMessageEmbedInstance.addField.mockClear();
+            mockMessageEmbedInstance.addFields.mockClear();
             mockMessageEmbedInstance.setColor.mockClear();
             siteMonitor.client = client; // Ensure client is set on instance
         });
@@ -275,11 +275,14 @@ describe('SiteMonitor', () => {
             siteMonitor.notify(mockChange);
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
-            expect(mockChannel.send).toHaveBeenCalledWith(mockMessageEmbedInstance);
+            // send calls send({ embeds: [embed] }) now, but since we mock send, we check if it was called with the object containing the embed
+            expect(mockChannel.send).toHaveBeenCalledWith({ embeds: [mockMessageEmbedInstance] });
             expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('🔎 ¡Cambio en Test Site Title!  🐸');
-            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('URL', 'http://test-site.com');
-            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Último cambio', 'some-date', true);
-            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Actualizado', 'some-date', true);
+            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+                { name: 'URL', value: 'http://test-site.com' },
+                { name: 'Último cambio', value: 'some-date', inline: true },
+                { name: 'Actualizado', value: 'some-date', inline: true }
+            ]);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('0x6058f3');
             expect(mockChannel.send).toHaveBeenCalledWith(' \n🔴 old\n🟢 new\n\n ');
         });

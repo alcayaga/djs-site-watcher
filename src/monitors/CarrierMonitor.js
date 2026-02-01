@@ -103,14 +103,16 @@ class CarrierMonitor extends Monitor {
 
         changes.updated.forEach(carrier => {
             console.log('New carrier bundle version found:', carrier);
-            const embed = new Discord.MessageEmbed()
+            const embed = new Discord.EmbedBuilder()
                 .setTitle(`📲 ¡Nuevo Carrier Bundle para ${carrier.id}!`)
-                .addField(`Versión`, `${carrier.version}`)
-                .addField(`Build`, `${carrier.build}`)
-                .addField(`URL`, `${carrier.url}`)
-                .addField(`Actualizado`, `${carrier.lastUpdated}`)
+                .addFields([
+                    { name: `Versión`, value: `${carrier.version}` },
+                    { name: `Build`, value: `${carrier.build}` },
+                    { name: `URL`, value: `${carrier.url}` },
+                    { name: `Actualizado`, value: `${carrier.lastUpdated}` }
+                ])
                 .setColor('0x00FF00');
-            channel.send(embed);
+            channel.send({ embeds: [embed] });
         });
     }
 }

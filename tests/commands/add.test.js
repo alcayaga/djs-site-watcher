@@ -36,9 +36,9 @@ describe('add command', () => {
             getMonitor: jest.fn().mockReturnValue(mockSiteMonitor)
         };
         
-        // Mock Discord MessageEmbed
-        jest.spyOn(Discord, 'MessageEmbed').mockImplementation(() => ({
-            addField: jest.fn().mockReturnThis(),
+        // Mock Discord EmbedBuilder
+        jest.spyOn(Discord, 'EmbedBuilder').mockImplementation(() => ({
+            addFields: jest.fn().mockReturnThis(),
             setColor: jest.fn().mockReturnThis(),
         }));
     });

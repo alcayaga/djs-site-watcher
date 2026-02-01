@@ -100,13 +100,15 @@ class AppleFeatureMonitor extends Monitor {
 
         changes.added.forEach(item => {
             console.log(`New Apple feature found: ${item.featureName} in ${item.region}`);
-            const embed = new Discord.MessageEmbed()
+            const embed = new Discord.EmbedBuilder()
                 .setTitle(`🌟 ¡Nueva función de Apple disponible!`)
-                .addField('Función', item.featureName)
-                .addField('Región/Idioma', item.region)
-                .addField('URL', `${url}#${item.id}`)
+                .addFields([
+                    { name: 'Función', value: item.featureName },
+                    { name: 'Región/Idioma', value: item.region },
+                    { name: 'URL', value: `${url}#${item.id}` }
+                ])
                 .setColor('#0071E3');
-            channel.send(embed);
+            channel.send({ embeds: [embed] });
         });
     }
 }

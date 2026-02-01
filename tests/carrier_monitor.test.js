@@ -29,7 +29,7 @@ describe('CarrierMonitor', () => {
         mockChannelSend = jest.fn();
         mockMessageEmbedInstance = {
             setTitle: jest.fn().mockReturnThis(),
-            addField: jest.fn().mockReturnThis(),
+            addFields: jest.fn().mockReturnThis(),
             setColor: jest.fn().mockReturnThis(),
         };
         jest.spyOn(Discord, 'Client').mockImplementation(() => ({
@@ -39,7 +39,7 @@ describe('CarrierMonitor', () => {
                 },
             },
         }));
-        jest.spyOn(Discord, 'MessageEmbed').mockImplementation(() => mockMessageEmbedInstance);
+        jest.spyOn(Discord, 'EmbedBuilder').mockImplementation(() => mockMessageEmbedInstance);
 
         client = new Discord.Client();
         monitorConfig = { carriers: ['Verizon_US', 'ATT_US'], file: 'carrier.json' };
@@ -195,9 +195,9 @@ describe('CarrierMonitor', () => {
         beforeEach(() => {
             mockChannelSend.mockClear();
             Discord.Client.mock.results[0].value.channels.cache.get.mockClear();
-            Discord.MessageEmbed.mockClear();
+            Discord.EmbedBuilder.mockClear();
             mockMessageEmbedInstance.setTitle.mockClear();
-            mockMessageEmbedInstance.addField.mockClear();
+            mockMessageEmbedInstance.addFields.mockClear();
             mockMessageEmbedInstance.setColor.mockClear();
         });
 
@@ -215,10 +215,12 @@ describe('CarrierMonitor', () => {
 
             // Check first embed
             expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📲 ¡Nuevo Carrier Bundle para Verizon_US!');
-            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Versión', '48.0');
-            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Build', '48.0.0');
-            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('URL', 'http://v.com/48');
-            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Actualizado', 'now');
+            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+                { name: 'Versión', value: '48.0' },
+                { name: 'Build', value: '48.0.0' },
+                { name: 'URL', value: 'http://v.com/48' },
+                { name: 'Actualizado', value: 'now' }
+            ]);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('0x00FF00');
         });
 

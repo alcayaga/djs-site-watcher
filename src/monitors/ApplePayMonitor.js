@@ -180,20 +180,22 @@ class ApplePayMonitor extends Monitor {
 
         detectedChanges.changes.forEach(change => {
             if (change.type === 'regionDiff') {
-                const embed = new Discord.MessageEmbed()
+                const embed = new Discord.EmbedBuilder()
                     .setTitle(`🔎 ¡Cambio en la configuración de Apple Pay para ${this.REGION_TO_MONITOR} en ${change.configName}!`)
-                    .addField(`URL`, `${change.url}`)
+                    .addFields([{ name: `URL`, value: `${change.url}` }])
                     .setColor('#0071E3');
-                channel.send(embed);
+                channel.send({ embeds: [embed] });
                 channel.send(`\`\`\`diff\n${change.diff}\`\`\``);
             } else if (change.type === 'newMarketGeo') {
-                const embed = new Discord.MessageEmbed()
+                const embed = new Discord.EmbedBuilder()
                     .setTitle(`🌟 ¡Nueva región en Transit para Apple Pay en ${change.configName}!`)
-                    .addField('Región', this.REGION_TO_MONITOR, true)
-                    .addField('Nombre', change.geo.name, true)
-                    .addField('URL', change.url)
+                    .addFields([
+                        { name: 'Región', value: this.REGION_TO_MONITOR, inline: true },
+                        { name: 'Nombre', value: change.geo.name, inline: true },
+                        { name: 'URL', value: change.url }
+                    ])
                     .setColor('#0071E3');
-                channel.send(embed);
+                channel.send({ embeds: [embed] });
             }
         });
     }

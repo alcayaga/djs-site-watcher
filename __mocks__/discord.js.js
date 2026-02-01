@@ -1,14 +1,15 @@
 const mockChannel = {
   send: jest.fn(),
+  sendTyping: jest.fn(),
 };
 
 const mockSetTitle = jest.fn().mockReturnThis();
-const mockAddField = jest.fn().mockReturnThis();
+const mockAddFields = jest.fn().mockReturnThis();
 const mockSetColor = jest.fn().mockReturnThis();
 
-const MockMessageEmbed = jest.fn(function() {
+const MockEmbedBuilder = jest.fn(function() {
   this.setTitle = mockSetTitle;
-  this.addField = mockAddField;
+  this.addFields = mockAddFields;
   this.setColor = mockSetColor;
 });
 
@@ -34,7 +35,20 @@ module.exports = {
         },
       },
       login: jest.fn(),
+      user: {
+          tag: 'TestBot#0000'
+      }
     };
   }),
-  MessageEmbed: MockMessageEmbed,
+  EmbedBuilder: MockEmbedBuilder,
+  AttachmentBuilder: jest.fn(),
+  GatewayIntentBits: {
+      Guilds: 1,
+      GuildMessages: 512,
+      MessageContent: 32768
+  },
+  Partials: {
+      Channel: 1
+  },
+  Collection: Map,
 };

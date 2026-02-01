@@ -44,7 +44,7 @@ describe('AppleFeatureMonitor', () => {
         mockChannelSend = jest.fn();
         mockMessageEmbedInstance = {
             setTitle: jest.fn().mockReturnThis(),
-            addField: jest.fn().mockReturnThis(),
+            addFields: jest.fn().mockReturnThis(),
             setColor: jest.fn().mockReturnThis(),
         };
         jest.spyOn(Discord, 'Client').mockImplementation(() => ({
@@ -54,7 +54,7 @@ describe('AppleFeatureMonitor', () => {
                 },
             },
         }));
-        jest.spyOn(Discord, 'MessageEmbed').mockImplementation(() => mockMessageEmbedInstance);
+        jest.spyOn(Discord, 'EmbedBuilder').mockImplementation(() => mockMessageEmbedInstance);
 
         // JSDOM mock implementation is handled by the jest.mock('jsdom') block.
         jest.requireMock('jsdom').JSDOM.mockClear();
@@ -198,9 +198,9 @@ describe('AppleFeatureMonitor', () => {
         beforeEach(() => {
             mockChannelSend.mockClear();
             Discord.Client.mock.results[0].value.channels.cache.get.mockClear();
-            Discord.MessageEmbed.mockClear();
+            Discord.EmbedBuilder.mockClear();
             mockMessageEmbedInstance.setTitle.mockClear();
-            mockMessageEmbedInstance.addField.mockClear();
+            mockMessageEmbedInstance.addFields.mockClear();
             mockMessageEmbedInstance.setColor.mockClear();
         });
 
@@ -218,9 +218,11 @@ describe('AppleFeatureMonitor', () => {
 
             // Check first embed
             expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('🌟 ¡Nueva función de Apple disponible!');
-            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Función', 'New Feature');
-            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('Región/Idioma', 'New Region');
-            expect(mockMessageEmbedInstance.addField).toHaveBeenCalledWith('URL', 'http://apple.com/features#new-feature');
+            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+                { name: 'Función', value: 'New Feature' },
+                { name: 'Región/Idioma', value: 'New Region' },
+                { name: 'URL', value: 'http://apple.com/features#new-feature' }
+            ]);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#0071E3');
 
             // Need to ensure the second embed was also created/sent
