@@ -17,8 +17,8 @@ async function handleMessage(message, state, config) {
             if (ap_match != null) {
                 message.channel.sendTyping();
 
-                // Wait 5 seconds before sending the response
-                await new Promise(resolve => setTimeout(resolve, 5000));
+                // Wait for the configured delay before sending the response
+                await new Promise(resolve => setTimeout(resolve, config.AP_RESPONSE_DELAY || 5000));
 
                 const reply_id = Math.floor(Math.random() * response.replies.length);
                 const reply = response.replies[reply_id];

@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const storage = require('../storage');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -49,6 +50,8 @@ module.exports = {
         const exists = state.sitesToMonitor.some(s => s.url === site.url && s.css === site.css);
         if (!exists) {
             state.sitesToMonitor.push(site);
+            storage.saveSites(state.sitesToMonitor);
+            siteMonitor.state = state.sitesToMonitor;
         }
         
         let warning_message = '';
