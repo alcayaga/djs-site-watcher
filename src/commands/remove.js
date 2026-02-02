@@ -35,7 +35,6 @@ module.exports = {
         if (removedSite) {
             // Sync global state
             state.sitesToMonitor = siteMonitor.state;
-            console.log(state.sitesToMonitor);
             await interaction.reply(`Removed **${removedSite.id}** from list.`);
         } else {
             // Should be covered by the length check, but safe fallback

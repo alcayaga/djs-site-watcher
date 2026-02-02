@@ -7,7 +7,8 @@
     "test": "jest",
     "start": "node ./src/bot.js",
     "dev": "nodemon ./src/bot.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "deploy": "node src/deploy-commands.js"
   },
   "keywords": [],
   "author": "",
