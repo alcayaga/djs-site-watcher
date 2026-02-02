@@ -23,7 +23,8 @@
     * **NEVER** commit directly to `master`.
 
 ### Phase 2: Testing & Committing Logic
-**GLOBAL PRE-COMMIT GAUNTLET:** You must pass **Linting** and **System Testing** before creating any commit.
+**GLOBAL PRE-COMMIT GAUNTLET:** You must pass **Linting** and **System Testing** before creating **ANY** commit.
+* **WARNING:** This rule applies to **EVERY SINGLE ITERATION**. If you make a small fix after a failed test or a code review, you **MUST** run the full gauntlet again before committing. Do not skip this step.
 
 * **Scenario A: Bug Fixes & Simple Changes (TDD Style)**
     1.  **Test First:** Write/modify the test case to reproduce the bug.
@@ -36,7 +37,7 @@
     1.  **Implement:** Focus on the implementation logic.
     2.  **Regression Check:** Run `npm test` (existing tests) to ensure no breakages.
     3.  **Lint:** Run `npm run lint`.
-    4.  **System Check:** Run `npm start`. (Verifies the code works in the real environment with `SINGLE_RUN=true`). **If this fails, DO NOT COMMIT.**
+    4.  **System Check:** Run `npm start`. (Verifies the code works in the real environment with `SINGLE_RUN=true` already set). **If this fails, DO NOT COMMIT.**
     5.  **Commit Implementation:** Commit the working feature code.
     6.  **New Tests:** Add comprehensive tests for the new feature in a **separate subsequent commit**.
 
@@ -46,18 +47,37 @@
     * **NO** backticks (`) or quotes ("") around filenames or code symbols in the commit message.
     * Use standard conventional commits format (e.g., `feat:`, `fix:`, `refactor:`).
 
-### Phase 4: PR & Code Review Process
-Once the work is committed, follow this EXACT sequence:
+### Phase 4: PR Cycle & CI/CD Loop
+Once the work is committed, follow this EXACT cycle. Repeat this loop for every new commit pushed to the PR.
 
-1.  **Push:** `git push origin <branch_name>`
-2.  **Create PR:** `gh pr create` (Draft the description).
-3.  **Wait:** Wait approximately 5 minutes for CI/CD or initial checks to populate.
-4.  **Check Reviews:**
-    * Run: `gh pr-review review view <PR-NUMBER> -R alcayaga/djs-site-watcher`
-    * **PROHIBITED:** Do NOT use `gh api` to check reviews. Use the specific tool command above.
-5.  **Trigger AI Review:**
-    * After creating the PR or pushing updates to an existing one, run this command to trigger the automated review agent:
-    * `gh pr comment <PR-NUMBER> --body "/gemini review"`
+1.  **Push & Create:**
+    * `git push origin <branch_name>`
+    * **If New:** `gh pr create` (Draft description. **DO NOT** include `/gemini review` in the body of a new PR).
+    * **If Existing:** Just push.
+
+2.  **Wait for CI/CD:**
+    * Run: `sleep 250` (Wait ~4 mins for actions to run).
+    * Check Status: `gh pr checks <PR-NUMBER>` (Verify all tests passed).
+
+3.  **Fetch Unresolved Reviews:**
+    * Run exactly:
+        ```
+        gh pr-review review view <PR-NUMBER> -R alcayaga/djs-site-watcher --unresolved --not_outdated --reviewer gemini-code-assist
+        ```
+
+4.  **Handle Feedback (If Changes Needed):**
+    * **Reply:** If a comment needs a response:
+        ```
+        gh pr-review comments reply <PR-NUMBER> -R alcayaga/djs-site-watcher --thread-id <PRRT_ID> --body "Your message here. /gemini review"
+        ```
+    * **Resolve:** If you fixed the code issue:
+        ```
+        gh pr-review threads resolve -R alcayaga/djs-site-watcher <PR-NUMBER> --thread-id <PRRT_ID>
+        ```
+    * **Note:** When replying or resolving, you SHOULD append `/gemini review` to your comment body to trigger a re-review of your fixes.
+
+5.  **Iterate:**
+    * If you made code changes to fix the feedback, **GO BACK TO PHASE 2** (Lint -> Test -> System Check -> Commit).
 
 ## Testing Strategy Rules
 When validating changes, ALWAYS follow this strict execution order:

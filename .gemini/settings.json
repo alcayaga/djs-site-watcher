@@ -26,7 +26,10 @@
       "run_shell_command(gh search)",
       "run_shell_command(gh pr-review)",
       "run_shell_command(ls)",
-      "run_shell_command(grep)"
+      "run_shell_command(grep)",
+      "run_shell_command(echo)",
+      "run_shell_command(head)",
+      "run_shell_command(sleep)"
     ],
     "autoAccept": true
   },
