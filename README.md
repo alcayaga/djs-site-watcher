@@ -132,6 +132,13 @@ Manage the monitors.
 `/monitor status` Shows the status of all monitors.
 `/monitor check name:Carrier` Triggers a check for the Carrier monitor.
 
+## Migration from v2 to v3
+Version 3.0.0 introduces Discord Slash Commands.
+
+1.  **Client ID**: You must add `DISCORDJS_CLIENT_ID=` to your `.env` file. Find this in the Discord Developer Portal under "General Information".
+2.  **Deploy Commands**: Run `npm run deploy` to register the new slash commands with Discord.
+3.  **Command Prefix**: The `!` prefix is removed. Use slash commands (e.g., `/help`) instead.
+
 ## Migration from v1
 Version 2.0.0 introduces a new configuration structure. 
 
