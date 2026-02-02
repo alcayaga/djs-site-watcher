@@ -238,7 +238,7 @@ describe('Bot', () => {
                 await readyCallback();
 
                 // It should NOT call client.application.commands.set anymore (removed in bot.js)
-                const bot = require('../src/bot.js');
+                // const bot = require('../src/bot.js');
                 // expect(bot.client.application.commands.set).toHaveBeenCalled(); // Removed
 
                 const monitorManager = require('../src/MonitorManager');
