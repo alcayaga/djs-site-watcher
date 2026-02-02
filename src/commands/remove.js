@@ -1,29 +1,44 @@
-const storage = require('../storage');
+const { SlashCommandBuilder } = require('discord.js');
 
 module.exports = {
-    name: 'remove',
-    description: 'Remove site from list.',
+    data: new SlashCommandBuilder()
+        .setName('remove')
+        .setDescription('Remove site from list.')
+        .addIntegerOption(option =>
+            option.setName('index')
+                .setDescription('The number of the site to remove (from /list)')
+                .setRequired(true)
+                .setMinValue(1)),
     /**
      * Executes the remove command.
-     * @param {Discord.Message} message The message object.
-     * @param {string[]} args The arguments array.
-     * @param {Discord.Client} client The Discord client.
+     * @param {import('discord.js').ChatInputCommandInteraction} interaction The interaction object.
+     * @param {import('discord.js').Client} client The Discord client.
      * @param {object} state The state object.
-     * @returns {void}
+     * @param {object} config The config object.
+     * @param {object} monitorManager The MonitorManager instance.
+     * @returns {Promise<void>}
      */
-    execute(message, args, client, state) {
-        try {
-            if (args.length === 0 || isNaN(args[0])) return message.channel.send('Usage: `!remove <NR [1-99]>`');
-            if (args[0] < 1 || args[0] > 99 || args[0] > state.sitesToMonitor.length) return message.channel.send('Not a valid number. Usage: `!remove <NR [1-99]>`');
+    async execute(interaction, client, state, config, monitorManager) {
+        const index = interaction.options.getInteger('index');
+        const siteMonitor = monitorManager.getMonitor('Site');
 
-            const id = state.sitesToMonitor[args[0] - 1].id;
-            state.sitesToMonitor.splice(args[0] - 1, 1);
-            storage.saveSites(state.sitesToMonitor);
-            console.log(state.sitesToMonitor);
-            message.channel.send(`Removed **${id}** from list.`);
-        } catch (error) {
-            console.error(error);
-            message.reply('there was an error trying to execute that command!');
+        if (!siteMonitor) {
+            return interaction.reply({ content: 'Site monitor is not available.', ephemeral: true });
+        }
+        
+        if (index > siteMonitor.state.length) {
+            return interaction.reply({ content: `Not a valid number. Usage:\n/remove <index>\n(Max: ${siteMonitor.state.length})`, ephemeral: true });
+        }
+
+        const removedSite = await siteMonitor.removeSiteByIndex(index - 1);
+
+        if (removedSite) {
+            // Sync global state
+            state.sitesToMonitor = siteMonitor.state;
+            await interaction.reply(`Removed **${removedSite.id}** from list.`);
+        } else {
+            // Should be covered by the length check, but safe fallback
+            return interaction.reply({ content: `Failed to remove site at index ${index}.`, ephemeral: true });
         }
     },
 };

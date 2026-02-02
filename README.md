@@ -13,10 +13,6 @@ A Discord bot that alerts you when (part of) a website changes.
 
 ---
 
-## This project is obsolete!
-
-This bot is built on an old version of Discord.js (v12) and uses message content, a feature that is now restricted for verified bots. While it may still work on unverified servers, it is no longer maintained and may break at any time. Feel free to fork this project and create your own version based on this.
-
 ## Features
 
 Notify you in Discord when a website changes:   
@@ -47,115 +43,101 @@ Configuring the bot:
 
 1. Create a `.env` file from the `.env.example`.
 2. Add your discord bot token after `DISCORDJS_BOT_TOKEN=`. You can get this token from [discord.com/developers/applications](https://discord.com/developers/applications).
-3. Add the channel ID from the channel you want the update notifications in after `DISCORDJS_TEXTCHANNEL_ID=`. You can get this ID by right clicking the channel in discord and selecting `Copy ID`.  Make sure `Developer Mode` is on by going to `Settings → Appearance → Advanced → Developer Mode → ON`. Make sure the bot has permission to post in this channel.
-4. Add the channel ID from the channel you want the admin commands to be used in after `DISCORDJS_ADMINCHANNEL_ID=`.
-5. Add the role ID that is allowed to use the admin commands after `DISCORDJS_ROLE_ID=`.
+3. Add your application (client) ID after `DISCORDJS_CLIENT_ID=`. This is found in the "General Information" tab of your application.
+4. Add the channel ID from the channel you want the update notifications in after `DISCORDJS_TEXTCHANNEL_ID=`. You can get this ID by right clicking the channel in discord and selecting `Copy ID`.  Make sure `Developer Mode` is on by going to `Settings → Appearance → Advanced → Developer Mode → ON`. Make sure the bot has permission to post in this channel.
+5. Add the channel ID from the channel you want the admin commands to be used in after `DISCORDJS_ADMINCHANNEL_ID=`.
+6. Add the role ID that is allowed to use the admin commands after `DISCORDJS_ROLE_ID=`.
+7. (Optional) Configure `AP_RESPONSE_DELAY=` (milliseconds) for auto-responses (default: 5000).
 
 
 For starting and using the bot, see [Usage](#Usage).
 
 ## Usage
 The simplest method to monitor a site:
-1. Invite the bot to your Discord server by replacing `123456789012345678` in the following link with your bot's client id: `https://discord.com/oauth2/authorize?client_id=123456789012345678&scope=bot&permissions=8`. 
-1. Open the command line in the cloned repository folder by opening the `cmd.bat` file.
-2. Start the bot by typing `npm start`.
-3. In Discord (the bot should now be online), add a website with the `!add <URL>` command in the configured admin channel.
-4. Done! The added site is now being monitored.
-<sub>By default, the watch interval for every website is 5 minutes, but you can easily change this with the `!interval` command followed by the interval in minutes.</sub>
+1. Invite the bot to your Discord server using the OAuth2 URL generator in the Developer Portal (Scope: `bot`, `applications.commands`; Permissions: `Administrator` or specific permissions).
+2. Open the command line in the cloned repository folder.
+3. Register the slash commands by running `npm run deploy`. You only need to do this once or when commands change.
+4. Start the bot by typing `npm start`.
+5. In Discord (the bot should now be online), add a website with the `/add` command in the configured admin channel.
+6. Done! The added site is now being monitored.
+<sub>By default, the watch interval for every website is 5 minutes, but you can easily change this with the `/interval` command followed by the interval in minutes.</sub>
 
 For all other options, see [Commands](#Commands).
 
 ## Commands
-### `!help`
+### `/help`
 Show all the available commands.
 
-**Parameters**   
-None.
-
-**Example**   
-`!help` This will show all the available commands.
-
-**Output**   
-![help](./.github/pictures/help.png)
-
----
-
-### `!add <URL> "<CSS SELECTOR>"`
+### `/add url: <URL> [selector: <CSS SELECTOR>]`
 Adds a website to the list.
 
 **Parameters**   
 Required:   
-`URL` The URL of the site you want to track.   
+`url`: The URL of the site you want to track.   
 
 Optional:   
-`"CSS SELECTOR"` The part of the site you want to track. (By default the \<head\> of the site is tracked).   
-<sub>**Make sure to use double quotation marks when using this parameter.**   
+`selector`: The part of the site you want to track. (By default the \<head\> of the site is tracked).   
+<sub>
 In Chrome, this can be obtained by right clicking the part of the site you want to track and selecting: `Inspect`. After this you see the element highlighted in the developer view. You can right click on the element and select `Copy → Copy selector`. </sub>
 
 **Example**   
-`!add https://google.com/` This tracks changes on https://google.com/.   
+`/add url:https://google.com/` This tracks changes on https://google.com/.   
 <sub>Note that some sites, including Google.com have dynamic elements (like ads) that cause a change every time its checked. To make sure this is filtered out, use the css selector parameter.</sub>   
 
-`!add https://example.com/ "body > div > h1"` This tracks changes in header 1 of the site https://example.com/.
-
-**Output**   
-![add](./.github/pictures/add.png)
+`/add url:https://example.com/ selector:body > div > h1` This tracks changes in header 1 of the site https://example.com/.
 
 ---
 
-### `!remove <NUMBER>`
+### `/remove index: <NUMBER>`
 Removes a website from the list.
 
 **Parameters**   
 Required:   
-`NUMBER` The number of the site you want to remove. Use `!list` to see the number of the site(s).   
+`index`: The number of the site you want to remove. Use `/list` to see the number of the site(s).   
 
 **Example**   
-`!remove 1` This removes the first site in the list (`!list`).
-
-**Output**   
-![remove](./.github/pictures/remove.png)
+`/remove index:1` This removes the first site in the list (`/list`).
 
 ---
 
-### `!list`
+### `/list` (Alias: `/show`)
 Shows the list of websites being watched.
 
-**Parameters**   
-None.
-
-**Example**   
-`!list` This shows the list of websites being watched.
-
-**Output**   
-![list](./.github/pictures/list.png)
-
 ---
 
-### `!interval <MINUTES>`
+### `/interval minutes: <MINUTES>`
 Set the interval/refresh rate of the watcher. Default `5` minutes.
 
 **Parameters**   
-`MINUTES` The interval in minutes (minimum of 1, maximum of 60).
+`minutes`: The interval in minutes (minimum of 1, maximum of 60).
 
 **Example**   
-`!interval 10` Sets the interval to 10 minutes.
-
-**Output**   
-![interval](./.github/pictures/interval.png)
+`/interval minutes:10` Sets the interval to 10 minutes.
 
 ---
 
-### `!monitor <start|stop|status|check> [monitor_name|all]`
+### `/monitor <subcommand> [name]`
 Manage the monitors.
 
+**Subcommands**
+*   `start`: Start a monitor.
+*   `stop`: Stop a monitor.
+*   `status`: Show status.
+*   `check`: Trigger a manual check.
+
 **Parameters**
-`subcommand` One of `start`, `stop`, `status`, or `check`.
-`monitor_name` (Optional) The name of the monitor (e.g., `Site`, `Carrier`, `AppleEsim`, `ApplePay`, `AppleFeature`). Defaults to `all`.
+`name` (Optional): The name of the monitor (e.g., `Site`, `Carrier`, `AppleEsim`, `ApplePay`, `AppleFeature`). Defaults to `all`. Autocomplete is enabled.
 
 **Example**
-`!monitor status` Shows the status of all monitors.
-`!monitor check Carrier` Triggers a check for the Carrier monitor.
+`/monitor status` Shows the status of all monitors.
+`/monitor check name:Carrier` Triggers a check for the Carrier monitor.
+
+## Migration from v2 to v3
+Version 3.0.0 introduces Discord Slash Commands.
+
+1.  **Client ID**: You must add `DISCORDJS_CLIENT_ID=` to your `.env` file. Find this in the Discord Developer Portal under "General Information".
+2.  **Deploy Commands**: Run `npm run deploy` to register the new slash commands with Discord.
+3.  **Command Prefix**: The `!` prefix is removed. Use slash commands (e.g., `/help`) instead.
 
 ## Migration from v1
 Version 2.0.0 introduces a new configuration structure. 

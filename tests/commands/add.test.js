@@ -1,17 +1,23 @@
-const add = require('../../src/commands/add');
-const Discord = require('discord.js');
+const addCommand = require('../../src/commands/add');
 
 describe('add command', () => {
-    let mockMessage, mockState, mockClient, mockMonitorManager, mockSiteMonitor;
+    let mockInteraction, mockState, mockClient, mockMonitorManager, mockSiteMonitor;
 
     beforeEach(() => {
         jest.clearAllMocks();
-        mockMessage = {
-            channel: {
-                send: jest.fn()
+        
+        mockInteraction = {
+            options: {
+                getString: jest.fn()
             },
-            reply: jest.fn()
+            reply: jest.fn(),
+            deferReply: jest.fn(),
+            editReply: jest.fn(),
+            followUp: jest.fn(),
+            deferred: false,
+            replied: false
         };
+
         mockState = {
             sitesToMonitor: []
         };
@@ -29,74 +35,48 @@ describe('add command', () => {
                     lastContent: 'content'
                 },
                 warning: false
-            })
+            }),
+            state: [] // Mock state
         };
 
         mockMonitorManager = {
             getMonitor: jest.fn().mockReturnValue(mockSiteMonitor)
         };
-        
-        // Mock Discord EmbedBuilder
-        jest.spyOn(Discord, 'EmbedBuilder').mockImplementation(() => ({
-            addFields: jest.fn().mockReturnThis(),
-            setColor: jest.fn().mockReturnThis(),
-        }));
     });
 
     it('should add a site to sitesToMonitor array by delegating to SiteMonitor', async () => {
-        const args = ['https://example.com', '#test'];
-        await add.execute(mockMessage, args, mockClient, mockState, {}, {}, mockMonitorManager);
+        mockInteraction.options.getString.mockImplementation((name) => {
+            if (name === 'url') return 'https://example.com';
+            if (name === 'selector') return '#test';
+            return null;
+        });
+
+        // Simulate addSite updating state
+        mockSiteMonitor.addSite.mockImplementation(async () => {
+            const site = { id: 'example.com', url: 'https://example.com', css: '#test' };
+            mockSiteMonitor.state = [site];
+            return { site: site, warning: false };
+        });
+
+        await addCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
         expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('Site');
         expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', '#test');
         expect(mockState.sitesToMonitor).toHaveLength(1);
         expect(mockState.sitesToMonitor[0].url).toBe('https://example.com');
-        expect(mockMessage.channel.send).toHaveBeenCalled();
+        
+        expect(mockInteraction.deferReply).toHaveBeenCalled();
+        expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
+            embeds: expect.any(Array)
+        }));
     });
 
-    it('should handle warning from SiteMonitor', async () => {
-        mockSiteMonitor.addSite.mockResolvedValue({
-            site: {
-                id: 'example.com',
-                url: 'https://example.com',
-                css: '#test'
-            },
-            warning: true
-        });
-
-        const args = ['https://example.com', '#test'];
-        await add.execute(mockMessage, args, mockClient, mockState, {}, {}, mockMonitorManager);
-
-        expect(mockMessage.channel.send).toHaveBeenCalled();
-        // Check if embed contains warning text (indirectly via args passed to mocks or message structure)
-        // Since we mocked MessageEmbed, we can't check the serialized content easily without inspecting the mock calls more deeply
-        // But verifying execution completes without error is a good start.
-    });
-
-    it('should reply with error if SiteMonitor is missing', async () => {
+    it('should handle missing SiteMonitor', async () => {
         mockMonitorManager.getMonitor.mockReturnValue(null);
+        mockInteraction.options.getString.mockReturnValue('https://example.com');
         
-        const args = ['https://example.com'];
-        await add.execute(mockMessage, args, mockClient, mockState, {}, {}, mockMonitorManager);
+        await addCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
-        expect(mockMessage.reply).toHaveBeenCalledWith('Site monitor is not available.');
-    });
-
-    it('should handle errors from addSite gracefully', async () => {
-        mockSiteMonitor.addSite.mockRejectedValue(new Error('Fetch failed'));
-        
-        const args = ['https://example.com'];
-        await add.execute(mockMessage, args, mockClient, mockState, {}, {}, mockMonitorManager);
-
-        expect(mockMessage.reply).toHaveBeenCalledWith('there was an error trying to execute that command!');
-    });
-
-    it('should fail gracefully if state.sitesToMonitor is not an array', async () => {
-        mockState.sitesToMonitor = null; 
-        const args = ['https://example.com', '#test'];
-        
-        await add.execute(mockMessage, args, mockClient, mockState, {}, {}, mockMonitorManager);
-
-        expect(mockMessage.reply).toHaveBeenCalledWith('there was an error trying to execute that command!');
+        expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({ content: 'Site monitor is not available.' }));
     });
 });

@@ -1,38 +1,35 @@
+const { SlashCommandBuilder } = require('discord.js');
 const storage = require('../storage');
-/* eslint-disable-next-line no-unused-vars */
-const config = require('../config');
 
 module.exports = {
-    name: 'interval',
-    description: 'Set update interval, default `5`.',
+    data: new SlashCommandBuilder()
+        .setName('interval')
+        .setDescription('Set update interval.')
+        .addIntegerOption(option =>
+            option.setName('minutes')
+                .setDescription('Update interval in minutes (1-60)')
+                .setRequired(true)
+                .setMinValue(1)
+                .setMaxValue(60)),
     /**
      * Executes the interval command.
-     * @param {Discord.Message} message The message object.
-     * @param {string[]} args The arguments array.
-     * @param {Discord.Client} client The Discord client.
+     * @param {import('discord.js').ChatInputCommandInteraction} interaction The interaction object.
+     * @param {import('discord.js').Client} client The Discord client.
      * @param {object} state The application state.
      * @param {object} config The configuration object.
-     * @param {object} cronUpdate The main cron job.
      * @param {object} monitorManager The MonitorManager instance.
-     * @returns {void}
+     * @returns {Promise<void>}
      */
-    execute(message, args, client, state, config, cronUpdate, monitorManager) {
-        try {
-            if (args.length === 0 || isNaN(args[0]) || args[0] < 1 || args[0] > 60) return message.channel.send('Usage: `!interval <MINUTES [1-60]>`');
-            
-            const newInterval = Math.round(args[0]);
+    async execute(interaction, client, state, config, monitorManager) {
+        const newInterval = interaction.options.getInteger('minutes');
 
-            config.interval = newInterval;
-            storage.saveSettings(config);
-            message.channel.send(`Interval set to ${config.interval} minutes.`);
+        config.interval = newInterval;
+        storage.saveSettings(config);
+        
+        // Use MonitorManager to set intervals and start all monitors
+        monitorManager.setAllIntervals(newInterval);
+        monitorManager.startAll();
 
-            // Use MonitorManager to set intervals and start all monitors
-            monitorManager.setAllIntervals(newInterval);
-            monitorManager.startAll();
-
-        } catch (error) {
-            console.error(error);
-            message.reply('there was an error trying to execute that command!');
-        }
+        await interaction.reply(`Interval set to ${config.interval} minutes.`);
     },
 };

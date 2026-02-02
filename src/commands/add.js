@@ -1,58 +1,65 @@
-const Discord = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
-    name: 'add',
-    description: 'Add site to monitor with optional CSS selector.',
+    data: new SlashCommandBuilder()
+        .setName('add')
+        .setDescription('Add site to monitor with optional CSS selector.')
+        .addStringOption(option =>
+            option.setName('url')
+                .setDescription('The URL to monitor')
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('selector')
+                .setDescription('The CSS selector to monitor (default: head)')
+                .setRequired(false)),
     /**
      * Executes the add command.
-     * @param {Discord.Message} message The message object.
-     * @param {string[]} args The arguments array.
-     * @param {Discord.Client} client The Discord client.
+     * @param {import('discord.js').ChatInputCommandInteraction} interaction The interaction object.
+     * @param {import('discord.js').Client} client The Discord client.
      * @param {object} state The state object.
      * @param {object} config The config object.
-     * @param {object} cronUpdate The cron object.
      * @param {object} monitorManager The monitor manager.
      * @returns {Promise<void>}
      */
-    async execute(message, args, client, state, config, cronUpdate, monitorManager) {
+    async execute(interaction, client, state, config, monitorManager) {
+        const urlString = interaction.options.getString('url');
+        const selector = interaction.options.getString('selector') || 'head';
+
+        let url;
         try {
-            if (args.length === 0) return message.channel.send('Usage: `!add <URL> (<CSS SELECTOR>)`');
-            const url = args[0];
-            let selector = 'head';
-            if (args[1]) {
-                selector = args[1];
+            url = new URL(urlString);
+            if (!['http:', 'https:'].includes(url.protocol)) {
+                return interaction.reply({ content: 'Invalid protocol. Only HTTP and HTTPS are allowed.', ephemeral: true });
             }
-
-            const siteMonitor = monitorManager.getMonitor('Site');
-            if (!siteMonitor) {
-                return message.reply('Site monitor is not available.');
-            }
-
-            const { site, warning } = await siteMonitor.addSite(url, selector);
-
-            // Update local state to match the monitor's state
-            // We can just push the new site since SiteMonitor.addSite handles the persistence and its own state
-            // But checking for duplicates first to be safe and avoid session state desync
-            const exists = state.sitesToMonitor.some(s => s.url === site.url && s.css === site.css);
-            if (!exists) {
-                state.sitesToMonitor.push(site);
-            }
-            
-            let warning_message = '';
-            if (warning) {
-                warning_message = '\n**Atención:** No se encontró el selector CSS solicitado'
-            }
-
-            const embed = new Discord.EmbedBuilder();
-            embed.addFields([{
-                name: `Monitoreando ahora:`,
-                value: `Dominio: ${site.id}\nURL: ${site.url}\nCSS: \n${site.css.substring(0, 800)}${warning_message}`
-            }]);
-            embed.setColor(0x6058f3);
-            message.channel.send({ embeds: [embed] });
-        } catch (error) {
-            console.error(error);
-            message.reply('there was an error trying to execute that command!');
+        } catch (e) {
+            return interaction.reply({ content: 'Invalid URL format.', ephemeral: true });
         }
+
+        const siteMonitor = monitorManager.getMonitor('Site');
+        if (!siteMonitor) {
+            return interaction.reply({ content: 'Site monitor is not available.', ephemeral: true });
+        }
+
+        // Defer reply since adding a site might take a moment (fetching)
+        await interaction.deferReply();
+
+        const { site, warning } = await siteMonitor.addSite(urlString, selector);
+
+        // Update local state to match the monitor's state (which is the source of truth)
+        state.sitesToMonitor = siteMonitor.state;
+        
+        let warning_message = '';
+        if (warning) {
+            warning_message = '\n**Atención:** No se encontró el selector CSS solicitado'
+        }
+
+        const embed = new EmbedBuilder();
+        embed.addFields([{ 
+            name: `Monitoreando ahora:`, 
+            value: `Dominio: ${site.id}\nURL: ${site.url}\nCSS: \n${site.css.substring(0, 800)}${warning_message}`
+        }]);
+        embed.setColor(0x6058f3);
+        
+        await interaction.editReply({ embeds: [embed] });
     },
 };

@@ -1,25 +1,26 @@
-const Discord = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
-    name: 'help',
-    description: 'Show all commands.',
+    data: new SlashCommandBuilder()
+        .setName('help')
+        .setDescription('Show all commands.'),
     /**
      * Executes the help command.
-     * @param {Discord.Message} message The message object.
-     * @returns {void}
+     * @param {import('discord.js').ChatInputCommandInteraction} interaction The interaction object.
+     * @returns {Promise<void>}
      */
-    execute(message) {
-        const embed = new Discord.EmbedBuilder();
+    async execute(interaction) {
+        const embed = new EmbedBuilder();
         embed.setTitle("Commands");
         embed.setColor(0x6058f3);
         embed.addFields([
-            { name: '`!help`', value: 'Show all commands.' },
-            { name: '`!add <URL> "<CSS SELECTOR>"`', value: 'Add site to monitor with optional CSS selector.' },
-            { name: '`!remove <NR>`', value: 'Remove site from list.' },
-            { name: '`!list | !show`', value: 'Show list of added sites.' },
-            { name: '`!interval`', value: 'Set update interval, default `5`.' },
-            { name: '`!monitor <start|stop|status|check> [monitor_name|all]`', value: 'Manage monitors (Site, Carrier, AppleEsim, ApplePay, AppleFeature).' }
+            { name: '`/help`', value: 'Show all commands.' },
+            { name: '`/add <url> [selector]`', value: 'Add site to monitor with optional CSS selector.' },
+            { name: '`/remove <index>`', value: 'Remove site from list.' },
+            { name: '`/list` | `/show`', value: 'Show list of added sites.' },
+            { name: '`/interval <minutes>`', value: 'Set update interval, default `5`.' },
+            { name: '`/monitor <subcommand> [name]`', value: 'Manage monitors (start, stop, status, check).' }
         ]);
-        message.channel.send({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed] });
     },
 };

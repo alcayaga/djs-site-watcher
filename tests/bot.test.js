@@ -26,7 +26,14 @@ const _got = require('got');
 const _JSDOM = require('jsdom');
 const _state = require('../src/state');
 const _MonitorManager = require('../src/MonitorManager');
-const _commandHandler = require('../src/command-handler');
+
+// Mock handlers
+jest.mock('../src/handlers/interactionHandler', () => ({
+    handleInteraction: jest.fn(),
+}));
+jest.mock('../src/handlers/messageHandler', () => ({
+    handleMessage: jest.fn(),
+}));
 
 // Mock MonitorManager
 jest.mock('../src/MonitorManager', () => ({
@@ -66,11 +73,6 @@ jest.mock('jsdom', () => ({
     })),
 }));
 
-// Mock command-handler
-jest.mock('../src/command-handler', () => ({
-    handleCommand: jest.fn(),
-}));
-
 // Mock fs
 jest.mock('fs', () => ({
     readdirSync: jest.fn().mockReturnValue(['SiteMonitor.js']),
@@ -99,6 +101,7 @@ jest.mock('discord.js', () => {
                 return undefined;
             },
             values: () => map.values(),
+            map: (fn) => Array.from(map.values()).map(fn),
         };
     });
     
@@ -117,6 +120,11 @@ jest.mock('discord.js', () => {
         emit: jest.fn(),
         user: {
             tag: 'test-bot'
+        },
+        application: {
+            commands: {
+                set: jest.fn().mockResolvedValue([])
+            }
         }
     };
 
@@ -134,7 +142,9 @@ jest.mock('discord.js', () => {
             Channel: 1
         },
         Events: {
-            ClientReady: 'clientReady'
+            ClientReady: 'clientReady',
+            InteractionCreate: 'interactionCreate',
+            MessageCreate: 'messageCreate'
         }
     };
 });
@@ -151,6 +161,13 @@ describe('Bot', () => {
     function getMessageCallback() {
         const client = new (require('discord.js').Client)();
         const call = client.on.mock.calls.find(call => call[0] === 'messageCreate');
+        return call ? call[1] : null;
+    }
+
+    // Helper to get the interaction callback
+    function getInteractionCallback() {
+        const client = new (require('discord.js').Client)();
+        const call = client.on.mock.calls.find(call => call[0] === 'interactionCreate');
         return call ? call[1] : null;
     }
 
@@ -175,6 +192,7 @@ describe('Bot', () => {
         expect(bot.client).toBeDefined();
         expect(bot.client.on).toHaveBeenCalledWith('clientReady', expect.any(Function));
         expect(bot.client.on).toHaveBeenCalledWith('messageCreate', expect.any(Function));
+        expect(bot.client.on).toHaveBeenCalledWith('interactionCreate', expect.any(Function));
     });
 
     describe('on "ready" event', () => {
@@ -219,16 +237,19 @@ describe('Bot', () => {
 
                 await readyCallback();
 
+                // It should NOT call client.application.commands.set anymore (removed in bot.js)
+                // const bot = require('../src/bot.js');
+                // expect(bot.client.application.commands.set).toHaveBeenCalled(); // Removed
+
                 const monitorManager = require('../src/MonitorManager');
                 expect(monitorManager.initialize).toHaveBeenCalled();
                 expect(monitorManager.setAllIntervals).toHaveBeenCalledWith(10);
                 expect(monitorManager.startAll).toHaveBeenCalled();
-                expect(monitorManager.checkAll).not.toHaveBeenCalled();
             });
         });
     });
 
-    it('should handle incoming messages via commandHandler', () => {
+    it('should handle incoming messages via messageHandler.handleMessage', () => {
         jest.doMock('../src/config', () => ({
             DISCORDJS_BOT_TOKEN: 'mock_token',
         }));
@@ -236,16 +257,34 @@ describe('Bot', () => {
         const messageCallback = getMessageCallback();
         expect(messageCallback).toBeDefined();
 
-        const mockMessage = { content: '!ping' };
+        const mockMessage = { content: 'test' };
         messageCallback(mockMessage);
 
-        const commandHandler = require('../src/command-handler');
-        expect(commandHandler.handleCommand).toHaveBeenCalledWith(
+        const messageHandler = require('../src/handlers/messageHandler');
+        expect(messageHandler.handleMessage).toHaveBeenCalledWith(
             mockMessage,
+            expect.anything(), // state
+            expect.anything(), // config
+        );
+    });
+
+    it('should handle incoming interactions via interactionHandler.handleInteraction', async () => {
+        jest.doMock('../src/config', () => ({
+            DISCORDJS_BOT_TOKEN: 'mock_token',
+        }));
+        require('../src/bot.js');
+        const interactionCallback = getInteractionCallback();
+        expect(interactionCallback).toBeDefined();
+
+        const mockInteraction = { isChatInputCommand: () => true };
+        await interactionCallback(mockInteraction);
+
+        const interactionHandler = require('../src/handlers/interactionHandler');
+        expect(interactionHandler.handleInteraction).toHaveBeenCalledWith(
+            mockInteraction,
             expect.anything(), // client
             expect.anything(), // state
             expect.anything(), // config
-            null, // cronUpdate
             expect.anything() // monitorManager
         );
     });

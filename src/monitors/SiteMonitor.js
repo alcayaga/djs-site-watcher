@@ -250,6 +250,21 @@ class SiteMonitor extends Monitor {
         return { site, warning };
     }
     
+    /**
+     * Removes a site from the monitor by index.
+     * @param {number} index The index of the site to remove.
+     * @returns {Promise<object|null>} The removed site object, or null if invalid index.
+     */
+    async removeSiteByIndex(index) {
+        if (!Array.isArray(this.state) || index < 0 || index >= this.state.length) {
+            return null;
+        }
+
+        const removedSite = this.state.splice(index, 1)[0];
+        await this.saveState(this.state);
+        return removedSite;
+    }
+    
     /**     * Overrides the base loadState to load from the `sites.json` file.
      * @returns {Promise<Array>} The loaded state.
      */
