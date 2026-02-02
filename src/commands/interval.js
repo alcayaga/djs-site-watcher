@@ -17,11 +17,10 @@ module.exports = {
      * @param {import('discord.js').Client} client The Discord client.
      * @param {object} state The application state.
      * @param {object} config The configuration object.
-     * @param {object} cronUpdate The main cron job.
      * @param {object} monitorManager The MonitorManager instance.
      * @returns {Promise<void>}
      */
-    async execute(interaction, client, state, config, cronUpdate, monitorManager) {
+    async execute(interaction, client, state, config, monitorManager) {
         const newInterval = interaction.options.getInteger('minutes');
 
         config.interval = newInterval;

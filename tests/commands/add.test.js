@@ -50,7 +50,7 @@ describe('add command', () => {
             return null;
         });
 
-        await addCommand.execute(mockInteraction, mockClient, mockState, {}, {}, mockMonitorManager);
+        await addCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
         expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('Site');
         expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', '#test');
@@ -67,7 +67,7 @@ describe('add command', () => {
         mockMonitorManager.getMonitor.mockReturnValue(null);
         mockInteraction.options.getString.mockReturnValue('https://example.com');
         
-        await addCommand.execute(mockInteraction, mockClient, mockState, {}, {}, mockMonitorManager);
+        await addCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
         expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({ content: 'Site monitor is not available.' }));
     });

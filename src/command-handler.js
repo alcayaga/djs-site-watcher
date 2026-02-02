@@ -18,10 +18,9 @@ for (const file of commandFiles) {
  * @param {import('discord.js').Client} client The Discord client instance.
  * @param {object} state The application state.
  * @param {object} config The application configuration.
- * @param {object} cronUpdate The cron job for updating sites.
  * @param {object} monitorManager The MonitorManager instance.
  */
-async function handleInteraction(interaction, client, state, config, cronUpdate, monitorManager) {
+async function handleInteraction(interaction, client, state, config, monitorManager) {
     // Authorization Check
     const isAuthorized = interaction.channelId === config.DISCORDJS_ADMINCHANNEL_ID && 
                          interaction.member && 
@@ -39,7 +38,7 @@ async function handleInteraction(interaction, client, state, config, cronUpdate,
 
     if (interaction.isChatInputCommand()) {
         try {
-            await command.execute(interaction, client, state, config, cronUpdate, monitorManager);
+            await command.execute(interaction, client, state, config, monitorManager);
         } catch (error) {
             console.error(error);
             const errorMessage = { content: 'There was an error executing this command!', ephemeral: true };

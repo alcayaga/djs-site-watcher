@@ -40,7 +40,7 @@ describe('Command Functionality', () => {
         it('should update interval', async () => {
             mockInteraction.options.getInteger.mockReturnValue(10);
             
-            await intervalCommand.execute(mockInteraction, {}, {}, mockConfig, {}, mockMonitorManager);
+            await intervalCommand.execute(mockInteraction, {}, {}, mockConfig, mockMonitorManager);
 
             expect(mockConfig.interval).toBe(10);
             expect(storage.saveSettings).toHaveBeenCalledWith(mockConfig);
@@ -64,7 +64,7 @@ describe('Command Functionality', () => {
             mockInteraction.options.getSubcommand.mockReturnValue('start');
             mockInteraction.options.getString.mockReturnValue('all');
 
-            await monitorCommand.execute(mockInteraction, {}, {}, {}, {}, mockMonitorManager);
+            await monitorCommand.execute(mockInteraction, {}, {}, {}, mockMonitorManager);
 
             expect(mockMonitorManager.getAllMonitors).toHaveBeenCalled();
             mockMonitorManager.getAllMonitors().forEach(m => expect(m.start).toHaveBeenCalled());
@@ -75,7 +75,7 @@ describe('Command Functionality', () => {
             mockInteraction.options.getSubcommand.mockReturnValue('stop');
             mockInteraction.options.getString.mockReturnValue('AppleEsim');
 
-            await monitorCommand.execute(mockInteraction, {}, {}, {}, {}, mockMonitorManager);
+            await monitorCommand.execute(mockInteraction, {}, {}, {}, mockMonitorManager);
 
             const monitor = mockMonitorManager.getMonitor('AppleEsim');
             expect(monitor.stop).toHaveBeenCalled();

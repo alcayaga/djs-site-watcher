@@ -8,7 +8,7 @@ jest.mock('../../src/storage', () => ({
 }));
 
 describe('List, Remove, Help Commands', () => {
-    let mockInteraction, mockState, mockClient;
+    let mockInteraction, mockState, mockClient, mockMonitorManager, mockSiteMonitor;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -30,6 +30,13 @@ describe('List, Remove, Help Commands', () => {
             ]
         };
         mockClient = {};
+        
+        mockSiteMonitor = {
+            state: []
+        };
+        mockMonitorManager = {
+            getMonitor: jest.fn().mockReturnValue(mockSiteMonitor)
+        };
     });
 
     describe('/list', () => {
@@ -40,10 +47,6 @@ describe('List, Remove, Help Commands', () => {
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
                 embeds: expect.any(Array)
             }));
-            // Verify embed content - accessing internal data properties of the built embed
-            // EmbedBuilder instances in tests are mocks, so we check how they were called or their properties if they are real objects
-            // In our mock, EmbedBuilder returns an object with methods.
-            // But we can check the calls to addFields.
         });
 
         it('should message if no sites', async () => {
@@ -57,18 +60,20 @@ describe('List, Remove, Help Commands', () => {
         it('should remove a site', async () => {
             mockInteraction.options.getInteger.mockReturnValue(1); // Remove first site (index 1)
 
-            await removeCommand.execute(mockInteraction, mockClient, mockState);
+            await removeCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
             expect(mockState.sitesToMonitor).toHaveLength(1);
             expect(mockState.sitesToMonitor[0].id).toBe('site2');
             expect(storage.saveSites).toHaveBeenCalledWith(mockState.sitesToMonitor);
+            expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('Site');
+            expect(mockSiteMonitor.state).toBe(mockState.sitesToMonitor);
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.stringContaining('Removed **site1**'));
         });
 
         it('should handle invalid index', async () => {
             mockInteraction.options.getInteger.mockReturnValue(99);
 
-            await removeCommand.execute(mockInteraction, mockClient, mockState);
+            await removeCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
             expect(mockState.sitesToMonitor).toHaveLength(2); // No change
             expect(storage.saveSites).not.toHaveBeenCalled();

@@ -42,11 +42,10 @@ module.exports = {
      * @param {import('discord.js').Client} client The Discord client.
      * @param {object} state The state object.
      * @param {object} config The configuration object.
-     * @param {object} cronUpdate The main cron job (for site-monitor).
      * @param {object} monitorManager The MonitorManager instance.
      * @returns {Promise<void>}
      */
-    async execute(interaction, client, state, config, cronUpdate, monitorManager) {
+    async execute(interaction, client, state, config, monitorManager) {
         const subCommand = interaction.options.getSubcommand();
         const targetMonitorName = interaction.options.getString('name') || 'all';
 

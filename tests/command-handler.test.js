@@ -51,13 +51,19 @@ describe('Command Handler', () => {
         mockMonitorManager = {};
     });
 
-    it('should execute command if authorized', async () => {
+    it('should execute command with correct arguments if authorized', async () => {
         mockInteraction.isChatInputCommand.mockReturnValue(true);
         const addCommand = require('../src/commands/add.js');
         
-        await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, null, mockMonitorManager);
+        await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
-        expect(addCommand.execute).toHaveBeenCalled();
+        expect(addCommand.execute).toHaveBeenCalledWith(
+            mockInteraction,
+            mockClient,
+            mockState,
+            mockConfig,
+            mockMonitorManager
+        );
     });
 
     describe('Error Handling', () => {
@@ -66,7 +72,7 @@ describe('Command Handler', () => {
             const addCommand = require('../src/commands/add.js');
             addCommand.execute.mockRejectedValue(new Error('Test Fail'));
 
-            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, null, mockMonitorManager);
+            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('error executing')
@@ -79,7 +85,7 @@ describe('Command Handler', () => {
             const addCommand = require('../src/commands/add.js');
             addCommand.execute.mockRejectedValue(new Error('Test Fail'));
 
-            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, null, mockMonitorManager);
+            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('error executing')
@@ -92,7 +98,7 @@ describe('Command Handler', () => {
             const addCommand = require('../src/commands/add.js');
             addCommand.execute.mockRejectedValue(new Error('Test Fail'));
 
-            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, null, mockMonitorManager);
+            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('error executing')
@@ -105,7 +111,7 @@ describe('Command Handler', () => {
         mockInteraction.channelId = 'wrong-channel';
         const addCommand = require('../src/commands/add.js');
 
-        await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, null, mockMonitorManager);
+        await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
         expect(addCommand.execute).not.toHaveBeenCalled();
         expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
@@ -119,7 +125,7 @@ describe('Command Handler', () => {
         mockInteraction.member.roles.cache.has.mockReturnValue(false);
         const addCommand = require('../src/commands/add.js');
 
-        await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, null, mockMonitorManager);
+        await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
         expect(addCommand.execute).not.toHaveBeenCalled();
         expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
@@ -134,7 +140,7 @@ describe('Command Handler', () => {
         mockInteraction.channelId = 'wrong-channel';
         const addCommand = require('../src/commands/add.js');
 
-        await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, null, mockMonitorManager);
+        await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
         expect(addCommand.autocomplete).not.toHaveBeenCalled();
         expect(mockInteraction.reply).not.toHaveBeenCalled();

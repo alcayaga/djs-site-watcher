@@ -18,11 +18,10 @@ module.exports = {
      * @param {import('discord.js').Client} client The Discord client.
      * @param {object} state The state object.
      * @param {object} config The config object.
-     * @param {object} cronUpdate The cron object.
      * @param {object} monitorManager The monitor manager.
      * @returns {Promise<void>}
      */
-    async execute(interaction, client, state, config, cronUpdate, monitorManager) {
+    async execute(interaction, client, state, config, monitorManager) {
         const url = interaction.options.getString('url');
         const selector = interaction.options.getString('selector') || 'head';
 

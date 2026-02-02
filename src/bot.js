@@ -90,7 +90,7 @@ client.on(Events.ClientReady, async () => {
 
 // Handle interactions (Slash Commands, Autocomplete)
 client.on(Events.InteractionCreate, async interaction => {
-    await commandHandler.handleInteraction(interaction, client, state, config, null, monitorManager);
+    await commandHandler.handleInteraction(interaction, client, state, config, monitorManager);
 });
 
 // When a message is sent, run this code (Auto-responses only)

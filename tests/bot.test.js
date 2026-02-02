@@ -287,7 +287,6 @@ describe('Bot', () => {
             expect.anything(), // client
             expect.anything(), // state
             expect.anything(), // config
-            null, // cronUpdate
             expect.anything() // monitorManager
         );
     });
