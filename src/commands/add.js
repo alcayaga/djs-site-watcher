@@ -22,8 +22,18 @@ module.exports = {
      * @returns {Promise<void>}
      */
     async execute(interaction, client, state, config, monitorManager) {
-        const url = interaction.options.getString('url');
+        const urlString = interaction.options.getString('url');
         const selector = interaction.options.getString('selector') || 'head';
+
+        let url;
+        try {
+            url = new URL(urlString);
+            if (!['http:', 'https:'].includes(url.protocol)) {
+                return interaction.reply({ content: 'Invalid protocol. Only HTTP and HTTPS are allowed.', ephemeral: true });
+            }
+        } catch (e) {
+            return interaction.reply({ content: 'Invalid URL format.', ephemeral: true });
+        }
 
         const siteMonitor = monitorManager.getMonitor('Site');
         if (!siteMonitor) {
@@ -33,7 +43,7 @@ module.exports = {
         // Defer reply since adding a site might take a moment (fetching)
         await interaction.deferReply();
 
-        const { site, warning } = await siteMonitor.addSite(url, selector);
+        const { site, warning } = await siteMonitor.addSite(urlString, selector);
 
         // Update local state to match the monitor's state
         const exists = state.sitesToMonitor.some(s => s.url === site.url && s.css === site.css);

@@ -81,7 +81,13 @@ module.exports = {
             }
             case 'check': {
                 await interaction.reply(`Triggering check for monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
-                await Promise.allSettled(targetMonitors.map(monitor => monitor.check(client)));
+                const results = await Promise.allSettled(targetMonitors.map(monitor => monitor.check(client)));
+                
+                const failures = results.filter(r => r.status === 'rejected');
+                if (failures.length > 0) {
+                    console.error(`${failures.length} monitor check(s) failed during manual trigger:`, failures);
+                    await interaction.followUp({ content: `Warning: ${failures.length} monitor check(s) failed. See logs for details.`, ephemeral: true });
+                }
                 break;
             }
         }

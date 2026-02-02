@@ -17,7 +17,7 @@ module.exports = {
             { name: '`/help`', value: 'Show all commands.' },
             { name: '`/add <url> [selector]`', value: 'Add site to monitor with optional CSS selector.' },
             { name: '`/remove <index>`', value: 'Remove site from list.' },
-            { name: '`/list`', value: 'Show list of added sites.' },
+            { name: '`/list` | `/show`', value: 'Show list of added sites.' },
             { name: '`/interval <minutes>`', value: 'Set update interval, default `5`.' },
             { name: '`/monitor <subcommand> [name]`', value: 'Manage monitors (start, stop, status, check).' }
         ]);

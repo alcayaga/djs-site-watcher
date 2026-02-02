@@ -96,7 +96,7 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 // When a message is sent, run this code (Auto-responses only)
-client.on('messageCreate', message => {
+client.on(Events.MessageCreate, message => {
     messageHandler.handleMessage(message, state, config);
 });
 

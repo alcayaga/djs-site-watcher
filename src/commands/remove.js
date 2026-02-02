@@ -23,9 +23,7 @@ module.exports = {
         const index = interaction.options.getInteger('index');
         
         if (index > state.sitesToMonitor.length) {
-            return interaction.reply({ content: `Not a valid number. Usage: \
-/remove <index>\
- (Max: ${state.sitesToMonitor.length})`, ephemeral: true });
+            return interaction.reply({ content: `Not a valid number. Usage:\n/remove <index>\n(Max: ${state.sitesToMonitor.length})`, ephemeral: true });
         }
 
         const id = state.sitesToMonitor[index - 1].id;
