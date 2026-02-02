@@ -133,6 +133,8 @@ describe('SiteMonitor', () => {
 
     it('should not notify if no change is detected', async () => {
         const notifySpy = jest.spyOn(siteMonitor, 'notify'); // Spy on notify for this test
+        // Match the title to avoid migration triggering storage.write
+        siteMonitor.state[0].id = 'Test Site';
         const response = { body: '<html><head><title>Test Site</title></head><body>initial content</body></html>' };
         got.mockResolvedValue(response); 
         

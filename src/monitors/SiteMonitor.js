@@ -114,6 +114,13 @@ class SiteMonitor extends Monitor {
             try {
                 const { content, hash, dom } = await this.fetchAndProcess(site.url, site.css);
 
+                const title = dom.window.document.title;
+                if (title && title.trim().length > 0 && site.id !== title) {
+                    console.log(`[Migration] Updating ID for ${site.url} from '${site.id}' to '${title}'`);
+                    site.id = title;
+                    hasChanges = true;
+                }
+
                 if (site.hash !== hash) {
                     const oldContent = site.lastContent || '';
                     const cleanOldContent = cleanText(oldContent);
@@ -223,15 +230,18 @@ class SiteMonitor extends Monitor {
             return { site: existingSite, warning: false };
         }
 
-        const { content, hash, selectorFound } = await this.fetchAndProcess(url, css);
+        const { content, hash, selectorFound, dom } = await this.fetchAndProcess(url, css);
         const warning = css ? !selectorFound : false;
 
         const time = new Date();
-        let id;
-        try {
-            id = new URL(url).hostname;
-        } catch {
-            id = url.split('/')[2];
+        let id = dom.window.document.title;
+        
+        if (!id || id.trim().length === 0) {
+            try {
+                id = new URL(url).hostname;
+            } catch {
+                id = url.split('/')[2];
+            }
         }
 
         const site = {
