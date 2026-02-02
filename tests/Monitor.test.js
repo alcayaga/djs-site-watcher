@@ -85,17 +85,17 @@ describe('Monitor', () => {
 
         it('should start the cron job', () => {
             testMonitor.start();
-            expect(testMonitor.cronJob.start).toHaveBeenCalled();
+            expect(testMonitor._cronJob.start).toHaveBeenCalled();
         });
 
         it('should stop the cron job', () => {
             testMonitor.stop();
-            expect(testMonitor.cronJob.stop).toHaveBeenCalled();
+            expect(testMonitor._cronJob.stop).toHaveBeenCalled();
         });
 
         it('should set the interval for the cron job', () => {
             testMonitor.setInterval('0 * * * *');
-            expect(testMonitor.cronJob.setTime).toHaveBeenCalledWith(expect.any(CronTime));
+            expect(testMonitor._cronJob.setTime).toHaveBeenCalledWith(expect.any(CronTime));
         });
 
         it('should return the correct status', () => {
