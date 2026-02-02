@@ -1,21 +1,27 @@
-const { handleInteraction } = require('../src/command-handler');
+const { handleInteraction } = require('../../src/handlers/interactionHandler');
 
-// Mock fs and path to control command loading
-jest.mock('fs', () => ({
-    readdirSync: jest.fn().mockReturnValue(['add.js'])
-}));
-jest.mock('path', () => ({
-    join: jest.fn().mockReturnValue('/mock/path')
-}));
+// Mock fs and path to control command loading via commandLoader
+// The handler imports commandLoader. We should mock commandLoader directly.
+jest.mock('../../src/utils/commandLoader', () => {
+    const { Collection } = require('discord.js');
+    return {
+        loadCommands: jest.fn(() => {
+            const commands = new Collection();
+            const addCommand = require('../../src/commands/add.js');
+            commands.set('add', addCommand);
+            return commands;
+        })
+    };
+});
 
 // Mock commands
-jest.mock('../src/commands/add.js', () => ({
+jest.mock('../../src/commands/add.js', () => ({
     data: { name: 'add' },
     execute: jest.fn(),
     autocomplete: jest.fn()
 }), { virtual: true });
 
-describe('Command Handler', () => {
+describe('Interaction Handler', () => {
     let mockInteraction, mockConfig, mockClient, mockState, mockMonitorManager;
 
     beforeEach(() => {
@@ -53,7 +59,7 @@ describe('Command Handler', () => {
 
     it('should execute command with correct arguments if authorized', async () => {
         mockInteraction.isChatInputCommand.mockReturnValue(true);
-        const addCommand = require('../src/commands/add.js');
+        const addCommand = require('../../src/commands/add.js');
         
         await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
@@ -69,7 +75,7 @@ describe('Command Handler', () => {
     describe('Error Handling', () => {
         it('should use reply if not deferred or replied', async () => {
             mockInteraction.isChatInputCommand.mockReturnValue(true);
-            const addCommand = require('../src/commands/add.js');
+            const addCommand = require('../../src/commands/add.js');
             addCommand.execute.mockRejectedValue(new Error('Test Fail'));
 
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
@@ -82,7 +88,7 @@ describe('Command Handler', () => {
         it('should use editReply if deferred', async () => {
             mockInteraction.isChatInputCommand.mockReturnValue(true);
             mockInteraction.deferred = true;
-            const addCommand = require('../src/commands/add.js');
+            const addCommand = require('../../src/commands/add.js');
             addCommand.execute.mockRejectedValue(new Error('Test Fail'));
 
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
@@ -95,7 +101,7 @@ describe('Command Handler', () => {
         it('should use followUp if replied', async () => {
             mockInteraction.isChatInputCommand.mockReturnValue(true);
             mockInteraction.replied = true;
-            const addCommand = require('../src/commands/add.js');
+            const addCommand = require('../../src/commands/add.js');
             addCommand.execute.mockRejectedValue(new Error('Test Fail'));
 
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
@@ -109,7 +115,7 @@ describe('Command Handler', () => {
     it('should block execution if unauthorized (wrong channel)', async () => {
         mockInteraction.isChatInputCommand.mockReturnValue(true);
         mockInteraction.channelId = 'wrong-channel';
-        const addCommand = require('../src/commands/add.js');
+        const addCommand = require('../../src/commands/add.js');
 
         await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
@@ -123,7 +129,7 @@ describe('Command Handler', () => {
     it('should block execution if unauthorized (wrong role)', async () => {
         mockInteraction.isChatInputCommand.mockReturnValue(true);
         mockInteraction.member.roles.cache.has.mockReturnValue(false);
-        const addCommand = require('../src/commands/add.js');
+        const addCommand = require('../../src/commands/add.js');
 
         await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
@@ -138,7 +144,7 @@ describe('Command Handler', () => {
         mockInteraction.isChatInputCommand.mockReturnValue(false);
         mockInteraction.isAutocomplete.mockReturnValue(true);
         mockInteraction.channelId = 'wrong-channel';
-        const addCommand = require('../src/commands/add.js');
+        const addCommand = require('../../src/commands/add.js');
 
         await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 

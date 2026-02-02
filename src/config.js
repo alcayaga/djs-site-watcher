@@ -13,6 +13,7 @@ const storage = require('./storage.js');
 const config = storage.loadSettings();
 
 config.DISCORDJS_BOT_TOKEN = process.env.DISCORDJS_BOT_TOKEN;
+config.DISCORDJS_CLIENT_ID = process.env.DISCORDJS_CLIENT_ID;
 config.DISCORDJS_TEXTCHANNEL_ID = process.env.DISCORDJS_TEXTCHANNEL_ID;
 config.DISCORDJS_ADMINCHANNEL_ID = process.env.DISCORDJS_ADMINCHANNEL_ID;
 config.DISCORDJS_ROLE_ID = process.env.DISCORDJS_ROLE_ID;
