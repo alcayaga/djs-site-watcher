@@ -237,11 +237,7 @@ class SiteMonitor extends Monitor {
         let id = dom.window.document.title;
         
         if (!id || id.trim().length === 0) {
-            try {
-                id = new URL(url).hostname;
-            } catch {
-                id = url.split('/')[2];
-            }
+            id = new URL(url).hostname;
         }
 
         const site = {
