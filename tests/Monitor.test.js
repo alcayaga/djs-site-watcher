@@ -99,7 +99,7 @@ describe('Monitor', () => {
         });
 
         it('should return the correct status', () => {
-            testMonitor.cronJob.running = true;
+            testMonitor.start();
             expect(testMonitor.getStatus()).toEqual({ name: 'TestMonitor', isRunning: true });
         });
     });

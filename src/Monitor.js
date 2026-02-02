@@ -34,6 +34,7 @@ class Monitor {
         this.state = {};
 
         this.cronJob = new CronJob(`0 */${config.interval} * * * *`, () => this.check(), null, false);
+        this._isRunning = false;
     }
 
     /**
@@ -41,6 +42,7 @@ class Monitor {
      */
     start() {
         this.cronJob.start();
+        this._isRunning = true;
     }
 
     /**
@@ -48,6 +50,7 @@ class Monitor {
      */
     stop() {
         this.cronJob.stop();
+        this._isRunning = false;
     }
 
     /**
@@ -55,7 +58,7 @@ class Monitor {
      * @returns {{name: string, isRunning: boolean}} The status of the monitor.
      */
     getStatus() {
-        return { name: this.name, isRunning: this.cronJob.running };
+        return { name: this.name, isRunning: this._isRunning };
     }
 
     /**
