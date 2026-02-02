@@ -32,7 +32,11 @@ describe('List, Remove, Help Commands', () => {
         mockClient = {};
         
         mockSiteMonitor = {
-            state: []
+            state: [
+                { id: 'site1', url: 'http://site1.com', css: 'body', lastChecked: 'now', lastUpdated: 'now' },
+                { id: 'site2', url: 'http://site2.com', css: 'div', lastChecked: 'yesterday', lastUpdated: 'yesterday' }
+            ],
+            removeSiteByIndex: jest.fn()
         };
         mockMonitorManager = {
             getMonitor: jest.fn().mockReturnValue(mockSiteMonitor)
@@ -59,14 +63,18 @@ describe('List, Remove, Help Commands', () => {
     describe('/remove', () => {
         it('should remove a site', async () => {
             mockInteraction.options.getInteger.mockReturnValue(1); // Remove first site (index 1)
+            mockSiteMonitor.removeSiteByIndex.mockResolvedValue({ id: 'site1' });
+            
+            // After removal, the state on monitor would be updated in real life.
+            // We simulate the result by ensuring the command updates global state from monitor state.
+            // But here mockSiteMonitor.state is static unless we change it.
+            // Let's assume removeSiteByIndex updates it.
+            mockSiteMonitor.state = [{ id: 'site2' }]; 
 
             await removeCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
-            expect(mockState.sitesToMonitor).toHaveLength(1);
-            expect(mockState.sitesToMonitor[0].id).toBe('site2');
-            expect(storage.saveSites).toHaveBeenCalledWith(mockState.sitesToMonitor);
-            expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('Site');
-            expect(mockSiteMonitor.state).toBe(mockState.sitesToMonitor);
+            expect(mockSiteMonitor.removeSiteByIndex).toHaveBeenCalledWith(0);
+            expect(mockState.sitesToMonitor).toEqual([{ id: 'site2' }]);
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.stringContaining('Removed **site1**'));
         });
 
@@ -75,8 +83,7 @@ describe('List, Remove, Help Commands', () => {
 
             await removeCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
-            expect(mockState.sitesToMonitor).toHaveLength(2); // No change
-            expect(storage.saveSites).not.toHaveBeenCalled();
+            expect(mockSiteMonitor.removeSiteByIndex).not.toHaveBeenCalled();
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({ content: expect.stringContaining('Not a valid number') }));
         });
     });

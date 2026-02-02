@@ -1,5 +1,4 @@
 const { SlashCommandBuilder } = require('discord.js');
-const storage = require('../storage');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -21,23 +20,26 @@ module.exports = {
      */
     async execute(interaction, client, state, config, monitorManager) {
         const index = interaction.options.getInteger('index');
-        
-        if (index > state.sitesToMonitor.length) {
-            return interaction.reply({ content: `Not a valid number. Usage:\n/remove <index>\n(Max: ${state.sitesToMonitor.length})`, ephemeral: true });
-        }
-
-        const id = state.sitesToMonitor[index - 1].id;
-        state.sitesToMonitor.splice(index - 1, 1);
-        storage.saveSites(state.sitesToMonitor);
-        
-        // Update the SiteMonitor's internal state to stay in sync
         const siteMonitor = monitorManager.getMonitor('Site');
-        if (siteMonitor) {
-            siteMonitor.state = state.sitesToMonitor;
+
+        if (!siteMonitor) {
+            return interaction.reply({ content: 'Site monitor is not available.', ephemeral: true });
+        }
+        
+        if (index > siteMonitor.state.length) {
+            return interaction.reply({ content: `Not a valid number. Usage:\n/remove <index>\n(Max: ${siteMonitor.state.length})`, ephemeral: true });
         }
 
-        console.log(state.sitesToMonitor);
-        
-        await interaction.reply(`Removed **${id}** from list.`);
+        const removedSite = await siteMonitor.removeSiteByIndex(index - 1);
+
+        if (removedSite) {
+            // Sync global state
+            state.sitesToMonitor = siteMonitor.state;
+            console.log(state.sitesToMonitor);
+            await interaction.reply(`Removed **${removedSite.id}** from list.`);
+        } else {
+            // Should be covered by the length check, but safe fallback
+            return interaction.reply({ content: `Failed to remove site at index ${index}.`, ephemeral: true });
+        }
     },
 };

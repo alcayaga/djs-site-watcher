@@ -35,7 +35,8 @@ describe('add command', () => {
                     lastContent: 'content'
                 },
                 warning: false
-            })
+            }),
+            state: [] // Mock state
         };
 
         mockMonitorManager = {
@@ -48,6 +49,13 @@ describe('add command', () => {
             if (name === 'url') return 'https://example.com';
             if (name === 'selector') return '#test';
             return null;
+        });
+
+        // Simulate addSite updating state
+        mockSiteMonitor.addSite.mockImplementation(async () => {
+            const site = { id: 'example.com', url: 'https://example.com', css: '#test' };
+            mockSiteMonitor.state = [site];
+            return { site: site, warning: false };
         });
 
         await addCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
