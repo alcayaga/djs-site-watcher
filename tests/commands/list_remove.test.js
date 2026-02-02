@@ -1,11 +1,6 @@
 const listCommand = require('../../src/commands/list');
 const removeCommand = require('../../src/commands/remove');
 const helpCommand = require('../../src/commands/help');
-const storage = require('../../src/storage');
-
-jest.mock('../../src/storage', () => ({
-    saveSites: jest.fn(),
-}));
 
 describe('List, Remove, Help Commands', () => {
     let mockInteraction, mockState, mockClient, mockMonitorManager, mockSiteMonitor;
