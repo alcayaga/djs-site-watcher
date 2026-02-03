@@ -8,6 +8,15 @@ const RESPONSES_FILE = './config/responses.json';
 const LEGACY_DIR = './src';
 const NEW_DIR = './config';
 
+const SENSITIVE_SETTINGS_KEYS = [
+    'DISCORDJS_BOT_TOKEN',
+    'DISCORDJS_TEXTCHANNEL_ID',
+    'DISCORDJS_ADMINCHANNEL_ID',
+    'DISCORDJS_ROLE_ID',
+    'SINGLE_RUN',
+    'DISCORDJS_APCHANNEL_ID'
+];
+
 /**
  * Migrates legacy JSON files from src/ to config/ and patches paths.
  */
@@ -102,16 +111,8 @@ function loadSettings() {
  */
 function saveSettings(settings) {
     const settingsToSave = { ...settings };
-    const sensitiveKeys = [
-        'DISCORDJS_BOT_TOKEN',
-        'DISCORDJS_TEXTCHANNEL_ID',
-        'DISCORDJS_ADMINCHANNEL_ID',
-        'DISCORDJS_ROLE_ID',
-        'SINGLE_RUN',
-        'DISCORDJS_APCHANNEL_ID'
-    ];
 
-    sensitiveKeys.forEach(key => delete settingsToSave[key]);
+    SENSITIVE_SETTINGS_KEYS.forEach(key => delete settingsToSave[key]);
 
     return fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 })
         .catch(err => console.log(err));
@@ -162,4 +163,5 @@ module.exports = {
   loadResponses,
   read,
   write,
+  SENSITIVE_SETTINGS_KEYS,
 };
