@@ -360,4 +360,81 @@ describe('ApplePayMonitor', () => {
             consoleErrorSpy.mockRestore();
         });
     });
+
+    // Partial Failure Handling Tests
+    describe('Partial Failure Handling', () => {
+        beforeEach(() => {
+            applePayMonitor.state = {
+                configRegion: '{"main":"old"}',
+                configAltRegion: '{"alt":"old"}',
+                configMarketGeoIdentifiers: [],
+                configAltMarketGeoIdentifiers: []
+            };
+        });
+
+        it('should not report changes when fetch fails completely (missing keys in parsed data)', async () => {
+            // Simulate Fetch Error (Network Timeout) -> fetch returns { config: null, configAlt: null }
+            const fetchError = new Error('ETIMEDOUT');
+            got.mockImplementation(() => Promise.reject(fetchError));
+
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+            // Execute fetch
+            const fetchedData = await applePayMonitor.fetch();
+            
+            // Execute parse (produces empty/undefined fields)
+            const parsedData = applePayMonitor.parse(fetchedData);
+
+            // Execute compare
+            const changes = applePayMonitor.compare(parsedData);
+
+            // Expect NO changes (null) because missing keys are patched with old state
+            expect(changes).toBeNull();
+            
+            consoleErrorSpy.mockRestore();
+        });
+
+        it('should preserve old state for failed source when other source changes', async () => {
+            // Mock Fetch: Main fails, Alt succeeds and changes
+            const fetchError = new Error('ETIMEDOUT');
+            got.mockImplementation((url) => {
+                if (url === applePayMonitor.CONFIG_URL) {
+                    return Promise.reject(fetchError);
+                }
+                if (url === applePayMonitor.CONFIG_ALT_URL) {
+                    return Promise.resolve({ body: { SupportedRegions: { CL: { alt: "new" } } } });
+                }
+                return Promise.resolve({ body: {} });
+            });
+
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+            // Execute fetch & parse
+            const fetchedData = await applePayMonitor.fetch();
+            const parsedData = applePayMonitor.parse(fetchedData);
+
+            // Mock diffLines for the ALT change
+            diff.diffLines.mockImplementation((oldStr, newStr) => {
+                if (oldStr === '{"alt":"old"}' && newStr.includes('"alt": "new"')) {
+                    return [{ value: 'change', added: true }];
+                }
+                return [];
+            });
+
+            const changes = applePayMonitor.compare(parsedData);
+
+            // Expect changes for Alt
+            expect(changes).not.toBeNull();
+            expect(changes.changes.some(c => c.configName === 'alt config')).toBe(true);
+
+            // Expect NO changes for Main
+            const mainChanges = changes.changes.filter(c => c.configName === 'main config');
+            expect(mainChanges.length).toBe(0);
+
+            // Expect parsedData (new state) to have preserved OLD main config
+            expect(parsedData.configRegion).toBe('{"main":"old"}');
+
+            consoleErrorSpy.mockRestore();
+        });
+    });
 });
