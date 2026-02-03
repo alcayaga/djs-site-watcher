@@ -16,7 +16,7 @@ describe('saveSettings', () => {
         }
     });
 
-    it('should exclude sensitive environment variables from settings.json', () => {
+    it('should exclude sensitive environment variables from settings.json', async () => {
         const sensitiveSettings = {
             interval: 10,
             DISCORDJS_BOT_TOKEN: 'secret_token',
@@ -28,7 +28,7 @@ describe('saveSettings', () => {
             DISCORDJS_APCHANNEL_ID: 'abc'
         };
 
-        saveSettings(sensitiveSettings);
+        await saveSettings(sensitiveSettings);
 
         const savedContent = fs.readJSONSync(SETTINGS_FILE);
 

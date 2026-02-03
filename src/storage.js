@@ -109,7 +109,7 @@ function saveSettings(settings) {
     delete settingsToSave.SINGLE_RUN;
     delete settingsToSave.DISCORDJS_APCHANNEL_ID;
 
-    fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 })
+    return fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 })
         .catch(err => console.log(err));
 }
 
