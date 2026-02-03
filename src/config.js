@@ -12,8 +12,8 @@ const storage = require('./storage.js');
 
 const config = storage.loadSettings();
 
-// NOTE: When adding new environment variables here, ALWAYS ensure they are excluded
-// in the saveSettings() function in src/storage.js to prevent them from being saved to settings.json.
+// NOTE: When adding new sensitive environment variables here, ALWAYS ensure they are 
+// added to SENSITIVE_SETTINGS_KEYS in src/storage.js to prevent them from being saved.
 config.DISCORDJS_BOT_TOKEN = process.env.DISCORDJS_BOT_TOKEN;
 config.DISCORDJS_CLIENT_ID = process.env.DISCORDJS_CLIENT_ID;
 config.DISCORDJS_TEXTCHANNEL_ID = process.env.DISCORDJS_TEXTCHANNEL_ID;
