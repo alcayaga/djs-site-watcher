@@ -111,7 +111,7 @@ function saveSettings(settings) {
     delete settingsToSave.CLIENT_ID;
     delete settingsToSave.AP_RESPONSE_DELAY;
 
-    fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 })
+    return fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 })
         .catch(err => console.log(err));
 }
 
