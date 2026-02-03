@@ -433,7 +433,7 @@ describe('ApplePayMonitor', () => {
 
             // Expect NO changes for Main
             const mainChanges = changes.changes.filter(c => c.configName === 'main config');
-            expect(mainChanges.length).toBe(0);
+            expect(mainChanges).toHaveLength(0);
 
             // Expect parsedData (new state) to have preserved OLD main config
             expect(parsedData.configRegion).toBe('{"main":"old"}');
