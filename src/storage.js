@@ -108,7 +108,7 @@ function saveSettings(settings) {
     delete settingsToSave.DISCORDJS_ROLE_ID;
     delete settingsToSave.SINGLE_RUN;
     delete settingsToSave.DISCORDJS_APCHANNEL_ID;
-    delete settingsToSave.CLIENT_ID;
+    delete settingsToSave.DISCORDJS_CLIENT_ID;
     delete settingsToSave.AP_RESPONSE_DELAY;
 
     return fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 })

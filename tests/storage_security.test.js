@@ -26,7 +26,7 @@ describe('saveSettings', () => {
             SINGLE_RUN: true,
             // New ones to exclude
             DISCORDJS_APCHANNEL_ID: 'abc',
-            CLIENT_ID: 'def',
+            DISCORDJS_CLIENT_ID: 'def',
             AP_RESPONSE_DELAY: 1000
         };
 
@@ -45,7 +45,7 @@ describe('saveSettings', () => {
 
         // New checks
         expect(savedContent).not.toHaveProperty('DISCORDJS_APCHANNEL_ID');
-        expect(savedContent).not.toHaveProperty('CLIENT_ID');
+        expect(savedContent).not.toHaveProperty('DISCORDJS_CLIENT_ID');
         expect(savedContent).not.toHaveProperty('AP_RESPONSE_DELAY');
     });
 });
