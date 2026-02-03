@@ -109,17 +109,17 @@ class ApplePayMonitor extends Monitor {
         const detectedChanges = [];
 
         // Patch missing data from state to prevent false positives on partial failures (e.g. timeouts)
-        if (newData.configRegion === undefined && this.state.configRegion) {
-            newData.configRegion = this.state.configRegion;
-        }
-        if (newData.configMarketGeoIdentifiers === undefined && this.state.configMarketGeoIdentifiers) {
-            newData.configMarketGeoIdentifiers = this.state.configMarketGeoIdentifiers;
-        }
-        if (newData.configAltRegion === undefined && this.state.configAltRegion) {
-            newData.configAltRegion = this.state.configAltRegion;
-        }
-        if (newData.configAltMarketGeoIdentifiers === undefined && this.state.configAltMarketGeoIdentifiers) {
-            newData.configAltMarketGeoIdentifiers = this.state.configAltMarketGeoIdentifiers;
+        const keysToPatch = [
+            'configRegion',
+            'configMarketGeoIdentifiers',
+            'configAltRegion',
+            'configAltMarketGeoIdentifiers',
+        ];
+
+        for (const key of keysToPatch) {
+            if (newData[key] === undefined && this.state[key]) {
+                newData[key] = this.state[key];
+            }
         }
 
         // Compare main config region data
