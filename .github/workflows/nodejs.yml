@@ -2,9 +2,9 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, v1.x, v2.x ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, v1.x, v2.x ]
   workflow_dispatch:
 
 # If you push multiple times quickly, cancel the old runs to save resources
