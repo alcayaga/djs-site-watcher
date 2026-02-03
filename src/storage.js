@@ -102,14 +102,18 @@ function loadSettings() {
  */
 function saveSettings(settings) {
     const settingsToSave = { ...settings };
-    delete settingsToSave.DISCORDJS_BOT_TOKEN;
-    delete settingsToSave.DISCORDJS_TEXTCHANNEL_ID;
-    delete settingsToSave.DISCORDJS_ADMINCHANNEL_ID;
-    delete settingsToSave.DISCORDJS_ROLE_ID;
-    delete settingsToSave.SINGLE_RUN;
-    delete settingsToSave.DISCORDJS_APCHANNEL_ID;
-    delete settingsToSave.DISCORDJS_CLIENT_ID;
-    delete settingsToSave.AP_RESPONSE_DELAY;
+    const sensitiveKeys = [
+        'DISCORDJS_BOT_TOKEN',
+        'DISCORDJS_TEXTCHANNEL_ID',
+        'DISCORDJS_ADMINCHANNEL_ID',
+        'DISCORDJS_ROLE_ID',
+        'SINGLE_RUN',
+        'DISCORDJS_APCHANNEL_ID',
+        'DISCORDJS_CLIENT_ID',
+        'AP_RESPONSE_DELAY'
+    ];
+
+    sensitiveKeys.forEach(key => delete settingsToSave[key]);
 
     return fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 })
         .catch(err => console.log(err));
