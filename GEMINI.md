@@ -30,14 +30,17 @@
     1.  **Test First:** Write/modify the test case to reproduce the bug.
     2.  **Verify:** Ensure the unit test passes.
     3.  **Lint:** Run `npm run lint`.
-    4.  **System Check:** Run `npm start`. (This runs the bot once to verify real-world connectivity/parsing). **If this fails, DO NOT COMMIT.**
+    4.  **System Check:** Run `npm start`.
+        * **NOTE:** Do **NOT** prepend `SINGLE_RUN=true`. The environment is already configured. Just run `npm start`.
+        * **If this fails, DO NOT COMMIT.**
     5.  **Commit:** Commit the code and the test **together**.
 
 * **Scenario B: Large Features & Complex Refactors**
     1.  **Implement:** Focus on the implementation logic.
     2.  **Regression Check:** Run `npm test` (existing tests) to ensure no breakages.
     3.  **Lint:** Run `npm run lint`.
-    4.  **System Check:** Run `npm start`. (Verifies the code works in the real environment with `SINGLE_RUN=true` already set). **If this fails, DO NOT COMMIT.**
+    4.  **System Check:** Run `npm start`. (Just `npm start`, no env vars).
+        * **If this fails, DO NOT COMMIT.**
     5.  **Commit Implementation:** Commit the working feature code.
     6.  **New Tests:** Add comprehensive tests for the new feature in a **separate subsequent commit**.
 
@@ -52,7 +55,8 @@ Once the work is committed, follow this EXACT cycle. Repeat this loop for every 
 
 1.  **Push & Create:**
     * `git push origin <branch_name>`
-    * **If New:** `gh pr create` (Draft description. **DO NOT** include `/gemini review` in the body of a new PR).
+    * **If New:** `gh pr create` (Draft description).
+        * **IMPORTANT:** Do **NOT** include `/gemini review` in the initial description. The first review is automatic.
     * **If Existing:** Just push.
 
 2.  **Wait for CI/CD:**
@@ -61,20 +65,20 @@ Once the work is committed, follow this EXACT cycle. Repeat this loop for every 
 
 3.  **Fetch Unresolved Reviews:**
     * Run exactly:
-        ```
+        ```bash
         gh pr-review review view <PR-NUMBER> -R alcayaga/djs-site-watcher --unresolved --not_outdated --reviewer gemini-code-assist
         ```
 
 4.  **Handle Feedback (If Changes Needed):**
     * **Reply:** If a comment needs a response:
-        ```
+        ```bash
         gh pr-review comments reply <PR-NUMBER> -R alcayaga/djs-site-watcher --thread-id <PRRT_ID> --body "Your message here. /gemini review"
         ```
+        *(Note: We append `/gemini review` here because this is a subsequent update, not a new PR).*
     * **Resolve:** If you fixed the code issue:
-        ```
+        ```bash
         gh pr-review threads resolve -R alcayaga/djs-site-watcher <PR-NUMBER> --thread-id <PRRT_ID>
         ```
-    * **Note:** When replying or resolving, you SHOULD append `/gemini review` to your comment body to trigger a re-review of your fixes.
 
 5.  **Iterate:**
     * If you made code changes to fix the feedback, **GO BACK TO PHASE 2** (Lint -> Test -> System Check -> Commit).
@@ -91,5 +95,5 @@ When validating changes, ALWAYS follow this strict execution order:
 
 3. **System Environment Test (`npm start`):**
    - **Context:** The environment is configured with `SINGLE_RUN=true`.
-   - **Behavior:** This executes the monitors once and exits (no cron).
+   - **Command:** `npm start` (Do NOT add env flags manually).
    - **Requirement:** This is MANDATORY before any commit (as defined in Phase 2) to verify file parsing and network requests.
