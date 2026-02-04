@@ -217,7 +217,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('error executing')
+                content: expect.stringContaining('error processing')
             }));
         });
 
@@ -230,7 +230,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('error executing')
+                content: expect.stringContaining('error processing')
             }));
         });
 
@@ -243,7 +243,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('error executing')
+                content: expect.stringContaining('error processing')
             }));
         });
     });
