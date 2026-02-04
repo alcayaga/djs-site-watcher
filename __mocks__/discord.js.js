@@ -41,6 +41,31 @@ const MockActionRowBuilder = jest.fn(function() {
     this.addComponents = jest.fn().mockReturnThis();
 });
 
+const MockButtonBuilder = jest.fn(function() {
+    this.setCustomId = jest.fn().mockReturnThis();
+    this.setLabel = jest.fn().mockReturnThis();
+    this.setStyle = jest.fn().mockReturnThis();
+    this.setEmoji = jest.fn().mockReturnThis();
+    this.setDisabled = jest.fn().mockReturnThis();
+});
+
+const MockStringSelectMenuBuilder = jest.fn(function() {
+    this.setCustomId = jest.fn().mockReturnThis();
+    this.setPlaceholder = jest.fn().mockReturnThis();
+    this.addOptions = jest.fn().mockReturnThis();
+    this.setMinValues = jest.fn().mockReturnThis();
+    this.setMaxValues = jest.fn().mockReturnThis();
+    this.setDisabled = jest.fn().mockReturnThis();
+});
+
+const MockStringSelectMenuOptionBuilder = jest.fn(function() {
+    this.setLabel = jest.fn().mockReturnThis();
+    this.setValue = jest.fn().mockReturnThis();
+    this.setDescription = jest.fn().mockReturnThis();
+    this.setDefault = jest.fn().mockReturnThis();
+    this.setEmoji = jest.fn().mockReturnThis();
+});
+
 module.exports = {
   Client: jest.fn(() => {
     const listeners = {};
@@ -78,7 +103,21 @@ module.exports = {
   ModalBuilder: MockModalBuilder,
   TextInputBuilder: MockTextInputBuilder,
   ActionRowBuilder: MockActionRowBuilder,
+  ButtonBuilder: MockButtonBuilder,
+  StringSelectMenuBuilder: MockStringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder: MockStringSelectMenuOptionBuilder,
   TextInputStyle: { Short: 1, Paragraph: 2 },
+  ButtonStyle: { Primary: 1, Secondary: 2, Success: 3, Danger: 4, Link: 5 },
+  ComponentType: {
+      ActionRow: 1,
+      Button: 2,
+      StringSelect: 3,
+      TextInput: 4,
+      UserSelect: 5,
+      RoleSelect: 6,
+      MentionableSelect: 7,
+      ChannelSelect: 8
+  },
   AttachmentBuilder: jest.fn(),
   GatewayIntentBits: {
       Guilds: 1,

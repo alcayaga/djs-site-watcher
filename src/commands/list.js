@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -26,23 +26,40 @@ module.exports = {
         // However, sending multiple embeds might take time.
         await interaction.deferReply();
 
+        const removeButton = new ButtonBuilder()
+            .setCustomId('remove:prompt')
+            .setLabel('Remove a Site...')
+            .setStyle(ButtonStyle.Danger);
+
+        const row = new ActionRowBuilder().addComponents(removeButton);
+
         for (let i = 0; i < siteCount; i += CHUNK_SIZE) {
             const chunk = sites.slice(i, i + CHUNK_SIZE);
             const embed = new EmbedBuilder()
                 .setTitle(`${siteCount} sitio(s) están siendo monitoreados (Mostrando ${i + 1}-${Math.min(i + chunk.length, siteCount)})`)
                 .setColor(0x6058f3);
 
-            const fields = chunk.map((site, j) => ({
+            const fields = chunk.map((site) => ({
                 name: site.id,
-                value: `URL: ${site.url}\nCSS: \`${site.css}\`\nChecked: ${site.lastChecked}\nUpdated: ${site.lastUpdated}\nRemove: \`/remove ${i + j + 1}\``
+                value: `URL: ${site.url}\nCSS: \`${site.css}\`\nChecked: ${site.lastChecked}\nUpdated: ${site.lastUpdated}`
             }));
 
             embed.addFields(fields);
             
             if (i === 0) {
-                await interaction.editReply({ embeds: [embed] });
+                // If it's the first (or only) page, attach the button row
+                const options = { embeds: [embed] };
+                if (i + CHUNK_SIZE >= siteCount) {
+                    options.components = [row];
+                }
+                await interaction.editReply(options);
             } else {
-                await interaction.followUp({ embeds: [embed] });
+                const options = { embeds: [embed] };
+                // If it's the last page, attach the button row
+                if (i + CHUNK_SIZE >= siteCount) {
+                    options.components = [row];
+                }
+                await interaction.followUp(options);
             }
         }
     },
