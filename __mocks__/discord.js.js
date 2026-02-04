@@ -22,6 +22,24 @@ const mockSlashCommandBuilder = jest.fn(function() {
     this.toJSON = jest.fn().mockReturnValue({});
 });
 
+const MockModalBuilder = jest.fn(function() {
+    this.setCustomId = jest.fn().mockReturnThis();
+    this.setTitle = jest.fn().mockReturnThis();
+    this.addComponents = jest.fn().mockReturnThis();
+});
+
+const MockTextInputBuilder = jest.fn(function() {
+    this.setCustomId = jest.fn().mockReturnThis();
+    this.setLabel = jest.fn().mockReturnThis();
+    this.setStyle = jest.fn().mockReturnThis();
+    this.setRequired = jest.fn().mockReturnThis();
+    this.setValue = jest.fn().mockReturnThis();
+});
+
+const MockActionRowBuilder = jest.fn(function() {
+    this.addComponents = jest.fn().mockReturnThis();
+});
+
 module.exports = {
   Client: jest.fn(() => {
     const listeners = {};
@@ -56,6 +74,10 @@ module.exports = {
   }),
   EmbedBuilder: MockEmbedBuilder,
   SlashCommandBuilder: mockSlashCommandBuilder,
+  ModalBuilder: MockModalBuilder,
+  TextInputBuilder: MockTextInputBuilder,
+  ActionRowBuilder: MockActionRowBuilder,
+  TextInputStyle: { Short: 1, Paragraph: 2 },
   AttachmentBuilder: jest.fn(),
   GatewayIntentBits: {
       Guilds: 1,
