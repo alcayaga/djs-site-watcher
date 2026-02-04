@@ -43,6 +43,9 @@ describe('Interaction Handler', () => {
                     }
                 }
             },
+            memberPermissions: {
+                has: jest.fn().mockReturnValue(true)
+            },
             reply: jest.fn(),
             editReply: jest.fn(),
             followUp: jest.fn(),

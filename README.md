@@ -69,6 +69,10 @@ Show all the available commands.
 ### `/add`
 Adds a website to the list by opening a form.
 
+The form will ask for a URL and an optional CSS selector. The CSS selector specifies which part of the site to track. By default, the `<head>` is tracked. To avoid false alerts from dynamic content like ads, it's best to provide a specific selector.
+
+<sub>**Tip:** In Chrome, you can get a selector by right-clicking the part of the site you want to track and selecting `Inspect`. In the developer view, right-click the highlighted element and select `Copy → Copy selector`.</sub>
+
 **Example**   
 `/add` This opens a pop-up form where you can enter the URL and an optional CSS selector.
 
