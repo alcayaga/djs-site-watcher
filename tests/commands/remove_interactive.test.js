@@ -75,7 +75,8 @@ describe('Remove Command Interactive Features', () => {
             }));
             expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('Se ha eliminado **site1**'),
-                ephemeral: false
+                ephemeral: false,
+                allowedMentions: { parse: [] }
             }));
         });
 

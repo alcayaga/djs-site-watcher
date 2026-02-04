@@ -97,7 +97,8 @@ module.exports = {
                 // Send a public confirmation
                 await interaction.followUp({
                     content: `✅ Se ha eliminado **${removedSite.id}** de la lista de monitoreo.`,
-                    ephemeral: false
+                    ephemeral: false,
+                    allowedMentions: { parse: [] }
                 });
             } else {
                 await interaction.update({ content: 'Hubo un error al intentar eliminar el sitio.', components: [] });
