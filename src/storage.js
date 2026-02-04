@@ -116,8 +116,7 @@ function saveSettings(settings) {
 
     SENSITIVE_SETTINGS_KEYS.forEach(key => delete settingsToSave[key]);
 
-    return fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 })
-        .catch(err => console.log(err));
+    return fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 });
 }
 
 /**
