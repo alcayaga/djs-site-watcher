@@ -62,6 +62,7 @@ describe('SiteMonitor Context & Clean Features', () => {
         mockChannel = { send: jest.fn() };
         mockMessageEmbedInstance = {
             setTitle: jest.fn().mockReturnThis(),
+            setDescription: jest.fn().mockReturnThis(),
             addFields: jest.fn().mockReturnThis(),
             setColor: jest.fn().mockReturnThis(),
         };
@@ -153,13 +154,13 @@ describe('SiteMonitor Context & Clean Features', () => {
 
         siteMonitor.notify(mockChange);
         
-        const sentMessage = mockChannel.send.mock.calls[1][0].content;
+        const sentDiff = mockMessageEmbedInstance.setDescription.mock.calls[0][0];
         
-        expect(sentMessage).toContain('🔴 6');
-        expect(sentMessage).toContain('🟢 six');
-        expect(sentMessage).toContain('⚪ 3');
-        expect(sentMessage).not.toContain('⚪ 1'); 
-        expect(sentMessage).toContain('⚪ 3');     
+        expect(sentDiff).toContain('🔴 6');
+        expect(sentDiff).toContain('🟢 six');
+        expect(sentDiff).toContain('⚪ 3');
+        expect(sentDiff).not.toContain('⚪ 1'); 
+        expect(sentDiff).toContain('⚪ 3');     
     });
     
     it('should use "..." for gaps in context', () => {
@@ -180,10 +181,10 @@ describe('SiteMonitor Context & Clean Features', () => {
         
         siteMonitor.notify(mockChange);
         
-        const sentMessage = mockChannel.send.mock.calls[1][0].content;
-        expect(sentMessage).toContain('...'); 
-        expect(sentMessage).toContain('⚪ 8');
-        expect(sentMessage).not.toContain('⚪ 10'); 
-        expect(sentMessage).toContain('⚪ 12');
+        const sentDiff = mockMessageEmbedInstance.setDescription.mock.calls[0][0];
+        expect(sentDiff).toContain('...'); 
+        expect(sentDiff).toContain('⚪ 8');
+        expect(sentDiff).not.toContain('⚪ 10'); 
+        expect(sentDiff).toContain('⚪ 12');
     });
 });

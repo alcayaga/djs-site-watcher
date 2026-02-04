@@ -198,10 +198,10 @@ describe('AppleEsimMonitor', () => {
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannelSend).toHaveBeenCalledTimes(1);
             expect(mockChannelSend).toHaveBeenCalledWith({ embeds: [mockMessageEmbedInstance] });
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM agregado en Chile!');
+            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM agregado en Chile! 🐸');
             expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
-                { name: 'Operador', value: '[New Carrier](new.com)' },
-                { name: 'Capacidad', value: 'General' }
+                { name: '📡 Operador', value: '[New Carrier](new.com)', inline: true },
+                { name: '✨ Capacidad', value: 'General', inline: true }
             ]);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#4CAF50');
         });
@@ -216,10 +216,10 @@ describe('AppleEsimMonitor', () => {
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannelSend).toHaveBeenCalledTimes(1);
             expect(mockChannelSend).toHaveBeenCalledWith({ embeds: [mockMessageEmbedInstance] });
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM eliminado en Chile!');
+            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM eliminado en Chile! 🐸');
             expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
-                { name: 'Operador', value: '[Old Carrier](old.com)' },
-                { name: 'Capacidad', value: 'Specific' }
+                { name: '📡 Operador', value: '[Old Carrier](old.com)', inline: true },
+                { name: '✨ Capacidad', value: 'Specific', inline: true }
             ]);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#F44336');
         });
@@ -233,8 +233,8 @@ describe('AppleEsimMonitor', () => {
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannelSend).toHaveBeenCalledTimes(2); // One for added, one for removed
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM agregado en Chile!');
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM eliminado en Chile!');
+            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM agregado en Chile! 🐸');
+            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM eliminado en Chile! 🐸');
         });
 
         it('should log an error if notification channel not found', () => {

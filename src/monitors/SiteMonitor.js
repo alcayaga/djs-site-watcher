@@ -343,15 +343,18 @@ class SiteMonitor extends Monitor {
         }
 
         const embed = new Discord.EmbedBuilder()
-            .setTitle(`🔎 ¡Cambio en ${title.substring(0, 240)}!  🐸`)
+            .setTitle(`¡Cambio en ${title.substring(0, 240)}!  🐸`)
             .addFields([
-                { name: `URL`, value: `${site.url}` },
-                { name: `Último cambio`, value: `${formatDiscordTimestamp(site.lastUpdated)}`, inline: true }
+                { name: `🔗 URL`, value: `${site.url}` },
+                { name: `🕒 Último cambio`, value: `${formatDiscordTimestamp(site.lastUpdated)}`, inline: true }
             ])
             .setColor(0x6058f3);
+
+        if (diffString) {
+            embed.setDescription(`\`\`\`diff\n${diffString.trim()}\n\`\`\``);
+        }
             
         channel.send({ embeds: [embed] });
-        channel.send({ content: ` \n${diffString}\n `, allowedMentions: { parse: [] } });
     }
 }
 

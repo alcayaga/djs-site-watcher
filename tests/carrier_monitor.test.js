@@ -214,12 +214,12 @@ describe('CarrierMonitor', () => {
             expect(mockChannelSend).toHaveBeenCalledTimes(2); // One for each updated item
 
             // Check first embed
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📲 ¡Nuevo Carrier Bundle para Verizon_US!');
+            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📲 ¡Nuevo Carrier Bundle para Verizon_US! 🐸');
             expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
-                { name: 'Versión', value: '48.0' },
-                { name: 'Build', value: '48.0.0' },
-                { name: 'URL', value: 'http://v.com/48' },
-                { name: 'Actualizado', value: '`now`' }
+                { name: '📦 Versión', value: '48.0', inline: true },
+                { name: '🛠️ Build', value: '48.0.0', inline: true },
+                { name: '🔗 URL', value: 'http://v.com/48' },
+                { name: '🕒 Actualizado', value: '`now`' }
             ]);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith(0x00FF00);
         });

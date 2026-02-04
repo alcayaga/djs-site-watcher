@@ -79,17 +79,17 @@ module.exports = {
             // Update local state to match the monitor's state (which is the source of truth)
             state.sitesToMonitor = siteMonitor.state;
             
-            let warning_message = '';
+            let warningMessage = '';
             if (warning) {
-                warning_message = '\n\n⚠️ **Atención:** No se encontró el selector CSS solicitado. Se usará el contenido de toda la página.'
+                warningMessage = '\n\n⚠️ **Atención:** No se encontró el selector CSS solicitado. Se usará el contenido de toda la página.'
             }
 
             const embed = new EmbedBuilder()
                 .setTitle('✅ Sitio Agregado')
                 .setDescription(`Se ha comenzado a monitorear **${site.id}** correctamente.`)
                 .addFields([
-                    { name: 'URL', value: site.url.substring(0, 1024) },
-                    { name: 'Selector CSS', value: `\`${site.css.substring(0, 1000)}\`${warning_message}` }
+                    { name: '🔗 URL', value: site.url.substring(0, 1024) },
+                    { name: '🔍 Selector CSS', value: `\`${site.css.substring(0, 1000)}\`${warningMessage}` }
                 ])
                 .setColor(0x6058f3);
             

@@ -40,9 +40,9 @@ module.exports = {
                 .setDescription(`Mostrando ${i + 1}-${Math.min(i + chunk.length, siteCount)}`)
                 .setColor(0x6058f3);
 
-            const fields = chunk.map((site) => ({
-                name: (site.id || 'Sitio desconocido').substring(0, 256),
-                value: `**URL:** ${site.url.substring(0, 500)}\n**CSS:** \`${site.css.substring(0, 200)}\`\n**Actualizado:** ${formatDiscordTimestamp(site.lastUpdated)}`
+            const fields = chunk.map((site, index) => ({
+                name: `${i + index + 1}. ${site.id || 'Sitio desconocido'}`.substring(0, 256),
+                value: `🔗 **URL:** ${site.url.substring(0, 500)}\n🔍 **CSS:** \`${site.css.substring(0, 200)}\`\n🕒 **Actualizado:** ${formatDiscordTimestamp(site.lastUpdated)}`
             }));
 
             embed.addFields(fields);
