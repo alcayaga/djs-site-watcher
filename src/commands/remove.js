@@ -11,7 +11,7 @@ async function showRemovalDropdown(interaction, sites, isEdit = false) {
     if (sites.length === 0) {
         const content = 'No hay sitios para monitorear. Agrega uno con `/add`.';
         if (isEdit) return interaction.update({ content, components: [], embeds: [] });
-        return interaction.reply({ content, ephemeral: false });
+        return interaction.reply({ content, ephemeral: true });
     }
 
     const select = new StringSelectMenuBuilder()
@@ -32,7 +32,7 @@ async function showRemovalDropdown(interaction, sites, isEdit = false) {
         content: 'Selecciona el sitio que deseas dejar de monitorear:',
         components: [row],
         embeds: [],
-        ephemeral: false
+        ephemeral: true
     };
 
     if (isEdit) {
@@ -94,9 +94,16 @@ module.exports = {
 
             if (removedSite) {
                 state.sitesToMonitor = siteMonitor.state;
+                // Update the ephemeral message to clear components
                 await interaction.update({ 
-                    content: `✅ Se ha eliminado **${removedSite.id}** de la lista de monitoreo.`, 
+                    content: `Eliminando **${removedSite.id}**...`, 
                     components: [] 
+                });
+                
+                // Send a public confirmation
+                await interaction.followUp({
+                    content: `✅ Se ha eliminado **${removedSite.id}** de la lista de monitoreo.`,
+                    ephemeral: false
                 });
             } else {
                 await interaction.update({ content: 'Hubo un error al intentar eliminar el sitio.', components: [] });

@@ -22,6 +22,7 @@ describe('Remove Command Interactive Features', () => {
             },
             reply: jest.fn(),
             update: jest.fn(),
+            followUp: jest.fn(),
             values: [],
             componentType: null,
             customId: ''
@@ -41,7 +42,7 @@ describe('Remove Command Interactive Features', () => {
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('Selecciona el sitio'),
                 components: expect.any(Array),
-                ephemeral: false
+                ephemeral: true
             }));
         });
     });
@@ -52,7 +53,7 @@ describe('Remove Command Interactive Features', () => {
 
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
                 components: expect.any(Array),
-                ephemeral: false
+                ephemeral: true
             }));
         });
 
@@ -69,8 +70,12 @@ describe('Remove Command Interactive Features', () => {
             expect(mockSiteMonitor.removeSiteByIndex).toHaveBeenCalledWith(0);
             expect(mockState.sitesToMonitor).toEqual([{ id: 'site2', url: 'http://site2.com' }]);
             expect(mockInteraction.update).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('Se ha eliminado **site1**'),
+                content: expect.stringContaining('Eliminando **site1**'),
                 components: []
+            }));
+            expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
+                content: expect.stringContaining('Se ha eliminado **site1**'),
+                ephemeral: false
             }));
         });
 

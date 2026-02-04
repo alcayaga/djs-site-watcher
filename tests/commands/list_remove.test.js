@@ -63,7 +63,7 @@ describe('List, Remove, Help Commands', () => {
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('Selecciona el sitio'),
                 components: expect.any(Array),
-                ephemeral: false
+                ephemeral: true
             }));
         });
     });
