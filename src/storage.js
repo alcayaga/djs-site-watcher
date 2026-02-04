@@ -89,8 +89,7 @@ function loadSites() {
  * @returns {Promise<void>} A promise that resolves when the file is saved.
  */
 function saveSites(sites) {
-  return fs.outputJSON(SITES_FILE, sites, { spaces: 2 })
-    .catch(err => console.log(err));
+  return fs.outputJSON(SITES_FILE, sites, { spaces: 2 });
 }
 
 /**
