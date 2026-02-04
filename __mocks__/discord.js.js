@@ -4,13 +4,17 @@ const mockChannel = {
 };
 
 const mockSetTitle = jest.fn().mockReturnThis();
+const mockSetDescription = jest.fn().mockReturnThis();
 const mockAddFields = jest.fn().mockReturnThis();
 const mockSetColor = jest.fn().mockReturnThis();
+const mockSetFooter = jest.fn().mockReturnThis();
 
 const MockEmbedBuilder = jest.fn(function() {
   this.setTitle = mockSetTitle;
+  this.setDescription = mockSetDescription;
   this.addFields = mockAddFields;
   this.setColor = mockSetColor;
+  this.setFooter = mockSetFooter;
 });
 
 const mockSlashCommandBuilder = jest.fn(function() {

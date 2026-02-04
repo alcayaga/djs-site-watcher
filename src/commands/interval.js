@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const storage = require('../storage');
 
 module.exports = {
@@ -31,6 +31,11 @@ module.exports = {
         monitorManager.setAllIntervals(newInterval);
         monitorManager.startAll();
 
-        await interaction.reply(`Interval set to ${config.interval} minutes.`);
+        const embed = new EmbedBuilder()
+            .setTitle('⚙️ Intervalo Actualizado')
+            .setDescription(`El intervalo de monitoreo se ha configurado en **${config.interval}** minutos. Todos los monitores han sido reiniciados con el nuevo intervalo.`)
+            .setColor(0x6058f3);
+
+        await interaction.reply({ embeds: [embed] });
     },
 };

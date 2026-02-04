@@ -70,7 +70,7 @@ class CarrierMonitor extends Monitor {
             const oldCarrier = oldCarriers[carrierId];
 
             if (!oldCarrier || oldCarrier.version !== newCarrier.version || oldCarrier.build !== newCarrier.build) {
-                updated.push({ ...newCarrier, lastUpdated: new Date().toLocaleString() });
+                updated.push({ ...newCarrier, lastUpdated: new Date().toISOString() });
             }
         }
         

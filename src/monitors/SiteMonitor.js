@@ -125,8 +125,8 @@ class SiteMonitor extends Monitor {
                     const oldContent = site.lastContent || '';
                     const cleanOldContent = cleanText(oldContent);
                     
-                    site.lastChecked = new Date().toLocaleString();
-                    site.lastUpdated = new Date().toLocaleString();
+                    site.lastChecked = new Date().toISOString();
+                    site.lastUpdated = new Date().toISOString();
                     site.hash = hash;
                     site.lastContent = content;
                     
@@ -144,7 +144,7 @@ class SiteMonitor extends Monitor {
                         hasChanges = true;
                         console.log(`[Migration] Backfilled lastContent for ${site.url} without notification.`);
                     }
-                    site.lastChecked = new Date().toLocaleString();
+                    site.lastChecked = new Date().toISOString();
                 }
                 return site;
             } catch (err) {

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, EmbedBuilder } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -61,33 +61,54 @@ module.exports = {
             });
         }
 
+        const embed = new EmbedBuilder()
+            .setColor(0x6058f3);
+
         switch (subCommand) {
             case 'start': {
                 targetMonitors.forEach(monitor => monitor.start());
-                await interaction.reply(`Started monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
+                embed.setTitle('🚀 Monitores Iniciados')
+                     .setDescription(`Se han iniciado correctamente: **${targetMonitors.map(m => m.name).join('**, **')}**`);
+                await interaction.reply({ embeds: [embed] });
                 break;
             }
             case 'stop': {
                 targetMonitors.forEach(monitor => monitor.stop());
-                await interaction.reply(`Stopped monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
+                embed.setTitle('🛑 Monitores Detenidos')
+                     .setDescription(`Se han detenido correctamente: **${targetMonitors.map(m => m.name).join('**, **')}**`)
+                     .setColor(0xff0000);
+                await interaction.reply({ embeds: [embed] });
                 break;
             }
             case 'status': {
                 const statuses = targetMonitors.map(monitor => {
                     const status = monitor.getStatus();
-                    return `${status.name}: ${status.isRunning ? 'Running 🟢' : 'Stopped 🔴'}`;
+                    return `**${status.name}**: ${status.isRunning ? 'En ejecución 🟢' : 'Detenido 🔴'}`;
                 });
-                await interaction.reply(`Monitor Status:\n${statuses.join('\n')}`);
+                embed.setTitle('📊 Estado de los Monitores')
+                     .setDescription(statuses.join('\n'));
+                await interaction.reply({ embeds: [embed] });
                 break;
             }
             case 'check': {
-                await interaction.reply(`Triggering check for monitor(s): ${targetMonitors.map(m => m.name).join(', ')}.`);
+                embed.setTitle('🔍 Ejecutando Revisión Manual')
+                     .setDescription(`Revisando: **${targetMonitors.map(m => m.name).join('**, **')}**...`);
+                await interaction.reply({ embeds: [embed] });
+
                 const results = await Promise.allSettled(targetMonitors.map(monitor => monitor.check(client)));
                 
                 const failures = results.filter(r => r.status === 'rejected');
                 if (failures.length > 0) {
                     console.error(`${failures.length} monitor check(s) failed during manual trigger:`, failures);
-                    await interaction.followUp({ content: `Warning: ${failures.length} monitor check(s) failed. See logs for details.`, flags: [MessageFlags.Ephemeral] });
+                    await interaction.followUp({ 
+                        content: `⚠️ **Atención:** Falló la revisión de ${failures.length} monitor(es). Revisa los logs para más detalles.`, 
+                        flags: [MessageFlags.Ephemeral] 
+                    });
+                } else {
+                    await interaction.followUp({ 
+                        content: `✅ Revisión completada para: **${targetMonitors.map(m => m.name).join('**, **')}**`, 
+                        flags: [MessageFlags.Ephemeral] 
+                    });
                 }
                 break;
             }

@@ -81,15 +81,17 @@ module.exports = {
             
             let warning_message = '';
             if (warning) {
-                warning_message = '\n**Atención:** No se encontró el selector CSS solicitado'
+                warning_message = '\n\n⚠️ **Atención:** No se encontró el selector CSS solicitado. Se usará el contenido de toda la página.'
             }
 
-            const embed = new EmbedBuilder();
-            embed.addFields([{ 
-                name: `Monitoreando ahora:`, 
-                value: `Dominio: ${site.id}\nURL: ${site.url}\nCSS: \n${site.css.substring(0, 800)}${warning_message}`
-            }]);
-            embed.setColor(0x6058f3);
+            const embed = new EmbedBuilder()
+                .setTitle('✅ Sitio Agregado')
+                .setDescription(`Se ha comenzado a monitorear **${site.id}** correctamente.`)
+                .addFields([
+                    { name: 'URL', value: site.url },
+                    { name: 'Selector CSS', value: `\`${site.css}\`${warning_message}` }
+                ])
+                .setColor(0x6058f3);
             
             await interaction.editReply({ embeds: [embed] });
         } catch (error) {

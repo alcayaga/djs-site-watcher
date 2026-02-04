@@ -8,7 +8,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, StringSelectMenuBuilder, Strin
  */
 async function showRemovalDropdown(interaction, sites) {
     if (sites.length === 0) {
-        const content = 'No hay sitios para monitorear. Agrega uno con `/add`.';
+        const content = 'No hay sitios siendo monitoreados actualmente. Agrega uno con `/add`.';
         return interaction.reply({ content, flags: [MessageFlags.Ephemeral] });
     }
 
@@ -96,7 +96,7 @@ module.exports = {
                 
                 // Send a public confirmation
                 await interaction.followUp({
-                    content: `✅ Se ha eliminado **${removedSite.id}** de la lista de monitoreo.`,
+                    content: `✅ Se ha eliminado **${removedSite.id}** de la lista de monitoreo correctamente.`,
                     allowedMentions: { parse: [] }
                 });
             } else {
