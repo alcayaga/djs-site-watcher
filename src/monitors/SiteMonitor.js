@@ -343,7 +343,7 @@ class SiteMonitor extends Monitor {
         }
 
         const fields = [
-            { name: `🔗 URL`, value: `${site.url}` },
+            { name: `🔗 URL`, value: `${sanitizeMarkdown(site.url)}` },
             { name: `🕒 Último cambio`, value: `${formatDiscordTimestamp(site.lastUpdated)}`, inline: true }
         ];
 
@@ -352,7 +352,7 @@ class SiteMonitor extends Monitor {
         }
 
         const embed = new Discord.EmbedBuilder()
-            .setTitle(`¡Cambio en ${title.substring(0, 240)}!  🐸`)
+            .setTitle(`¡Cambio en ${sanitizeMarkdown(title.substring(0, 240))}!  🐸`)
             .addFields(fields)
             .setColor(0x6058f3);
             

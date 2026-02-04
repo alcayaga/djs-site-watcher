@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { formatDiscordTimestamp } = require('../utils/formatters');
+const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -41,8 +41,8 @@ module.exports = {
                 .setColor(0x6058f3);
 
             const fields = chunk.map((site, index) => ({
-                name: `${i + index + 1}. ${site.id || 'Sitio desconocido'}`.substring(0, 256),
-                value: `🔗 **URL:** ${site.url.substring(0, 500)}\n🔍 **CSS:** \`${site.css.substring(0, 200)}\`\n🕒 **Actualizado:** ${formatDiscordTimestamp(site.lastUpdated)}`
+                name: `${i + index + 1}. ${sanitizeMarkdown(site.id || 'Sitio desconocido')}`.substring(0, 256),
+                value: `🔗 **URL:** ${sanitizeMarkdown(site.url.substring(0, 500))}\n🔍 **CSS:** \`${sanitizeMarkdown(site.css.substring(0, 200))}\`\n🕒 **Actualizado:** ${formatDiscordTimestamp(site.lastUpdated)}`
             }));
 
             embed.addFields(fields);

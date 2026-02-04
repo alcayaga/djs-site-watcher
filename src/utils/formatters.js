@@ -21,6 +21,8 @@ function sanitizeMarkdown(text) {
     if (!text) return '';
     return text
         .replace(/`/g, ' \` ') // Escape backticks with spaces to be safe in code blocks
+        .replace(/\[/g, '\\[') // Escape square brackets
+        .replace(/\]/g, '\\]')
         .replace(/@everyone/g, '@\u200beveryone') // Add zero-width space
         .replace(/@here/g, '@\u200bhere');
 }

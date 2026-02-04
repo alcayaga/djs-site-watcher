@@ -1,7 +1,7 @@
 const plist = require('plist');
 const Discord = require('discord.js');
 const Monitor = require('../Monitor');
-const { formatDiscordTimestamp } = require('../utils/formatters');
+const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
 
 /**
  * Monitor for Apple Carrier Bundle updates.
@@ -105,11 +105,11 @@ class CarrierMonitor extends Monitor {
         changes.updated.forEach(carrier => {
             console.log('New carrier bundle version found:', carrier);
             const embed = new Discord.EmbedBuilder()
-                .setTitle(`📲 ¡Nuevo Carrier Bundle para ${carrier.id}! 🐸`)
+                .setTitle(`📲 ¡Nuevo Carrier Bundle para ${sanitizeMarkdown(carrier.id)}! 🐸`)
                 .addFields([
-                    { name: `📦 Versión`, value: `${carrier.version}`, inline: true },
-                    { name: `🛠️ Build`, value: `${carrier.build}`, inline: true },
-                    { name: `🔗 URL`, value: `${carrier.url}` },
+                    { name: `📦 Versión`, value: `${sanitizeMarkdown(carrier.version)}`, inline: true },
+                    { name: `🛠️ Build`, value: `${sanitizeMarkdown(carrier.build)}`, inline: true },
+                    { name: `🔗 URL`, value: `${sanitizeMarkdown(carrier.url)}` },
                     { name: `🕒 Actualizado`, value: `${formatDiscordTimestamp(carrier.lastUpdated)}` }
                 ])
                 .setColor(0x00FF00);
