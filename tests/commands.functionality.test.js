@@ -36,6 +36,7 @@ jest.mock('../src/storage', () => ({
     saveSettings: jest.fn(),
     loadResponses: jest.fn(),
     saveResponses: jest.fn(),
+    SENSITIVE_SETTINGS_KEYS: [],
 }));
 jest.mock('../src/config');
 jest.mock('../src/MonitorManager', () => ({

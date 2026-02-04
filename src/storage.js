@@ -8,6 +8,15 @@ const RESPONSES_FILE = './config/responses.json';
 const LEGACY_DIR = './src';
 const NEW_DIR = './config';
 
+const SENSITIVE_SETTINGS_KEYS = [
+    'DISCORDJS_BOT_TOKEN',
+    'DISCORDJS_TEXTCHANNEL_ID',
+    'DISCORDJS_ADMINCHANNEL_ID',
+    'DISCORDJS_ROLE_ID',
+    'SINGLE_RUN',
+    'DISCORDJS_APCHANNEL_ID'
+];
+
 /**
  * Migrates legacy JSON files from src/ to config/ and patches paths.
  */
@@ -77,10 +86,10 @@ function loadSites() {
 /**
  * Saves the list of monitored sites to the JSON file.
  * @param {Array} sites - The array of site objects to save.
+ * @returns {Promise<void>} A promise that resolves when the file is saved.
  */
 function saveSites(sites) {
-  fs.outputJSON(SITES_FILE, sites, { spaces: 2 })
-    .catch(err => console.log(err));
+  return fs.outputJSON(SITES_FILE, sites, { spaces: 2 });
 }
 
 /**
@@ -99,17 +108,14 @@ function loadSettings() {
 /**
  * Saves the bot's settings to the JSON file.
  * @param {object} settings - The settings object to save.
+ * @returns {Promise<void>} A promise that resolves when the file is saved.
  */
 function saveSettings(settings) {
     const settingsToSave = { ...settings };
-    delete settingsToSave.DISCORDJS_BOT_TOKEN;
-    delete settingsToSave.DISCORDJS_TEXTCHANNEL_ID;
-    delete settingsToSave.DISCORDJS_ADMINCHANNEL_ID;
-    delete settingsToSave.DISCORDJS_ROLE_ID;
-    delete settingsToSave.SINGLE_RUN;
 
-    fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 })
-        .catch(err => console.log(err));
+    SENSITIVE_SETTINGS_KEYS.forEach(key => delete settingsToSave[key]);
+
+    return fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 });
 }
 
 /**
@@ -143,6 +149,7 @@ async function read(file) {
  * Writes data to a JSON file.
  * @param {string} file - The path to the file.
  * @param {object} data - The data to write.
+ * @returns {Promise<void>} A promise that resolves when the file is saved.
  */
 async function write(file, data) {
     await fs.outputJSON(file, data, { spaces: 2 });
@@ -157,4 +164,5 @@ module.exports = {
   loadResponses,
   read,
   write,
+  SENSITIVE_SETTINGS_KEYS,
 };

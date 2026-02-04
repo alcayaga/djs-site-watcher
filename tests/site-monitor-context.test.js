@@ -5,6 +5,7 @@ jest.mock('../src/storage', () => ({
         interval: 5,
         debug: false,
     }),
+    SENSITIVE_SETTINGS_KEYS: [],
 }));
 
 jest.mock('../src/config', () => ({

@@ -12,12 +12,12 @@ const storage = require('./storage.js');
 
 const config = storage.loadSettings();
 
-config.DISCORDJS_BOT_TOKEN = process.env.DISCORDJS_BOT_TOKEN;
-config.DISCORDJS_TEXTCHANNEL_ID = process.env.DISCORDJS_TEXTCHANNEL_ID;
-config.DISCORDJS_ADMINCHANNEL_ID = process.env.DISCORDJS_ADMINCHANNEL_ID;
-config.DISCORDJS_ROLE_ID = process.env.DISCORDJS_ROLE_ID;
-config.DISCORDJS_APCHANNEL_ID = process.env.DISCORDJS_APCHANNEL_ID;
-config.SINGLE_RUN = process.env.SINGLE_RUN;
+// Load sensitive environment variables defined in storage.js
+storage.SENSITIVE_SETTINGS_KEYS.forEach(key => {
+    if (process.env[key] !== undefined) {
+        config[key] = process.env[key];
+    }
+});
 
 if (!config.monitors) {
     config.monitors = [
