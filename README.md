@@ -66,23 +66,11 @@ For all other options, see [Commands](#Commands).
 ### `/help`
 Show all the available commands.
 
-### `/add url: <URL> [selector: <CSS SELECTOR>]`
-Adds a website to the list.
-
-**Parameters**   
-Required:   
-`url`: The URL of the site you want to track.   
-
-Optional:   
-`selector`: The part of the site you want to track. (By default the \<head\> of the site is tracked).   
-<sub>
-In Chrome, this can be obtained by right clicking the part of the site you want to track and selecting: `Inspect`. After this you see the element highlighted in the developer view. You can right click on the element and select `Copy → Copy selector`. </sub>
+### `/add`
+Adds a website to the list by opening a form.
 
 **Example**   
-`/add url:https://google.com/` This tracks changes on https://google.com/.   
-<sub>Note that some sites, including Google.com have dynamic elements (like ads) that cause a change every time its checked. To make sure this is filtered out, use the css selector parameter.</sub>   
-
-`/add url:https://example.com/ selector:body > div > h1` This tracks changes in header 1 of the site https://example.com/.
+`/add` This opens a pop-up form where you can enter the URL and an optional CSS selector.
 
 ---
 
