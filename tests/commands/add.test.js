@@ -118,18 +118,6 @@ describe('add command', () => {
             expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', 'head');
         });
 
-        it('should handle missing SiteMonitor', async () => {
-            mockMonitorManager.getMonitor.mockReturnValue(null);
-            mockInteraction.fields.getTextInputValue.mockImplementation((name) => {
-                if (name === 'urlInput') return 'https://example.com';
-                return '';
-            });
-            
-            await addCommand.handleModal(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
-
-            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({ content: 'Site monitor is not available.' }));
-        });
-
         it('should handle errors during addSite', async () => {
             mockInteraction.fields.getTextInputValue.mockImplementation((name) => {
                 if (name === 'urlInput') return 'https://example.com';

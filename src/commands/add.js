@@ -68,10 +68,6 @@ module.exports = {
         }
 
         const siteMonitor = monitorManager.getMonitor('Site');
-        // Check again just in case, though execute checked it too.
-        if (!siteMonitor) {
-            return interaction.reply({ content: 'Site monitor is not available.', ephemeral: true });
-        }
 
         // Defer reply since adding a site might take a moment (fetching)
         await interaction.deferReply();
