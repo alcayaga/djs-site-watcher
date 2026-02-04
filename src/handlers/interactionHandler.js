@@ -31,18 +31,6 @@ async function handleInteractionError(interaction, error) {
  * @param {object} monitorManager The MonitorManager instance.
  */
 async function handleInteraction(interaction, client, state, config, monitorManager) {
-    // Authorization Check
-    const isAuthorized = interaction.channelId === config.DISCORDJS_ADMINCHANNEL_ID && 
-                         interaction.member && 
-                         interaction.member.roles.cache.has(config.DISCORDJS_ROLE_ID);
-
-    if (!isAuthorized) {
-        if (interaction.isChatInputCommand()) {
-            await interaction.reply({ content: 'You are not authorized to use this command.', ephemeral: true });
-        }
-        return;
-    }
-
     if (interaction.isChatInputCommand()) {
         const command = commands.get(interaction.commandName);
         if (!command) return;

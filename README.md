@@ -45,20 +45,18 @@ Configuring the bot:
 2. Add your discord bot token after `DISCORDJS_BOT_TOKEN=`. You can get this token from [discord.com/developers/applications](https://discord.com/developers/applications).
 3. Add your application (client) ID after `DISCORDJS_CLIENT_ID=`. This is found in the "General Information" tab of your application.
 4. Add the channel ID from the channel you want the update notifications in after `DISCORDJS_TEXTCHANNEL_ID=`. You can get this ID by right clicking the channel in discord and selecting `Copy ID`.  Make sure `Developer Mode` is on by going to `Settings → Appearance → Advanced → Developer Mode → ON`. Make sure the bot has permission to post in this channel.
-5. Add the channel ID from the channel you want the admin commands to be used in after `DISCORDJS_ADMINCHANNEL_ID=`.
-6. Add the role ID that is allowed to use the admin commands after `DISCORDJS_ROLE_ID=`.
-7. (Optional) Configure `AP_RESPONSE_DELAY=` (milliseconds) for auto-responses (default: 5000).
+5. (Optional) Configure `AP_RESPONSE_DELAY=` (milliseconds) for auto-responses (default: 5000).
 
 
 For starting and using the bot, see [Usage](#Usage).
 
 ## Usage
 The simplest method to monitor a site:
-1. Invite the bot to your Discord server using the OAuth2 URL generator in the Developer Portal (Scope: `bot`, `applications.commands`; Permissions: `Administrator` or specific permissions).
+1. Invite the bot to your Discord server using the OAuth2 URL generator in the Developer Portal (Scope: `bot`, `applications.commands`; Permissions: `Manage Server` or `Administrator`).
 2. Open the command line in the cloned repository folder.
 3. Register the slash commands by running `npm run deploy`. You only need to do this once or when commands change.
 4. Start the bot by typing `npm start`.
-5. In Discord (the bot should now be online), add a website with the `/add` command in the configured admin channel.
+5. In Discord (the bot should now be online), use the `/add` command. By default, only users with `Manage Server` permission can see and use the commands. You can further customize this in `Server Settings → Integrations`.
 6. Done! The added site is now being monitored.
 <sub>By default, the watch interval for every website is 5 minutes, but you can easily change this with the `/interval` command followed by the interval in minutes.</sub>
 

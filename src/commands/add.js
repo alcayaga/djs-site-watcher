@@ -1,9 +1,10 @@
-const { SlashCommandBuilder, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('add')
-        .setDescription('Add site to monitor.'),
+        .setDescription('Add site to monitor.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
     /**
      * Executes the add command.
      * @param {import('discord.js').ChatInputCommandInteraction} interaction The interaction object.

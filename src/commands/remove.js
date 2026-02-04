@@ -1,9 +1,10 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('remove')
         .setDescription('Remove site from list.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addIntegerOption(option =>
             option.setName('index')
                 .setDescription('The number of the site to remove (from /list)')

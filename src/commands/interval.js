@@ -1,10 +1,11 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const storage = require('../storage');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('interval')
         .setDescription('Set update interval.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addIntegerOption(option =>
             option.setName('minutes')
                 .setDescription('Update interval in minutes (1-60)')

@@ -28,10 +28,7 @@ describe('Interaction Handler', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         
-        mockConfig = {
-            DISCORDJS_ADMINCHANNEL_ID: 'admin-channel',
-            DISCORDJS_ROLE_ID: 'admin-role'
-        };
+        mockConfig = {};
 
         mockInteraction = {
             isChatInputCommand: jest.fn(),
@@ -59,7 +56,7 @@ describe('Interaction Handler', () => {
         mockMonitorManager = {};
     });
 
-    it('should execute command with correct arguments if authorized', async () => {
+    it('should execute command with correct arguments', async () => {
         mockInteraction.isChatInputCommand.mockReturnValue(true);
         const addCommand = require('../../src/commands/add.js');
         
@@ -246,45 +243,5 @@ describe('Interaction Handler', () => {
                 content: expect.stringContaining('error processing')
             }));
         });
-    });
-
-    it('should block execution if unauthorized (wrong channel)', async () => {
-        mockInteraction.isChatInputCommand.mockReturnValue(true);
-        mockInteraction.channelId = 'wrong-channel';
-        const addCommand = require('../../src/commands/add.js');
-
-        await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
-
-        expect(addCommand.execute).not.toHaveBeenCalled();
-        expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
-            content: expect.stringContaining('not authorized'),
-            ephemeral: true
-        }));
-    });
-
-    it('should block execution if unauthorized (wrong role)', async () => {
-        mockInteraction.isChatInputCommand.mockReturnValue(true);
-        mockInteraction.member.roles.cache.has.mockReturnValue(false);
-        const addCommand = require('../../src/commands/add.js');
-
-        await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
-
-        expect(addCommand.execute).not.toHaveBeenCalled();
-        expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
-            content: expect.stringContaining('not authorized'),
-            ephemeral: true
-        }));
-    });
-
-    it('should block autocomplete if unauthorized', async () => {
-        mockInteraction.isChatInputCommand.mockReturnValue(false);
-        mockInteraction.isAutocomplete.mockReturnValue(true);
-        mockInteraction.channelId = 'wrong-channel';
-        const addCommand = require('../../src/commands/add.js');
-
-        await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
-
-        expect(addCommand.autocomplete).not.toHaveBeenCalled();
-        expect(mockInteraction.reply).not.toHaveBeenCalled();
     });
 });
