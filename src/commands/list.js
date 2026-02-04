@@ -46,19 +46,15 @@ module.exports = {
 
             embed.addFields(fields);
             
+            const isLastChunk = i + CHUNK_SIZE >= siteCount;
+            const options = { embeds: [embed] };
+            if (isLastChunk) {
+                options.components = [row];
+            }
+
             if (i === 0) {
-                // If it's the first (or only) page, attach the button row
-                const options = { embeds: [embed] };
-                if (i + CHUNK_SIZE >= siteCount) {
-                    options.components = [row];
-                }
                 await interaction.editReply(options);
             } else {
-                const options = { embeds: [embed] };
-                // If it's the last page, attach the button row
-                if (i + CHUNK_SIZE >= siteCount) {
-                    options.components = [row];
-                }
                 await interaction.followUp(options);
             }
         }

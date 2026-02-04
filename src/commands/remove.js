@@ -4,13 +4,11 @@ const { SlashCommandBuilder, PermissionFlagsBits, StringSelectMenuBuilder, Strin
  * Generates and sends a dropdown menu to select a site for removal.
  * @param {import('discord.js').ChatInputCommandInteraction|import('discord.js').ButtonInteraction} interaction The interaction object.
  * @param {Array} sites The list of monitored sites.
- * @param {boolean} isEdit Whether to edit the original message or send a new reply.
  * @returns {Promise<void>}
  */
-async function showRemovalDropdown(interaction, sites, isEdit = false) {
+async function showRemovalDropdown(interaction, sites) {
     if (sites.length === 0) {
         const content = 'No hay sitios para monitorear. Agrega uno con `/add`.';
-        if (isEdit) return interaction.update({ content, components: [], embeds: [] });
         return interaction.reply({ content, ephemeral: true });
     }
 
@@ -35,11 +33,7 @@ async function showRemovalDropdown(interaction, sites, isEdit = false) {
         ephemeral: true
     };
 
-    if (isEdit) {
-        await interaction.update(response);
-    } else {
-        await interaction.reply(response);
-    }
+    await interaction.reply(response);
 }
 
 module.exports = {

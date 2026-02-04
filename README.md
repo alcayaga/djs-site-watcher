@@ -78,20 +78,16 @@ The form will ask for a URL and an optional CSS selector. The CSS selector speci
 
 ---
 
-### `/remove index: <NUMBER>`
-Removes a website from the list.
-
-**Parameters**   
-Required:   
-`index`: The number of the site you want to remove. Use `/list` to see the number of the site(s).   
+### `/remove`
+Removes a website from the list by opening an interactive dropdown menu.
 
 **Example**   
-`/remove index:1` This removes the first site in the list (`/list`).
+`/remove` This opens a dropdown where you can select the site to remove.
 
 ---
 
 ### `/list` (Alias: `/show`)
-Shows the list of websites being watched.
+Shows the list of websites being watched. Includes a button to quickly remove sites.
 
 ---
 
