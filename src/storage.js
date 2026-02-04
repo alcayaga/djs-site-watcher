@@ -88,10 +88,10 @@ function loadSites() {
 /**
  * Saves the list of monitored sites to the JSON file.
  * @param {Array} sites - The array of site objects to save.
+ * @returns {Promise<void>} A promise that resolves when the file is saved.
  */
 function saveSites(sites) {
-  fs.outputJSON(SITES_FILE, sites, { spaces: 2 })
-    .catch(err => console.log(err));
+  return fs.outputJSON(SITES_FILE, sites, { spaces: 2 });
 }
 
 /**
@@ -110,14 +110,14 @@ function loadSettings() {
 /**
  * Saves the bot's settings to the JSON file.
  * @param {object} settings - The settings object to save.
+ * @returns {Promise<void>} A promise that resolves when the file is saved.
  */
 function saveSettings(settings) {
     const settingsToSave = { ...settings };
 
     SENSITIVE_SETTINGS_KEYS.forEach(key => delete settingsToSave[key]);
 
-    return fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 })
-        .catch(err => console.log(err));
+    return fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 });
 }
 
 /**
@@ -151,6 +151,7 @@ async function read(file) {
  * Writes data to a JSON file.
  * @param {string} file - The path to the file.
  * @param {object} data - The data to write.
+ * @returns {Promise<void>} A promise that resolves when the file is saved.
  */
 async function write(file, data) {
     await fs.outputJSON(file, data, { spaces: 2 });

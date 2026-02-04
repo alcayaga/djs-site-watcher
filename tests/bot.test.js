@@ -56,6 +56,7 @@ jest.mock('../src/storage', () => ({
     read: jest.fn().mockResolvedValue({}),
     write: jest.fn().mockResolvedValue(true),
     migrateLegacyData: jest.fn(),
+    SENSITIVE_SETTINGS_KEYS: [],
 }));
 
 // Mock got

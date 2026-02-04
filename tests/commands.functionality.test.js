@@ -5,6 +5,7 @@ const storage = require('../src/storage');
 jest.mock('../src/storage', () => ({
     saveSettings: jest.fn(),
     loadSettings: jest.fn(),
+    SENSITIVE_SETTINGS_KEYS: [],
 }));
 
 describe('Command Functionality', () => {
