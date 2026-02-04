@@ -208,6 +208,32 @@ describe('Interaction Handler', () => {
         });
     });
 
+    describe('Security & Permissions', () => {
+        it('should block non-command interactions if user lacks ManageGuild permission', async () => {
+            mockInteraction.isChatInputCommand.mockReturnValue(false);
+            mockInteraction.isAutocomplete.mockReturnValue(false);
+            mockInteraction.isMessageComponent = jest.fn().mockReturnValue(true);
+            mockInteraction.memberPermissions.has.mockReturnValue(false);
+
+            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
+
+            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                content: expect.stringContaining('not authorized'),
+                ephemeral: true
+            }));
+        });
+
+        it('should silent fail for autocomplete if user lacks permission', async () => {
+            mockInteraction.isChatInputCommand.mockReturnValue(false);
+            mockInteraction.isAutocomplete.mockReturnValue(true);
+            mockInteraction.memberPermissions.has.mockReturnValue(false);
+
+            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
+
+            expect(mockInteraction.reply).not.toHaveBeenCalled();
+        });
+    });
+
     describe('Error Handling', () => {
         it('should use reply if not deferred or replied', async () => {
             mockInteraction.isChatInputCommand.mockReturnValue(true);

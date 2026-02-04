@@ -44,7 +44,8 @@ describe('List, Remove, Help Commands', () => {
 
             expect(mockInteraction.deferReply).toHaveBeenCalled();
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
-                embeds: expect.any(Array)
+                embeds: expect.any(Array),
+                components: expect.any(Array)
             }));
         });
 
@@ -56,30 +57,14 @@ describe('List, Remove, Help Commands', () => {
     });
 
     describe('/remove', () => {
-        it('should remove a site', async () => {
-            mockInteraction.options.getInteger.mockReturnValue(1); // Remove first site (index 1)
-            mockSiteMonitor.removeSiteByIndex.mockResolvedValue({ id: 'site1' });
-            
-            // After removal, the state on monitor would be updated in real life.
-            // We simulate the result by ensuring the command updates global state from monitor state.
-            // But here mockSiteMonitor.state is static unless we change it.
-            // Let's assume removeSiteByIndex updates it.
-            mockSiteMonitor.state = [{ id: 'site2' }]; 
-
+        it('should show the removal dropdown', async () => {
             await removeCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
-            expect(mockSiteMonitor.removeSiteByIndex).toHaveBeenCalledWith(0);
-            expect(mockState.sitesToMonitor).toEqual([{ id: 'site2' }]);
-            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.stringContaining('Removed **site1**'));
-        });
-
-        it('should handle invalid index', async () => {
-            mockInteraction.options.getInteger.mockReturnValue(99);
-
-            await removeCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
-
-            expect(mockSiteMonitor.removeSiteByIndex).not.toHaveBeenCalled();
-            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({ content: expect.stringContaining('Not a valid number') }));
+            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                content: expect.stringContaining('Selecciona el sitio'),
+                components: expect.any(Array),
+                ephemeral: true
+            }));
         });
     });
 

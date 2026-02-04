@@ -17,7 +17,7 @@ module.exports = {
         embed.addFields([
             { name: '`/help`', value: 'Show all commands.' },
             { name: '`/add`', value: 'Add site to monitor via a pop-up form.' },
-            { name: '`/remove <index>`', value: 'Remove site from list.' },
+            { name: '`/remove`', value: 'Remove site from list.' },
             { name: '`/list` | `/show`', value: 'Show list of added sites.' },
             { name: '`/interval <minutes>`', value: 'Set update interval, default `5`.' },
             { name: '`/monitor <subcommand> [name]`', value: 'Manage monitors (start, stop, status, check).' }

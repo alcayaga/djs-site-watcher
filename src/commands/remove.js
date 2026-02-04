@@ -1,15 +1,46 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ComponentType } = require('discord.js');
+
+/**
+ * Generates and sends a dropdown menu to select a site for removal.
+ * @param {import('discord.js').ChatInputCommandInteraction|import('discord.js').ButtonInteraction} interaction The interaction object.
+ * @param {Array} sites The list of monitored sites.
+ * @returns {Promise<void>}
+ */
+async function showRemovalDropdown(interaction, sites) {
+    if (sites.length === 0) {
+        const content = 'No hay sitios para monitorear. Agrega uno con `/add`.';
+        return interaction.reply({ content, ephemeral: true });
+    }
+
+    const select = new StringSelectMenuBuilder()
+        .setCustomId('remove:select')
+        .setPlaceholder('Selecciona un sitio para eliminar...')
+        .addOptions(
+            sites.slice(0, 25).map((site, index) => 
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(site.id.substring(0, 100))
+                    .setDescription(site.url.substring(0, 100))
+                    .setValue(index.toString())
+            )
+        );
+
+    const row = new ActionRowBuilder().addComponents(select);
+
+    const response = {
+        content: 'Selecciona el sitio que deseas dejar de monitorear:',
+        components: [row],
+        embeds: [],
+        ephemeral: true
+    };
+
+    await interaction.reply(response);
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('remove')
         .setDescription('Remove site from list.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-        .addIntegerOption(option =>
-            option.setName('index')
-                .setDescription('The number of the site to remove (from /list)')
-                .setRequired(true)
-                .setMinValue(1)),
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
     /**
      * Executes the remove command.
      * @param {import('discord.js').ChatInputCommandInteraction} interaction The interaction object.
@@ -20,26 +51,58 @@ module.exports = {
      * @returns {Promise<void>}
      */
     async execute(interaction, client, state, config, monitorManager) {
-        const index = interaction.options.getInteger('index');
         const siteMonitor = monitorManager.getMonitor('Site');
 
         if (!siteMonitor) {
             return interaction.reply({ content: 'Site monitor is not available.', ephemeral: true });
         }
-        
-        if (index > siteMonitor.state.length) {
-            return interaction.reply({ content: `Not a valid number. Usage:\n/remove <index>\n(Max: ${siteMonitor.state.length})`, ephemeral: true });
-        }
 
-        const removedSite = await siteMonitor.removeSiteByIndex(index - 1);
-
-        if (removedSite) {
-            // Sync global state
-            state.sitesToMonitor = siteMonitor.state;
-            await interaction.reply(`Removed **${removedSite.id}** from list.`);
-        } else {
-            // Should be covered by the length check, but safe fallback
-            return interaction.reply({ content: `Failed to remove site at index ${index}.`, ephemeral: true });
-        }
+        return showRemovalDropdown(interaction, siteMonitor.state);
     },
+
+    /**
+     * Handles message component interactions for the remove command.
+     * @param {import('discord.js').MessageComponentInteraction} interaction 
+     * @param {import('discord.js').Client} client 
+     * @param {object} state 
+     * @param {object} config 
+     * @param {import('../MonitorManager')} monitorManager 
+     * @param {string} action 
+     * @returns {Promise<void>}
+     */
+    async handleComponent(interaction, client, state, config, monitorManager, action) {
+        const siteMonitor = monitorManager.getMonitor('Site');
+        
+        if (action === 'prompt') {
+            return showRemovalDropdown(interaction, siteMonitor.state);
+        }
+
+        if (action === 'select' && interaction.componentType === ComponentType.StringSelect) {
+            const index = parseInt(interaction.values[0], 10);
+            
+            if (isNaN(index) || index < 0 || index >= siteMonitor.state.length) {
+                return interaction.update({ content: 'Selección inválida o el sitio ya no existe.', components: [] });
+            }
+
+            const removedSite = await siteMonitor.removeSiteByIndex(index);
+
+            if (removedSite) {
+                state.sitesToMonitor = siteMonitor.state;
+                // Update the ephemeral message to clear components
+                await interaction.update({ 
+                    content: `Eliminando **${removedSite.id}**...`, 
+                    components: [] 
+                });
+                
+                // Send a public confirmation
+                await interaction.followUp({
+                    content: `✅ Se ha eliminado **${removedSite.id}** de la lista de monitoreo.`,
+                    ephemeral: false,
+                    allowedMentions: { parse: [] }
+                });
+            } else {
+                await interaction.update({ content: 'Hubo un error al intentar eliminar el sitio.', components: [] });
+            }
+        }
+    }
 };
