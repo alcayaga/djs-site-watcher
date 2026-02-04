@@ -20,14 +20,29 @@ function formatDiscordTimestamp(dateStr) {
 function sanitizeMarkdown(text) {
     if (!text) return '';
     return text
-        .replace(/`/g, ' \` ') // Escape backticks with spaces to be safe in code blocks
+        .replace(/`/g, '\\`') // Escape backticks
         .replace(/\[/g, '\\[') // Escape square brackets
         .replace(/\]/g, '\\]')
         .replace(/@everyone/g, '@\u200beveryone') // Add zero-width space
         .replace(/@here/g, '@\u200bhere');
 }
 
+/**
+ * Sanitizes text for use inside Discord masked links [text](url).
+ * Only escapes ']' to prevent breaking the link structure and defangs mentions.
+ * @param {string} text The text to sanitize.
+ * @returns {string} The sanitized link text.
+ */
+function sanitizeLinkText(text) {
+    if (!text) return '';
+    return text
+        .replace(/\]/g, '\\]')
+        .replace(/@everyone/g, '@\u200beveryone')
+        .replace(/@here/g, '@\u200bhere');
+}
+
 module.exports = {
     formatDiscordTimestamp,
-    sanitizeMarkdown
+    sanitizeMarkdown,
+    sanitizeLinkText
 };

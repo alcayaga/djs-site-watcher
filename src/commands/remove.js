@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ComponentType, MessageFlags, EmbedBuilder } = require('discord.js');
+const { sanitizeMarkdown } = require('../utils/formatters');
 
 /**
  * Generates and sends a dropdown menu to select a site for removal.
@@ -90,7 +91,7 @@ module.exports = {
                 state.sitesToMonitor = siteMonitor.state;
                 // Update the ephemeral message to clear components
                 await interaction.update({ 
-                    content: `Eliminando **${removedSite.id}**...`, 
+                    content: `Eliminando **${sanitizeMarkdown(removedSite.id)}**...`, 
                     components: [] 
                 });
                 
@@ -98,7 +99,7 @@ module.exports = {
                 await interaction.followUp({
                     embeds: [new EmbedBuilder()
                         .setTitle('✅ Sitio Eliminado')
-                        .setDescription(`Se ha eliminado **${removedSite.id}** de la lista de monitoreo correctamente.`)
+                        .setDescription(`Se ha eliminado **${sanitizeMarkdown(removedSite.id)}** de la lista de monitoreo correctamente.`)
                         .setColor(0x57F287) // Discord Green
                     ],
                     allowedMentions: { parse: [] }

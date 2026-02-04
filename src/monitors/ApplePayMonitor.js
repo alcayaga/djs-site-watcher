@@ -210,7 +210,7 @@ class ApplePayMonitor extends Monitor {
                     .setTitle(`🌟 ¡Nueva región en Transit para Apple Pay! 🐸`)
                     .addFields([
                         { name: '📍 Región', value: this.REGION_TO_MONITOR, inline: true },
-                        { name: '🏷️ Nombre', value: change.geo.name || 'Unknown', inline: true },
+                        { name: '🏷️ Nombre', value: sanitizeMarkdown(change.geo.name || 'Unknown'), inline: true },
                         { name: '🔗 URL', value: change.url }
                     ])
                     .setFooter({ text: `Fuente: ${change.configName}` })
