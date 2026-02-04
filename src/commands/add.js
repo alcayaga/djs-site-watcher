@@ -89,7 +89,8 @@ module.exports = {
                 .setDescription(`Se ha comenzado a monitorear **${site.id}** correctamente.`)
                 .addFields([
                     { name: '🔗 URL', value: site.url.substring(0, 1024) },
-                    { name: '🔍 Selector CSS', value: `\`${site.css.substring(0, 1000)}\`${warningMessage}` }
+                    { name: '🔍 Selector CSS', value: `\`${site.css.substring(0, 1000)}\`${warningMessage}` },
+                    { name: '📝 Contenido Detectado', value: site.lastContent ? `\`\`\`\n${site.lastContent.substring(0, 100)}${site.lastContent.length > 100 ? '...' : ''}\n\`\`\`` : '*No se detectó contenido*' }
                 ])
                 .setColor(0x6058f3);
             

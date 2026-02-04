@@ -330,8 +330,10 @@ describe('ApplePayMonitor', () => {
             expect(mockChannel.send).toHaveBeenCalledTimes(1); 
             expect(mockChannel.send).toHaveBeenCalledWith({ embeds: [mockMessageEmbedInstance] });
             expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith(expect.stringContaining('¡Cambio en Apple Pay para CL! 🐸'));
-            expect(mockMessageEmbedInstance.setDescription).toHaveBeenCalledWith('```diff\ndiff content\n```');
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([{ name: '🔗 URL', value: 'http://config.com' }]);
+            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+                { name: '🔗 URL', value: 'http://config.com' },
+                { name: '📝 Cambios detectados', value: '```diff\ndiff content\n```' }
+            ]);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#0071E3');
         });
 

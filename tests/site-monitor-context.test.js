@@ -154,7 +154,7 @@ describe('SiteMonitor Context & Clean Features', () => {
 
         siteMonitor.notify(mockChange);
         
-        const sentDiff = mockMessageEmbedInstance.setDescription.mock.calls[0][0];
+        const sentDiff = mockMessageEmbedInstance.addFields.mock.calls[1][0][0].value;
         
         expect(sentDiff).toContain('🔴 6');
         expect(sentDiff).toContain('🟢 six');
@@ -181,7 +181,7 @@ describe('SiteMonitor Context & Clean Features', () => {
         
         siteMonitor.notify(mockChange);
         
-        const sentDiff = mockMessageEmbedInstance.setDescription.mock.calls[0][0];
+        const sentDiff = mockMessageEmbedInstance.addFields.mock.calls[1][0][0].value;
         expect(sentDiff).toContain('...'); 
         expect(sentDiff).toContain('⚪ 8');
         expect(sentDiff).not.toContain('⚪ 10'); 

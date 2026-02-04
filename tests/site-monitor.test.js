@@ -285,7 +285,9 @@ describe('SiteMonitor', () => {
                 { name: '🕒 Último cambio', value: '`some-date`', inline: true }
             ]);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith(0x6058f3);
-            expect(mockMessageEmbedInstance.setDescription).toHaveBeenCalledWith('```diff\n🔴 old\n🟢 new\n```');
+            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+                { name: '📝 Cambios detectados', value: '```diff\n🔴 old\n🟢 new\n```' }
+            ]);
         });
 
         it('should format multiline diffs correctly', () => {
@@ -298,7 +300,9 @@ describe('SiteMonitor', () => {
             siteMonitor.notify(mockChange);
 
             const expectedDiff = '```diff\n⚪ line 1\n🔴 line 2\n🟢 line three\n⚪ line 4\n```';
-            expect(mockMessageEmbedInstance.setDescription).toHaveBeenCalledWith(expectedDiff);
+            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+                { name: '📝 Cambios detectados', value: expectedDiff }
+            ]);
         });
 
         it('should truncate long diffs', () => {
@@ -309,8 +313,10 @@ describe('SiteMonitor', () => {
             ]);
             
             siteMonitor.notify(mockChange);
-            // Assert that the setDescription contains the truncation.
-            expect(mockMessageEmbedInstance.setDescription).toHaveBeenCalledWith(expect.stringContaining('... (truncated)'));
+            // Assert that the addFields contains the truncation.
+            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+                { name: '📝 Cambios detectados', value: expect.stringContaining('... (truncated)') }
+            ]);
         });
 
         it('should log an error if notification channel not found', () => {

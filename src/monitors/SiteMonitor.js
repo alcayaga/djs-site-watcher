@@ -351,7 +351,7 @@ class SiteMonitor extends Monitor {
             .setColor(0x6058f3);
 
         if (diffString) {
-            embed.setDescription(`\`\`\`diff\n${diffString.trim()}\n\`\`\``);
+            embed.addFields([{ name: '📝 Cambios detectados', value: `\`\`\`diff\n${diffString.trim()}\n\`\`\`` }]);
         }
             
         channel.send({ embeds: [embed] });

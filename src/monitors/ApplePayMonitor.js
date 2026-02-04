@@ -196,8 +196,10 @@ class ApplePayMonitor extends Monitor {
             if (change.type === 'regionDiff') {
                 const embed = new Discord.EmbedBuilder()
                     .setTitle(`¡Cambio en Apple Pay para ${this.REGION_TO_MONITOR}! 🐸`)
-                    .setDescription(`\`\`\`diff\n${change.diff}\n\`\`\``)
-                    .addFields([{ name: `🔗 URL`, value: `${change.url}` }])
+                    .addFields([
+                        { name: `🔗 URL`, value: `${change.url}` },
+                        { name: '📝 Cambios detectados', value: `\`\`\`diff\n${change.diff.trim()}\n\`\`\`` }
+                    ])
                     .setColor('#0071E3');
                 channel.send({ embeds: [embed] });
             } else if (change.type === 'newMarketGeo') {
