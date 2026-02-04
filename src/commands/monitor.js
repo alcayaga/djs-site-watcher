@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -57,7 +57,7 @@ module.exports = {
         if (targetMonitors.length === 0) {
             return interaction.reply({
                 content: `Monitor "${targetMonitorName}" not found.`, 
-                ephemeral: true 
+                flags: [MessageFlags.Ephemeral] 
             });
         }
 
@@ -87,7 +87,7 @@ module.exports = {
                 const failures = results.filter(r => r.status === 'rejected');
                 if (failures.length > 0) {
                     console.error(`${failures.length} monitor check(s) failed during manual trigger:`, failures);
-                    await interaction.followUp({ content: `Warning: ${failures.length} monitor check(s) failed. See logs for details.`, ephemeral: true });
+                    await interaction.followUp({ content: `Warning: ${failures.length} monitor check(s) failed. See logs for details.`, flags: [MessageFlags.Ephemeral] });
                 }
                 break;
             }

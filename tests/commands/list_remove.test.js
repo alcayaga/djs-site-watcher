@@ -1,6 +1,7 @@
 const listCommand = require('../../src/commands/list');
 const removeCommand = require('../../src/commands/remove');
 const helpCommand = require('../../src/commands/help');
+const { MessageFlags } = require('discord.js');
 
 describe('List, Remove, Help Commands', () => {
     let mockInteraction, mockState, mockClient, mockMonitorManager, mockSiteMonitor;
@@ -63,7 +64,7 @@ describe('List, Remove, Help Commands', () => {
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('Selecciona el sitio'),
                 components: expect.any(Array),
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             }));
         });
     });

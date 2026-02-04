@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ComponentType } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ComponentType, MessageFlags } = require('discord.js');
 
 /**
  * Generates and sends a dropdown menu to select a site for removal.
@@ -9,7 +9,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, StringSelectMenuBuilder, Strin
 async function showRemovalDropdown(interaction, sites) {
     if (sites.length === 0) {
         const content = 'No hay sitios para monitorear. Agrega uno con `/add`.';
-        return interaction.reply({ content, ephemeral: true });
+        return interaction.reply({ content, flags: [MessageFlags.Ephemeral] });
     }
 
     const select = new StringSelectMenuBuilder()
@@ -30,7 +30,7 @@ async function showRemovalDropdown(interaction, sites) {
         content: 'Selecciona el sitio que deseas dejar de monitorear:',
         components: [row],
         embeds: [],
-        ephemeral: true
+        flags: [MessageFlags.Ephemeral]
     };
 
     await interaction.reply(response);
@@ -54,7 +54,7 @@ module.exports = {
         const siteMonitor = monitorManager.getMonitor('Site');
 
         if (!siteMonitor) {
-            return interaction.reply({ content: 'Site monitor is not available.', ephemeral: true });
+            return interaction.reply({ content: 'Site monitor is not available.', flags: [MessageFlags.Ephemeral] });
         }
 
         return showRemovalDropdown(interaction, siteMonitor.state);
@@ -97,7 +97,6 @@ module.exports = {
                 // Send a public confirmation
                 await interaction.followUp({
                     content: `✅ Se ha eliminado **${removedSite.id}** de la lista de monitoreo.`,
-                    ephemeral: false,
                     allowedMentions: { parse: [] }
                 });
             } else {

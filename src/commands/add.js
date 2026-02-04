@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -17,7 +17,7 @@ module.exports = {
     async execute(interaction, client, state, config, monitorManager) {
         const siteMonitor = monitorManager.getMonitor('Site');
         if (!siteMonitor) {
-            return interaction.reply({ content: 'Site monitor is not available.', ephemeral: true });
+            return interaction.reply({ content: 'Site monitor is not available.', flags: [MessageFlags.Ephemeral] });
         }
 
         const modal = new ModalBuilder()
@@ -62,10 +62,10 @@ module.exports = {
         try {
             url = new URL(urlString);
             if (!['http:', 'https:'].includes(url.protocol)) {
-                return interaction.reply({ content: 'Invalid protocol. Only HTTP and HTTPS are allowed.', ephemeral: true });
+                return interaction.reply({ content: 'Invalid protocol. Only HTTP and HTTPS are allowed.', flags: [MessageFlags.Ephemeral] });
             }
         } catch (e) {
-            return interaction.reply({ content: 'Invalid URL format.', ephemeral: true });
+            return interaction.reply({ content: 'Invalid URL format.', flags: [MessageFlags.Ephemeral] });
         }
 
         const siteMonitor = monitorManager.getMonitor('Site');

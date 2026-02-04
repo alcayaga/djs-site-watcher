@@ -1,4 +1,5 @@
 const { handleInteraction } = require('../../src/handlers/interactionHandler');
+const { MessageFlags } = require('discord.js');
 
 // Mock fs and path to control command loading via commandLoader
 // The handler imports commandLoader. We should mock commandLoader directly.
@@ -146,7 +147,7 @@ describe('Interaction Handler', () => {
 
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('error processing'),
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             }));
 
             // Restore handleModal
@@ -167,7 +168,7 @@ describe('Interaction Handler', () => {
 
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('error processing'),
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             }));
         });
 
@@ -185,7 +186,7 @@ describe('Interaction Handler', () => {
 
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('error processing'),
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             }));
         });
 
@@ -203,7 +204,7 @@ describe('Interaction Handler', () => {
 
             expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('error processing'),
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             }));
         });
     });
@@ -219,7 +220,7 @@ describe('Interaction Handler', () => {
 
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('not authorized'),
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             }));
         });
 
