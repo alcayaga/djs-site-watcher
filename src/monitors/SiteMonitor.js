@@ -88,7 +88,7 @@ function isPrivateIP(ip) {
     return false;
 }
 
-const { formatDiscordTimestamp } = require('../utils/formatters');
+const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
 const CONTEXT_LINES = 3;
 
 /**
@@ -342,17 +342,19 @@ class SiteMonitor extends Monitor {
             diffString = diffString.substring(0, 1900) + '\n... (truncated)';
         }
 
-        const embed = new Discord.EmbedBuilder()
-            .setTitle(`¡Cambio en ${title.substring(0, 240)}!  🐸`)
-            .addFields([
-                { name: `🔗 URL`, value: `${site.url}` },
-                { name: `🕒 Último cambio`, value: `${formatDiscordTimestamp(site.lastUpdated)}`, inline: true }
-            ])
-            .setColor(0x6058f3);
+        const fields = [
+            { name: `🔗 URL`, value: `${site.url}` },
+            { name: `🕒 Último cambio`, value: `${formatDiscordTimestamp(site.lastUpdated)}`, inline: true }
+        ];
 
         if (diffString) {
-            embed.addFields([{ name: '📝 Cambios detectados', value: `\`\`\`diff\n${diffString.trim()}\n\`\`\`` }]);
+            fields.push({ name: '📝 Cambios detectados', value: `\`\`\`diff\n${sanitizeMarkdown(diffString.trim())}\n\`\`\`` });
         }
+
+        const embed = new Discord.EmbedBuilder()
+            .setTitle(`¡Cambio en ${title.substring(0, 240)}!  🐸`)
+            .addFields(fields)
+            .setColor(0x6058f3);
             
         channel.send({ embeds: [embed] });
     }

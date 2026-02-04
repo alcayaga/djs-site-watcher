@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { sanitizeMarkdown } = require('../utils/formatters');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -90,7 +91,7 @@ module.exports = {
                 .addFields([
                     { name: '🔗 URL', value: site.url.substring(0, 1024) },
                     { name: '🔍 Selector CSS', value: `\`${site.css.substring(0, 1000)}\`${warningMessage}` },
-                    { name: '📝 Contenido Detectado', value: site.lastContent ? `\`\`\`\n${site.lastContent.substring(0, 100)}${site.lastContent.length > 100 ? '...' : ''}\n\`\`\`` : '*No se detectó contenido*' }
+                    { name: '📝 Contenido Detectado', value: site.lastContent ? `\`\`\`\n${sanitizeMarkdown(site.lastContent.substring(0, 100))}${site.lastContent.length > 100 ? '...' : ''}\n\`\`\`` : '*No se detectó contenido*' }
                 ])
                 .setColor(0x6058f3);
             

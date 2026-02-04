@@ -3,6 +3,8 @@ const Monitor = require('../Monitor');
 const diff = require('diff');
 const got = require('got'); // Explicitly import got as it's used directly in fetch
 
+const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
+
 /**
  * Monitor for Apple Pay configuration changes, including SupportedRegions and MarketGeos.
  * Extends the base Monitor class to provide specific logic for fetching, parsing, comparing, and notifying about Apple Pay data.
@@ -198,8 +200,9 @@ class ApplePayMonitor extends Monitor {
                     .setTitle(`¡Cambio en Apple Pay para ${this.REGION_TO_MONITOR}! 🐸`)
                     .addFields([
                         { name: `🔗 URL`, value: `${change.url}` },
-                        { name: '📝 Cambios detectados', value: `\`\`\`diff\n${change.diff.trim()}\n\`\`\`` }
+                        { name: '📝 Cambios detectados', value: `\`\`\`diff\n${sanitizeMarkdown(change.diff.trim())}\n\`\`\`` }
                     ])
+                    .setFooter({ text: `Fuente: ${change.configName}` })
                     .setColor('#0071E3');
                 channel.send({ embeds: [embed] });
             } else if (change.type === 'newMarketGeo') {
@@ -210,6 +213,7 @@ class ApplePayMonitor extends Monitor {
                         { name: '🏷️ Nombre', value: change.geo.name || 'Unknown', inline: true },
                         { name: '🔗 URL', value: change.url }
                     ])
+                    .setFooter({ text: `Fuente: ${change.configName}` })
                     .setColor('#0071E3');
                 channel.send({ embeds: [embed] });
             }

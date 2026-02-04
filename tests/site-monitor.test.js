@@ -69,6 +69,7 @@ describe('SiteMonitor', () => {
             setTitle: jest.fn().mockReturnThis(),
             setDescription: jest.fn().mockReturnThis(),
             addFields: jest.fn().mockReturnThis(),
+            setFooter: jest.fn().mockReturnThis(),
             setColor: jest.fn().mockReturnThis(),
         };
 
@@ -282,12 +283,10 @@ describe('SiteMonitor', () => {
             expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('¡Cambio en Test Site Title!  🐸');
             expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
                 { name: '🔗 URL', value: 'http://test-site.com' },
-                { name: '🕒 Último cambio', value: '`some-date`', inline: true }
-            ]);
-            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith(0x6058f3);
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+                { name: '🕒 Último cambio', value: '`some-date`', inline: true },
                 { name: '📝 Cambios detectados', value: '```diff\n🔴 old\n🟢 new\n```' }
             ]);
+            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith(0x6058f3);
         });
 
         it('should format multiline diffs correctly', () => {
@@ -300,9 +299,9 @@ describe('SiteMonitor', () => {
             siteMonitor.notify(mockChange);
 
             const expectedDiff = '```diff\n⚪ line 1\n🔴 line 2\n🟢 line three\n⚪ line 4\n```';
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith(expect.arrayContaining([
                 { name: '📝 Cambios detectados', value: expectedDiff }
-            ]);
+            ]));
         });
 
         it('should truncate long diffs', () => {
@@ -314,9 +313,9 @@ describe('SiteMonitor', () => {
             
             siteMonitor.notify(mockChange);
             // Assert that the addFields contains the truncation.
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith(expect.arrayContaining([
                 { name: '📝 Cambios detectados', value: expect.stringContaining('... (truncated)') }
-            ]);
+            ]));
         });
 
         it('should log an error if notification channel not found', () => {

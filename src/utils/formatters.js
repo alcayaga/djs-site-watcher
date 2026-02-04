@@ -11,6 +11,21 @@ function formatDiscordTimestamp(dateStr) {
     return `<t:${unix}:R>`;
 }
 
+/**
+ * Sanitizes a string for use in Discord Markdown.
+ * Escapes backticks to prevent breaking out of code blocks and removes mentions to prevent spam.
+ * @param {string} text The text to sanitize.
+ * @returns {string} The sanitized text.
+ */
+function sanitizeMarkdown(text) {
+    if (!text) return '';
+    return text
+        .replace(/`/g, ' \` ') // Escape backticks with spaces to be safe in code blocks
+        .replace(/@everyone/g, '@\u200beveryone') // Add zero-width space
+        .replace(/@here/g, '@\u200bhere');
+}
+
 module.exports = {
-    formatDiscordTimestamp
+    formatDiscordTimestamp,
+    sanitizeMarkdown
 };

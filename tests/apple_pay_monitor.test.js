@@ -49,6 +49,7 @@ describe('ApplePayMonitor', () => {
             setTitle: jest.fn().mockReturnThis(),
             setDescription: jest.fn().mockReturnThis(),
             addFields: jest.fn().mockReturnThis(),
+            setFooter: jest.fn().mockReturnThis(),
             setColor: jest.fn().mockReturnThis(),
         };
 
@@ -334,6 +335,7 @@ describe('ApplePayMonitor', () => {
                 { name: '🔗 URL', value: 'http://config.com' },
                 { name: '📝 Cambios detectados', value: '```diff\ndiff content\n```' }
             ]);
+            expect(mockMessageEmbedInstance.setFooter).toHaveBeenCalledWith({ text: 'Fuente: main config' });
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#0071E3');
         });
 
@@ -351,6 +353,7 @@ describe('ApplePayMonitor', () => {
                 { name: '🏷️ Nombre', value: 'New Geo', inline: true },
                 { name: '🔗 URL', value: 'http://alt-config.com' }
             ]);
+            expect(mockMessageEmbedInstance.setFooter).toHaveBeenCalledWith({ text: 'Fuente: alt config' });
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#0071E3');
         });
 
