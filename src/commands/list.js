@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { formatDiscordTimestamp } = require('../utils/formatters');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -32,19 +33,6 @@ module.exports = {
 
         const row = new ActionRowBuilder().addComponents(removeButton);
 
-        /**
-         * Formats a date string to a Discord timestamp.
-         * @param {string} dateStr The date string.
-         * @returns {string} The formatted Discord timestamp.
-         */
-        const formatDate = (dateStr) => {
-            if (!dateStr) return 'Nunca';
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return `\`${dateStr}\``;
-            const unix = Math.floor(date.getTime() / 1000);
-            return `<t:${unix}:R>`;
-        };
-
         for (let i = 0; i < siteCount; i += CHUNK_SIZE) {
             const chunk = sites.slice(i, i + CHUNK_SIZE);
             const embed = new EmbedBuilder()
@@ -54,7 +42,7 @@ module.exports = {
 
             const fields = chunk.map((site) => ({
                 name: (site.id || 'Sitio desconocido').substring(0, 256),
-                value: `**URL:** ${site.url}\n**CSS:** \`${site.css}\`\n**Actualizado:** ${formatDate(site.lastUpdated)}`
+                value: `**URL:** ${site.url.substring(0, 500)}\n**CSS:** \`${site.css.substring(0, 200)}\`\n**Actualizado:** ${formatDiscordTimestamp(site.lastUpdated)}`
             }));
 
             embed.addFields(fields);

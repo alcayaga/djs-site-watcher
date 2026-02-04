@@ -88,6 +88,7 @@ function isPrivateIP(ip) {
     return false;
 }
 
+const { formatDiscordTimestamp } = require('../utils/formatters');
 const CONTEXT_LINES = 3;
 
 /**
@@ -345,8 +346,8 @@ class SiteMonitor extends Monitor {
             .setTitle(`🔎 ¡Cambio en ${title.substring(0, 240)}!  🐸`)
             .addFields([
                 { name: `URL`, value: `${site.url}` },
-                { name: `Último cambio`, value: `${site.lastUpdated}`, inline: true },
-                { name: `Actualizado`, value: `${site.lastUpdated}`, inline: true }
+                { name: `Último cambio`, value: `${formatDiscordTimestamp(site.lastUpdated)}`, inline: true },
+                { name: `Actualizado`, value: `${formatDiscordTimestamp(site.lastUpdated)}`, inline: true }
             ])
             .setColor(0x6058f3);
             

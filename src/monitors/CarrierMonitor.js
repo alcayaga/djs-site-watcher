@@ -1,6 +1,7 @@
 const plist = require('plist');
 const Discord = require('discord.js');
 const Monitor = require('../Monitor');
+const { formatDiscordTimestamp } = require('../utils/formatters');
 
 /**
  * Monitor for Apple Carrier Bundle updates.
@@ -109,7 +110,7 @@ class CarrierMonitor extends Monitor {
                     { name: `Versión`, value: `${carrier.version}` },
                     { name: `Build`, value: `${carrier.build}` },
                     { name: `URL`, value: `${carrier.url}` },
-                    { name: `Actualizado`, value: `${carrier.lastUpdated}` }
+                    { name: `Actualizado`, value: `${formatDiscordTimestamp(carrier.lastUpdated)}` }
                 ])
                 .setColor(0x00FF00);
             channel.send({ embeds: [embed] });

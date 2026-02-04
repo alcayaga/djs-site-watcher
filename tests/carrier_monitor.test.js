@@ -219,7 +219,7 @@ describe('CarrierMonitor', () => {
                 { name: 'Versión', value: '48.0' },
                 { name: 'Build', value: '48.0.0' },
                 { name: 'URL', value: 'http://v.com/48' },
-                { name: 'Actualizado', value: 'now' }
+                { name: 'Actualizado', value: '`now`' }
             ]);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith(0x00FF00);
         });

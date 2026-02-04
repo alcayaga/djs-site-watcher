@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ComponentType, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ComponentType, MessageFlags, EmbedBuilder } = require('discord.js');
 
 /**
  * Generates and sends a dropdown menu to select a site for removal.
@@ -96,7 +96,11 @@ module.exports = {
                 
                 // Send a public confirmation
                 await interaction.followUp({
-                    content: `✅ Se ha eliminado **${removedSite.id}** de la lista de monitoreo correctamente.`,
+                    embeds: [new EmbedBuilder()
+                        .setTitle('✅ Sitio Eliminado')
+                        .setDescription(`Se ha eliminado **${removedSite.id}** de la lista de monitoreo correctamente.`)
+                        .setColor(0x57F287) // Discord Green
+                    ],
                     allowedMentions: { parse: [] }
                 });
             } else {

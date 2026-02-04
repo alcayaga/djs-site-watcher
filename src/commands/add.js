@@ -88,8 +88,8 @@ module.exports = {
                 .setTitle('✅ Sitio Agregado')
                 .setDescription(`Se ha comenzado a monitorear **${site.id}** correctamente.`)
                 .addFields([
-                    { name: 'URL', value: site.url },
-                    { name: 'Selector CSS', value: `\`${site.css}\`${warning_message}` }
+                    { name: 'URL', value: site.url.substring(0, 1024) },
+                    { name: 'Selector CSS', value: `\`${site.css.substring(0, 1000)}\`${warning_message}` }
                 ])
                 .setColor(0x6058f3);
             
