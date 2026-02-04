@@ -3,7 +3,7 @@ const Monitor = require('../Monitor');
 const diff = require('diff');
 const got = require('got'); // Explicitly import got as it's used directly in fetch
 
-const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
+const { sanitizeMarkdown } = require('../utils/formatters');
 
 /**
  * Monitor for Apple Pay configuration changes, including SupportedRegions and MarketGeos.
