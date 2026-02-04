@@ -25,10 +25,10 @@ async function handleInteraction(interaction, client, state, config, monitorMana
         return;
     }
 
-    const command = commands.get(interaction.commandName);
-    if (!command) return;
-
     if (interaction.isChatInputCommand()) {
+        const command = commands.get(interaction.commandName);
+        if (!command) return;
+
         try {
             await command.execute(interaction, client, state, config, monitorManager);
         } catch (error) {
@@ -43,7 +43,29 @@ async function handleInteraction(interaction, client, state, config, monitorMana
                 await interaction.reply(errorMessage);
             }
         }
+    } else if (interaction.isModalSubmit()) {
+        if (interaction.customId === 'add_site_modal') {
+            const addCommand = commands.get('add');
+            if (addCommand && addCommand.handleModal) {
+                try {
+                    await addCommand.handleModal(interaction, client, state, config, monitorManager);
+                } catch (error) {
+                    console.error('Error handling modal:', error);
+                    // Modals might have already been replied to or deferred in the handler
+                    if (interaction.deferred) {
+                        await interaction.editReply({ content: 'Error processing modal submission.', ephemeral: true });
+                    } else if (!interaction.replied) {
+                        await interaction.reply({ content: 'Error processing modal submission.', ephemeral: true });
+                    } else {
+                        await interaction.followUp({ content: 'Error processing modal submission.', ephemeral: true });
+                    }
+                }
+            }
+        }
     } else if (interaction.isAutocomplete()) {
+        const command = commands.get(interaction.commandName);
+        if (!command) return;
+
         try {
             await command.autocomplete(interaction, monitorManager);
         } catch (error) {
