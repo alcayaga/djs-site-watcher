@@ -282,8 +282,7 @@ describe('SiteMonitor', () => {
             expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('🔎 ¡Cambio en Test Site Title!  🐸');
             expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
                 { name: 'URL', value: 'http://test-site.com' },
-                { name: 'Último cambio', value: '`some-date`', inline: true },
-                { name: 'Actualizado', value: '`some-date`', inline: true }
+                { name: 'Último cambio', value: '`some-date`', inline: true }
             ]);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith(0x6058f3);
             expect(mockChannel.send).toHaveBeenCalledWith({

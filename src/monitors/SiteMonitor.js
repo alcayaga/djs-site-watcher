@@ -346,8 +346,7 @@ class SiteMonitor extends Monitor {
             .setTitle(`🔎 ¡Cambio en ${title.substring(0, 240)}!  🐸`)
             .addFields([
                 { name: `URL`, value: `${site.url}` },
-                { name: `Último cambio`, value: `${formatDiscordTimestamp(site.lastUpdated)}`, inline: true },
-                { name: `Actualizado`, value: `${formatDiscordTimestamp(site.lastUpdated)}`, inline: true }
+                { name: `Último cambio`, value: `${formatDiscordTimestamp(site.lastUpdated)}`, inline: true }
             ])
             .setColor(0x6058f3);
             
