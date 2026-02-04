@@ -4,6 +4,24 @@ const { loadCommands } = require('../utils/commandLoader');
 const commands = loadCommands();
 
 /**
+ * Helper to handle errors during interaction execution.
+ * @param {import('discord.js').Interaction} interaction 
+ * @param {Error} error 
+ */
+async function handleInteractionError(interaction, error) {
+    console.error(`Error handling interaction (${interaction.customId || interaction.commandName}):`, error);
+    const errorMessage = { content: 'There was an error processing this interaction.', ephemeral: true };
+    
+    if (interaction.deferred) {
+        await interaction.editReply(errorMessage);
+    } else if (!interaction.replied) {
+        await interaction.reply(errorMessage);
+    } else {
+        await interaction.followUp(errorMessage);
+    }
+}
+
+/**
  * Handles incoming interactions (Slash Commands, Autocomplete).
  * 
  * @param {import('discord.js').Interaction} interaction The interaction object.
@@ -32,34 +50,29 @@ async function handleInteraction(interaction, client, state, config, monitorMana
         try {
             await command.execute(interaction, client, state, config, monitorManager);
         } catch (error) {
-            console.error(error);
-            const errorMessage = { content: 'There was an error executing this command!', ephemeral: true };
-            
-            if (interaction.replied) {
-                await interaction.followUp(errorMessage);
-            } else if (interaction.deferred) {
-                await interaction.editReply(errorMessage);
-            } else {
-                await interaction.reply(errorMessage);
-            }
+            await handleInteractionError(interaction, error);
         }
-    } else if (interaction.isModalSubmit()) {
-        if (interaction.customId === 'add_site_modal') {
-            const addCommand = commands.get('add');
-            if (addCommand && addCommand.handleModal) {
-                try {
-                    await addCommand.handleModal(interaction, client, state, config, monitorManager);
-                } catch (error) {
-                    console.error('Error handling modal:', error);
-                    // Modals might have already been replied to or deferred in the handler
-                    if (interaction.deferred) {
-                        await interaction.editReply({ content: 'Error processing modal submission.', ephemeral: true });
-                    } else if (!interaction.replied) {
-                        await interaction.reply({ content: 'Error processing modal submission.', ephemeral: true });
+    } else if (interaction.isModalSubmit() || interaction.isMessageComponent()) {
+        const [commandName, action] = interaction.customId.split(':');
+        const command = commands.get(commandName);
+
+        if (command) {
+            try {
+                if (interaction.isModalSubmit()) {
+                    if (typeof command.handleModal === 'function') {
+                        await command.handleModal(interaction, client, state, config, monitorManager, action);
                     } else {
-                        await interaction.followUp({ content: 'Error processing modal submission.', ephemeral: true });
+                        throw new Error(`Command '${commandName}' does not implement 'handleModal'.`);
+                    }
+                } else if (interaction.isMessageComponent()) {
+                    if (typeof command.handleComponent === 'function') {
+                        await command.handleComponent(interaction, client, state, config, monitorManager, action);
+                    } else {
+                        throw new Error(`Command '${commandName}' does not implement 'handleComponent'.`);
                     }
                 }
+            } catch (error) {
+                await handleInteractionError(interaction, error);
             }
         }
     } else if (interaction.isAutocomplete()) {

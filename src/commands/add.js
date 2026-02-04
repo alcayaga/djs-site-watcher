@@ -20,7 +20,7 @@ module.exports = {
         }
 
         const modal = new ModalBuilder()
-            .setCustomId('add_site_modal')
+            .setCustomId('add:submit')
             .setTitle('Add Site to Monitor');
 
         const urlInput = new TextInputBuilder()

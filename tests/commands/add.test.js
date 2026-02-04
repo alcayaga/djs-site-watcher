@@ -58,7 +58,7 @@ describe('add command', () => {
             
             // Verify modal content implicitly or explicitly if needed, but checking the call is mostly sufficient for unit test
             const modalArg = mockInteraction.showModal.mock.calls[0][0];
-            expect(modalArg.setCustomId).toHaveBeenCalledWith('add_site_modal');
+            expect(modalArg.setCustomId).toHaveBeenCalledWith('add:submit');
         });
 
         it('should handle missing SiteMonitor', async () => {

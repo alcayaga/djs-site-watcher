@@ -74,15 +74,16 @@ describe('Interaction Handler', () => {
         );
     });
 
-    describe('Modal Handling', () => {
+    describe('Interaction Routing (Modals & Components)', () => {
         beforeEach(() => {
             mockInteraction.commandName = undefined;
+            mockInteraction.isMessageComponent = jest.fn().mockReturnValue(false);
         });
 
-        it('should handle add_site_modal submission', async () => {
+        it('should handle add:submit modal submission', async () => {
             mockInteraction.isChatInputCommand.mockReturnValue(false);
             mockInteraction.isModalSubmit.mockReturnValue(true);
-            mockInteraction.customId = 'add_site_modal';
+            mockInteraction.customId = 'add:submit';
 
             const addCommand = require('../../src/commands/add.js');
             
@@ -93,14 +94,36 @@ describe('Interaction Handler', () => {
                 mockClient,
                 mockState,
                 mockConfig,
-                mockMonitorManager
+                mockMonitorManager,
+                'submit'
             );
         });
 
-        it('should ignore unknown modal IDs', async () => {
+        it('should route message component interactions to the correct handler', async () => {
+            mockInteraction.isChatInputCommand.mockReturnValue(false);
+            mockInteraction.isModalSubmit.mockReturnValue(false);
+            mockInteraction.isMessageComponent.mockReturnValue(true);
+            mockInteraction.customId = 'add:delete'; // Using 'add' as it's already mocked
+
+            const addCommand = require('../../src/commands/add.js');
+            addCommand.handleComponent = jest.fn();
+            
+            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
+
+            expect(addCommand.handleComponent).toHaveBeenCalledWith(
+                mockInteraction,
+                mockClient,
+                mockState,
+                mockConfig,
+                mockMonitorManager,
+                'delete'
+            );
+        });
+
+        it('should ignore unknown command IDs', async () => {
             mockInteraction.isChatInputCommand.mockReturnValue(false);
             mockInteraction.isModalSubmit.mockReturnValue(true);
-            mockInteraction.customId = 'unknown_modal';
+            mockInteraction.customId = 'unknown:action';
 
             const addCommand = require('../../src/commands/add.js');
             
@@ -109,10 +132,31 @@ describe('Interaction Handler', () => {
             expect(addCommand.handleModal).not.toHaveBeenCalled();
         });
 
+        it('should handle missing handler method on command', async () => {
+            mockInteraction.isChatInputCommand.mockReturnValue(false);
+            mockInteraction.isModalSubmit.mockReturnValue(true);
+            mockInteraction.customId = 'add:submit';
+
+            const addCommand = require('../../src/commands/add.js');
+            // Temporarily remove handleModal
+            const originalHandleModal = addCommand.handleModal;
+            delete addCommand.handleModal;
+            
+            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
+
+            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                content: expect.stringContaining('error processing'),
+                ephemeral: true
+            }));
+
+            // Restore handleModal
+            addCommand.handleModal = originalHandleModal;
+        });
+
         it('should handle errors in modal processing (not deferred/replied)', async () => {
             mockInteraction.isChatInputCommand.mockReturnValue(false);
             mockInteraction.isModalSubmit.mockReturnValue(true);
-            mockInteraction.customId = 'add_site_modal';
+            mockInteraction.customId = 'add:submit';
             mockInteraction.deferred = false;
             mockInteraction.replied = false;
 
@@ -122,7 +166,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('Error processing'),
+                content: expect.stringContaining('error processing'),
                 ephemeral: true
             }));
         });
@@ -130,7 +174,7 @@ describe('Interaction Handler', () => {
         it('should use editReply for errors if deferred', async () => {
             mockInteraction.isChatInputCommand.mockReturnValue(false);
             mockInteraction.isModalSubmit.mockReturnValue(true);
-            mockInteraction.customId = 'add_site_modal';
+            mockInteraction.customId = 'add:submit';
             mockInteraction.deferred = true;
             mockInteraction.replied = false;
 
@@ -140,7 +184,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('Error processing'),
+                content: expect.stringContaining('error processing'),
                 ephemeral: true
             }));
         });
@@ -148,7 +192,7 @@ describe('Interaction Handler', () => {
         it('should use followUp for errors if replied', async () => {
             mockInteraction.isChatInputCommand.mockReturnValue(false);
             mockInteraction.isModalSubmit.mockReturnValue(true);
-            mockInteraction.customId = 'add_site_modal';
+            mockInteraction.customId = 'add:submit';
             mockInteraction.deferred = false;
             mockInteraction.replied = true;
 
@@ -158,7 +202,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('Error processing'),
+                content: expect.stringContaining('error processing'),
                 ephemeral: true
             }));
         });
@@ -173,7 +217,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('error executing')
+                content: expect.stringContaining('error processing')
             }));
         });
 
@@ -186,7 +230,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('error executing')
+                content: expect.stringContaining('error processing')
             }));
         });
 
@@ -199,7 +243,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('error executing')
+                content: expect.stringContaining('error processing')
             }));
         });
     });
