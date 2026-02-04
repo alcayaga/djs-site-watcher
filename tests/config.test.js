@@ -18,6 +18,7 @@ describe('config', () => {
         process.env.DISCORDJS_BOT_TOKEN = 'test-token';
         const storage = require('../src/storage');
         storage.loadSettings.mockReturnValue({});
+        storage.SENSITIVE_SETTINGS_KEYS = ['DISCORDJS_BOT_TOKEN'];
         const config = require('../src/config');
         expect(config.DISCORDJS_BOT_TOKEN).toBe('test-token');
     });
@@ -28,6 +29,7 @@ describe('config', () => {
     it('should load settings from storage', () => {
         const storage = require('../src/storage');
         storage.loadSettings.mockReturnValue({ interval: 10 });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
         const config = require('../src/config');
         expect(config.interval).toBe(10);
     });
@@ -39,6 +41,7 @@ describe('config', () => {
         process.env.DISCORDJS_APCHANNEL_ID = 'ap-channel-id';
         const storage = require('../src/storage');
         storage.loadSettings.mockReturnValue({});
+        storage.SENSITIVE_SETTINGS_KEYS = ['DISCORDJS_APCHANNEL_ID'];
         const config = require('../src/config');
         expect(config.DISCORDJS_APCHANNEL_ID).toBe('ap-channel-id');
     });
@@ -50,6 +53,7 @@ describe('config', () => {
         const customMonitors = [{ name: 'CustomMonitor', enabled: true }];
         const storage = require('../src/storage');
         storage.loadSettings.mockReturnValue({ monitors: customMonitors });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
         const config = require('../src/config');
         expect(config.monitors).toEqual(customMonitors);
     });
