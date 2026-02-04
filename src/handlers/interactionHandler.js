@@ -49,10 +49,18 @@ async function handleInteraction(interaction, client, state, config, monitorMana
 
         if (command) {
             try {
-                if (interaction.isModalSubmit() && typeof command.handleModal === 'function') {
-                    await command.handleModal(interaction, client, state, config, monitorManager, action);
-                } else if (interaction.isMessageComponent() && typeof command.handleComponent === 'function') {
-                    await command.handleComponent(interaction, client, state, config, monitorManager, action);
+                if (interaction.isModalSubmit()) {
+                    if (typeof command.handleModal === 'function') {
+                        await command.handleModal(interaction, client, state, config, monitorManager, action);
+                    } else {
+                        throw new Error(`Command '${commandName}' does not implement 'handleModal'.`);
+                    }
+                } else if (interaction.isMessageComponent()) {
+                    if (typeof command.handleComponent === 'function') {
+                        await command.handleComponent(interaction, client, state, config, monitorManager, action);
+                    } else {
+                        throw new Error(`Command '${commandName}' does not implement 'handleComponent'.`);
+                    }
                 }
             } catch (error) {
                 console.error(`Error handling interaction (${interaction.customId}):`, error);

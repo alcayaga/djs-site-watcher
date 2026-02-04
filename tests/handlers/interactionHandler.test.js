@@ -99,7 +99,7 @@ describe('Interaction Handler', () => {
             );
         });
 
-        it('should handle list:page component interaction', async () => {
+        it('should route message component interactions to the correct handler', async () => {
             mockInteraction.isChatInputCommand.mockReturnValue(false);
             mockInteraction.isModalSubmit.mockReturnValue(false);
             mockInteraction.isMessageComponent.mockReturnValue(true);
@@ -130,6 +130,27 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(addCommand.handleModal).not.toHaveBeenCalled();
+        });
+
+        it('should handle missing handler method on command', async () => {
+            mockInteraction.isChatInputCommand.mockReturnValue(false);
+            mockInteraction.isModalSubmit.mockReturnValue(true);
+            mockInteraction.customId = 'add:submit';
+
+            const addCommand = require('../../src/commands/add.js');
+            // Temporarily remove handleModal
+            const originalHandleModal = addCommand.handleModal;
+            delete addCommand.handleModal;
+            
+            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
+
+            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                content: expect.stringContaining('error processing'),
+                ephemeral: true
+            }));
+
+            // Restore handleModal
+            addCommand.handleModal = originalHandleModal;
         });
 
         it('should handle errors in modal processing (not deferred/replied)', async () => {
