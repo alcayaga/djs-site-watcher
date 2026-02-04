@@ -16,6 +16,7 @@ const MockEmbedBuilder = jest.fn(function() {
 const mockSlashCommandBuilder = jest.fn(function() {
     this.setName = jest.fn().mockReturnThis();
     this.setDescription = jest.fn().mockReturnThis();
+    this.setDefaultMemberPermissions = jest.fn().mockReturnThis();
     this.addStringOption = jest.fn().mockReturnThis();
     this.addIntegerOption = jest.fn().mockReturnThis();
     this.addSubcommand = jest.fn().mockReturnThis();
@@ -91,6 +92,11 @@ module.exports = {
       ClientReady: 'ready',
       InteractionCreate: 'interactionCreate',
       MessageCreate: 'messageCreate',
+  },
+  PermissionFlagsBits: {
+      ManageWebhooks: 1n << 29n,
+      ManageGuild: 1n << 5n,
+      Administrator: 1n << 3n,
   },
   Collection: Map,
 };

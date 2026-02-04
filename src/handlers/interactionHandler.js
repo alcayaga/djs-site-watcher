@@ -1,3 +1,4 @@
+const { PermissionFlagsBits } = require('discord.js');
 const { loadCommands } = require('../utils/commandLoader');
 
 // Load commands once
@@ -31,16 +32,15 @@ async function handleInteractionError(interaction, error) {
  * @param {object} monitorManager The MonitorManager instance.
  */
 async function handleInteraction(interaction, client, state, config, monitorManager) {
-    // Authorization Check
-    const isAuthorized = interaction.channelId === config.DISCORDJS_ADMINCHANNEL_ID && 
-                         interaction.member && 
-                         interaction.member.roles.cache.has(config.DISCORDJS_ROLE_ID);
-
-    if (!isAuthorized) {
-        if (interaction.isChatInputCommand()) {
-            await interaction.reply({ content: 'You are not authorized to use this command.', ephemeral: true });
+    // For non-ChatInput interactions (Modals, Components, Autocomplete), 
+    // we must manually check permissions as setDefaultMemberPermissions only applies to the command trigger.
+    if (!interaction.isChatInputCommand()) {
+        const hasPermission = interaction.memberPermissions && interaction.memberPermissions.has(PermissionFlagsBits.ManageGuild);
+        
+        if (!hasPermission) {
+            if (interaction.isAutocomplete()) return; // Silent fail for autocomplete
+            return interaction.reply({ content: 'You are not authorized to use this interaction.', ephemeral: true });
         }
-        return;
     }
 
     if (interaction.isChatInputCommand()) {
