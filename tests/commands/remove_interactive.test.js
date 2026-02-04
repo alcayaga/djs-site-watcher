@@ -1,5 +1,5 @@
 const removeCommand = require('../../src/commands/remove');
-const { ComponentType } = require('discord.js');
+const { ComponentType, MessageFlags } = require('discord.js');
 
 describe('Remove Command Interactive Features', () => {
     let mockInteraction, mockState, mockClient, mockMonitorManager, mockSiteMonitor;
@@ -42,7 +42,7 @@ describe('Remove Command Interactive Features', () => {
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('Selecciona el sitio'),
                 components: expect.any(Array),
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             }));
         });
     });
@@ -53,7 +53,7 @@ describe('Remove Command Interactive Features', () => {
 
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
                 components: expect.any(Array),
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             }));
         });
 
@@ -75,7 +75,6 @@ describe('Remove Command Interactive Features', () => {
             }));
             expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('Se ha eliminado **site1**'),
-                ephemeral: false,
                 allowedMentions: { parse: [] }
             }));
         });

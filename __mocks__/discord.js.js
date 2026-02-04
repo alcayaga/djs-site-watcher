@@ -137,5 +137,8 @@ module.exports = {
       ManageGuild: 1n << 5n,
       Administrator: 1n << 3n,
   },
+  MessageFlags: {
+      Ephemeral: 1n << 6n,
+  },
   Collection: Map,
 };

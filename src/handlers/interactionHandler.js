@@ -1,4 +1,4 @@
-const { PermissionFlagsBits } = require('discord.js');
+const { PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { loadCommands } = require('../utils/commandLoader');
 
 // Load commands once
@@ -11,7 +11,7 @@ const commands = loadCommands();
  */
 async function handleInteractionError(interaction, error) {
     console.error(`Error handling interaction (${interaction.customId || interaction.commandName}):`, error);
-    const errorMessage = { content: 'There was an error processing this interaction.', ephemeral: true };
+    const errorMessage = { content: 'There was an error processing this interaction.', flags: [MessageFlags.Ephemeral] };
     
     if (interaction.deferred) {
         await interaction.editReply(errorMessage);
@@ -30,6 +30,7 @@ async function handleInteractionError(interaction, error) {
  * @param {object} state The application state.
  * @param {object} config The application configuration.
  * @param {object} monitorManager The MonitorManager instance.
+ * @returns {Promise<void>}
  */
 async function handleInteraction(interaction, client, state, config, monitorManager) {
     // For non-ChatInput interactions (Modals, Components, Autocomplete), 
@@ -39,7 +40,7 @@ async function handleInteraction(interaction, client, state, config, monitorMana
         
         if (!hasPermission) {
             if (interaction.isAutocomplete()) return; // Silent fail for autocomplete
-            return interaction.reply({ content: 'You are not authorized to use this interaction.', ephemeral: true });
+            return interaction.reply({ content: 'You are not authorized to use this interaction.', flags: [MessageFlags.Ephemeral] });
         }
     }
 
