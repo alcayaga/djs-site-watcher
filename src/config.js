@@ -69,35 +69,28 @@ if (!config.monitors) {
 
 
 if (!config.channels) {
-
     config.channels = [
-
         {
-
             name: 'QA',
-
             handler: 'QA',
-
             enabled: true,
-
             channelId: config.DISCORDJS_APCHANNEL_ID,
-
         },
-
         {
-
             name: 'Deals',
-
             handler: 'Deals',
-
             enabled: true,
-
             channelId: config.DISCORDJS_DEALS_CHANNEL_ID,
-
         }
-
     ];
-
+} else {
+    // Re-link IDs from environment variables for default handlers if they are missing in the JSON
+    config.channels.forEach(channel => {
+        if (!channel.channelId) {
+            if (channel.handler === 'QA') channel.channelId = config.DISCORDJS_APCHANNEL_ID;
+            if (channel.handler === 'Deals') channel.channelId = config.DISCORDJS_DEALS_CHANNEL_ID;
+        }
+    });
 }
 
 

@@ -112,9 +112,17 @@ function loadSettings() {
  * @returns {Promise<void>} A promise that resolves when the file is saved.
  */
 function saveSettings(settings) {
-    const settingsToSave = { ...settings };
+    // Deep clone to avoid mutating the original settings object
+    const settingsToSave = JSON.parse(JSON.stringify(settings));
 
     SENSITIVE_SETTINGS_KEYS.forEach(key => delete settingsToSave[key]);
+
+    // Also scrub sensitive IDs from channel configurations
+    if (Array.isArray(settingsToSave.channels)) {
+        settingsToSave.channels.forEach(channel => {
+            delete channel.channelId;
+        });
+    }
 
     return fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 });
 }
