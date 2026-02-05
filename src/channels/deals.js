@@ -1,5 +1,6 @@
 const { ThreadAutoArchiveDuration } = require('discord.js');
 const ChannelHandler = require('../ChannelHandler');
+const { extractQuery, searchSolotodo } = require('../utils/solotodo');
 
 /**
  * Handler for Deals channel moderation.
@@ -16,8 +17,9 @@ class DealsChannel extends ChannelHandler {
 
         if (hasLink || hasAttachment) {
             // It's a deal, create a thread for discussion.
+            let thread;
             try {
-                await message.startThread({
+                thread = await message.startThread({
                     name: message.content.trim().substring(0, 100) || 'Discusión de la oferta',
                     autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
                 });
@@ -26,6 +28,22 @@ class DealsChannel extends ChannelHandler {
                 // If thread creation fails, we return early to trigger deletion and notification.
                 return true;
             }
+
+            // Attempt to find product on Solotodo
+            try {
+                const query = extractQuery(message.content);
+                if (query) {
+                    const product = await searchSolotodo(query);
+                    if (product) {
+                        await thread.send(`Encontré esto en Solotodo: [${product.name}](https://www.solotodo.cl/products/${product.id}-${product.slug})`);
+                    } else {
+                        await thread.send(`Busca referencias en Solotodo: https://www.solotodo.cl/search?search=${encodeURIComponent(query)}`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error in Solotodo logic:', error);
+            }
+
             return false;
         }
 
