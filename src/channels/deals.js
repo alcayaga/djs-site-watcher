@@ -1,6 +1,6 @@
 const { ThreadAutoArchiveDuration } = require('discord.js');
 const ChannelHandler = require('../ChannelHandler');
-const { extractQuery, searchSolotodo } = require('../utils/solotodo');
+const { extractQuery, searchSolotodo, searchByUrl } = require('../utils/solotodo');
 
 /**
  * Handler for Deals channel moderation.
@@ -12,7 +12,8 @@ class DealsChannel extends ChannelHandler {
      * @returns {Promise<boolean>} True if handled.
      */
     async process(message) {
-        const hasLink = /https?:\/\/[^\s]+/.test(message.content);
+        const urlMatch = message.content.match(/https?:\/\/[^\s]+/);
+        const hasLink = !!urlMatch;
         const hasAttachment = message.attachments.size > 0;
 
         if (hasLink || hasAttachment) {
@@ -31,14 +32,27 @@ class DealsChannel extends ChannelHandler {
 
             // Attempt to find product on Solotodo
             try {
-                const query = extractQuery(message.content);
-                if (query) {
-                    const product = await searchSolotodo(query);
-                    if (product) {
-                        await thread.send(`Encontré esto en Solotodo: [${product.name}](https://www.solotodo.cl/products/${product.id}-${product.slug})`);
-                    } else {
-                        await thread.send(`Busca referencias en Solotodo: https://www.solotodo.cl/search?search=${encodeURIComponent(query)}`);
+                let product = null;
+                
+                // 1. Try exact URL match first
+                if (urlMatch) {
+                    product = await searchByUrl(urlMatch[0]);
+                }
+
+                // 2. If no exact match, try text query
+                let query = null;
+                if (!product) {
+                    query = extractQuery(message.content);
+                    if (query) {
+                        product = await searchSolotodo(query);
                     }
+                }
+
+                if (product) {
+                    await thread.send(`Encontré esto en Solotodo: [${product.name}](https://www.solotodo.cl/products/${product.id}-${product.slug})`);
+                } else if (query) {
+                    // Only show fallback search link if we actually had a search query
+                    await thread.send(`Busca referencias en Solotodo: https://www.solotodo.cl/search?search=${encodeURIComponent(query)}`);
                 }
             } catch (error) {
                 console.error('Error in Solotodo logic:', error);

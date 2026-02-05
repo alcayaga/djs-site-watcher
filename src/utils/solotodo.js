@@ -141,4 +141,29 @@ function extractQuery(content) {
     return null;
 }
 
-module.exports = { searchSolotodo, extractQuery };
+/**
+ * Searches Solotodo for a product by its store URL.
+ * @param {string} url The store URL to search for.
+ * @returns {Promise<object|null>} The product object if found, or null.
+ */
+async function searchByUrl(url) {
+    try {
+        const response = await got(`https://publicapi.solotodo.com/entities/by_url/?url=${encodeURIComponent(url)}`, {
+            responseType: 'json'
+        });
+
+        if (response.body && response.body.product) {
+            return response.body.product;
+        }
+        return null;
+    } catch (error) {
+        // 404 is expected if the URL is not tracked by Solotodo
+        if (error.response && error.response.statusCode === 404) {
+            return null;
+        }
+        console.error('Error searching Solotodo by URL:', error);
+        return null;
+    }
+}
+
+module.exports = { searchSolotodo, extractQuery, searchByUrl };

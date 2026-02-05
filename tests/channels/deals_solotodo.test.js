@@ -1,24 +1,17 @@
 const DealsChannel = require('../../src/channels/deals.js');
 
 // Mock the solotodo utils
-jest.mock('../../src/utils/solotodo', () => {
-    const originalModule = jest.requireActual('../../src/utils/solotodo');
-    return {
-        ...originalModule, // Keep extractQuery real for this test? No, let's keep mocking it for the integration test but test it separately if needed.
-        // Actually, to test the new extraction logic, we should probably unit test `src/utils/solotodo.js` directly or use the real one here.
-        // Let's stick to the previous pattern of mocking for the DealsChannel test, but add a new test specifically for the utils.
-        extractQuery: jest.fn(),
-        searchSolotodo: jest.fn()
-    };
-});
+jest.mock('../../src/utils/solotodo', () => ({
+    extractQuery: jest.fn(),
+    searchSolotodo: jest.fn(),
+    searchByUrl: jest.fn()
+}));
 
-const { extractQuery, searchSolotodo } = require('../../src/utils/solotodo');
+const { extractQuery, searchSolotodo, searchByUrl } = require('../../src/utils/solotodo');
 
 describe('DealsChannel Solotodo Integration', () => {
     let handler;
     let mockMessage;
-    let mockState;
-    let mockConfig;
     let mockThread;
     let handlerConfig;
 
@@ -46,34 +39,57 @@ describe('DealsChannel Solotodo Integration', () => {
             delete: jest.fn().mockResolvedValue({}),
             startThread: jest.fn().mockResolvedValue(mockThread),
         };
-        mockState = {};
-        mockConfig = {};
     });
 
-    it('should post a Solotodo product link when product is found', async () => {
-        extractQuery.mockReturnValue('iphone 15');
-        searchSolotodo.mockResolvedValue({
-            id: 12345,
-            name: 'iPhone 15',
-            slug: 'iphone-15'
+    it('should use searchByUrl first and prioritize it over text search', async () => {
+        // Setup: URL returns a product directly
+        searchByUrl.mockResolvedValue({
+            id: 111,
+            name: 'Direct URL Product',
+            slug: 'direct-url-product'
         });
+        // extractQuery might still return something, but it shouldn't matter if URL works
+        extractQuery.mockReturnValue('iphone 15'); 
 
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        const handled = await handler.handle(mockMessage, {}, {});
         
         expect(handled).toBe(false);
-        expect(mockMessage.startThread).toHaveBeenCalled();
-        expect(extractQuery).toHaveBeenCalledWith(mockMessage.content);
-        expect(searchSolotodo).toHaveBeenCalledWith('iphone 15');
+        expect(searchByUrl).toHaveBeenCalledWith('https://example.com');
+        expect(searchSolotodo).not.toHaveBeenCalled(); // Should skip text search
         expect(mockThread.send).toHaveBeenCalledWith(
-            expect.stringContaining('https://www.solotodo.cl/products/12345-iphone-15')
+            expect.stringContaining('https://www.solotodo.cl/products/111-direct-url-product')
         );
     });
 
-    it('should post a search link when product is not found', async () => {
+    it('should fallback to text search if searchByUrl returns null', async () => {
+        // Setup: URL lookup fails (not tracked)
+        searchByUrl.mockResolvedValue(null);
+        
+        // Text search succeeds
+        extractQuery.mockReturnValue('iphone 15');
+        searchSolotodo.mockResolvedValue({
+            id: 222,
+            name: 'Text Search Product',
+            slug: 'text-search-product'
+        });
+
+        const handled = await handler.handle(mockMessage, {}, {});
+        
+        expect(handled).toBe(false);
+        expect(searchByUrl).toHaveBeenCalled();
+        expect(extractQuery).toHaveBeenCalled();
+        expect(searchSolotodo).toHaveBeenCalledWith('iphone 15');
+        expect(mockThread.send).toHaveBeenCalledWith(
+            expect.stringContaining('https://www.solotodo.cl/products/222-text-search-product')
+        );
+    });
+
+    it('should post a generic search link if both methods fail but query exists', async () => {
+        searchByUrl.mockResolvedValue(null);
         extractQuery.mockReturnValue('unknown product');
         searchSolotodo.mockResolvedValue(null);
 
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        const handled = await handler.handle(mockMessage, {}, {});
         
         expect(handled).toBe(false);
         expect(mockThread.send).toHaveBeenCalledWith(
@@ -81,22 +97,11 @@ describe('DealsChannel Solotodo Integration', () => {
         );
     });
 
-    it('should do nothing if extractQuery returns null', async () => {
+    it('should do nothing if everything fails (no URL match, no query extracted)', async () => {
+        searchByUrl.mockResolvedValue(null);
         extractQuery.mockReturnValue(null);
 
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
-        
-        expect(handled).toBe(false);
-        expect(searchSolotodo).not.toHaveBeenCalled();
-        expect(mockThread.send).not.toHaveBeenCalled();
-    });
-
-    it('should gracefully handle errors in Solotodo logic', async () => {
-        extractQuery.mockReturnValue('iphone');
-        searchSolotodo.mockRejectedValue(new Error('API Error'));
-
-        // Should not throw
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        const handled = await handler.handle(mockMessage, {}, {});
         
         expect(handled).toBe(false);
         expect(mockThread.send).not.toHaveBeenCalled();
