@@ -23,6 +23,8 @@ class DealsChannel extends ChannelHandler {
                 });
             } catch (error) {
                 console.error('Error creating thread in DealsChannel handler:', error);
+                // If thread creation fails, we return early to trigger deletion and notification.
+                return true;
             }
             return false;
         }

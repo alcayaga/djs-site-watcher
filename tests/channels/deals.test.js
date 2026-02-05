@@ -57,6 +57,13 @@ describe('DealsChannel', () => {
         });
     });
 
+    it('should return true if thread creation fails', async () => {
+        mockMessage.startThread.mockRejectedValue(new Error('Discord error'));
+        mockMessage.content = 'Great deal here: https://example.com';
+        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        expect(handled).toBe(true);
+    });
+
     it('should delete and notify for message without link or attachment in Spanish', async () => {
         const handled = await handler.handle(mockMessage, mockState, mockConfig);
         expect(handled).toBe(true);
