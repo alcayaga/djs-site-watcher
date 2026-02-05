@@ -171,9 +171,13 @@ async function searchByUrl(url) {
 
             // Extract slug from URL if missing (by_url returns a lite product)
             if (!product.slug && product.url) {
-                // url: "https://publicapi.solotodo.com/products/270865/" -> slug "270865"
-                const parts = product.url.split('/').filter(Boolean);
-                product.slug = parts.pop();
+                try {
+                    const urlObj = new URL(product.url);
+                    const parts = urlObj.pathname.split('/').filter(Boolean);
+                    product.slug = parts.pop();
+                } catch (e) {
+                    console.error('Error parsing product URL for slug extraction:', e);
+                }
             }
 
             return product;

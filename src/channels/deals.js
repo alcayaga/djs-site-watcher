@@ -82,16 +82,14 @@ class DealsChannel extends ChannelHandler {
                             .slice(0, 3);
 
                         if (filteredEntities.length > 0) {
-                            let priceList = '';
-                            for (const entity of filteredEntities) {
+                            const priceList = filteredEntities.map(entity => {
                                 const storeName = storeMap.get(entity.store) || 'Tienda';
-                                
-                                priceList += `• [${sanitizeLinkText(storeName)}](${entity.external_url}): **${formatCLP(entity.offerPriceNum)}**`;
+                                let line = `• [${sanitizeLinkText(storeName)}](${entity.external_url}): **${formatCLP(entity.offerPriceNum)}**`;
                                 if (Math.floor(entity.normalPriceNum) !== Math.floor(entity.offerPriceNum)) {
-                                    priceList += ` (Normal: ${formatCLP(entity.normalPriceNum)})`;
+                                    line += ` (Normal: ${formatCLP(entity.normalPriceNum)})`;
                                 }
-                                priceList += '\n';
-                            }
+                                return line;
+                            }).join('\n');
                             embed.addFields({ name: '💰 Mejores precios actuales', value: priceList });
                         }
                     } catch (priceError) {
