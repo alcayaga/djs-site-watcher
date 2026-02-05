@@ -69,12 +69,15 @@ Show all the available commands.
 ### `/add`
 Adds a website to the list by opening a form.
 
-The form will ask for a URL and an optional CSS selector. The CSS selector specifies which part of the site to track. By default, the `<head>` is tracked. To avoid false alerts from dynamic content like ads, it's best to provide a specific selector.
+The form will ask for:
+- **URL**: The website address to monitor.
+- **CSS Selector** (Optional): Specifies which part of the site to track. By default, the `<head>` is tracked. To avoid false alerts from dynamic content like ads, it's best to provide a specific selector.
+- **Force add** (Optional): If you enter `yes`, the site will be added even if the bot cannot currently fetch it (e.g., it returns a 404). This is useful for monitoring sites that are not yet live.
 
 <sub>**Tip:** In Chrome, you can get a selector by right-clicking the part of the site you want to track and selecting `Inspect`. In the developer view, right-click the highlighted element and select `Copy → Copy selector`.</sub>
 
 **Example**   
-`/add` This opens a pop-up form where you can enter the URL and an optional CSS selector.
+`/add` This opens the pop-up form.
 
 ---
 

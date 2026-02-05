@@ -23,6 +23,7 @@ const mockSlashCommandBuilder = jest.fn(function() {
     this.setDefaultMemberPermissions = jest.fn().mockReturnThis();
     this.addStringOption = jest.fn().mockReturnThis();
     this.addIntegerOption = jest.fn().mockReturnThis();
+    this.addBooleanOption = jest.fn().mockReturnThis();
     this.addSubcommand = jest.fn().mockReturnThis();
     this.toJSON = jest.fn().mockReturnValue({});
 });
@@ -39,6 +40,7 @@ const MockTextInputBuilder = jest.fn(function() {
     this.setStyle = jest.fn().mockReturnThis();
     this.setRequired = jest.fn().mockReturnThis();
     this.setValue = jest.fn().mockReturnThis();
+    this.setPlaceholder = jest.fn().mockReturnThis();
 });
 
 const MockActionRowBuilder = jest.fn(function() {
