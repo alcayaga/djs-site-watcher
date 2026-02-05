@@ -3,6 +3,8 @@ const Monitor = require('../Monitor');
 const diff = require('diff');
 const got = require('got'); // Explicitly import got as it's used directly in fetch
 
+const { sanitizeMarkdown } = require('../utils/formatters');
+
 /**
  * Monitor for Apple Pay configuration changes, including SupportedRegions and MarketGeos.
  * Extends the base Monitor class to provide specific logic for fetching, parsing, comparing, and notifying about Apple Pay data.
@@ -195,19 +197,23 @@ class ApplePayMonitor extends Monitor {
         detectedChanges.changes.forEach(change => {
             if (change.type === 'regionDiff') {
                 const embed = new Discord.EmbedBuilder()
-                    .setTitle(`🔎 ¡Cambio en la configuración de Apple Pay para ${this.REGION_TO_MONITOR} en ${change.configName}!`)
-                    .addFields([{ name: `URL`, value: `${change.url}` }])
+                    .setTitle(`¡Cambio en Apple Pay para ${this.REGION_TO_MONITOR}! 🐸`)
+                    .addFields([
+                        { name: `🔗 URL`, value: `${change.url}` },
+                        { name: '📝 Cambios detectados', value: `\`\`\`diff\n${sanitizeMarkdown(change.diff.trim())}\n\`\`\`` }
+                    ])
+                    .setFooter({ text: `Fuente: ${change.configName}` })
                     .setColor('#0071E3');
                 channel.send({ embeds: [embed] });
-                channel.send(`\`\`\`diff\n${change.diff}\`\`\``);
             } else if (change.type === 'newMarketGeo') {
                 const embed = new Discord.EmbedBuilder()
-                    .setTitle(`🌟 ¡Nueva región en Transit para Apple Pay en ${change.configName}!`)
+                    .setTitle(`🌟 ¡Nueva región en Transit para Apple Pay! 🐸`)
                     .addFields([
-                        { name: 'Región', value: this.REGION_TO_MONITOR, inline: true },
-                        { name: 'Nombre', value: change.geo.name || 'Unknown', inline: true },
-                        { name: 'URL', value: change.url }
+                        { name: '📍 Región', value: this.REGION_TO_MONITOR, inline: true },
+                        { name: '🏷️ Nombre', value: sanitizeMarkdown(change.geo.name || 'Unknown'), inline: true },
+                        { name: '🔗 URL', value: change.url }
                     ])
+                    .setFooter({ text: `Fuente: ${change.configName}` })
                     .setColor('#0071E3');
                 channel.send({ embeds: [embed] });
             }

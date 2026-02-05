@@ -88,6 +88,7 @@ function isPrivateIP(ip) {
     return false;
 }
 
+const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
 const CONTEXT_LINES = 3;
 
 /**
@@ -125,8 +126,8 @@ class SiteMonitor extends Monitor {
                     const oldContent = site.lastContent || '';
                     const cleanOldContent = cleanText(oldContent);
                     
-                    site.lastChecked = new Date().toLocaleString();
-                    site.lastUpdated = new Date().toLocaleString();
+                    site.lastChecked = new Date().toISOString();
+                    site.lastUpdated = new Date().toISOString();
                     site.hash = hash;
                     site.lastContent = content;
                     
@@ -144,7 +145,7 @@ class SiteMonitor extends Monitor {
                         hasChanges = true;
                         console.log(`[Migration] Backfilled lastContent for ${site.url} without notification.`);
                     }
-                    site.lastChecked = new Date().toLocaleString();
+                    site.lastChecked = new Date().toISOString();
                 }
                 return site;
             } catch (err) {
@@ -341,17 +342,21 @@ class SiteMonitor extends Monitor {
             diffString = diffString.substring(0, 1900) + '\n... (truncated)';
         }
 
+        const fields = [
+            { name: `🔗 URL`, value: `${sanitizeMarkdown(site.url)}` },
+            { name: `🕒 Último cambio`, value: `${formatDiscordTimestamp(site.lastUpdated)}`, inline: true }
+        ];
+
+        if (diffString) {
+            fields.push({ name: '📝 Cambios detectados', value: `\`\`\`diff\n${sanitizeMarkdown(diffString.trim())}\n\`\`\`` });
+        }
+
         const embed = new Discord.EmbedBuilder()
-            .setTitle(`🔎 ¡Cambio en ${title.substring(0, 240)}!  🐸`)
-            .addFields([
-                { name: `URL`, value: `${site.url}` },
-                { name: `Último cambio`, value: `${site.lastUpdated}`, inline: true },
-                { name: `Actualizado`, value: `${site.lastUpdated}`, inline: true }
-            ])
+            .setTitle(`¡Cambio en ${sanitizeMarkdown(title.substring(0, 240))}!  🐸`)
+            .addFields(fields)
             .setColor(0x6058f3);
             
         channel.send({ embeds: [embed] });
-        channel.send({ content: ` \n${diffString}\n `, allowedMentions: { parse: [] } });
     }
 }
 

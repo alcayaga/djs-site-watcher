@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { sanitizeMarkdown } = require('../utils/formatters');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -79,17 +80,20 @@ module.exports = {
             // Update local state to match the monitor's state (which is the source of truth)
             state.sitesToMonitor = siteMonitor.state;
             
-            let warning_message = '';
+            let warningMessage = '';
             if (warning) {
-                warning_message = '\n**Atención:** No se encontró el selector CSS solicitado'
+                warningMessage = '\n\n⚠️ **Atención:** No se encontró el selector CSS solicitado. Se usará el contenido de toda la página.'
             }
 
-            const embed = new EmbedBuilder();
-            embed.addFields([{ 
-                name: `Monitoreando ahora:`, 
-                value: `Dominio: ${site.id}\nURL: ${site.url}\nCSS: \n${site.css.substring(0, 800)}${warning_message}`
-            }]);
-            embed.setColor(0x6058f3);
+            const embed = new EmbedBuilder()
+                .setTitle('✅ Sitio Agregado')
+                .setDescription(`Se ha comenzado a monitorear **${sanitizeMarkdown(site.id)}** correctamente.`)
+                .addFields([
+                    { name: '🔗 URL', value: sanitizeMarkdown(site.url.substring(0, 1024)) },
+                    { name: '🔍 Selector CSS', value: `\`${sanitizeMarkdown(site.css.substring(0, 1000))}\`${warningMessage}` },
+                    { name: '📝 Contenido Detectado', value: site.lastContent ? `\`\`\`\n${sanitizeMarkdown(site.lastContent.substring(0, 100))}${site.lastContent.length > 100 ? '...' : ''}\n\`\`\`` : '*No se detectó contenido*' }
+                ])
+                .setColor(0x6058f3);
             
             await interaction.editReply({ embeds: [embed] });
         } catch (error) {

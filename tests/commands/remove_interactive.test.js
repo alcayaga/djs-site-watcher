@@ -74,7 +74,7 @@ describe('Remove Command Interactive Features', () => {
                 components: []
             }));
             expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('Se ha eliminado **site1**'),
+                embeds: expect.any(Array),
                 allowedMentions: { parse: [] }
             }));
         });

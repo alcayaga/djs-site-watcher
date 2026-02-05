@@ -217,11 +217,11 @@ describe('AppleFeatureMonitor', () => {
             expect(mockChannelSend).toHaveBeenCalledTimes(2); // One for each added item
 
             // Check first embed
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('🌟 ¡Nueva función de Apple disponible!');
+            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('🌟 ¡Nueva función de Apple disponible! 🐸');
             expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
-                { name: 'Función', value: 'New Feature' },
-                { name: 'Región/Idioma', value: 'New Region' },
-                { name: 'URL', value: 'http://apple.com/features#new-feature' }
+                { name: '✨ Función', value: 'New Feature', inline: true },
+                { name: '📍 Región/Idioma', value: 'New Region', inline: true },
+                { name: '🔗 URL', value: 'http://apple.com/features#new-feature' }
             ]);
             expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#0071E3');
 

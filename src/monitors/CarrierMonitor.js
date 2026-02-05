@@ -1,6 +1,7 @@
 const plist = require('plist');
 const Discord = require('discord.js');
 const Monitor = require('../Monitor');
+const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
 
 /**
  * Monitor for Apple Carrier Bundle updates.
@@ -70,7 +71,7 @@ class CarrierMonitor extends Monitor {
             const oldCarrier = oldCarriers[carrierId];
 
             if (!oldCarrier || oldCarrier.version !== newCarrier.version || oldCarrier.build !== newCarrier.build) {
-                updated.push({ ...newCarrier, lastUpdated: new Date().toLocaleString() });
+                updated.push({ ...newCarrier, lastUpdated: new Date().toISOString() });
             }
         }
         
@@ -104,12 +105,12 @@ class CarrierMonitor extends Monitor {
         changes.updated.forEach(carrier => {
             console.log('New carrier bundle version found:', carrier);
             const embed = new Discord.EmbedBuilder()
-                .setTitle(`📲 ¡Nuevo Carrier Bundle para ${carrier.id}!`)
+                .setTitle(`📲 ¡Nuevo Carrier Bundle para ${sanitizeMarkdown(carrier.id)}! 🐸`)
                 .addFields([
-                    { name: `Versión`, value: `${carrier.version}` },
-                    { name: `Build`, value: `${carrier.build}` },
-                    { name: `URL`, value: `${carrier.url}` },
-                    { name: `Actualizado`, value: `${carrier.lastUpdated}` }
+                    { name: `📦 Versión`, value: `${sanitizeMarkdown(carrier.version)}`, inline: true },
+                    { name: `🛠️ Build`, value: `${sanitizeMarkdown(carrier.build)}`, inline: true },
+                    { name: `🔗 URL`, value: `${sanitizeMarkdown(carrier.url)}` },
+                    { name: `🕒 Actualizado`, value: `${formatDiscordTimestamp(carrier.lastUpdated)}` }
                 ])
                 .setColor(0x00FF00);
             channel.send({ embeds: [embed] });

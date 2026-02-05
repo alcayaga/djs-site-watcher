@@ -47,7 +47,9 @@ describe('Command Functionality', () => {
             expect(storage.saveSettings).toHaveBeenCalledWith(mockConfig);
             expect(mockMonitorManager.setAllIntervals).toHaveBeenCalledWith(10);
             expect(mockMonitorManager.startAll).toHaveBeenCalled();
-            expect(mockInteraction.reply).toHaveBeenCalledWith('Interval set to 10 minutes.');
+            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                embeds: expect.any(Array)
+            }));
         });
     });
 
@@ -69,7 +71,9 @@ describe('Command Functionality', () => {
 
             expect(mockMonitorManager.getAllMonitors).toHaveBeenCalled();
             mockMonitorManager.getAllMonitors().forEach(m => expect(m.start).toHaveBeenCalled());
-            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.stringContaining('Started monitor(s)'));
+            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                embeds: expect.any(Array)
+            }));
         });
 
         it('should stop specific monitor', async () => {
@@ -80,7 +84,9 @@ describe('Command Functionality', () => {
 
             const monitor = mockMonitorManager.getMonitor('AppleEsim');
             expect(monitor.stop).toHaveBeenCalled();
-            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.stringContaining('Stopped monitor(s): AppleEsim'));
+            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                embeds: expect.any(Array)
+            }));
         });
         
         it('should autocomplete monitor names', async () => {
