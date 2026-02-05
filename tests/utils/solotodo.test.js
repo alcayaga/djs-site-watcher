@@ -11,6 +11,12 @@ describe('Solotodo Utils - extractQuery', () => {
         expect(extractQuery('https://www.falabella.com/falabella-cl/product/123/Samsung-Galaxy-S21')).toBe('Samsung Galaxy S21');
     });
 
+    it('should prioritize URL extraction for known products even if text contains generic terms', () => {
+        // Regression test for "200 Lucas > URL" case where "AirPods" might be found in URL but "AirPods Pro" is better
+        const input = '200 Lucas > https://www.paris.cl/apple-airpods-pro-2da-generacion-con-estuche-de-carga-magsafe-usb-c-556043999.html';
+        expect(extractQuery(input)).toBe('AirPods Pro');
+    });
+
     it('should fallback to clean text if no URL or known product', () => {
         expect(extractQuery('Teclado generico $20.000')).toBe('Teclado generico');
     });
