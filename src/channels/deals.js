@@ -17,7 +17,7 @@ class DealsChannel extends ChannelHandler {
             // It's a deal, create a thread for discussion.
             try {
                 await message.startThread({
-                    name: message.content.substring(0, 100) || 'Deal Discussion',
+                    name: message.content.trim().substring(0, 100) || 'Discusión de la oferta',
                     autoArchiveDuration: 10080, // 7 days
                 });
             } catch (error) {
@@ -37,7 +37,7 @@ class DealsChannel extends ChannelHandler {
 
         // Send notification and let any errors propagate.
         await message.author.send(
-            `Hi ${message.author.username}, your message in <#${message.channel.id}> was removed because it doesn't appear to be a deal. This channel is only for sharing deals (messages must contain a link or an image). Please use threads to discuss existing deals.`
+            `Hola ${message.author.username}, tu mensaje en <#${message.channel.id}> fue eliminado porque no parece ser una oferta. Este canal es solo para compartir ofertas (los mensajes deben contener un enlace o una imagen). Por favor, usa hilos para discutir las ofertas existentes.`
         );
 
         return true;

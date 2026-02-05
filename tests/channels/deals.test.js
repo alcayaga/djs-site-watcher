@@ -51,10 +51,35 @@ describe('DealsChannel', () => {
         });
     });
 
-    it('should delete and notify for message without link or attachment', async () => {
+    it('should use Spanish fallback name when content is empty but has attachment', async () => {
+        mockMessage.content = '';
+        mockMessage.attachments.set('1', {});
+        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        expect(handled).toBe(false);
+        expect(mockMessage.startThread).toHaveBeenCalledWith({
+            name: 'Discusión de la oferta',
+            autoArchiveDuration: 10080
+        });
+    });
+
+    it('should use Spanish fallback name when content is only whitespace but has attachment', async () => {
+        mockMessage.content = '   ';
+        mockMessage.attachments.set('1', {});
+        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        expect(handled).toBe(false);
+        expect(mockMessage.startThread).toHaveBeenCalledWith({
+            name: 'Discusión de la oferta',
+            autoArchiveDuration: 10080
+        });
+    });
+
+    it('should delete and notify for message without link or attachment in Spanish', async () => {
         const handled = await handler.handle(mockMessage, mockState, mockConfig);
         expect(handled).toBe(true);
         expect(mockMessage.delete).toHaveBeenCalled();
         expect(mockMessage.startThread).not.toHaveBeenCalled();
+        expect(mockMessage.author.send).toHaveBeenCalledWith(
+            expect.stringContaining('tu mensaje en <#456> fue eliminado porque no parece ser una oferta')
+        );
     });
 });
