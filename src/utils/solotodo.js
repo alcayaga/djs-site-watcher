@@ -40,7 +40,7 @@ const SOLOTODO_BASE_URL = 'https://www.solotodo.cl';
  * @returns {string} The formatted URL.
  */
 function getProductUrl(product) {
-    return `${SOLOTODO_BASE_URL}/products/${product.id}-${product.slug}`;
+    return `${SOLOTODO_BASE_URL}/products/${product.id}-${encodeURIComponent(product.slug)}`;
 }
 
 /**
@@ -125,7 +125,7 @@ function extractQuery(content) {
     if (textOnly) {
         let text = textOnly;
         text = text.replace(/\$[\d.]+/g, ''); // Remove prices
-        text = text.replace(/[^\w\sñáéíóúü]/gi, ' '); // Remove special chars
+        text = text.replace(/[^a-z0-9\sñáéíóúü]/gi, ' '); // Remove special chars (and underscores)
         text = text.replace(/\s+/g, ' ').trim(); // Collapse spaces
 
         if (text.length > 3) return text;

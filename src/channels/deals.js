@@ -1,6 +1,7 @@
 const { ThreadAutoArchiveDuration } = require('discord.js');
 const ChannelHandler = require('../ChannelHandler');
 const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl } = require('../utils/solotodo');
+const { sanitizeLinkText } = require('../utils/formatters');
 
 /**
  * Handler for Deals channel moderation.
@@ -49,7 +50,8 @@ class DealsChannel extends ChannelHandler {
                 }
 
                 if (product) {
-                    await thread.send(`Encontré esto en Solotodo: [${product.name}](${getProductUrl(product)})`);
+                    const sanitizedName = sanitizeLinkText(product.name);
+                    await thread.send(`Encontré esto en Solotodo: [${sanitizedName}](${getProductUrl(product)})`);
                 } else if (query) {
                     // Only show fallback search link if we actually had a search query
                     await thread.send(`Busca referencias en Solotodo: ${getSearchUrl(query)}`);
