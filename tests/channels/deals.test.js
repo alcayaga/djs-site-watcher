@@ -22,29 +22,39 @@ describe('DealsChannel', () => {
             content: 'Check this out!',
             attachments: new Map(),
             delete: jest.fn().mockResolvedValue({}),
+            startThread: jest.fn().mockResolvedValue({}),
         };
         mockState = {};
         mockConfig = {};
     });
 
-    it('should allow message with link', async () => {
+    it('should allow message with link and create thread', async () => {
         mockMessage.content = 'Great deal here: https://example.com';
         const handled = await handler.handle(mockMessage, mockState, mockConfig);
         expect(handled).toBe(false);
         expect(mockMessage.delete).not.toHaveBeenCalled();
+        expect(mockMessage.startThread).toHaveBeenCalledWith({
+            name: 'Deal Discussion',
+            autoArchiveDuration: 1440
+        });
     });
 
-    it('should allow message with attachment', async () => {
+    it('should allow message with attachment and create thread', async () => {
         mockMessage.attachments.set('1', {});
         const handled = await handler.handle(mockMessage, mockState, mockConfig);
         expect(handled).toBe(false);
         expect(mockMessage.delete).not.toHaveBeenCalled();
+        expect(mockMessage.startThread).toHaveBeenCalledWith({
+            name: 'Deal Discussion',
+            autoArchiveDuration: 1440
+        });
     });
 
     it('should delete and notify for message without link or attachment', async () => {
         const handled = await handler.handle(mockMessage, mockState, mockConfig);
                 expect(handled).toBe(true);
                 expect(mockMessage.delete).toHaveBeenCalled();
+                expect(mockMessage.startThread).not.toHaveBeenCalled();
             });
         });
         

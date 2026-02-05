@@ -14,7 +14,15 @@ class DealsChannel extends ChannelHandler {
         const hasAttachment = message.attachments.size > 0;
 
         if (hasLink || hasAttachment) {
-            // It's a deal, allow it to be processed by other handlers.
+            // It's a deal, create a thread for discussion.
+            try {
+                await message.startThread({
+                    name: 'Deal Discussion',
+                    autoArchiveDuration: 1440, // 24 hours
+                });
+            } catch (error) {
+                console.error('Error creating thread in DealsChannel handler:', error);
+            }
             return false;
         }
 
