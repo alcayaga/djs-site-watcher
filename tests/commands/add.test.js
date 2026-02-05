@@ -102,24 +102,11 @@ describe('add command', () => {
             }));
         });
 
-        it('should add a site with force enabled (yes)', async () => {
+        it.each(['yes', 'si'])('should add a site with force enabled for value "%s"', async (forceValue) => {
             mockInteraction.fields.getTextInputValue.mockImplementation((name) => {
                 if (name === 'urlInput') return 'https://example.com';
                 if (name === 'selectorInput') return '#test';
-                if (name === 'forceInput') return 'yes';
-                return null;
-            });
-
-            await addCommand.handleModal(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
-
-            expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', '#test', true);
-        });
-
-        it('should add a site with force enabled (si)', async () => {
-            mockInteraction.fields.getTextInputValue.mockImplementation((name) => {
-                if (name === 'urlInput') return 'https://example.com';
-                if (name === 'selectorInput') return '#test';
-                if (name === 'forceInput') return 'si';
+                if (name === 'forceInput') return forceValue;
                 return null;
             });
 
