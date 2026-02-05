@@ -38,29 +38,24 @@ const APPLE_PRODUCTS = [
  * @returns {Promise<object|null>} The first product found or null.
  */
 async function searchSolotodo(query) {
-    try {
-        const response = await got(`https://publicapi.solotodo.com/products?search=${encodeURIComponent(query)}`, {
-            responseType: 'json'
-        });
+    const response = await got(`https://publicapi.solotodo.com/products?search=${encodeURIComponent(query)}`, {
+        responseType: 'json'
+    });
 
-        if (response.body.results && response.body.results.length > 0) {
-            // Prioritize results that start with "Apple" to avoid accessories or knock-offs
-            const appleResult = response.body.results.find(product => 
-                product.name.toLowerCase().startsWith('apple') &&
-                // Ensure the result actually contains the query terms (e.g. searching "AirPods Pro" shouldn't return base "AirPods")
-                query.split(' ').every(word => product.name.toLowerCase().includes(word.toLowerCase()))
-            );
-            
-            if (appleResult) return appleResult;
+    if (response.body.results && response.body.results.length > 0) {
+        // Prioritize results that start with "Apple" to avoid accessories or knock-offs
+        const appleResult = response.body.results.find(product =>
+            product.name.toLowerCase().startsWith('apple') &&
+            // Ensure the result actually contains the query terms (e.g. searching "AirPods Pro" shouldn't return base "AirPods")
+            query.split(' ').every(word => product.name.toLowerCase().includes(word.toLowerCase()))
+        );
 
-            // Fallback: Return first result if no "Apple" match found (though unlikely for this bot)
-            return response.body.results[0];
-        }
-        return null;
-    } catch (error) {
-        console.error('Error searching Solotodo:', error);
-        return null;
+        if (appleResult) return appleResult;
+
+        // Fallback: Return first result if no "Apple" match found (though unlikely for this bot)
+        return response.body.results[0];
     }
+    return null;
 }
 
 /**
@@ -69,7 +64,6 @@ async function searchSolotodo(query) {
  * @returns {string|null} The extracted query or null.
  */
 function extractQuery(content) {
-    const lowerContent = content.toLowerCase();
     const urlMatch = content.match(/https?:\/\/[^\s]+/);
 
     // 1. Priority: Extract from URL if present
@@ -77,7 +71,7 @@ function extractQuery(content) {
         try {
             const url = new URL(urlMatch[0]);
             const pathSlug = url.pathname.toLowerCase();
-            
+
             // Check if the URL slug contains a known Apple product
             for (const product of APPLE_PRODUCTS) {
                 // We sanitize the product name for URL matching (e.g. "iPhone 13 Pro" -> "iphone-13-pro" or "iphone 13 pro")
@@ -85,16 +79,11 @@ function extractQuery(content) {
                 // OR check if slug includes the product name with hyphens.
                 const slugPart = product.toLowerCase().replace(/\s+/g, '-');
                 const slugPartSpace = product.toLowerCase().replace(/\s+/g, ' '); // some urls use spaces or %20
-                
+
                 if (pathSlug.includes(slugPart) || pathSlug.includes(slugPartSpace)) {
                     return product;
                 }
             }
-
-            // If no known product in URL, proceed to text fallback? 
-            // Or try to use the raw slug? 
-            // Often if the URL doesn't match a known product, it might be a weird link or a specific variant not in our list.
-            // Let's fallback to text search, but exclude the URL from it.
         } catch (e) {
             console.error('Error parsing URL for query extraction:', e);
         }
@@ -117,13 +106,13 @@ function extractQuery(content) {
         text = text.replace(/\$[\d.]+/g, ''); // Remove prices
         text = text.replace(/[^\w\sñáéíóúü]/gi, ' '); // Remove special chars
         text = text.replace(/\s+/g, ' ').trim(); // Collapse spaces
-        
+
         if (text.length > 3) return text;
     }
 
     // 5. Last resort: If we had a URL but no known product, try to use the slug as a query
     if (urlMatch) {
-         try {
+        try {
             const url = new URL(urlMatch[0]);
             const pathParts = url.pathname.split('/');
             let bestPart = '';
@@ -132,10 +121,16 @@ function extractQuery(content) {
             }
             if (bestPart) {
                 let slug = bestPart.replace(/[-_]/g, ' ').replace(/\.html?$/, '');
-                try { slug = decodeURIComponent(slug); } catch (e) {}
+                try {
+                    slug = decodeURIComponent(slug);
+                } catch (e) {
+                    // Ignore decode errors
+                }
                 return slug.trim();
             }
-        } catch (e) {}
+        } catch (e) {
+            // Ignore URL parsing errors here as we already tried once
+        }
     }
 
     return null;
@@ -161,8 +156,8 @@ async function searchByUrl(url) {
         if (error.response && error.response.statusCode === 404) {
             return null;
         }
-        console.error('Error searching Solotodo by URL:', error);
-        return null;
+        // Let other errors propagate
+        throw error;
     }
 }
 
