@@ -17,7 +17,7 @@ class QAChannel extends ChannelHandler {
 
         for (const response of state.responses) {
             const ap_match = response.trigger_regex.exec(ap_message);
-            if (ap_match != null) {
+            if (ap_match !== null) {
                 message.channel.sendTyping();
 
                 // Wait for the configured delay before sending the response

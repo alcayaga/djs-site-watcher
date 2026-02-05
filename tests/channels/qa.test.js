@@ -44,30 +44,18 @@ describe('QAChannel', () => {
         expect(mockMessage.reply).toHaveBeenCalledWith('mundo');
     });
 
-        it('should ignore message in wrong channel', async () => {
-
-            handler.config.channelId = 'other';
-
-            const handled = await handler.handle(mockMessage, mockState, mockConfig);
-
-            expect(handled).toBe(false);
-
-        });
-
-    
-
-        it('should process bot message if ignoreBots is false', async () => {
-
-            handler.config.ignoreBots = false;
-
-            mockMessage.author.bot = true;
-
-            const handled = await handler.handle(mockMessage, mockState, mockConfig);
-
-            expect(handled).toBe(true);
-
-        });
-
+    it('should ignore message in wrong channel', async () => {
+        handler.config.channelId = 'other';
+        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        expect(handled).toBe(false);
     });
+
+    it('should process bot message if ignoreBots is false', async () => {
+        handler.config.ignoreBots = false;
+        mockMessage.author.bot = true;
+        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        expect(handled).toBe(true);
+    });
+});
 
     
