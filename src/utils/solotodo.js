@@ -175,4 +175,57 @@ async function searchByUrl(url) {
     }
 }
 
-module.exports = { searchSolotodo, extractQuery, searchByUrl, getProductUrl, getSearchUrl };
+/**
+ * Fetches available entities for a product.
+ * @param {number|string} productId The product ID.
+ * @returns {Promise<Array>} List of entities.
+ */
+async function getAvailableEntities(productId) {
+    const response = await got(`https://publicapi.solotodo.com/products/available_entities/?countries=1&ids=${productId}`, {
+        responseType: 'json'
+    });
+
+    if (response.body.results && response.body.results.length > 0) {
+        return response.body.results[0].entities || [];
+    }
+    return [];
+}
+
+let cachedStores = null;
+let storesLastUpdated = 0;
+const STORES_CACHE_TTL = 3600000; // 1 hour
+
+/**
+ * Fetches all stores from Solotodo.
+ * @returns {Promise<Map<string, string>>} A map of store URL to store name.
+ */
+async function getStores() {
+    const now = Date.now();
+    if (cachedStores && (now - storesLastUpdated < STORES_CACHE_TTL)) {
+        return cachedStores;
+    }
+
+    const response = await got('https://publicapi.solotodo.com/stores/', {
+        responseType: 'json'
+    });
+
+    const storeMap = new Map();
+    if (Array.isArray(response.body)) {
+        for (const store of response.body) {
+            storeMap.set(store.url, store.name);
+        }
+    }
+    cachedStores = storeMap;
+    storesLastUpdated = now;
+    return storeMap;
+}
+
+module.exports = {
+    searchSolotodo,
+    extractQuery,
+    searchByUrl,
+    getProductUrl,
+    getSearchUrl,
+    getAvailableEntities,
+    getStores
+};

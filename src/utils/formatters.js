@@ -41,8 +41,20 @@ function sanitizeLinkText(text) {
         .replace(/@here/g, '@\u200bhere');
 }
 
+/**
+ * Formats a number as Chilean Pesos (CLP).
+ * @param {number|string} amount The amount to format.
+ * @returns {string} The formatted amount.
+ */
+function formatCLP(amount) {
+    const value = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(value)) return '$0';
+    return '$' + Math.floor(value).toLocaleString('es-CL');
+}
+
 module.exports = {
     formatDiscordTimestamp,
     sanitizeMarkdown,
-    sanitizeLinkText
+    sanitizeLinkText,
+    formatCLP
 };

@@ -1,7 +1,7 @@
 const { ThreadAutoArchiveDuration } = require('discord.js');
 const ChannelHandler = require('../ChannelHandler');
-const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl } = require('../utils/solotodo');
-const { sanitizeLinkText } = require('../utils/formatters');
+const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl, getAvailableEntities, getStores } = require('../utils/solotodo');
+const { sanitizeLinkText, formatCLP } = require('../utils/formatters');
 
 /**
  * Handler for Deals channel moderation.
@@ -52,6 +52,37 @@ class DealsChannel extends ChannelHandler {
                 if (product) {
                     const sanitizedName = sanitizeLinkText(product.name);
                     await thread.send(`Encontré esto en Solotodo: [${sanitizedName}](${getProductUrl(product)})`);
+
+                    // New: Fetch prices from top 3 sellers
+                    try {
+                        const [entities, storeMap] = await Promise.all([
+                            getAvailableEntities(product.id),
+                            getStores()
+                        ]);
+
+                        const filteredEntities = entities
+                            .filter(e => e.active_registry.cell_monthly_payment === null && e.active_registry.is_available)
+                            .sort((a, b) => parseFloat(a.active_registry.offer_price) - parseFloat(b.active_registry.offer_price))
+                            .slice(0, 3);
+
+                        if (filteredEntities.length > 0) {
+                            let priceMsg = '**Mejores precios actuales:**\n';
+                            for (const entity of filteredEntities) {
+                                const storeName = storeMap.get(entity.store) || 'Tienda';
+                                const normalPrice = formatCLP(entity.active_registry.normal_price);
+                                const offerPrice = formatCLP(entity.active_registry.offer_price);
+                                
+                                priceMsg += `• [${sanitizeLinkText(storeName)}](${entity.external_url}): **${offerPrice}**`;
+                                if (normalPrice !== offerPrice) {
+                                    priceMsg += ` (Normal: ${normalPrice})`;
+                                }
+                                priceMsg += '\n';
+                            }
+                            await thread.send(priceMsg);
+                        }
+                    } catch (priceError) {
+                        console.error('Error fetching entities or stores in DealsChannel:', priceError);
+                    }
                 } else if (query) {
                     // Only show fallback search link if we actually had a search query
                     await thread.send(`Busca referencias en Solotodo: ${getSearchUrl(query)}`);
