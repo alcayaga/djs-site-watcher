@@ -77,6 +77,7 @@ jest.mock('jsdom', () => ({
 // Mock fs
 jest.mock('fs', () => ({
     readdirSync: jest.fn().mockReturnValue(['SiteMonitor.js']),
+    existsSync: jest.fn().mockImplementation((path) => !path.toString().endsWith('channels')),
 }));
 
 // Mock discord.js

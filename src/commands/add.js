@@ -77,7 +77,7 @@ module.exports = {
             if (!['http:', 'https:'].includes(url.protocol)) {
                 return interaction.reply({ content: 'Protocolo inválido. Solo se permite HTTP y HTTPS.', flags: [MessageFlags.Ephemeral] });
             }
-        } catch (e) {
+        } catch {
             return interaction.reply({ content: 'Formato de URL inválido.', flags: [MessageFlags.Ephemeral] });
         }
 

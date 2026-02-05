@@ -34,4 +34,35 @@ describe('storage', () => {
             expect(result).toEqual([]);
         });
     });
+
+    describe('saveSettings', () => {
+        it('should scrub sensitive top-level keys', async () => {
+            const settings = {
+                interval: 5,
+                DISCORDJS_BOT_TOKEN: 'secret-token',
+                other: 'value'
+            };
+            await storage.saveSettings(settings);
+
+            const savedSettings = fs.outputJSON.mock.calls[0][1];
+            expect(savedSettings.DISCORDJS_BOT_TOKEN).toBeUndefined();
+            expect(savedSettings.interval).toBe(5);
+            expect(savedSettings.other).toBe('value');
+        });
+
+        it('should scrub channelId from channels array', async () => {
+            const settings = {
+                channels: [
+                    { name: 'QA', channelId: '123', enabled: true },
+                    { name: 'Deals', channelId: '456', enabled: false }
+                ]
+            };
+            await storage.saveSettings(settings);
+
+            const savedSettings = fs.outputJSON.mock.calls[fs.outputJSON.mock.calls.length - 1][1];
+            expect(savedSettings.channels[0].channelId).toBeUndefined();
+            expect(savedSettings.channels[1].channelId).toBeUndefined();
+            expect(savedSettings.channels[0].name).toBe('QA');
+        });
+    });
 });

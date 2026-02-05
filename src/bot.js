@@ -11,6 +11,7 @@ const client = new Client({
 
 const interactionHandler = require('./handlers/interactionHandler');
 const messageHandler = require('./handlers/messageHandler');
+const channelManager = require('./ChannelManager');
 const monitorManager = require('./MonitorManager');
 const fs = require('fs');
 const path = require('path');
@@ -31,6 +32,9 @@ const state = require('./state');
 client.on(Events.ClientReady, async () => {
     // Load the state from storage
     state.load();
+
+    // Initialize channel handlers
+    channelManager.initialize(client);
 
     // Note: Slash commands are deployed via src/deploy-commands.js
     // You can uncomment the following lines to deploy on startup, but it's recommended to run the script manually.

@@ -66,4 +66,41 @@ if (!config.monitors) {
     ];
 }
 
+
+
+if (!config.channels) {
+    config.channels = [
+        {
+            name: 'QA',
+            handler: 'QA',
+            enabled: true,
+            channelId: config.DISCORDJS_APCHANNEL_ID,
+        },
+        {
+            name: 'Deals',
+            handler: 'Deals',
+            enabled: true,
+            channelId: config.DISCORDJS_DEALS_CHANNEL_ID,
+        }
+    ];
+} else {
+    // Re-link IDs from environment variables for default handlers if they are missing in the JSON
+    const handlerChannelMap = {
+        'QA': config.DISCORDJS_APCHANNEL_ID,
+        'Deals': config.DISCORDJS_DEALS_CHANNEL_ID,
+    };
+
+    config.channels.forEach(channel => {
+        if (!channel.channelId) {
+            if (handlerChannelMap[channel.handler]) {
+                channel.channelId = handlerChannelMap[channel.handler];
+            } else {
+                console.warn(`Channel handler ${channel.name} is enabled but missing 'channelId' and has no default mapping.`);
+            }
+        }
+    });
+}
+
+
+
 module.exports = config;

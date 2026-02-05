@@ -13,6 +13,7 @@ const SENSITIVE_SETTINGS_KEYS = [
     'DISCORDJS_TEXTCHANNEL_ID',
     'SINGLE_RUN',
     'DISCORDJS_APCHANNEL_ID',
+    'DISCORDJS_DEALS_CHANNEL_ID',
     'DISCORDJS_CLIENT_ID',
     'AP_RESPONSE_DELAY'
 ];
@@ -111,9 +112,18 @@ function loadSettings() {
  * @returns {Promise<void>} A promise that resolves when the file is saved.
  */
 function saveSettings(settings) {
+    // Scrub sensitive top-level keys
     const settingsToSave = { ...settings };
-
     SENSITIVE_SETTINGS_KEYS.forEach(key => delete settingsToSave[key]);
+
+    // Also scrub sensitive IDs from channel configurations
+    if (Array.isArray(settingsToSave.channels)) {
+        settingsToSave.channels = settingsToSave.channels.map(channel => {
+            const scrubbedChannel = { ...channel };
+            delete scrubbedChannel.channelId;
+            return scrubbedChannel;
+        });
+    }
 
     return fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 });
 }
