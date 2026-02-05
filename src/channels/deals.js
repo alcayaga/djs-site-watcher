@@ -14,8 +14,8 @@ class DealsChannel extends ChannelHandler {
         const hasAttachment = message.attachments.size > 0;
 
         if (hasLink || hasAttachment) {
-            // It's a deal, allow it.
-            return true;
+            // It's a deal, allow it to be processed by other handlers.
+            return false;
         }
 
         // Not a deal, delete and notify user.

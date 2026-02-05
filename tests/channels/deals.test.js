@@ -30,7 +30,14 @@ describe('DealsChannel', () => {
     it('should allow message with link', async () => {
         mockMessage.content = 'Great deal here: https://example.com';
         const handled = await handler.handle(mockMessage, mockState, mockConfig);
-        expect(handled).toBe(true);
+        expect(handled).toBe(false);
+        expect(mockMessage.delete).not.toHaveBeenCalled();
+    });
+
+    it('should allow message with attachment', async () => {
+        mockMessage.attachments.set('1', {});
+        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        expect(handled).toBe(false);
         expect(mockMessage.delete).not.toHaveBeenCalled();
     });
 

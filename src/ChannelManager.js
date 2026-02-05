@@ -28,6 +28,7 @@ class ChannelManager {
         for (const file of handlerFiles) {
             try {
                 const HandlerClass = require(path.join(channelsPath, file));
+                // Assumes the filename (e.g., "qa.js") matches the 'handler' property in the config (e.g., "QA").
                 const handlerName = file.replace('.js', '').toLowerCase();
                 handlerClassMap.set(handlerName, HandlerClass);
             } catch (error) {
