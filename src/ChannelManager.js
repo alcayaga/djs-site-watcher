@@ -10,7 +10,8 @@ class ChannelManager {
      * Creates an instance of ChannelManager.
      */
     constructor() {
-        this.handlers = [];
+        // Map<string, ChannelHandler[]> where key is channelId
+        this.handlers = new Map();
     }
 
     /**
@@ -27,8 +28,6 @@ class ChannelManager {
         for (const file of handlerFiles) {
             try {
                 const HandlerClass = require(path.join(channelsPath, file));
-                // We use the class name (e.g. "QAChannel" -> "QA") or a static property if we had one.
-                // For now, let's assume the filename matches the 'handler' property in config + 'Channel'.
                 const handlerName = file.replace('.js', '').toLowerCase();
                 handlerClassMap.set(handlerName, HandlerClass);
             } catch (error) {
@@ -45,7 +44,17 @@ class ChannelManager {
                     try {
                         const handlerInstance = new HandlerClass(channelConfig.name, channelConfig);
                         handlerInstance.initialize(client);
-                        this.handlers.push(handlerInstance);
+
+                        const channelId = channelConfig.channelId;
+                        if (channelId) {
+                            if (!this.handlers.has(channelId)) {
+                                this.handlers.set(channelId, []);
+                            }
+                            this.handlers.get(channelId).push(handlerInstance);
+                        } else {
+                            console.warn(`Channel handler ${channelConfig.name} is enabled but missing 'channelId'. It will not receive messages.`);
+                        }
+                        
                         console.log(`Initialized channel handler: ${channelConfig.name}`);
                     } catch (e) {
                         console.error(`Error initializing channel handler ${channelConfig.name}:`, e);
@@ -58,16 +67,20 @@ class ChannelManager {
     }
 
     /**
-     * Dispatches a message to all loaded channel handlers.
+     * Dispatches a message to the appropriate channel handlers.
      * @param {import('discord.js').Message} message 
      * @param {object} state 
      * @param {object} configObj 
      */
     async handleMessage(message, state, configObj) {
-        for (const handler of this.handlers) {
-            const handled = await handler.handle(message, state, configObj);
-            if (handled) {
-                break;
+        const channelHandlers = this.handlers.get(message.channel.id);
+        
+        if (channelHandlers) {
+            for (const handler of channelHandlers) {
+                const handled = await handler.handle(message, state, configObj);
+                if (handled) {
+                    break;
+                }
             }
         }
     }

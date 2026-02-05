@@ -35,8 +35,9 @@ class ChannelHandler {
      * @returns {Promise<boolean>}
      */
     async handle(message, state, config) {
-        // Common checks: ignore bots and verify channel ID if configured
-        if (message.author.bot || (this.config.channelId && this.config.channelId !== message.channel.id)) {
+        // Common checks: ignore bots (unless configured otherwise) and verify channel ID if configured
+        const shouldIgnoreBots = this.config.ignoreBots !== false;
+        if ((shouldIgnoreBots && message.author.bot) || (this.config.channelId && this.config.channelId !== message.channel.id)) {
             return false;
         }
         return this.process(message, state, config);
