@@ -29,13 +29,14 @@ describe('DealsChannel', () => {
     });
 
     it('should allow message with link and create thread', async () => {
-        mockMessage.content = 'Great deal here: https://example.com';
+        const content = 'Great deal here: https://example.com';
+        mockMessage.content = content;
         const handled = await handler.handle(mockMessage, mockState, mockConfig);
         expect(handled).toBe(false);
         expect(mockMessage.delete).not.toHaveBeenCalled();
         expect(mockMessage.startThread).toHaveBeenCalledWith({
-            name: 'Deal Discussion',
-            autoArchiveDuration: 1440
+            name: content.substring(0, 100),
+            autoArchiveDuration: 10080
         });
     });
 
@@ -45,16 +46,15 @@ describe('DealsChannel', () => {
         expect(handled).toBe(false);
         expect(mockMessage.delete).not.toHaveBeenCalled();
         expect(mockMessage.startThread).toHaveBeenCalledWith({
-            name: 'Deal Discussion',
-            autoArchiveDuration: 1440
+            name: mockMessage.content.substring(0, 100),
+            autoArchiveDuration: 10080
         });
     });
 
     it('should delete and notify for message without link or attachment', async () => {
         const handled = await handler.handle(mockMessage, mockState, mockConfig);
-                expect(handled).toBe(true);
-                expect(mockMessage.delete).toHaveBeenCalled();
-                expect(mockMessage.startThread).not.toHaveBeenCalled();
-            });
-        });
-        
+        expect(handled).toBe(true);
+        expect(mockMessage.delete).toHaveBeenCalled();
+        expect(mockMessage.startThread).not.toHaveBeenCalled();
+    });
+});

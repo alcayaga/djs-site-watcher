@@ -17,8 +17,8 @@ class DealsChannel extends ChannelHandler {
             // It's a deal, create a thread for discussion.
             try {
                 await message.startThread({
-                    name: 'Deal Discussion',
-                    autoArchiveDuration: 1440, // 24 hours
+                    name: message.content.substring(0, 100) || 'Deal Discussion',
+                    autoArchiveDuration: 10080, // 7 days
                 });
             } catch (error) {
                 console.error('Error creating thread in DealsChannel handler:', error);
