@@ -1,3 +1,4 @@
+const { ThreadAutoArchiveDuration } = require('discord.js');
 const DealsChannel = require('../../src/channels/deals.js');
 
 describe('DealsChannel', () => {
@@ -36,7 +37,7 @@ describe('DealsChannel', () => {
         expect(mockMessage.delete).not.toHaveBeenCalled();
         expect(mockMessage.startThread).toHaveBeenCalledWith({
             name: content.substring(0, 100),
-            autoArchiveDuration: 10080
+            autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek
         });
     });
 
@@ -52,7 +53,7 @@ describe('DealsChannel', () => {
         expect(mockMessage.delete).not.toHaveBeenCalled();
         expect(mockMessage.startThread).toHaveBeenCalledWith({
             name: expectedName,
-            autoArchiveDuration: 10080
+            autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek
         });
     });
 

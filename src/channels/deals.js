@@ -1,3 +1,4 @@
+const { ThreadAutoArchiveDuration } = require('discord.js');
 const ChannelHandler = require('../ChannelHandler');
 
 /**
@@ -18,7 +19,7 @@ class DealsChannel extends ChannelHandler {
             try {
                 await message.startThread({
                     name: message.content.trim().substring(0, 100) || 'Discusión de la oferta',
-                    autoArchiveDuration: 7 * 24 * 60, // 7 days
+                    autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
                 });
             } catch (error) {
                 console.error('Error creating thread in DealsChannel handler:', error);

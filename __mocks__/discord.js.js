@@ -146,5 +146,11 @@ module.exports = {
   MessageFlags: {
       Ephemeral: 1n << 6n,
   },
+  ThreadAutoArchiveDuration: {
+      OneHour: 60,
+      OneDay: 1440,
+      ThreeDays: 4320,
+      OneWeek: 10080
+  },
   Collection: Map,
 };
