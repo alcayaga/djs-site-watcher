@@ -3,7 +3,11 @@ const got = require('got');
 // List of known Apple products to prioritize extraction.
 // Sorted by specificity (longer strings first) to ensure "Pro Max" matches before "Pro".
 const APPLE_PRODUCTS = [
+    // Vision
+    'Apple Vision Pro',
+
     // iPhone
+    'iPhone 17 Pro Max', 'iPhone 17 Pro', 'iPhone 17 Plus', 'iPhone 17',
     'iPhone 16 Pro Max', 'iPhone 16 Pro', 'iPhone 16 Plus', 'iPhone 16',
     'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15 Plus', 'iPhone 15',
     'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14 Plus', 'iPhone 14',
@@ -13,26 +17,31 @@ const APPLE_PRODUCTS = [
     'iPhone SE', 'iPhone XS Max', 'iPhone XS', 'iPhone XR', 'iPhone X',
     
     // iPad
-    'iPad Pro 12.9', 'iPad Pro 11', 'iPad Pro',
-    'iPad Air', 'iPad mini', 'iPad',
+    'iPad Pro 13', 'iPad Pro 12.9', 'iPad Pro 11', 'iPad Pro',
+    'iPad Air 13', 'iPad Air 11', 'iPad Air', 'iPad mini', 'iPad',
 
     // Mac
     'MacBook Pro', 'MacBook Air', 'MacBook',
     'Mac mini', 'Mac Studio', 'Mac Pro', 'iMac',
 
     // Watch
-    'Apple Watch Ultra', 'Apple Watch Series 9', 'Apple Watch Series 8', 
+    'Apple Watch Ultra 2', 'Apple Watch Ultra', 'Apple Watch Series 10', 
+    'Apple Watch Series 9', 'Apple Watch Series 8', 
     'Apple Watch Series 7', 'Apple Watch SE', 'Apple Watch',
 
     // Audio / Accessories
-    'AirPods Max', 'AirPods Pro', 'AirPods',
+    'AirPods Max', 'AirPods Pro', 'AirPods 4', 'AirPods',
     'HomePod mini', 'HomePod',
     'Apple TV 4K', 'Apple TV',
     'Studio Display', 'Pro Display XDR',
-    'Magic Keyboard', 'Magic Mouse', 'Magic Trackpad', 'Apple Pencil'
+    'Magic Keyboard', 'Magic Mouse', 'Magic Trackpad', 
+    'Apple Pencil Pro', 'Apple Pencil',
+    'Beats Pill', 'Beats'
 ];
 
 const SOLOTODO_BASE_URL = 'https://www.solotodo.cl';
+const MIN_DESCRIPTIVE_SLUG_LENGTH = 5;
+const MAX_SKU_LIKE_SLUG_LENGTH = 10;
 
 /**
  * Generates a Solotodo product URL.
@@ -95,11 +104,9 @@ function extractQuery(content) {
         }
     }
 
-    // 1. Priority: Extract from URL if present
+    // 1. Highest Priority: Extract known Apple products from URL if present
     if (url) {
         const pathSlug = url.pathname.toLowerCase();
-
-        // Check if the URL slug contains a known Apple product
         for (const product of APPLE_PRODUCTS) {
             const slugPart = product.toLowerCase().replace(/\s+/g, '-');
             const slugPartSpace = product.toLowerCase().replace(/\s+/g, ' ');
@@ -110,11 +117,42 @@ function extractQuery(content) {
         }
     }
 
-    // 2. Remove URL from content to avoid false positives in random URL strings
+    // 2. Second Priority: Extract descriptive slug from URL
+    if (url) {
+        const pathParts = url.pathname.split('/').filter(Boolean);
+        
+        // Iterate backwards to find the first descriptive segment
+        while (pathParts.length > 0) {
+            const part = pathParts.pop();
+            let slug = part.replace(/[-_]/g, ' ').replace(/\.html?$/, '');
+            
+            try {
+                slug = decodeURIComponent(slug);
+            } catch (e) {
+                console.error(`Failed to decode URL part "${part}":`, e);
+            }
+
+            const trimmedSlug = slug.trim();
+            if (!trimmedSlug) continue;
+
+            // Skip purely numeric segments
+            if (/^\d+$/.test(trimmedSlug)) continue;
+
+            // Skip very short segments unless they match a known product exactly (unlikely for segments)
+            // or if it's the only segment we have.
+            if (trimmedSlug.length < MIN_DESCRIPTIVE_SLUG_LENGTH && pathParts.length > 0) continue;
+
+            // If it looks like a SKU (short, mixed letters and numbers), keep looking if there are more segments
+            if (trimmedSlug.length <= MAX_SKU_LIKE_SLUG_LENGTH && /\d/.test(trimmedSlug) && /[a-z]/i.test(trimmedSlug) && pathParts.length > 0) continue;
+
+            return trimmedSlug;
+        }
+    }
+
+    // 3. Third Priority: Extract known Apple products from message text
     const textOnly = content.replace(/https?:\/\/[^\s]+/g, '').trim();
     const lowerText = textOnly.toLowerCase();
 
-    // 3. Check text for known Apple products
     for (const product of APPLE_PRODUCTS) {
         if (lowerText.includes(product.toLowerCase())) {
             return product;
@@ -129,22 +167,6 @@ function extractQuery(content) {
         text = text.replace(/\s+/g, ' ').trim(); // Collapse spaces
 
         if (text.length > 3) return text;
-    }
-
-    // 5. Last resort: If we had a URL but no known product, try to use the last segment of the path
-    if (url) {
-        const pathParts = url.pathname.split('/').filter(Boolean);
-        const bestPart = pathParts.pop(); // Take the last non-empty segment
-
-        if (bestPart) {
-            let slug = bestPart.replace(/[-_]/g, ' ').replace(/\.html?$/, '');
-            try {
-                slug = decodeURIComponent(slug);
-            } catch (e) {
-                // Ignore decode errors
-            }
-            return slug.trim();
-        }
     }
 
     return null;

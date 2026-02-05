@@ -27,6 +27,60 @@ describe('Solotodo Utils - extractQuery', () => {
     it('should prioritize longer matches (Pro Max over Pro)', () => {
         expect(extractQuery('Vendo iPhone 14 Pro Max nuevo')).toBe('iPhone 14 Pro Max');
     });
+
+    it('should correctly extract from URL when the product name is not in the last segment', () => {
+        const url = 'https://www.abc.cl/iphone-17-pro-256gb-azul-profundo-63/28825293.html';
+        expect(extractQuery(url)).toBe('iPhone 17 Pro');
+    });
+
+    it('should correctly extract non-Apple products from previous segment if last is numeric', () => {
+        const url = 'https://www.abc.cl/samsung-galaxy-s24-ultra-512gb-63/98765432.html';
+        expect(extractQuery(url)).toBe('samsung galaxy s24 ultra 512gb 63');
+    });
+
+    it('should handle various URL formats from feedback', () => {
+        // Vision Pro
+        expect(extractQuery('https://www.apple.com/shop/buy-vision/apple-vision-pro')).toBe('Apple Vision Pro');
+
+        // New iPad sizes
+        expect(extractQuery('https://www.falabella.com/falabella-cl/product/123/iPad-Pro-13-M4')).toBe('iPad Pro 13');
+        expect(extractQuery('https://www.paris.cl/ipad-air-11-p.html')).toBe('iPad Air 11');
+
+        // Apple Pencil Pro
+        expect(extractQuery('https://aufbau.cl/p/apple-pencil-pro')).toBe('Apple Pencil Pro');
+
+        // Falabella numeric end
+        expect(extractQuery('https://www.falabella.com/falabella-cl/product/7183779/AirPods-2ª-Generacion-Con-Estuche-De-Carga-Apple/7183779')).toBe('AirPods');
+        
+        // Paris with .html and numeric suffix in slug
+        expect(extractQuery('200 Lucas > https://www.paris.cl/apple-airpods-pro-2da-generacion-con-estuche-de-carga-magsafe-usb-c-556043999.html')).toBe('AirPods Pro');
+        
+        // ScotiaMarketplace
+        expect(extractQuery('https://scotiamarketplace.cl/apple/1448009-airpods-pro-3-con-cancelacion-de-ruido-usb-c-3-gen.html')).toBe('AirPods Pro');
+        expect(extractQuery('https://scotiamarketplace.cl/apple/1439191-iphone-17-256gb-azul-neblina.html')).toBe('iPhone 17');
+        
+        // MacOnline
+        expect(extractQuery('LAST DAY MACONLINE https://www.maconline.com/products/ipad-pro-m4')).toBe('iPad Pro');
+        
+        // Lider with very long numeric end
+        expect(extractQuery('Iphone Air $999.990 https://www.lider.cl/ip/marcas-destacadas/iphone-air-5g-256gb-negro-espacial/00019595062249?from=/search')).toBe('iphone air 5g 256gb negro espacial');
+    });
+
+    it('should extract known product from URL path regardless of other segments', () => {
+        const url = 'https://aufbau.cl/c/Parlante-inalámbrico-Beats-Pill-con-Bluetooth/Negro/p/MW443BE--A';
+        expect(extractQuery(url)).toBe('Beats Pill');
+    });
+
+    it('should skip SKU-like segments and extract from a previous segment', () => {
+        const url = 'https://aufbau.cl/c/parlante-inalambrico/p/MW443BE--A';
+        expect(extractQuery(url)).toBe('parlante inalambrico');
+    });
+
+    it('should prioritize URL slug over message text for non-Apple products', () => {
+        const message = 'Mira este celu https://www.abc.cl/samsung-galaxy-s24-ultra-512gb-63/98765432.html';
+        // "celu" is generic, URL has the full name
+        expect(extractQuery(message)).toBe('samsung galaxy s24 ultra 512gb 63');
+    });
     
     it('should return null for empty or too short text', () => {
         expect(extractQuery('...')).toBeNull();
