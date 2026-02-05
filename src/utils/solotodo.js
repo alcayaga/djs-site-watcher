@@ -162,7 +162,21 @@ async function searchByUrl(url) {
         });
 
         if (response.body && response.body.product) {
-            return response.body.product;
+            const product = response.body.product;
+
+            // Augment with picture from entity if missing on product
+            if (!product.picture_url && response.body.picture_urls && response.body.picture_urls.length > 0) {
+                product.picture_url = response.body.picture_urls[0];
+            }
+
+            // Extract slug from URL if missing (by_url returns a lite product)
+            if (!product.slug && product.url) {
+                // url: "https://publicapi.solotodo.com/products/270865/" -> slug "270865"
+                const parts = product.url.split('/').filter(Boolean);
+                product.slug = parts.pop();
+            }
+
+            return product;
         }
         return null;
     } catch (error) {

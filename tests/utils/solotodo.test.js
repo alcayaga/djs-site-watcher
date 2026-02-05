@@ -54,15 +54,18 @@ describe('Solotodo Utils - API functions', () => {
         expect(got).toHaveBeenCalledWith(expect.stringContaining('search=iPhone%2015'), expect.any(Object));
     });
 
-    it('searchByUrl should return product if found', async () => {
+    it('searchByUrl should return product and augment it with picture and slug if missing', async () => {
         got.mockResolvedValueOnce({
             body: {
-                product: { id: 123, name: 'Test Product' }
+                product: { id: 123, name: 'Test Product', url: 'https://api.com/products/123/' },
+                picture_urls: ['https://store.com/pic.jpg']
             }
         });
 
         const result = await searchByUrl('https://store.com/p123');
         expect(result.id).toBe(123);
+        expect(result.picture_url).toBe('https://store.com/pic.jpg');
+        expect(result.slug).toBe('123');
     });
 
     it('getAvailableEntities should return entities from the first result', async () => {

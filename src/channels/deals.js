@@ -1,7 +1,7 @@
-const { ThreadAutoArchiveDuration } = require('discord.js');
+const { ThreadAutoArchiveDuration, EmbedBuilder } = require('discord.js');
 const ChannelHandler = require('../ChannelHandler');
 const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl, getAvailableEntities, getStores } = require('../utils/solotodo');
-const { sanitizeLinkText, formatCLP } = require('../utils/formatters');
+const { sanitizeLinkText, formatCLP, sanitizeMarkdown } = require('../utils/formatters');
 
 /**
  * Handler for Deals channel moderation.
@@ -51,7 +51,18 @@ class DealsChannel extends ChannelHandler {
 
                 if (product) {
                     const sanitizedName = sanitizeLinkText(product.name);
-                    await thread.send(`Encontré esto en Solotodo: [${sanitizedName}](${getProductUrl(product)})`);
+                    const productUrl = getProductUrl(product);
+                    
+                    const embed = new EmbedBuilder()
+                        .setTitle(sanitizedName)
+                        .setURL(productUrl)
+                        .setDescription('He encontrado este producto en Solotodo para referencia:')
+                        .setColor(0x6058f3)
+                        .setTimestamp();
+
+                    if (product.picture_url) {
+                        embed.setThumbnail(product.picture_url);
+                    }
 
                     // New: Fetch prices from top 3 sellers
                     try {
@@ -71,24 +82,33 @@ class DealsChannel extends ChannelHandler {
                             .slice(0, 3);
 
                         if (filteredEntities.length > 0) {
-                            let priceMsg = '**Mejores precios actuales:**\n';
+                            let priceList = '';
                             for (const entity of filteredEntities) {
                                 const storeName = storeMap.get(entity.store) || 'Tienda';
                                 
-                                priceMsg += `• [${sanitizeLinkText(storeName)}](${entity.external_url}): **${formatCLP(entity.offerPriceNum)}**`;
+                                priceList += `• [${sanitizeLinkText(storeName)}](${entity.external_url}): **${formatCLP(entity.offerPriceNum)}**`;
                                 if (Math.floor(entity.normalPriceNum) !== Math.floor(entity.offerPriceNum)) {
-                                    priceMsg += ` (Normal: ${formatCLP(entity.normalPriceNum)})`;
+                                    priceList += ` (Normal: ${formatCLP(entity.normalPriceNum)})`;
                                 }
-                                priceMsg += '\n';
+                                priceList += '\n';
                             }
-                            await thread.send(priceMsg);
+                            embed.addFields({ name: '💰 Mejores precios actuales', value: priceList });
                         }
                     } catch (priceError) {
                         console.error('Error fetching entities or stores in DealsChannel:', priceError);
                     }
+
+                    await thread.send({ embeds: [embed] });
                 } else if (query) {
                     // Only show fallback search link if we actually had a search query
-                    await thread.send(`Busca referencias en Solotodo: ${getSearchUrl(query)}`);
+                    const searchUrl = getSearchUrl(query);
+                    const fallbackEmbed = new EmbedBuilder()
+                        .setTitle(`Búsqueda: ${sanitizeMarkdown(query)}`)
+                        .setURL(searchUrl)
+                        .setDescription(`No encontré una coincidencia exacta, pero puedes buscar referencias aquí: [Resultados en Solotodo](${searchUrl})`)
+                        .setColor(0x6058f3);
+                    
+                    await thread.send({ embeds: [fallbackEmbed] });
                 }
             } catch (error) {
                 console.error('Error in Solotodo logic:', error);
@@ -106,12 +126,28 @@ class DealsChannel extends ChannelHandler {
             return true;
         }
 
-        // Send notification and let any errors propagate.
-        await message.author.send(
-            `Hola ${message.author.displayName},\n\n` +
-            `Tu mensaje en <#${message.channel.id}> fue eliminado porque no parece ser una oferta. Este canal es solo para compartir ofertas (los mensajes deben contener un enlace o una imagen).\n\n` +
-            `Por favor, usa hilos para discutir las ofertas existentes.`
-        );
+        // Send notification via DM with an Embed for better presentation
+        const notificationEmbed = new EmbedBuilder()
+            .setTitle('⚠️ Mensaje eliminado')
+            .setDescription(`Hola ${message.author.displayName}, tu mensaje en <#${message.channel.id}> fue eliminado porque no parece ser una oferta.`)
+            .addFields([
+                { 
+                    name: '📌 Regla del canal', 
+                    value: 'Este canal es **solo para compartir ofertas**. Los mensajes deben contener al menos un enlace o una imagen.' 
+                },
+                { 
+                    name: '💬 ¿Cómo discutir?', 
+                    value: 'Por favor, utiliza los hilos automáticos para discutir las ofertas existentes.' 
+                }
+            ])
+            .setColor(0xffcc00) // Yellow/Warning color
+            .setTimestamp();
+
+        try {
+            await message.author.send({ embeds: [notificationEmbed] });
+        } catch (sendError) {
+            console.error('Could not send DM to user:', sendError);
+        }
 
         return true;
     }

@@ -67,9 +67,12 @@ describe('DealsChannel Solotodo Integration', () => {
         expect(handled).toBe(false);
         expect(searchByUrl).toHaveBeenCalledWith('https://example.com');
         expect(searchSolotodo).not.toHaveBeenCalled(); // Should skip text search
-        expect(mockThread.send).toHaveBeenCalledWith(
-            expect.stringContaining('https://www.solotodo.cl/products/111-direct-url-product')
-        );
+        expect(mockThread.send).toHaveBeenCalledWith(expect.objectContaining({
+            embeds: expect.arrayContaining([expect.any(Object)])
+        }));
+
+        const embed = mockThread.send.mock.calls[0][0].embeds[0];
+        expect(embed.setURL).toHaveBeenCalledWith('https://www.solotodo.cl/products/111-direct-url-product');
     });
 
     it('should fetch and display top 3 cheapest sellers when a product is found', async () => {
@@ -146,16 +149,23 @@ describe('DealsChannel Solotodo Integration', () => {
 
         // Should display top 3 (Store 1: 90k, Store 4: 95k, Store 5: 105k)
         // Store 2: 110k is 4th. Store 3 is filtered.
-        expect(mockThread.send).toHaveBeenCalledWith(expect.stringContaining('Mejores precios actuales'));
-        const priceCall = mockThread.send.mock.calls.find(call => call[0].includes('Mejores precios actuales'))[0];
-        
-        expect(priceCall).toContain('Store 1');
-        expect(priceCall).toContain('Store 4');
-        expect(priceCall).toContain('Store 5');
-        expect(priceCall).not.toContain('Store 2');
-        expect(priceCall).toContain('90.000');
-        expect(priceCall).toContain('95.000');
-        expect(priceCall).toContain('105.000');
+        expect(mockThread.send).toHaveBeenCalledWith(expect.objectContaining({
+            embeds: expect.arrayContaining([expect.any(Object)])
+        }));
+
+        const embed = mockThread.send.mock.calls[0][0].embeds[0];
+        expect(embed.addFields).toHaveBeenCalledWith(expect.objectContaining({
+            name: expect.stringContaining('Mejores precios actuales')
+        }));
+
+        const priceField = embed.addFields.mock.calls[0][0].value;
+        expect(priceField).toContain('Store 1');
+        expect(priceField).toContain('Store 4');
+        expect(priceField).toContain('Store 5');
+        expect(priceField).not.toContain('Store 2');
+        expect(priceField).toContain('90.000');
+        expect(priceField).toContain('95.000');
+        expect(priceField).toContain('105.000');
     });
 
     it('should fallback to text search if searchByUrl returns null', async () => {
@@ -176,9 +186,12 @@ describe('DealsChannel Solotodo Integration', () => {
         expect(searchByUrl).toHaveBeenCalled();
         expect(extractQuery).toHaveBeenCalled();
         expect(searchSolotodo).toHaveBeenCalledWith('iphone 15');
-        expect(mockThread.send).toHaveBeenCalledWith(
-            expect.stringContaining('https://www.solotodo.cl/products/222-text-search-product')
-        );
+        expect(mockThread.send).toHaveBeenCalledWith(expect.objectContaining({
+            embeds: expect.arrayContaining([expect.any(Object)])
+        }));
+
+        const embed = mockThread.send.mock.calls[0][0].embeds[0];
+        expect(embed.setURL).toHaveBeenCalledWith('https://www.solotodo.cl/products/222-text-search-product');
     });
 
     it('should post a generic search link if both methods fail but query exists', async () => {
@@ -189,9 +202,12 @@ describe('DealsChannel Solotodo Integration', () => {
         const handled = await handler.handle(mockMessage, {}, {});
         
         expect(handled).toBe(false);
-        expect(mockThread.send).toHaveBeenCalledWith(
-            expect.stringContaining('https://www.solotodo.cl/search?search=unknown%20product')
-        );
+        expect(mockThread.send).toHaveBeenCalledWith(expect.objectContaining({
+            embeds: expect.arrayContaining([expect.any(Object)])
+        }));
+
+        const embed = mockThread.send.mock.calls[0][0].embeds[0];
+        expect(embed.setURL).toHaveBeenCalledWith('https://www.solotodo.cl/search?search=unknown%20product');
     });
 
     it('should do nothing if everything fails (no URL match, no query extracted)', async () => {
