@@ -62,19 +62,22 @@ class DealsChannel extends ChannelHandler {
 
                         const filteredEntities = entities
                             .filter(e => e.active_registry.cell_monthly_payment === null && e.active_registry.is_available)
-                            .sort((a, b) => parseFloat(a.active_registry.offer_price) - parseFloat(b.active_registry.offer_price))
+                            .map(e => ({
+                                ...e,
+                                offerPriceNum: parseFloat(e.active_registry.offer_price),
+                                normalPriceNum: parseFloat(e.active_registry.normal_price)
+                            }))
+                            .sort((a, b) => a.offerPriceNum - b.offerPriceNum)
                             .slice(0, 3);
 
                         if (filteredEntities.length > 0) {
                             let priceMsg = '**Mejores precios actuales:**\n';
                             for (const entity of filteredEntities) {
                                 const storeName = storeMap.get(entity.store) || 'Tienda';
-                                const normalPriceNum = parseFloat(entity.active_registry.normal_price);
-                                const offerPriceNum = parseFloat(entity.active_registry.offer_price);
                                 
-                                priceMsg += `• [${sanitizeLinkText(storeName)}](${entity.external_url}): **${formatCLP(offerPriceNum)}**`;
-                                if (Math.floor(normalPriceNum) !== Math.floor(offerPriceNum)) {
-                                    priceMsg += ` (Normal: ${formatCLP(normalPriceNum)})`;
+                                priceMsg += `• [${sanitizeLinkText(storeName)}](${entity.external_url}): **${formatCLP(entity.offerPriceNum)}**`;
+                                if (Math.floor(entity.normalPriceNum) !== Math.floor(entity.offerPriceNum)) {
+                                    priceMsg += ` (Normal: ${formatCLP(entity.normalPriceNum)})`;
                                 }
                                 priceMsg += '\n';
                             }
