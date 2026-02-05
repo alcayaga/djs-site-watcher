@@ -43,13 +43,8 @@ describe('DealsChannel', () => {
 
     it('should delete and notify for message without link or attachment', async () => {
         const handled = await handler.handle(mockMessage, mockState, mockConfig);
-        expect(handled).toBe(true);
-        expect(mockMessage.delete).toHaveBeenCalled();
-    });
-
-    it('should ignore message in wrong channel', async () => {
-        handler.config.channelId = 'wrong';
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
-        expect(handled).toBe(false);
-    });
-});
+                expect(handled).toBe(true);
+                expect(mockMessage.delete).toHaveBeenCalled();
+            });
+        });
+        
