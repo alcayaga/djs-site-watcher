@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -22,6 +22,6 @@ module.exports = {
             ])
             .setFooter({ text: 'Tip: ¡Usa el autocompletado para los nombres de los monitores!' });
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
     },
 };
