@@ -1,10 +1,16 @@
 const DealsChannel = require('../../src/channels/deals.js');
 
 // Mock the solotodo utils
-jest.mock('../../src/utils/solotodo', () => ({
-    extractQuery: jest.fn(),
-    searchSolotodo: jest.fn()
-}));
+jest.mock('../../src/utils/solotodo', () => {
+    const originalModule = jest.requireActual('../../src/utils/solotodo');
+    return {
+        ...originalModule, // Keep extractQuery real for this test? No, let's keep mocking it for the integration test but test it separately if needed.
+        // Actually, to test the new extraction logic, we should probably unit test `src/utils/solotodo.js` directly or use the real one here.
+        // Let's stick to the previous pattern of mocking for the DealsChannel test, but add a new test specifically for the utils.
+        extractQuery: jest.fn(),
+        searchSolotodo: jest.fn()
+    };
+});
 
 const { extractQuery, searchSolotodo } = require('../../src/utils/solotodo');
 
@@ -93,6 +99,6 @@ describe('DealsChannel Solotodo Integration', () => {
         const handled = await handler.handle(mockMessage, mockState, mockConfig);
         
         expect(handled).toBe(false);
-        expect(mockThread.send).not.toHaveBeenCalled(); // Or should it? In my code I catch and log error, so no send.
+        expect(mockThread.send).not.toHaveBeenCalled();
     });
 });
