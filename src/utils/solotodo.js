@@ -1,5 +1,37 @@
 const got = require('got');
 
+// List of known Apple products to prioritize extraction.
+// Sorted by specificity (longer strings first) to ensure "Pro Max" matches before "Pro".
+const APPLE_PRODUCTS = [
+    // iPhone
+    'iPhone 16 Pro Max', 'iPhone 16 Pro', 'iPhone 16 Plus', 'iPhone 16',
+    'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15 Plus', 'iPhone 15',
+    'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14 Plus', 'iPhone 14',
+    'iPhone 13 Pro Max', 'iPhone 13 Pro', 'iPhone 13 mini', 'iPhone 13',
+    'iPhone 12 Pro Max', 'iPhone 12 Pro', 'iPhone 12 mini', 'iPhone 12',
+    'iPhone 11 Pro Max', 'iPhone 11 Pro', 'iPhone 11',
+    'iPhone SE', 'iPhone XS Max', 'iPhone XS', 'iPhone XR', 'iPhone X',
+    
+    // iPad
+    'iPad Pro 12.9', 'iPad Pro 11', 'iPad Pro',
+    'iPad Air', 'iPad mini', 'iPad',
+
+    // Mac
+    'MacBook Pro', 'MacBook Air', 'MacBook',
+    'Mac mini', 'Mac Studio', 'Mac Pro', 'iMac',
+
+    // Watch
+    'Apple Watch Ultra', 'Apple Watch Series 9', 'Apple Watch Series 8', 
+    'Apple Watch Series 7', 'Apple Watch SE', 'Apple Watch',
+
+    // Audio / Accessories
+    'AirPods Max', 'AirPods Pro', 'AirPods',
+    'HomePod mini', 'HomePod',
+    'Apple TV 4K', 'Apple TV',
+    'Studio Display', 'Pro Display XDR',
+    'Magic Keyboard', 'Magic Mouse', 'Magic Trackpad', 'Apple Pencil'
+];
+
 /**
  * Searches Solotodo for a product.
  * @param {string} query The search query.
@@ -28,33 +60,21 @@ async function searchSolotodo(query) {
  * @returns {string|null} The extracted query or null.
  */
 function extractQuery(content) {
-    // 1. Remove URLs
-    let text = content.replace(/https?:\/\/[^\s]+/g, '').trim();
-
-    // 2. If text remains, clean it up
-    if (text) {
-        // Remove prices (e.g. $999.990 or 999990)
-        text = text.replace(/\$[\d.]+/g, '');
-        // Remove "Codigo de descto ..." patterns if common, but maybe just keeping it simple first.
-        // Remove special chars
-        text = text.replace(/[^\w\sñáéíóúü]/gi, ' ');
-        // Collapse spaces
-        text = text.replace(/\s+/g, ' ').trim();
-        
-        if (text.length > 3) return text;
+    // 1. First, check if the content contains a known Apple product name.
+    // This is the most reliable method for "messy" text like "Vendo iPhone 13 Pro usado"
+    const lowerContent = content.toLowerCase();
+    for (const product of APPLE_PRODUCTS) {
+        if (lowerContent.includes(product.toLowerCase())) {
+            return product;
+        }
     }
 
-    // 3. If no text, try to extract from URL
+    // 2. If no known product found, try the URL extraction method
     const urlMatch = content.match(/https?:\/\/[^\s]+/);
     if (urlMatch) {
         try {
             const url = new URL(urlMatch[0]);
-            // Try to find a slug in the path
-            // e.g. /products/ipad-pro-m4 -> ipad pro m4
-            // e.g. /apple/1448009-airpods-pro-3-... -> airpods pro 3
-            
             const pathParts = url.pathname.split('/');
-            // Look for the longest part, usually the slug
             let bestPart = '';
             for (const part of pathParts) {
                 if (part.length > bestPart.length) {
@@ -63,25 +83,29 @@ function extractQuery(content) {
             }
 
             if (bestPart) {
-                // Heuristic: Remove numbers at start or end if they look like IDs
                 let slug = bestPart;
-                // Replace hyphens/underscores with spaces
                 slug = slug.replace(/[-_]/g, ' ');
-                // Remove file extensions
                 slug = slug.replace(/\.html?$/, '');
-                
-                // Decode URI components (e.g. %20)
                 try {
                     slug = decodeURIComponent(slug);
                 } catch (e) {
                     // Ignore decode errors
                 }
-
                 return slug.trim();
             }
         } catch (e) {
             console.error('Error parsing URL for query extraction:', e);
         }
+    }
+
+    // 3. Fallback: Clean up the text manually
+    let text = content.replace(/https?:\/\/[^\s]+/g, '').trim();
+    if (text) {
+        text = text.replace(/\$[\d.]+/g, ''); // Remove prices
+        text = text.replace(/[^\w\sñáéíóúü]/gi, ' '); // Remove special chars
+        text = text.replace(/\s+/g, ' ').trim(); // Collapse spaces
+        
+        if (text.length > 3) return text;
     }
 
     return null;
