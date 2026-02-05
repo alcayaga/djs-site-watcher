@@ -1,4 +1,7 @@
-const { extractQuery } = require('../../src/utils/solotodo');
+const { extractQuery, searchSolotodo, searchByUrl, getAvailableEntities, getStores } = require('../../src/utils/solotodo');
+const got = require('got');
+
+jest.mock('got');
 
 describe('Solotodo Utils - extractQuery', () => {
     it('should extract known Apple products from messy text', () => {
@@ -28,5 +31,71 @@ describe('Solotodo Utils - extractQuery', () => {
     it('should return null for empty or too short text', () => {
         expect(extractQuery('...')).toBeNull();
         expect(extractQuery('')).toBeNull();
+    });
+});
+
+describe('Solotodo Utils - API functions', () => {
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('searchSolotodo should return the first Apple product match', async () => {
+        got.mockResolvedValueOnce({
+            body: {
+                results: [
+                    { name: 'Some random accessory', id: 1 },
+                    { name: 'Apple iPhone 15', id: 2 }
+                ]
+            }
+        });
+
+        const result = await searchSolotodo('iPhone 15');
+        expect(result.id).toBe(2);
+        expect(got).toHaveBeenCalledWith(expect.stringContaining('search=iPhone%2015'), expect.any(Object));
+    });
+
+    it('searchByUrl should return product if found', async () => {
+        got.mockResolvedValueOnce({
+            body: {
+                product: { id: 123, name: 'Test Product' }
+            }
+        });
+
+        const result = await searchByUrl('https://store.com/p123');
+        expect(result.id).toBe(123);
+    });
+
+    it('getAvailableEntities should return entities from the first result', async () => {
+        got.mockResolvedValueOnce({
+            body: {
+                results: [
+                    {
+                        entities: [{ id: 1, active_registry: { is_available: true } }]
+                    }
+                ]
+            }
+        });
+
+        const entities = await getAvailableEntities(355711);
+        expect(entities).toHaveLength(1);
+        expect(entities[0].id).toBe(1);
+    });
+
+    it('getStores should return a map of stores and cache them', async () => {
+        got.mockResolvedValueOnce({
+            body: [
+                { url: 'https://api.com/stores/1/', name: 'Store 1' },
+                { url: 'https://api.com/stores/2/', name: 'Store 2' }
+            ]
+        });
+
+        const storeMap1 = await getStores();
+        expect(storeMap1.get('https://api.com/stores/1/')).toBe('Store 1');
+        expect(got).toHaveBeenCalledTimes(1);
+
+        // Second call should use cache
+        const storeMap2 = await getStores();
+        expect(storeMap2).toBe(storeMap1);
+        expect(got).toHaveBeenCalledTimes(1);
     });
 });

@@ -6,10 +6,12 @@ jest.mock('../../src/utils/solotodo', () => ({
     searchSolotodo: jest.fn(),
     searchByUrl: jest.fn(),
     getProductUrl: jest.fn(),
-    getSearchUrl: jest.fn()
+    getSearchUrl: jest.fn(),
+    getAvailableEntities: jest.fn(),
+    getStores: jest.fn()
 }));
 
-const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl } = require('../../src/utils/solotodo');
+const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl, getAvailableEntities, getStores } = require('../../src/utils/solotodo');
 
 describe('DealsChannel Solotodo Integration', () => {
     let handler;
@@ -33,6 +35,7 @@ describe('DealsChannel Solotodo Integration', () => {
             author: { 
                 bot: false,
                 username: 'testuser',
+                displayName: 'testuser',
                 send: jest.fn().mockResolvedValue({})
             },
             channel: { id: '456' },
@@ -45,6 +48,8 @@ describe('DealsChannel Solotodo Integration', () => {
         // Default mock implementations for URL helpers
         getProductUrl.mockImplementation(p => `https://www.solotodo.cl/products/${p.id}-${p.slug}`);
         getSearchUrl.mockImplementation(q => `https://www.solotodo.cl/search?search=${encodeURIComponent(q)}`);
+        getAvailableEntities.mockResolvedValue([]);
+        getStores.mockResolvedValue(new Map());
     });
 
     it('should use searchByUrl first and prioritize it over text search', async () => {
@@ -65,6 +70,92 @@ describe('DealsChannel Solotodo Integration', () => {
         expect(mockThread.send).toHaveBeenCalledWith(
             expect.stringContaining('https://www.solotodo.cl/products/111-direct-url-product')
         );
+    });
+
+    it('should fetch and display top 3 cheapest sellers when a product is found', async () => {
+        searchByUrl.mockResolvedValue({
+            id: 111,
+            name: 'Direct URL Product',
+            slug: 'direct-url-product'
+        });
+
+        const mockEntities = [
+            {
+                store: 'https://api.com/stores/1/',
+                external_url: 'https://store1.com/p',
+                active_registry: {
+                    is_available: true,
+                    cell_monthly_payment: null,
+                    normal_price: '100000.00',
+                    offer_price: '90000.00'
+                }
+            },
+            {
+                store: 'https://api.com/stores/2/',
+                external_url: 'https://store2.com/p',
+                active_registry: {
+                    is_available: true,
+                    cell_monthly_payment: null,
+                    normal_price: '110000.00',
+                    offer_price: '110000.00'
+                }
+            },
+            {
+                store: 'https://api.com/stores/3/',
+                external_url: 'https://store3.com/p',
+                active_registry: {
+                    is_available: true,
+                    cell_monthly_payment: '5000.00', // Should be filtered out
+                    normal_price: '50000.00',
+                    offer_price: '40000.00'
+                }
+            },
+            {
+                store: 'https://api.com/stores/4/',
+                external_url: 'https://store4.com/p',
+                active_registry: {
+                    is_available: true,
+                    cell_monthly_payment: null,
+                    normal_price: '120000.00',
+                    offer_price: '95000.00'
+                }
+            },
+            {
+                store: 'https://api.com/stores/5/',
+                external_url: 'https://store5.com/p',
+                active_registry: {
+                    is_available: true,
+                    cell_monthly_payment: null,
+                    normal_price: '130000.00',
+                    offer_price: '105000.00'
+                }
+            }
+        ];
+
+        const mockStoreMap = new Map([
+            ['https://api.com/stores/1/', 'Store 1'],
+            ['https://api.com/stores/2/', 'Store 2'],
+            ['https://api.com/stores/4/', 'Store 4'],
+            ['https://api.com/stores/5/', 'Store 5']
+        ]);
+
+        getAvailableEntities.mockResolvedValue(mockEntities);
+        getStores.mockResolvedValue(mockStoreMap);
+
+        await handler.handle(mockMessage, {}, {});
+
+        // Should display top 3 (Store 1: 90k, Store 4: 95k, Store 5: 105k)
+        // Store 2: 110k is 4th. Store 3 is filtered.
+        expect(mockThread.send).toHaveBeenCalledWith(expect.stringContaining('Mejores precios actuales'));
+        const priceCall = mockThread.send.mock.calls.find(call => call[0].includes('Mejores precios actuales'))[0];
+        
+        expect(priceCall).toContain('Store 1');
+        expect(priceCall).toContain('Store 4');
+        expect(priceCall).toContain('Store 5');
+        expect(priceCall).not.toContain('Store 2');
+        expect(priceCall).toContain('90.000');
+        expect(priceCall).toContain('95.000');
+        expect(priceCall).toContain('105.000');
     });
 
     it('should fallback to text search if searchByUrl returns null', async () => {
