@@ -69,12 +69,12 @@ class DealsChannel extends ChannelHandler {
                             let priceMsg = '**Mejores precios actuales:**\n';
                             for (const entity of filteredEntities) {
                                 const storeName = storeMap.get(entity.store) || 'Tienda';
-                                const normalPrice = formatCLP(entity.active_registry.normal_price);
-                                const offerPrice = formatCLP(entity.active_registry.offer_price);
+                                const normalPriceNum = parseFloat(entity.active_registry.normal_price);
+                                const offerPriceNum = parseFloat(entity.active_registry.offer_price);
                                 
-                                priceMsg += `• [${sanitizeLinkText(storeName)}](${entity.external_url}): **${offerPrice}**`;
-                                if (normalPrice !== offerPrice) {
-                                    priceMsg += ` (Normal: ${normalPrice})`;
+                                priceMsg += `• [${sanitizeLinkText(storeName)}](${entity.external_url}): **${formatCLP(offerPriceNum)}**`;
+                                if (Math.floor(normalPriceNum) !== Math.floor(offerPriceNum)) {
+                                    priceMsg += ` (Normal: ${formatCLP(normalPriceNum)})`;
                                 }
                                 priceMsg += '\n';
                             }
