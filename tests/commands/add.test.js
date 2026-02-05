@@ -102,7 +102,7 @@ describe('add command', () => {
             }));
         });
 
-        it.each(['yes', 'si'])('should add a site with force enabled for value "%s"', async (forceValue) => {
+        it.each(['yes', 'si', 'y', 's'])('should add a site with force enabled for value "%s"', async (forceValue) => {
             mockInteraction.fields.getTextInputValue.mockImplementation((name) => {
                 if (name === 'urlInput') return 'https://example.com';
                 if (name === 'selectorInput') return '#test';

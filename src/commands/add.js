@@ -69,7 +69,7 @@ module.exports = {
         
         const forceRaw = interaction.fields.getTextInputValue('forceInput');
         const forceString = forceRaw ? forceRaw.toLowerCase().trim() : '';
-        const force = forceString === 'si' || forceString === 'yes';
+        const force = ['si', 'yes', 's', 'y'].includes(forceString);
 
         let url;
         try {
