@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 /**
  * Abstract base class for all channel handlers.
  *
@@ -46,9 +47,12 @@ class ChannelHandler {
     /**
      * Specific handling logic implemented by subclasses.
      * @abstract
+     * @param {import('discord.js').Message} _message 
+     * @param {object} _state 
+     * @param {object} _config 
      * @returns {Promise<boolean>}
      */
-    async process() {
+    async process(_message, _state, _config) {
         throw new Error('Classes extending "ChannelHandler" must implement "process".');
     }
 }

@@ -65,7 +65,7 @@ module.exports = {
             if (!['http:', 'https:'].includes(url.protocol)) {
                 return interaction.reply({ content: 'Invalid protocol. Only HTTP and HTTPS are allowed.', flags: [MessageFlags.Ephemeral] });
             }
-        } catch (e) {
+        } catch {
             return interaction.reply({ content: 'Invalid URL format.', flags: [MessageFlags.Ephemeral] });
         }
 
