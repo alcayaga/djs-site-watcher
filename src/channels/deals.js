@@ -1,6 +1,6 @@
 const { ThreadAutoArchiveDuration } = require('discord.js');
 const ChannelHandler = require('../ChannelHandler');
-const { extractQuery, searchSolotodo, searchByUrl } = require('../utils/solotodo');
+const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl } = require('../utils/solotodo');
 
 /**
  * Handler for Deals channel moderation.
@@ -49,10 +49,10 @@ class DealsChannel extends ChannelHandler {
                 }
 
                 if (product) {
-                    await thread.send(`Encontré esto en Solotodo: [${product.name}](https://www.solotodo.cl/products/${product.id}-${product.slug})`);
+                    await thread.send(`Encontré esto en Solotodo: [${product.name}](${getProductUrl(product)})`);
                 } else if (query) {
                     // Only show fallback search link if we actually had a search query
-                    await thread.send(`Busca referencias en Solotodo: https://www.solotodo.cl/search?search=${encodeURIComponent(query)}`);
+                    await thread.send(`Busca referencias en Solotodo: ${getSearchUrl(query)}`);
                 }
             } catch (error) {
                 console.error('Error in Solotodo logic:', error);

@@ -32,6 +32,26 @@ const APPLE_PRODUCTS = [
     'Magic Keyboard', 'Magic Mouse', 'Magic Trackpad', 'Apple Pencil'
 ];
 
+const SOLOTODO_BASE_URL = 'https://www.solotodo.cl';
+
+/**
+ * Generates a Solotodo product URL.
+ * @param {object} product The product object.
+ * @returns {string} The formatted URL.
+ */
+function getProductUrl(product) {
+    return `${SOLOTODO_BASE_URL}/products/${product.id}-${product.slug}`;
+}
+
+/**
+ * Generates a Solotodo search URL.
+ * @param {string} query The search query.
+ * @returns {string} The formatted URL.
+ */
+function getSearchUrl(query) {
+    return `${SOLOTODO_BASE_URL}/search?search=${encodeURIComponent(query)}`;
+}
+
 /**
  * Searches Solotodo for a product.
  * @param {string} query The search query.
@@ -65,27 +85,28 @@ async function searchSolotodo(query) {
  */
 function extractQuery(content) {
     const urlMatch = content.match(/https?:\/\/[^\s]+/);
+    let url = null;
 
-    // 1. Priority: Extract from URL if present
     if (urlMatch) {
         try {
-            const url = new URL(urlMatch[0]);
-            const pathSlug = url.pathname.toLowerCase();
-
-            // Check if the URL slug contains a known Apple product
-            for (const product of APPLE_PRODUCTS) {
-                // We sanitize the product name for URL matching (e.g. "iPhone 13 Pro" -> "iphone-13-pro" or "iphone 13 pro")
-                // Simple check: remove spaces from product and check if slug includes it, 
-                // OR check if slug includes the product name with hyphens.
-                const slugPart = product.toLowerCase().replace(/\s+/g, '-');
-                const slugPartSpace = product.toLowerCase().replace(/\s+/g, ' '); // some urls use spaces or %20
-
-                if (pathSlug.includes(slugPart) || pathSlug.includes(slugPartSpace)) {
-                    return product;
-                }
-            }
+            url = new URL(urlMatch[0]);
         } catch (e) {
             console.error('Error parsing URL for query extraction:', e);
+        }
+    }
+
+    // 1. Priority: Extract from URL if present
+    if (url) {
+        const pathSlug = url.pathname.toLowerCase();
+
+        // Check if the URL slug contains a known Apple product
+        for (const product of APPLE_PRODUCTS) {
+            const slugPart = product.toLowerCase().replace(/\s+/g, '-');
+            const slugPartSpace = product.toLowerCase().replace(/\s+/g, ' ');
+
+            if (pathSlug.includes(slugPart) || pathSlug.includes(slugPartSpace)) {
+                return product;
+            }
         }
     }
 
@@ -110,26 +131,19 @@ function extractQuery(content) {
         if (text.length > 3) return text;
     }
 
-    // 5. Last resort: If we had a URL but no known product, try to use the slug as a query
-    if (urlMatch) {
-        try {
-            const url = new URL(urlMatch[0]);
-            const pathParts = url.pathname.split('/');
-            let bestPart = '';
-            for (const part of pathParts) {
-                if (part.length > bestPart.length) bestPart = part;
+    // 5. Last resort: If we had a URL but no known product, try to use the last segment of the path
+    if (url) {
+        const pathParts = url.pathname.split('/').filter(Boolean);
+        const bestPart = pathParts.pop(); // Take the last non-empty segment
+
+        if (bestPart) {
+            let slug = bestPart.replace(/[-_]/g, ' ').replace(/\.html?$/, '');
+            try {
+                slug = decodeURIComponent(slug);
+            } catch (e) {
+                // Ignore decode errors
             }
-            if (bestPart) {
-                let slug = bestPart.replace(/[-_]/g, ' ').replace(/\.html?$/, '');
-                try {
-                    slug = decodeURIComponent(slug);
-                } catch (e) {
-                    // Ignore decode errors
-                }
-                return slug.trim();
-            }
-        } catch (e) {
-            // Ignore URL parsing errors here as we already tried once
+            return slug.trim();
         }
     }
 
@@ -161,4 +175,4 @@ async function searchByUrl(url) {
     }
 }
 
-module.exports = { searchSolotodo, extractQuery, searchByUrl };
+module.exports = { searchSolotodo, extractQuery, searchByUrl, getProductUrl, getSearchUrl };

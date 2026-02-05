@@ -4,10 +4,12 @@ const DealsChannel = require('../../src/channels/deals.js');
 jest.mock('../../src/utils/solotodo', () => ({
     extractQuery: jest.fn(),
     searchSolotodo: jest.fn(),
-    searchByUrl: jest.fn()
+    searchByUrl: jest.fn(),
+    getProductUrl: jest.fn(),
+    getSearchUrl: jest.fn()
 }));
 
-const { extractQuery, searchSolotodo, searchByUrl } = require('../../src/utils/solotodo');
+const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl } = require('../../src/utils/solotodo');
 
 describe('DealsChannel Solotodo Integration', () => {
     let handler;
@@ -39,6 +41,10 @@ describe('DealsChannel Solotodo Integration', () => {
             delete: jest.fn().mockResolvedValue({}),
             startThread: jest.fn().mockResolvedValue(mockThread),
         };
+
+        // Default mock implementations for URL helpers
+        getProductUrl.mockImplementation(p => `https://www.solotodo.cl/products/${p.id}-${p.slug}`);
+        getSearchUrl.mockImplementation(q => `https://www.solotodo.cl/search?search=${encodeURIComponent(q)}`);
     });
 
     it('should use searchByUrl first and prioritize it over text search', async () => {
