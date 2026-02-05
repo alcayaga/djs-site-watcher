@@ -9,7 +9,8 @@ describe('add command', () => {
         
         mockInteraction = {
             options: {
-                getString: jest.fn()
+                getString: jest.fn(),
+                getBoolean: jest.fn()
             },
             fields: {
                 getTextInputValue: jest.fn()
@@ -59,6 +60,7 @@ describe('add command', () => {
             // Verify modal content implicitly or explicitly if needed, but checking the call is mostly sufficient for unit test
             const modalArg = mockInteraction.showModal.mock.calls[0][0];
             expect(modalArg.setCustomId).toHaveBeenCalledWith('add:submit');
+            expect(modalArg.setTitle).toHaveBeenCalledWith('Agregar sitio para monitorear');
         });
 
         it('should handle missing SiteMonitor', async () => {
@@ -66,7 +68,7 @@ describe('add command', () => {
             
             await addCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
-            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({ content: 'Site monitor is not available.' }));
+            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({ content: 'El monitor de sitios no está disponible.' }));
             expect(mockInteraction.showModal).not.toHaveBeenCalled();
         });
     });
@@ -76,6 +78,7 @@ describe('add command', () => {
             mockInteraction.fields.getTextInputValue.mockImplementation((name) => {
                 if (name === 'urlInput') return 'https://example.com';
                 if (name === 'selectorInput') return '#test';
+                if (name === 'forceInput') return 'no';
                 return null;
             });
 
@@ -89,7 +92,7 @@ describe('add command', () => {
             await addCommand.handleModal(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
             expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('Site');
-            expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', '#test');
+            expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', '#test', false);
             expect(mockState.sitesToMonitor).toHaveLength(1);
             expect(mockState.sitesToMonitor[0].url).toBe('https://example.com');
             
@@ -99,10 +102,24 @@ describe('add command', () => {
             }));
         });
 
+        it.each(['yes', 'si', 'y', 's'])('should add a site with force enabled for value "%s"', async (forceValue) => {
+            mockInteraction.fields.getTextInputValue.mockImplementation((name) => {
+                if (name === 'urlInput') return 'https://example.com';
+                if (name === 'selectorInput') return '#test';
+                if (name === 'forceInput') return forceValue;
+                return null;
+            });
+
+            await addCommand.handleModal(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
+
+            expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', '#test', true);
+        });
+
         it('should handle default selector', async () => {
             mockInteraction.fields.getTextInputValue.mockImplementation((name) => {
                 if (name === 'urlInput') return 'https://example.com';
                 if (name === 'selectorInput') return ''; // Empty string
+                if (name === 'forceInput') return '';
                 return null;
             });
 
@@ -115,12 +132,13 @@ describe('add command', () => {
 
             await addCommand.handleModal(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
-            expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', 'head');
+            expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', 'head', false);
         });
 
         it('should handle errors during addSite', async () => {
             mockInteraction.fields.getTextInputValue.mockImplementation((name) => {
                 if (name === 'urlInput') return 'https://example.com';
+                if (name === 'forceInput') return 'no';
                 return '';
             });
             
