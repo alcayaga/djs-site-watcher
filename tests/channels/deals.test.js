@@ -40,35 +40,18 @@ describe('DealsChannel', () => {
         });
     });
 
-    it('should allow message with attachment and create thread', async () => {
+    it.each([
+        ['Check this out!', 'Check this out!'],
+        ['', 'Discusión de la oferta'],
+        ['   ', 'Discusión de la oferta'],
+    ])('should create thread with correct name for content "%s" when an attachment is present', async (content, expectedName) => {
+        mockMessage.content = content;
         mockMessage.attachments.set('1', {});
         const handled = await handler.handle(mockMessage, mockState, mockConfig);
         expect(handled).toBe(false);
         expect(mockMessage.delete).not.toHaveBeenCalled();
         expect(mockMessage.startThread).toHaveBeenCalledWith({
-            name: mockMessage.content.substring(0, 100),
-            autoArchiveDuration: 10080
-        });
-    });
-
-    it('should use Spanish fallback name when content is empty but has attachment', async () => {
-        mockMessage.content = '';
-        mockMessage.attachments.set('1', {});
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
-        expect(handled).toBe(false);
-        expect(mockMessage.startThread).toHaveBeenCalledWith({
-            name: 'Discusión de la oferta',
-            autoArchiveDuration: 10080
-        });
-    });
-
-    it('should use Spanish fallback name when content is only whitespace but has attachment', async () => {
-        mockMessage.content = '   ';
-        mockMessage.attachments.set('1', {});
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
-        expect(handled).toBe(false);
-        expect(mockMessage.startThread).toHaveBeenCalledWith({
-            name: 'Discusión de la oferta',
+            name: expectedName,
             autoArchiveDuration: 10080
         });
     });
