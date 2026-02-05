@@ -66,4 +66,40 @@ if (!config.monitors) {
     ];
 }
 
+
+
+if (!config.channels) {
+
+    config.channels = [
+
+        {
+
+            name: 'QA',
+
+            handler: 'QA',
+
+            enabled: true,
+
+            channelId: config.DISCORDJS_APCHANNEL_ID,
+
+        },
+
+        {
+
+            name: 'Deals',
+
+            handler: 'Deals',
+
+            enabled: true,
+
+            channelId: config.DISCORDJS_DEALS_CHANNEL_ID,
+
+        }
+
+    ];
+
+}
+
+
+
 module.exports = config;
