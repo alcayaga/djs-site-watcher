@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/bot.js",
   "scripts": {
-    "test": "jest --silent",
+    "test": "NODE_OPTIONS='--no-warnings' jest --silent",
     "start": "node ./src/bot.js",
     "dev": "nodemon ./src/bot.js",
     "lint": "eslint .",

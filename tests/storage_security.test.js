@@ -1,19 +1,11 @@
 const fs = require('fs-extra');
 const { saveSettings, SENSITIVE_SETTINGS_KEYS } = require('../src/storage');
 
-const SETTINGS_FILE = './config/settings.json';
+jest.mock('fs-extra');
 
 describe('saveSettings', () => {
-    beforeAll(() => {
-        // Ensure config dir exists
-        fs.ensureDirSync('./config');
-    });
-
-    afterEach(() => {
-        // Clean up
-        if (fs.existsSync(SETTINGS_FILE)) {
-            fs.unlinkSync(SETTINGS_FILE);
-        }
+    beforeEach(() => {
+        jest.clearAllMocks();
     });
 
     it('should exclude sensitive environment variables from settings.json', async () => {
@@ -28,7 +20,11 @@ describe('saveSettings', () => {
 
         await saveSettings(sensitiveSettings);
 
-        const savedContent = fs.readJSONSync(SETTINGS_FILE);
+        // Check that fs.outputJSON was called
+        expect(fs.outputJSON).toHaveBeenCalled();
+        
+        // Get the saved content from the first call's second argument
+        const savedContent = fs.outputJSON.mock.calls[0][1];
 
         expect(savedContent).toHaveProperty('interval', 10);
         
