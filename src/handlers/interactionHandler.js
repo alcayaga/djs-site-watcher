@@ -54,7 +54,8 @@ async function handleInteraction(interaction, client, state, config, monitorMana
             await handleInteractionError(interaction, error);
         }
     } else if (interaction.isModalSubmit() || interaction.isMessageComponent()) {
-        const [commandName, action] = interaction.customId.split(':');
+        const [commandName, ...actionParts] = interaction.customId.split(':');
+        const action = actionParts.join(':');
         const command = commands.get(commandName);
 
         if (command) {

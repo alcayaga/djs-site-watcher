@@ -218,9 +218,10 @@ class SiteMonitor extends Monitor {
      * Adds a new site to the monitor.
      * @param {string} url The URL of the site.
      * @param {string} css The CSS selector.
+     * @param {boolean} force Whether to force adding the site even if it fails to fetch.
      * @returns {Promise<{site: object, warning: boolean}>} The added site object and warning flag.
      */
-    async addSite(url, css) {
+    async addSite(url, css, force = false) {
         if (!Array.isArray(this.state)) {
             this.state = [];
         }
@@ -231,11 +232,30 @@ class SiteMonitor extends Monitor {
             return { site: existingSite, warning: false };
         }
 
-        const { content, hash, selectorFound, dom } = await this.fetchAndProcess(url, css);
-        const warning = css ? !selectorFound : false;
+        let content = '';
+        let hash = '';
+        let selectorFound = false;
+        let id = '';
+        let fetchSuccess = false;
+
+        try {
+            const result = await this.fetchAndProcess(url, css);
+            content = result.content;
+            hash = result.hash;
+            selectorFound = result.selectorFound;
+            id = result.dom.window.document.title;
+            fetchSuccess = true;
+        } catch (error) {
+            if (!force) {
+                throw error;
+            }
+            console.warn(`Forcing add for ${url} despite error: ${error.message}`);
+            id = new URL(url).hostname;
+        }
+
+        const warning = (css && fetchSuccess) ? !selectorFound : false;
 
         const time = new Date();
-        let id = dom.window.document.title;
         
         if (!id || id.trim().length === 0) {
             id = new URL(url).hostname;

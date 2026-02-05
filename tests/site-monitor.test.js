@@ -416,5 +416,21 @@ describe('SiteMonitor', () => {
             expect(siteMonitor.state).toHaveLength(1);
             expect(storage.write).not.toHaveBeenCalled();
         });
+
+        it('should throw error if fetch fails and force is false', async () => {
+            got.mockRejectedValue(new Error('Fetch failed'));
+            await expect(siteMonitor.addSite('http://error.com', 'body')).rejects.toThrow('Fetch failed');
+        });
+
+        it('should add site if fetch fails and force is true', async () => {
+            got.mockRejectedValue(new Error('Fetch failed'));
+            const { site, warning } = await siteMonitor.addSite('http://error.com', 'body', true);
+
+            expect(site.url).toBe('http://error.com');
+            expect(site.id).toBe('error.com');
+            expect(site.lastContent).toBe('');
+            expect(warning).toBe(false);
+            expect(siteMonitor.state).toHaveLength(2);
+        });
     });
 });

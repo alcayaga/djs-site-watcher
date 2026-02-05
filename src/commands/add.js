@@ -18,29 +18,37 @@ module.exports = {
     async execute(interaction, client, state, config, monitorManager) {
         const siteMonitor = monitorManager.getMonitor('Site');
         if (!siteMonitor) {
-            return interaction.reply({ content: 'Site monitor is not available.', flags: [MessageFlags.Ephemeral] });
+            return interaction.reply({ content: 'El monitor de sitios no está disponible.', flags: [MessageFlags.Ephemeral] });
         }
 
         const modal = new ModalBuilder()
             .setCustomId('add:submit')
-            .setTitle('Add Site to Monitor');
+            .setTitle('Agregar sitio para monitorear');
 
         const urlInput = new TextInputBuilder()
             .setCustomId('urlInput')
-            .setLabel("Site URL")
+            .setLabel("URL del sitio")
             .setStyle(TextInputStyle.Short)
             .setRequired(true);
 
         const selectorInput = new TextInputBuilder()
             .setCustomId('selectorInput')
-            .setLabel("CSS Selector (default: head)")
+            .setLabel("Selector CSS (por defecto: head)")
             .setStyle(TextInputStyle.Paragraph)
+            .setRequired(false);
+
+        const forceInput = new TextInputBuilder()
+            .setCustomId('forceInput')
+            .setLabel("¿Forzar agregado si falla? (si/no)")
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('no')
             .setRequired(false);
 
         const firstActionRow = new ActionRowBuilder().addComponents(urlInput);
         const secondActionRow = new ActionRowBuilder().addComponents(selectorInput);
+        const thirdActionRow = new ActionRowBuilder().addComponents(forceInput);
 
-        modal.addComponents(firstActionRow, secondActionRow);
+        modal.addComponents(firstActionRow, secondActionRow, thirdActionRow);
 
         await interaction.showModal(modal);
     },
@@ -58,15 +66,19 @@ module.exports = {
         const urlString = interaction.fields.getTextInputValue('urlInput');
         const selectorRaw = interaction.fields.getTextInputValue('selectorInput');
         const selector = selectorRaw || 'head';
+        
+        const forceRaw = interaction.fields.getTextInputValue('forceInput');
+        const forceString = forceRaw ? forceRaw.toLowerCase().trim() : '';
+        const force = forceString === 'si' || forceString === 'yes';
 
         let url;
         try {
             url = new URL(urlString);
             if (!['http:', 'https:'].includes(url.protocol)) {
-                return interaction.reply({ content: 'Invalid protocol. Only HTTP and HTTPS are allowed.', flags: [MessageFlags.Ephemeral] });
+                return interaction.reply({ content: 'Protocolo inválido. Solo se permite HTTP y HTTPS.', flags: [MessageFlags.Ephemeral] });
             }
         } catch (e) {
-            return interaction.reply({ content: 'Invalid URL format.', flags: [MessageFlags.Ephemeral] });
+            return interaction.reply({ content: 'Formato de URL inválido.', flags: [MessageFlags.Ephemeral] });
         }
 
         const siteMonitor = monitorManager.getMonitor('Site');
@@ -75,7 +87,7 @@ module.exports = {
         await interaction.deferReply();
 
         try {
-            const { site, warning } = await siteMonitor.addSite(urlString, selector);
+            const { site, warning } = await siteMonitor.addSite(urlString, selector, force);
 
             // Update local state to match the monitor's state (which is the source of truth)
             state.sitesToMonitor = siteMonitor.state;
