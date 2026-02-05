@@ -3,6 +3,9 @@
 **Description:** A Discord bot utilizing web scraping and cron jobs to monitor Apple services and websites.
 
 ## 1. Code Quality & Standards
+* **Language & Localization:**
+    * **UI/User-Facing Text:** MUST be in **Spanish** (e.g., Discord embed titles, descriptions, error messages sent to users).
+    * **Code & Internal Comments:** MUST be in **English** (variable names, commit messages, JSDoc, inline comments).
 * **Documentation:**
     * **Project Docs:** Update `README.md` whenever features are added, setup steps change, or configuration parameters are modified.
     * **Code Docs:** All new functions and classes **must** have JSDoc comments.
@@ -58,14 +61,16 @@ Once the work is committed, follow this EXACT cycle. Repeat this loop for every 
     * **If New:** `gh pr create` (Draft description. **DO NOT** include `/gemini review` in the initial description. The first review is automatic).
     * **If Existing:** Just push.
 
-2.  **Wait for CI/CD:**
-    * Run: `sleep 250` (Wait ~4 mins for actions to run).
-    * Check Status: `gh pr checks <PR-NUMBER>` (Verify all tests passed).
+2.  **MANDATORY WAIT (CI/CD):**
+    * **STOP.** Do not proceed immediately.
+    * You **MUST** run `sleep 250` in the terminal to allow CI/CD checks to complete.
+    * **Check Status:** AFTER sleeping, run `gh pr checks <PR-NUMBER>` to verify all tests passed.
+    * **If checks fail:** Fix them (Go back to Phase 2) before asking for a review.
 
 3.  **Fetch Unresolved Reviews:**
     * Run exactly:
         ```bash
-        gh pr-review review view <PR-NUMBER> -R alcayaga/djs-site-watcher --unresolved --not_outdated --reviewer gemini-code-assist
+        gh pr-review review view <PR-NUMBER> -R alcayaga/djs-site-watcher --unresolved --reviewer gemini-code-assist
         ```
     * **Logic Check:** If the JSON output shows reviews but the `comments` array inside them is empty (or missing), this implies **NO unresolved threads**. You may skip to Step 5.
 
