@@ -1,3 +1,4 @@
+const { ThreadAutoArchiveDuration } = require('discord.js');
 const ChannelHandler = require('../ChannelHandler');
 
 /**
@@ -14,7 +15,17 @@ class DealsChannel extends ChannelHandler {
         const hasAttachment = message.attachments.size > 0;
 
         if (hasLink || hasAttachment) {
-            // It's a deal, allow it to be processed by other handlers.
+            // It's a deal, create a thread for discussion.
+            try {
+                await message.startThread({
+                    name: message.content.trim().substring(0, 100) || 'Discusión de la oferta',
+                    autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
+                });
+            } catch (error) {
+                console.error('Error creating thread in DealsChannel handler:', error);
+                // If thread creation fails, we return early to trigger deletion and notification.
+                return true;
+            }
             return false;
         }
 
@@ -29,7 +40,7 @@ class DealsChannel extends ChannelHandler {
 
         // Send notification and let any errors propagate.
         await message.author.send(
-            `Hi ${message.author.username}, your message in <#${message.channel.id}> was removed because it doesn't appear to be a deal. This channel is only for sharing deals (messages must contain a link or an image). Please use threads to discuss existing deals.`
+            `Hola ${message.author.username}, tu mensaje en <#${message.channel.id}> fue eliminado porque no parece ser una oferta. Este canal es solo para compartir ofertas (los mensajes deben contener un enlace o una imagen). Por favor, usa hilos para discutir las ofertas existentes.`
         );
 
         return true;
