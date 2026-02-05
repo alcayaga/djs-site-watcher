@@ -28,6 +28,7 @@ List of features of the site-watcher bot:
 - Monitor Apple Pay Configurations (`ApplePay`)
 - Monitor Apple eSIM Carrier Support (`AppleEsim`)
 - Monitor Apple Feature Availability (`AppleFeature`)
+- Modular Channel Handlers for specialized channel behavior (Moderation, Q&A)
 - Open source!
 
 ## Install
@@ -45,7 +46,9 @@ Configuring the bot:
 2. Add your discord bot token after `DISCORDJS_BOT_TOKEN=`. You can get this token from [discord.com/developers/applications](https://discord.com/developers/applications).
 3. Add your application (client) ID after `DISCORDJS_CLIENT_ID=`. This is found in the "General Information" tab of your application.
 4. Add the channel ID from the channel you want the update notifications in after `DISCORDJS_TEXTCHANNEL_ID=`. You can get this ID by right clicking the channel in discord and selecting `Copy ID`.  Make sure `Developer Mode` is on by going to `Settings → Appearance → Advanced → Developer Mode → ON`. Make sure the bot has permission to post in this channel.
-5. (Optional) Configure `AP_RESPONSE_DELAY=` (milliseconds) for auto-responses (default: 5000).
+5. (Optional) Add the channel ID for Q&A auto-responses after `DISCORDJS_APCHANNEL_ID=`.
+6. (Optional) Add the channel ID for Deals moderation after `DISCORDJS_DEALS_CHANNEL_ID=`.
+7. (Optional) Configure `AP_RESPONSE_DELAY=` (milliseconds) for auto-responses (default: 5000).
 
 
 For starting and using the bot, see [Usage](#Usage).
@@ -117,6 +120,21 @@ Manage the monitors.
 **Example**
 `/monitor status` Shows the status of all monitors.
 `/monitor check name:Carrier` Triggers a check for the Carrier monitor.
+
+## Channel Handlers
+The bot includes a modular system to handle messages in specific channels differently.
+
+### Q&A (`QA`)
+Automatically responds to messages matching regex patterns defined in `config/responses.json`.
+*   **Trigger**: Configured via `DISCORDJS_APCHANNEL_ID`.
+*   **Behavior**: Sends text or image replies based on triggers.
+
+### Deals Moderation (`Deals`)
+Enforces a "deals-only" policy in a specific channel.
+*   **Trigger**: Configured via `DISCORDJS_DEALS_CHANNEL_ID`.
+*   **Behavior**: 
+    *   Allows messages containing a link or an image.
+    *   Deletes all other messages and sends a private message to the user asking them to use threads for discussion.
 
 ## Migration from v2 to v3
 Version 3.0.0 introduces Discord Slash Commands.
