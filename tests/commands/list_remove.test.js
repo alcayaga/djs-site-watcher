@@ -73,7 +73,8 @@ describe('List, Remove, Help Commands', () => {
         it('should show help embed', async () => {
             await helpCommand.execute(mockInteraction);
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
-                embeds: expect.any(Array)
+                embeds: expect.any(Array),
+                flags: [MessageFlags.Ephemeral]
             }));
         });
     });
