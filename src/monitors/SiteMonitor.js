@@ -250,7 +250,6 @@ class SiteMonitor extends Monitor {
                 throw error;
             }
             console.warn(`Forcing add for ${url} despite error: ${error.message}`);
-            id = new URL(url).hostname;
         }
 
         const warning = (css && fetchSuccess) ? !selectorFound : false;
