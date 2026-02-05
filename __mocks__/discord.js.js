@@ -8,6 +8,11 @@ const mockSetDescription = jest.fn().mockReturnThis();
 const mockAddFields = jest.fn().mockReturnThis();
 const mockSetColor = jest.fn().mockReturnThis();
 const mockSetFooter = jest.fn().mockReturnThis();
+const mockSetURL = jest.fn().mockReturnThis();
+const mockSetTimestamp = jest.fn().mockReturnThis();
+const mockSetThumbnail = jest.fn().mockReturnThis();
+const mockSetImage = jest.fn().mockReturnThis();
+const mockSetAuthor = jest.fn().mockReturnThis();
 
 const MockEmbedBuilder = jest.fn(function() {
   this.setTitle = mockSetTitle;
@@ -15,6 +20,11 @@ const MockEmbedBuilder = jest.fn(function() {
   this.addFields = mockAddFields;
   this.setColor = mockSetColor;
   this.setFooter = mockSetFooter;
+  this.setURL = mockSetURL;
+  this.setTimestamp = mockSetTimestamp;
+  this.setThumbnail = mockSetThumbnail;
+  this.setImage = mockSetImage;
+  this.setAuthor = mockSetAuthor;
 });
 
 const mockSlashCommandBuilder = jest.fn(function() {

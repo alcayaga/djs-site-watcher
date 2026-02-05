@@ -184,7 +184,25 @@ async function searchByUrl(url) {
         });
 
         if (response.body && response.body.product) {
-            return response.body.product;
+            const product = response.body.product;
+
+            // Augment with picture from entity if missing on product
+            if (!product.picture_url && response.body.picture_urls && response.body.picture_urls.length > 0) {
+                product.picture_url = response.body.picture_urls[0];
+            }
+
+            // Extract slug from URL if missing (by_url returns a lite product)
+            if (!product.slug && product.url) {
+                try {
+                    const urlObj = new URL(product.url);
+                    const parts = urlObj.pathname.split('/').filter(Boolean);
+                    product.slug = parts.pop();
+                } catch (e) {
+                    console.error('Error parsing product URL for slug extraction:', e);
+                }
+            }
+
+            return product;
         }
         return null;
     } catch (error) {
