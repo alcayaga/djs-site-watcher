@@ -21,12 +21,16 @@ class DealsChannel extends ChannelHandler {
         // Not a deal, delete and notify user.
         try {
             await message.delete();
-            await message.author.send(
-                `Hi ${message.author.username}, your message in <#${message.channel.id}> was removed because it doesn't appear to be a deal. This channel is only for sharing deals (messages must contain a link or an image). Please use threads to discuss existing deals.`
-            );
-        } catch (error) {
-            console.error('Error in DealsChannel handler:', error);
+        } catch (deleteError) {
+            console.error('Error deleting message in DealsChannel handler:', deleteError);
+            // If deletion fails, we return early as we can't notify for a message that wasn't removed.
+            return true;
         }
+
+        // Send notification and let any errors propagate.
+        await message.author.send(
+            `Hi ${message.author.username}, your message in <#${message.channel.id}> was removed because it doesn't appear to be a deal. This channel is only for sharing deals (messages must contain a link or an image). Please use threads to discuss existing deals.`
+        );
 
         return true;
     }
