@@ -70,7 +70,7 @@ describe('DealsChannel', () => {
         expect(mockMessage.delete).toHaveBeenCalled();
         expect(mockMessage.startThread).not.toHaveBeenCalled();
         expect(mockMessage.author.send).toHaveBeenCalledWith(
-            expect.stringContaining('tu mensaje en <#456> fue eliminado porque no parece ser una oferta')
+            expect.stringContaining('Tu mensaje en <#456> fue eliminado porque no parece ser una oferta')
         );
     });
 });

@@ -74,7 +74,9 @@ class DealsChannel extends ChannelHandler {
 
         // Send notification and let any errors propagate.
         await message.author.send(
-            `Hola ${message.author.username}, tu mensaje en <#${message.channel.id}> fue eliminado porque no parece ser una oferta. Este canal es solo para compartir ofertas (los mensajes deben contener un enlace o una imagen). Por favor, usa hilos para discutir las ofertas existentes.`
+            `Hola ${message.author.displayName},\n\n` +
+            `Tu mensaje en <#${message.channel.id}> fue eliminado porque no parece ser una oferta. Este canal es solo para compartir ofertas (los mensajes deben contener un enlace o una imagen).\n\n` +
+            `Por favor, usa hilos para discutir las ofertas existentes.`
         );
 
         return true;
