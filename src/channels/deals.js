@@ -56,7 +56,7 @@ class DealsChannel extends ChannelHandler {
                     const embed = new EmbedBuilder()
                         .setTitle(sanitizedName)
                         .setURL(productUrl)
-                        .setDescription('He encontrado este producto en Solotodo para referencia:')
+                        .setDescription(`He encontrado este producto en Solotodo para referencia:\n[${sanitizedName}](${productUrl})`)
                         .setColor(0x6058f3)
                         .setTimestamp();
 

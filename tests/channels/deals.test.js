@@ -121,6 +121,9 @@ describe('DealsChannel', () => {
         const embed = thread.send.mock.calls[0][0].embeds[0];
         expect(embed.setTitle).toHaveBeenCalledWith('Apple iPhone 15');
         expect(embed.setURL).toHaveBeenCalledWith('https://solotodo.cl/products/123');
+        expect(embed.setDescription).toHaveBeenCalledWith(
+            expect.stringContaining('[Apple iPhone 15](https://solotodo.cl/products/123)')
+        );
         expect(embed.addFields).toHaveBeenCalledWith(expect.objectContaining({
             name: expect.stringContaining('precios')
         }));
