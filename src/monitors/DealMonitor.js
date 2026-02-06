@@ -238,9 +238,18 @@ class DealMonitor extends Monitor {
      * @param {object} change The change details.
      */
     async notify(change) {
-        const { product, triggers, date, stored } = change;
+        let { product, triggers, date, stored, type } = change;
         const channel = this.getNotificationChannel();
         if (!channel) return;
+
+        // Backward compatibility: If 'type' is provided instead of 'triggers', convert it.
+        if (!triggers && type) {
+            triggers = [type];
+        }
+
+        if (!Array.isArray(triggers)) {
+            triggers = [];
+        }
 
         const entities = await getAvailableEntities(product.id);
         const storeMap = await getStores();
@@ -270,9 +279,9 @@ class DealMonitor extends Monitor {
             const type = triggers[0];
             const notificationConfig = {
                 'NEW_LOW_OFFER': { title: `📉 ¡Nuevo mínimo histórico (Precio Tarjeta): ${sanitizedName}!`, color: 0x2ecc71 },
-                'BACK_TO_LOW_OFFER': { title: `🔄 ¡De nuevo a precio mínimo (Precio Tarjeta): ${sanitizedName}!`, showDate: true, date: stored.minOfferDate },
+                'BACK_TO_LOW_OFFER': { title: `🔄 ¡De nuevo a precio mínimo (Precio Tarjeta): ${sanitizedName}!`, showDate: true, date: stored?.minOfferDate },
                 'NEW_LOW_NORMAL': { title: `📉 ¡Nuevo mínimo histórico (Cualquier medio): ${sanitizedName}!`, color: 0x27ae60 },
-                'BACK_TO_LOW_NORMAL': { title: `🔄 ¡De nuevo a precio mínimo (Cualquier medio): ${sanitizedName}!`, showDate: true, date: stored.minNormalDate }
+                'BACK_TO_LOW_NORMAL': { title: `🔄 ¡De nuevo a precio mínimo (Cualquier medio): ${sanitizedName}!`, showDate: true, date: stored?.minNormalDate }
             };
             const details = notificationConfig[type];
             title = details?.title || '';
