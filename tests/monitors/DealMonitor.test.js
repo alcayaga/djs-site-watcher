@@ -235,7 +235,7 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).not.toHaveBeenCalled();
     });
 
-    it('should filter out non-Apple brands', async () => {
+    it('should process products regardless of brand (filtering happens at API level)', async () => {
         monitor.state = {};
 
         got.mockResolvedValue({
@@ -248,7 +248,7 @@ describe('DealMonitor', () => {
         await monitor.check();
 
         expect(monitor.state['1']).toBeDefined();
-        expect(monitor.state['2']).toBeUndefined();
+        expect(monitor.state['2']).toBeDefined();
     });
 
     it('should correctly parse products with alternative brand specs (e.g. HomePod Mini)', async () => {

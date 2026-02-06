@@ -101,7 +101,7 @@ class DealMonitor extends Monitor {
                         normalPrice: parseFloat(prices.normal_price)
                     };
                 })
-                .filter(p => p && p.brand === 'Apple' && p.offerPrice >= MIN_SANITY_PRICE && p.normalPrice >= MIN_SANITY_PRICE);
+                .filter(p => p && p.offerPrice >= MIN_SANITY_PRICE && p.normalPrice >= MIN_SANITY_PRICE);
         } catch (e) {
             console.error('Error parsing Solotodo data in DealMonitor:', e);
             return [];
