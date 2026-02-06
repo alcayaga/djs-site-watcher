@@ -2,6 +2,7 @@ const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const diff = require('diff');
 const got = require('got'); // Explicitly import got as it's used directly in fetch
+const { getSafeGotOptions } = require('../utils/network');
 
 const { sanitizeMarkdown } = require('../utils/formatters');
 
@@ -32,14 +33,15 @@ class ApplePayMonitor extends Monitor {
      */
     async fetch() {
         const fetchedData = {};
+        const safeOptions = { responseType: 'json', ...getSafeGotOptions() };
 
         // Process CONFIG_URL
         try {
-            const configResponse = await got(this.CONFIG_URL, { responseType: 'json' });
+            const configResponse = await got(this.CONFIG_URL, safeOptions);
             fetchedData.config = configResponse.body;
             // Fetch MarketGeosURL if available in the main config
             if (fetchedData.config.MarketGeosURL) {
-                const marketGeosResponse = await got(fetchedData.config.MarketGeosURL, { responseType: 'json' });
+                const marketGeosResponse = await got(fetchedData.config.MarketGeosURL, safeOptions);
                 fetchedData.configMarketGeos = marketGeosResponse.body;
             }
         } catch (err) {
@@ -49,11 +51,11 @@ class ApplePayMonitor extends Monitor {
 
         // Process CONFIG_ALT_URL
         try {
-            const configAltResponse = await got(this.CONFIG_ALT_URL, { responseType: 'json' });
+            const configAltResponse = await got(this.CONFIG_ALT_URL, safeOptions);
             fetchedData.configAlt = configAltResponse.body;
             // Fetch MarketGeosURL if available in the alt config
             if (fetchedData.configAlt.MarketGeosURL) {
-                const marketGeosAltResponse = await got(fetchedData.configAlt.MarketGeosURL, { responseType: 'json' });
+                const marketGeosAltResponse = await got(fetchedData.configAlt.MarketGeosURL, safeOptions);
                 fetchedData.configAltMarketGeos = marketGeosAltResponse.body;
             }
         } catch (err) {

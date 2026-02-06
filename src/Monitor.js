@@ -2,6 +2,7 @@ const { CronJob, CronTime } = require('cron'); // Import CronTime
 const got = require('got');
 const storage = require('./storage');
 const config = require('./config');
+const { getSafeGotOptions } = require('./utils/network');
 
 /**
  * Abstract base class for all monitors.
@@ -9,14 +10,8 @@ const config = require('./config');
  *
  * @abstract
  */
-/**
- * Abstract base class for all monitors.
- * Each monitor instance manages its own cron job.
- *
- * @abstract
- */
 class Monitor {
-/**
+    /**
      * Creates an instance of Monitor.
      * @param {string} name The name of the monitor.
      * @param {object} monitorConfig The configuration object for this monitor.
@@ -122,7 +117,7 @@ class Monitor {
      * @returns {Promise<string>} The fetched data.
      */
     async fetch() {
-        const response = await got(this.config.url);
+        const response = await got(this.config.url, getSafeGotOptions());
         return response.body;
     }
 
