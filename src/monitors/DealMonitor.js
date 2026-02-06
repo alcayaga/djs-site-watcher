@@ -150,18 +150,6 @@ class DealMonitor extends Monitor {
                     continue;
                 }
 
-                // Simplified migration: reset to current if old structure found
-                if (stored.minPrice !== undefined) {
-                    stored.minOfferPrice = product.offerPrice;
-                    stored.minOfferDate = new Date().toISOString();
-                    stored.minNormalPrice = product.normalPrice;
-                    stored.minNormalDate = new Date().toISOString();
-                    stored.lastOfferPrice = product.offerPrice;
-                    stored.lastNormalPrice = product.normalPrice;
-                    delete stored.minPrice;
-                    delete stored.lastPrice;
-                }
-
                 const currentOffer = product.offerPrice;
                 const currentNormal = product.normalPrice;
                 const now = new Date().toISOString();

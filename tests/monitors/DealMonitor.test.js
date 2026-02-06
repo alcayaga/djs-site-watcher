@@ -76,24 +76,6 @@ describe('DealMonitor', () => {
         expect(monitor.state['1'].minOfferPrice).toBe(100);
     });
 
-    it('should migrate legacy state', async () => {
-        monitor.state = {
-            '1': { id: 1, name: 'iPhone', minPrice: 100, lastPrice: 150 }
-        };
-
-        got.mockResolvedValue({
-            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 120, normalPrice: 130 }])
-        });
-
-        await monitor.check();
-
-        // Simplified migration resets to current price
-        expect(monitor.state['1'].minOfferPrice).toBe(120);
-        expect(monitor.state['1'].lastOfferPrice).toBe(120);
-        expect(monitor.state['1'].minNormalPrice).toBe(130);
-        expect(monitor.state['1'].minPrice).toBeUndefined();
-    });
-
     it('should detect a new historic low for offer price and alert', async () => {
         monitor.state = {
             '1': { 
