@@ -3,13 +3,7 @@ const Monitor = require('../Monitor');
 const config = require('../config');
 const { formatCLP, sanitizeLinkText, formatDiscordTimestamp } = require('../utils/formatters');
 const { getProductUrl, getProductHistory, getBestPictureUrl } = require('../utils/solotodo');
-
-/**
- * Helper to sleep for a given amount of time.
- * @param {number} ms Milliseconds to sleep.
- * @returns {Promise<void>}
- */
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const { sleep } = require('../utils/helpers');
 
 /**
  * Monitor for Solotodo deals on Apple products.
@@ -200,28 +194,17 @@ class DealMonitor extends Monitor {
         const sanitizedName = sanitizeLinkText(product.name);
         const pictureUrl = await getBestPictureUrl(product);
 
-        let title = '';
-        let color = 0x3498db;
-        let showDate = false;
+        const notificationConfig = {
+            'NEW_LOW_OFFER': { title: `📉 ¡Nuevo mínimo histórico (Precio Tarjeta): ${sanitizedName}!`, color: 0x2ecc71 },
+            'BACK_TO_LOW_OFFER': { title: `🔄 ¡De nuevo a precio mínimo (Precio Tarjeta): ${sanitizedName}!`, showDate: true },
+            'NEW_LOW_NORMAL': { title: `📉 ¡Nuevo mínimo histórico (Cualquier medio): ${sanitizedName}!`, color: 0x27ae60 },
+            'BACK_TO_LOW_NORMAL': { title: `🔄 ¡De nuevo a precio mínimo (Cualquier medio): ${sanitizedName}!`, showDate: true }
+        };
 
-        switch (type) {
-            case 'NEW_LOW_OFFER':
-                title = `📉 ¡Nuevo mínimo histórico (Precio Tarjeta): ${sanitizedName}!`;
-                color = 0x2ecc71;
-                break;
-            case 'BACK_TO_LOW_OFFER':
-                title = `🔄 ¡De nuevo a precio mínimo (Precio Tarjeta): ${sanitizedName}!`;
-                showDate = true;
-                break;
-            case 'NEW_LOW_NORMAL':
-                title = `📉 ¡Nuevo mínimo histórico (Cualquier medio): ${sanitizedName}!`;
-                color = 0x27ae60;
-                break;
-            case 'BACK_TO_LOW_NORMAL':
-                title = `🔄 ¡De nuevo a precio mínimo (Cualquier medio): ${sanitizedName}!`;
-                showDate = true;
-                break;
-        }
+        const details = notificationConfig[type];
+        const title = details?.title || '';
+        const color = details?.color || 0x3498db;
+        const showDate = details?.showDate || false;
 
         const embed = new Discord.EmbedBuilder()
             .setTitle(title)
