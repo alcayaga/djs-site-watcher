@@ -65,7 +65,7 @@ describe('DealsChannel Solotodo Integration', () => {
         const handled = await handler.handle(mockMessage, {}, {});
         
         expect(handled).toBe(false);
-        expect(searchByUrl).toHaveBeenCalledWith('https://example.com');
+        expect(searchByUrl).toHaveBeenCalledWith('https://example.com/');
         expect(searchSolotodo).not.toHaveBeenCalled(); // Should skip text search
         expect(mockThread.send).toHaveBeenCalledWith(expect.objectContaining({
             embeds: expect.arrayContaining([expect.any(Object)])
