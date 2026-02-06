@@ -292,24 +292,24 @@ class DealMonitor extends Monitor {
         let triggerDate = date;
 
         if (bothNewLow) {
-            title = `📉 ¡Nuevos mínimos históricos!: ${sanitizedName}`;
+            title = `📉 ${sanitizedName} con nuevos mínimos históricos`;
             color = 0x2ecc71;
         } else if (bothBackToLow) {
-            title = `🔄 ¡De nuevo a precios mínimos!: ${sanitizedName}`;
+            title = `🔄 ${sanitizedName} volvió a precios históricos`;
             showDate = true;
             triggerDate = stored?.minOfferDate; // Use one of them
         } else if (triggers.length > 1) {
             // Mixed triggers (e.g. one is NEW_LOW, other is BACK_TO_LOW)
-            title = `📉🔄 ¡Actualización de precios mínimos!: ${sanitizedName}`;
+            title = `📉🔄 ${sanitizedName} con nuevos precios históricos`;
             color = 0x2ecc71;
         } else {
             // Individual triggers
             const type = triggers[0];
             const notificationConfig = {
-                'NEW_LOW_OFFER': { title: `📉 ¡Nuevo mínimo histórico (Precio Tarjeta): ${sanitizedName}!`, color: 0x2ecc71 },
-                'BACK_TO_LOW_OFFER': { title: `🔄 ¡De nuevo a precio mínimo (Precio Tarjeta): ${sanitizedName}!`, showDate: true, date: stored?.minOfferDate },
-                'NEW_LOW_NORMAL': { title: `📉 ¡Nuevo mínimo histórico (Cualquier medio): ${sanitizedName}!`, color: 0x27ae60 },
-                'BACK_TO_LOW_NORMAL': { title: `🔄 ¡De nuevo a precio mínimo (Cualquier medio): ${sanitizedName}!`, showDate: true, date: stored?.minNormalDate }
+                'NEW_LOW_OFFER': { title: `📉 ${sanitizedName} con nuevo mínimo histórico (con Tarjeta)`, color: 0x2ecc71 },
+                'BACK_TO_LOW_OFFER': { title: `🔄 ${sanitizedName} volvió al mínimo histórico (con Tarjeta)`, showDate: true, date: stored?.minOfferDate },
+                'NEW_LOW_NORMAL': { title: `📉 ${sanitizedName} con nuevo mínimo histórico (todo medio de pago)`, color: 0x27ae60 },
+                'BACK_TO_LOW_NORMAL': { title: `🔄 ${sanitizedName} volvió al mínimo histórico (todo medio de pago)`, showDate: true, date: stored?.minNormalDate }
             };
             const details = notificationConfig[type];
             title = details?.title || '';
@@ -350,11 +350,11 @@ class DealMonitor extends Monitor {
         if (bestEntity.external_url) {
             const storeName = storeMap.get(bestEntity.store) || 'Tienda';
             const safeUrl = encodeURI(bestEntity.external_url).replace(/\)/g, '%29');
-            embed.addFields([{ name: `🛒 Ver en ${storeName}`, value: `[Ir a la tienda](${safeUrl})`, inline: false }]);
+            embed.addFields([{ name: `🛒 ${storeName}`, value: `[Ir a la tienda ↗](${safeUrl})`, inline: false }]);
         }
 
         if (showDate && triggerDate) {
-            embed.addFields([{ name: '🕒 Visto por última vez', value: formatDiscordTimestamp(triggerDate), inline: false }]);
+            embed.addFields([{ name: '🕒 Precio visto por última vez', value: formatDiscordTimestamp(triggerDate), inline: false }]);
         }
 
         if (pictureUrl) {

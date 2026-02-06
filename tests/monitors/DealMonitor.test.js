@@ -111,7 +111,7 @@ describe('DealMonitor', () => {
         });
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
-        expect(embed.data.title).toContain('Nuevo mínimo histórico (Precio Tarjeta)');
+        expect(embed.data.title).toContain('con nuevo mínimo histórico (con Tarjeta)');
         
         expect(monitor.state['1'].minOfferPrice).toBe(450000);
         expect(monitor.state['1'].minOfferDate).not.toBe('2025-01-01T00:00:00.000Z');
@@ -160,7 +160,7 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).toHaveBeenCalled();
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
-        expect(embed.data.title).toContain('Nuevo mínimo histórico (Cualquier medio)');
+        expect(embed.data.title).toContain('con nuevo mínimo histórico (todo medio de pago)');
         
         expect(monitor.state['1'].minNormalPrice).toBe(550000);
         expect(monitor.state['1'].minNormalDate).not.toBe('2025-01-01T00:00:00.000Z');
@@ -212,9 +212,9 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).toHaveBeenCalled();
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
-        expect(embed.data.title).toContain('De nuevo a precio mínimo (Precio Tarjeta)');
+        expect(embed.data.title).toContain('volvió al mínimo histórico (con Tarjeta)');
         
-        const dateField = embed.data.fields.find(f => f.name === '🕒 Visto por última vez');
+        const dateField = embed.data.fields.find(f => f.name === '🕒 Precio visto por última vez');
         expect(dateField).toBeDefined();
         expect(dateField.value).toContain('1733047200'); // Unix for 2024-12-01T10:00:00Z
 
@@ -305,7 +305,7 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).toHaveBeenCalledTimes(1);
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
-        expect(embed.data.title).toContain('¡Nuevos mínimos históricos!');
+        expect(embed.data.title).toContain('con nuevos mínimos históricos');
     });
 
     it('should correctly parse products with multiple currencies and pick CLP', async () => {
