@@ -2,6 +2,7 @@ const DealMonitor = require('../../src/monitors/DealMonitor');
 const storage = require('../../src/storage');
 const got = require('got');
 const solotodo = require('../../src/utils/solotodo');
+const { ThreadAutoArchiveDuration } = require('discord.js');
 
 jest.mock('../../src/storage');
 jest.mock('../../src/config', () => ({
@@ -101,7 +102,7 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).toHaveBeenCalled();
         expect(mockMessage.startThread).toHaveBeenCalledWith({
             name: 'iPhone',
-            autoArchiveDuration: 10080
+            autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek
         });
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];

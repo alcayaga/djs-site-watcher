@@ -236,7 +236,7 @@ class DealMonitor extends Monitor {
         if (message && typeof message.startThread === 'function') {
             try {
                 await message.startThread({
-                    name: sanitizedName.substring(0, 100) || 'Discusión de la oferta',
+                    name: sanitizedName.substring(0, 100).trim() || 'Discusión de la oferta',
                     autoArchiveDuration: Discord.ThreadAutoArchiveDuration.OneWeek,
                 });
             } catch (threadError) {
