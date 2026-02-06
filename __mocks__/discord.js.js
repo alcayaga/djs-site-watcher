@@ -3,28 +3,48 @@ const mockChannel = {
   sendTyping: jest.fn(),
 };
 
-const mockSetTitle = jest.fn().mockReturnThis();
-const mockSetDescription = jest.fn().mockReturnThis();
-const mockAddFields = jest.fn().mockReturnThis();
-const mockSetColor = jest.fn().mockReturnThis();
-const mockSetFooter = jest.fn().mockReturnThis();
-const mockSetURL = jest.fn().mockReturnThis();
-const mockSetTimestamp = jest.fn().mockReturnThis();
-const mockSetThumbnail = jest.fn().mockReturnThis();
-const mockSetImage = jest.fn().mockReturnThis();
-const mockSetAuthor = jest.fn().mockReturnThis();
-
 const MockEmbedBuilder = jest.fn(function() {
-  this.setTitle = mockSetTitle;
-  this.setDescription = mockSetDescription;
-  this.addFields = mockAddFields;
-  this.setColor = mockSetColor;
-  this.setFooter = mockSetFooter;
-  this.setURL = mockSetURL;
-  this.setTimestamp = mockSetTimestamp;
-  this.setThumbnail = mockSetThumbnail;
-  this.setImage = mockSetImage;
-  this.setAuthor = mockSetAuthor;
+  this.data = {};
+  this.setTitle = jest.fn().mockImplementation((title) => {
+    this.data.title = title;
+    return this;
+  });
+  this.setDescription = jest.fn().mockImplementation((desc) => {
+    this.data.description = desc;
+    return this;
+  });
+  this.addFields = jest.fn().mockImplementation((fields) => {
+    this.data.fields = (this.data.fields || []).concat(fields);
+    return this;
+  });
+  this.setColor = jest.fn().mockImplementation((color) => {
+    this.data.color = color;
+    return this;
+  });
+  this.setFooter = jest.fn().mockImplementation((footer) => {
+    this.data.footer = footer;
+    return this;
+  });
+  this.setURL = jest.fn().mockImplementation((url) => {
+    this.data.url = url;
+    return this;
+  });
+  this.setTimestamp = jest.fn().mockImplementation((ts) => {
+    this.data.timestamp = ts || new Date();
+    return this;
+  });
+  this.setThumbnail = jest.fn().mockImplementation((url) => {
+    this.data.thumbnail = { url };
+    return this;
+  });
+  this.setImage = jest.fn().mockImplementation((url) => {
+    this.data.image = { url };
+    return this;
+  });
+  this.setAuthor = jest.fn().mockImplementation((author) => {
+    this.data.author = author;
+    return this;
+  });
 });
 
 const mockSlashCommandBuilder = jest.fn(function() {
