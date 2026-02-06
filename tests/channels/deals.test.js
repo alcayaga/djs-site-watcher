@@ -148,4 +148,15 @@ describe('DealsChannel', () => {
         const embed = thread.send.mock.calls[0][0].embeds[0];
         expect(embed.setThumbnail).toHaveBeenCalledWith('https://media.solotodo.com/picture.png');
     });
+
+    it('should notify channel if message deletion fails due to permissions', async () => {
+        const error = new Error('Missing Permissions');
+        error.code = 50013;
+        mockMessage.delete.mockRejectedValue(error);
+        mockMessage.reply = jest.fn().mockResolvedValue({});
+        
+        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        expect(handled).toBe(true);
+        expect(mockMessage.reply).toHaveBeenCalledWith(expect.stringContaining('No tengo permisos'));
+    });
 });
