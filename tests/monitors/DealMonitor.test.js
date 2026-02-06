@@ -84,7 +84,7 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).toHaveBeenCalled();
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
-        expect(embed.setTitle).toHaveBeenCalledWith(expect.stringContaining('Nuevo mínimo histórico'));
+        expect(embed.data.title).toContain('Nuevo mínimo histórico');
         
         expect(monitor.state['1'].minPrice).toBe(450000);
     });
@@ -104,7 +104,7 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).toHaveBeenCalled();
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
-        expect(embed.setTitle).toHaveBeenCalledWith(expect.stringContaining('De nuevo a precio mínimo'));
+        expect(embed.data.title).toContain('De nuevo a precio mínimo');
 
         expect(monitor.state['1'].lastPrice).toBe(100);
     });

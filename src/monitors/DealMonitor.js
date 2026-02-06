@@ -21,9 +21,14 @@ class DealMonitor extends Monitor {
 
             return body.results
                 .map(result => {
-                    const entry = result.product_entries[0];
-                    const product = entry.product;
-                    const prices = entry.metadata.prices_per_currency[0];
+                    const entry = result.product_entries?.[0];
+                    const product = entry?.product;
+                    const prices = entry?.metadata?.prices_per_currency?.[0];
+
+                    if (!product || !prices) {
+                        return null;
+                    }
+
                     return {
                         id: product.id,
                         name: product.name,
@@ -34,7 +39,7 @@ class DealMonitor extends Monitor {
                         normalPrice: parseFloat(prices.normal_price)
                     };
                 })
-                .filter(p => p.brand === 'Apple');
+                .filter(p => p && p.brand === 'Apple');
         } catch (e) {
             console.error('Error parsing Solotodo data in DealMonitor:', e);
             return [];
@@ -54,12 +59,16 @@ class DealMonitor extends Monitor {
             const newState = { ...this.state };
 
             for (const product of products) {
-                const stored = newState[product.id];
+                // Security: Prevent Prototype Pollution
+                const productId = String(product.id);
+                if (productId === '__proto__' || productId === 'constructor' || productId === 'prototype') continue;
+
+                const stored = newState[productId];
                 const currentPrice = product.currentPrice;
 
                 if (!stored) {
                     // First time seeing this product
-                    newState[product.id] = {
+                    newState[productId] = {
                         minPrice: currentPrice,
                         lastPrice: currentPrice,
                         name: product.name,
@@ -71,18 +80,24 @@ class DealMonitor extends Monitor {
                     const oldMin = stored.minPrice;
                     const oldLast = stored.lastPrice;
 
-                    // Update last price
-                    stored.lastPrice = currentPrice;
-                    stored.name = product.name; // Keep name updated
-                    hasChanges = true;
-
                     if (currentPrice < oldMin) {
                         // New historic low
                         stored.minPrice = currentPrice;
+                        stored.lastPrice = currentPrice;
+                        stored.name = product.name;
+                        hasChanges = true;
                         this.notify({ product, type: 'NEW_LOW', oldMin });
                     } else if (currentPrice === oldMin && oldLast > oldMin) {
                         // Back to historic low
+                        stored.lastPrice = currentPrice;
+                        stored.name = product.name;
+                        hasChanges = true;
                         this.notify({ product, type: 'BACK_TO_LOW', oldMin });
+                    } else if (stored.lastPrice !== currentPrice || stored.name !== product.name) {
+                        // Other update (e.g. price change or name update)
+                        stored.lastPrice = currentPrice;
+                        stored.name = product.name;
+                        hasChanges = true;
                     }
                 }
             }
