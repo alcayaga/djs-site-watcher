@@ -26,17 +26,14 @@ describe('state', () => {
      * Test case for loading sites, settings, and responses from storage.
      */
     it('should load sites, settings, and responses from storage', () => {
-        const mockSites = [{ id: 'test' }];
         const mockSettings = { interval: 10 };
         const mockResponses = [{ trigger: 'test' }];
 
-        storage.loadSites.mockReturnValue(mockSites);
         storage.loadSettings.mockReturnValue(mockSettings);
         storage.loadResponses.mockReturnValue(mockResponses);
 
         state.load();
 
-        expect(state.sitesToMonitor).toEqual(mockSites);
         expect(state.settings).toEqual(mockSettings);
         expect(state.responses).toEqual(mockResponses);
     });

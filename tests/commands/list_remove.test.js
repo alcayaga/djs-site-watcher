@@ -41,7 +41,7 @@ describe('List, Remove, Help Commands', () => {
 
     describe('/list', () => {
         it('should show list of sites', async () => {
-            await listCommand.execute(mockInteraction, mockClient, mockState);
+            await listCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
             expect(mockInteraction.deferReply).toHaveBeenCalled();
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
@@ -51,8 +51,8 @@ describe('List, Remove, Help Commands', () => {
         });
 
         it('should message if no sites', async () => {
-            mockState.sitesToMonitor = [];
-            await listCommand.execute(mockInteraction, mockClient, mockState);
+            mockSiteMonitor.state = [];
+            await listCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.stringContaining('No hay sitios'));
         });
     });

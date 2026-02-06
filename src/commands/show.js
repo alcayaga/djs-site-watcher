@@ -11,9 +11,11 @@ module.exports = {
      * @param {import('discord.js').ChatInputCommandInteraction} interaction The interaction object.
      * @param {import('discord.js').Client} client The Discord client.
      * @param {object} state The state object.
+     * @param {object} config The config object.
+     * @param {import('../MonitorManager')} monitorManager The MonitorManager instance.
      * @returns {Promise<void>}
      */
-    async execute(interaction, client, state) {
-        await listCommand.execute(interaction, client, state);
+    async execute(interaction, client, state, config, monitorManager) {
+        await listCommand.execute(interaction, client, state, config, monitorManager);
     },
 };

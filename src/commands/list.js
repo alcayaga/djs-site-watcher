@@ -12,14 +12,18 @@ module.exports = {
      * @param {import('discord.js').ChatInputCommandInteraction} interaction The interaction object.
      * @param {import('discord.js').Client} client The Discord client.
      * @param {object} state The state of the bot.
+     * @param {object} config The config object.
+     * @param {import('../MonitorManager')} monitorManager The MonitorManager instance.
      * @returns {Promise<void>}
      */
-    async execute(interaction, client, state) {
-        if (state.sitesToMonitor.length < 1) {
+    async execute(interaction, client, state, config, monitorManager) {
+        const siteMonitor = monitorManager.getMonitor('Site');
+        const sites = siteMonitor ? siteMonitor.state : [];
+
+        if (sites.length < 1) {
             return interaction.reply('No hay sitios siendo monitoreados. Agrega uno con `/add`.');
         }
 
-        const sites = state.sitesToMonitor;
         const siteCount = sites.length;
         const CHUNK_SIZE = 25;
 
