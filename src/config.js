@@ -59,6 +59,12 @@ if (!config.monitors) {
             region: 'CL',
         },
         {
+            name: 'Deal',
+            enabled: true,
+            url: 'https://publicapi.solotodo.com/categories/50/browse/',
+            file: './config/deals.json',
+        },
+        {
             name: 'Site',
             enabled: true,
             file: './config/sites.json',

@@ -8,3 +8,4 @@ config/apple_features.json
 config/responses.json
 config/apple_pay_responses.json
 config/apple_esim.json
+config/deals.json
