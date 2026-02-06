@@ -1,4 +1,4 @@
-const { ThreadAutoArchiveDuration, EmbedBuilder } = require('discord.js');
+const { ThreadAutoArchiveDuration, EmbedBuilder, RESTJSONErrorCodes } = require('discord.js');
 const ChannelHandler = require('../ChannelHandler');
 const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl, getAvailableEntities, getStores } = require('../utils/solotodo');
 const { sanitizeLinkText, formatCLP, sanitizeMarkdown } = require('../utils/formatters');
@@ -20,15 +20,16 @@ class DealsChannel extends ChannelHandler {
         if (urlMatch) {
             try {
                 const potentialUrl = new URL(urlMatch[0]);
-                // Ensure it has a TLD-like structure (at least one dot) and correct protocol
+                // Ensure it has a TLD-like structure (at least one dot)
                 // We also check that the dot is not at the start or end of the hostname
                 const hostname = potentialUrl.hostname;
-                if (hostname.includes('.') && !hostname.startsWith('.') && !hostname.endsWith('.') && (potentialUrl.protocol === 'http:' || potentialUrl.protocol === 'https:')) {
+                if (hostname.includes('.') && !hostname.startsWith('.') && !hostname.endsWith('.')) {
                     hasValidLink = true;
                     validatedUrl = potentialUrl.href;
                 }
             } catch (e) {
                 hasValidLink = false;
+                console.error(`Failed to parse URL "${urlMatch[0]}":`, e);
             }
         }
 
@@ -138,7 +139,7 @@ class DealsChannel extends ChannelHandler {
         } catch (deleteError) {
             console.error('Error deleting message in DealsChannel handler:', deleteError);
             // If deletion fails, notify the channel about missing permissions
-            if (deleteError.code === 50013) { // Missing Permissions
+            if (deleteError.code === RESTJSONErrorCodes.MissingPermissions) { // Missing Permissions
                 try {
                     await message.reply('⚠️ No tengo permisos para moderar este canal. Por favor, asegúrate de que tenga el permiso "Gestionar mensajes".');
                 } catch (replyError) {

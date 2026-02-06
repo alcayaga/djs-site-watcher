@@ -1,6 +1,22 @@
-const { ThreadAutoArchiveDuration } = require('discord.js');
+const { ThreadAutoArchiveDuration, RESTJSONErrorCodes: _RESTJSONErrorCodes } = require('discord.js');
 const DealsChannel = require('../../src/channels/deals.js');
 const solotodo = require('../../src/utils/solotodo');
+
+jest.mock('discord.js', () => {
+    return {
+        ThreadAutoArchiveDuration: { OneWeek: 60 * 24 * 7 },
+        EmbedBuilder: jest.fn().mockImplementation(() => ({
+            setTitle: jest.fn().mockReturnThis(),
+            setURL: jest.fn().mockReturnThis(),
+            setDescription: jest.fn().mockReturnThis(),
+            setColor: jest.fn().mockReturnThis(),
+            setTimestamp: jest.fn().mockReturnThis(),
+            setThumbnail: jest.fn().mockReturnThis(),
+            addFields: jest.fn().mockReturnThis(),
+        })),
+        RESTJSONErrorCodes: { MissingPermissions: 50013 }
+    };
+});
 
 jest.mock('../../src/utils/solotodo');
 
