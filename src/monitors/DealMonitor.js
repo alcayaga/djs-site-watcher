@@ -54,6 +54,34 @@ class DealMonitor extends Monitor {
     }
 
     /**
+     * Internal helper to check for price updates and trigger notifications.
+     * @private
+     */
+    async _checkPriceUpdate(product, now, currentPrice, stored, priceType) {
+        let changed = false;
+        const minPriceKey = `min${priceType}Price`;
+        const minDateKey = `min${priceType}Date`;
+        const lastPriceKey = `last${priceType}Price`;
+        const notificationType = priceType.toUpperCase();
+
+        if (currentPrice < stored[minPriceKey]) {
+            stored[minPriceKey] = currentPrice;
+            stored[minDateKey] = now;
+            stored[lastPriceKey] = currentPrice;
+            await this.notify({ product, type: `NEW_LOW_${notificationType}`, date: now });
+            changed = true;
+        } else if (currentPrice === stored[minPriceKey] && stored[lastPriceKey] > stored[minPriceKey]) {
+            stored[lastPriceKey] = currentPrice;
+            await this.notify({ product, type: `BACK_TO_LOW_${notificationType}`, date: stored[minDateKey] });
+            changed = true;
+        } else if (currentPrice !== stored[lastPriceKey]) {
+            stored[lastPriceKey] = currentPrice;
+            changed = true;
+        }
+        return changed;
+    }
+
+    /**
      * Overrides the base check method to handle list of products and state merging.
      */
     async check() {
@@ -140,37 +168,8 @@ class DealMonitor extends Monitor {
                 
                 let productChanged = false;
 
-                // Check Offer Price (Precio Tarjeta)
-                if (currentOffer < stored.minOfferPrice) {
-                    stored.minOfferPrice = currentOffer;
-                    stored.minOfferDate = now;
-                    stored.lastOfferPrice = currentOffer;
-                    await this.notify({ product, type: 'NEW_LOW_OFFER', date: now });
-                    productChanged = true;
-                } else if (currentOffer === stored.minOfferPrice && stored.lastOfferPrice > stored.minOfferPrice) {
-                    stored.lastOfferPrice = currentOffer;
-                    await this.notify({ product, type: 'BACK_TO_LOW_OFFER', date: stored.minOfferDate });
-                    productChanged = true;
-                } else if (currentOffer !== stored.lastOfferPrice) {
-                    stored.lastOfferPrice = currentOffer;
-                    productChanged = true;
-                }
-
-                // Check Normal Price
-                if (currentNormal < stored.minNormalPrice) {
-                    stored.minNormalPrice = currentNormal;
-                    stored.minNormalDate = now;
-                    stored.lastNormalPrice = currentNormal;
-                    await this.notify({ product, type: 'NEW_LOW_NORMAL', date: now });
-                    productChanged = true;
-                } else if (currentNormal === stored.minNormalPrice && stored.lastNormalPrice > stored.minNormalPrice) {
-                    stored.lastNormalPrice = currentNormal;
-                    await this.notify({ product, type: 'BACK_TO_LOW_NORMAL', date: stored.minNormalDate });
-                    productChanged = true;
-                } else if (currentNormal !== stored.lastNormalPrice) {
-                    stored.lastNormalPrice = currentNormal;
-                    productChanged = true;
-                }
+                productChanged = await this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer') || productChanged;
+                productChanged = await this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal') || productChanged;
 
                 if (stored.name !== product.name) {
                     stored.name = product.name;
@@ -254,7 +253,7 @@ class DealMonitor extends Monitor {
             embed.setThumbnail(pictureUrl);
         }
 
-        channel.send({ embeds: [embed] });
+        await channel.send({ embeds: [embed] });
     }
 }
 
