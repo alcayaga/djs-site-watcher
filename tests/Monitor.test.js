@@ -108,7 +108,7 @@ describe('Monitor', () => {
         it('should fetch data using got', async () => {
             got.mockResolvedValueOnce({ body: 'test data' });
             const data = await testMonitor.fetch();
-            expect(got).toHaveBeenCalledWith('http://test.com');
+            expect(got).toHaveBeenCalledWith('http://test.com', expect.anything());
             expect(data).toBe('test data');
         });
 
@@ -139,7 +139,7 @@ describe('Monitor', () => {
 
             await testMonitor.check(client);
 
-            expect(got).toHaveBeenCalledWith('http://test.com');
+            expect(got).toHaveBeenCalledWith('http://test.com', expect.anything());
             expect(testMonitor.notify).toHaveBeenCalledWith({ oldData: 'old state', newData: 'parsed-raw data' });
             expect(storage.write).toHaveBeenCalledWith('test.json', 'parsed-raw data');
             expect(testMonitor.state).toBe('parsed-raw data');
@@ -153,7 +153,7 @@ describe('Monitor', () => {
 
             await testMonitor.check(client);
 
-            expect(got).toHaveBeenCalledWith('http://test.com');
+            expect(got).toHaveBeenCalledWith('http://test.com', expect.anything());
             expect(testMonitor.notify).not.toHaveBeenCalled();
             expect(storage.write).not.toHaveBeenCalled();
             expect(testMonitor.state).toBe('parsed-raw data'); // State should remain the same

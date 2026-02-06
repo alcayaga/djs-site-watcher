@@ -5,6 +5,7 @@ const got = require('got');
 const { formatCLP, sanitizeLinkText, formatDiscordTimestamp } = require('../utils/formatters');
 const { getProductUrl, getProductHistory, getBestPictureUrl, getAvailableEntities, getStores } = require('../utils/solotodo');
 const { sleep } = require('../utils/helpers');
+const { getSafeGotOptions } = require('../utils/network');
 
 const MIN_SANITY_PRICE = 1000; // Anything below 1,000 CLP is likely an error for Apple products in these categories
 
@@ -44,7 +45,7 @@ class DealMonitor extends Monitor {
                 const url = new URL(baseUrl);
                 url.searchParams.set('exclude_refurbished', 'true');
                 
-                const response = await got(url.toString());
+                const response = await got(url.toString(), getSafeGotOptions());
                 const body = JSON.parse(response.body);
                 if (body.results) {
                     allResults.push(...body.results);

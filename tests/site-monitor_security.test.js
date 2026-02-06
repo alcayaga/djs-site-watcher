@@ -42,21 +42,21 @@ describe('SiteMonitor Security', () => {
         lookupSpy.mockImplementation((hostname, options, cb) => cb(null, '192.168.1.1', 4));
         
         await expect(siteMonitor.fetchAndProcess('http://internal-service.local', 'body'))
-            .rejects.toThrow('Private IP access denied');
+            .rejects.toThrow('SSRF Prevention: Access to private IP');
     });
 
     it('should reject URLs resolving to loopback addresses', async () => {
         lookupSpy.mockImplementation((hostname, options, cb) => cb(null, '127.0.0.1', 4));
         
         await expect(siteMonitor.fetchAndProcess('http://localhost', 'body'))
-            .rejects.toThrow('Private IP access denied');
+            .rejects.toThrow('SSRF Prevention: Access to private IP');
     });
 
     it('should reject IPv6 loopback', async () => {
         lookupSpy.mockImplementation((hostname, options, cb) => cb(null, '::1', 6));
         
         await expect(siteMonitor.fetchAndProcess('http://[::1]', 'body'))
-            .rejects.toThrow('Private IP access denied');
+            .rejects.toThrow('SSRF Prevention: Access to private IP');
     });
 
     it('should allow valid public URLs', async () => {

@@ -118,8 +118,8 @@ describe('ApplePayMonitor', () => {
             });
 
             const fetchedData = await applePayMonitor.fetch();
-            expect(got).toHaveBeenCalledWith(applePayMonitor.CONFIG_URL, { responseType: 'json' });
-            expect(got).toHaveBeenCalledWith('http://marketgeos.com', { responseType: 'json' });
+            expect(got).toHaveBeenCalledWith(applePayMonitor.CONFIG_URL, expect.objectContaining({ responseType: 'json' }));
+            expect(got).toHaveBeenCalledWith('http://marketgeos.com', expect.objectContaining({ responseType: 'json' }));
             expect(fetchedData.config).toBeDefined();
             expect(fetchedData.configMarketGeos).toBeDefined();
         });
@@ -136,8 +136,8 @@ describe('ApplePayMonitor', () => {
             });
 
             const fetchedData = await applePayMonitor.fetch();
-            expect(got).toHaveBeenCalledWith(applePayMonitor.CONFIG_ALT_URL, { responseType: 'json' });
-            expect(got).toHaveBeenCalledWith('http://marketgeos-alt.com', { responseType: 'json' });
+            expect(got).toHaveBeenCalledWith(applePayMonitor.CONFIG_ALT_URL, expect.objectContaining({ responseType: 'json' }));
+            expect(got).toHaveBeenCalledWith('http://marketgeos-alt.com', expect.objectContaining({ responseType: 'json' }));
             expect(fetchedData.configAlt).toBeDefined();
             expect(fetchedData.configAltMarketGeos).toBeDefined();
         });

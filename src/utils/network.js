@@ -1,0 +1,48 @@
+const dns = require('dns');
+const ipaddr = require('ipaddr.js');
+
+/**
+ * Checks if an IP address is private or reserved.
+ * @param {string} ip The IP address.
+ * @returns {boolean} True if private/reserved, false otherwise.
+ */
+function isPrivateIP(ip) {
+    try {
+        const addr = ipaddr.parse(ip);
+        // The 'unicast' range is the only one considered public.
+        // All other ranges (private, reserved, loopback, etc.) will be blocked.
+        return addr.range() !== 'unicast';
+    } catch (e) {
+        // If parsing fails, it's not a valid IP, so we can treat it as unsafe.
+        return true;
+    }
+}
+
+/**
+ * Returns options for 'got' to prevent SSRF by blocking private IPs.
+ * @returns {object} The options object for 'got'.
+ */
+function getSafeGotOptions() {
+    return {
+        /**
+         * Custom DNS lookup to prevent access to private IP addresses.
+         * @param {string} hostname The hostname to lookup.
+         * @param {object} options The lookup options.
+         * @param {function} callback The callback function.
+         */
+        dnsLookup: (hostname, options, callback) => {
+            dns.lookup(hostname, options, (err, address, family) => {
+                if (err) return callback(err);
+                if (isPrivateIP(address)) {
+                    return callback(new Error(`SSRF Prevention: Access to private IP ${address} is denied.`));
+                }
+                callback(null, address, family);
+            });
+        }
+    };
+}
+
+module.exports = {
+    isPrivateIP,
+    getSafeGotOptions
+};
