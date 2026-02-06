@@ -1,4 +1,4 @@
-const { extractQuery, searchSolotodo, searchByUrl, getAvailableEntities, getStores } = require('../../src/utils/solotodo');
+const { extractQuery, searchSolotodo, searchByUrl, getAvailableEntities, getStores, getProductHistory } = require('../../src/utils/solotodo');
 const got = require('got');
 
 jest.mock('got');
@@ -154,5 +154,15 @@ describe('Solotodo Utils - API functions', () => {
         const storeMap2 = await getStores();
         expect(storeMap2).toBe(storeMap1);
         expect(got).toHaveBeenCalledTimes(1);
+    });
+
+    it('getProductHistory should fetch history for a specific product', async () => {
+        got.mockResolvedValueOnce({
+            body: [{ entity: {}, pricing_history: [] }]
+        });
+
+        const result = await getProductHistory(123);
+        expect(result).toHaveLength(1);
+        expect(got).toHaveBeenCalledWith(expect.stringContaining('products/123/pricing_history/'), expect.any(Object));
     });
 });

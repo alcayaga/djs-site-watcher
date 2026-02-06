@@ -1,8 +1,9 @@
 const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const config = require('../config');
-const { formatCLP, sanitizeLinkText } = require('../utils/formatters');
-const { getProductUrl } = require('../utils/solotodo');
+const { formatCLP, sanitizeLinkText, formatDiscordTimestamp } = require('../utils/formatters');
+const { getProductUrl, getProductHistory, getBestPictureUrl } = require('../utils/solotodo');
+const { sleep } = require('../utils/helpers');
 
 /**
  * Monitor for Solotodo deals on Apple products.
@@ -35,7 +36,7 @@ class DealMonitor extends Monitor {
                         brand: product.specs.brand_brand_unicode || product.specs.brand_brand_name,
                         slug: product.slug,
                         pictureUrl: product.picture_url,
-                        currentPrice: parseFloat(prices.offer_price),
+                        offerPrice: parseFloat(prices.offer_price),
                         normalPrice: parseFloat(prices.normal_price)
                     };
                 })
@@ -44,6 +45,34 @@ class DealMonitor extends Monitor {
             console.error('Error parsing Solotodo data in DealMonitor:', e);
             return [];
         }
+    }
+
+    /**
+     * Internal helper to check for price updates and trigger notifications.
+     * @private
+     */
+    async _checkPriceUpdate(product, now, currentPrice, stored, priceType) {
+        let changed = false;
+        const minPriceKey = `min${priceType}Price`;
+        const minDateKey = `min${priceType}Date`;
+        const lastPriceKey = `last${priceType}Price`;
+        const notificationType = priceType.toUpperCase();
+
+        if (currentPrice < stored[minPriceKey]) {
+            stored[minPriceKey] = currentPrice;
+            stored[minDateKey] = now;
+            stored[lastPriceKey] = currentPrice;
+            await this.notify({ product, type: `NEW_LOW_${notificationType}`, date: now });
+            changed = true;
+        } else if (currentPrice === stored[minPriceKey] && stored[lastPriceKey] > stored[minPriceKey]) {
+            stored[lastPriceKey] = currentPrice;
+            await this.notify({ product, type: `BACK_TO_LOW_${notificationType}`, date: stored[minDateKey] });
+            changed = true;
+        } else if (currentPrice !== stored[lastPriceKey]) {
+            stored[lastPriceKey] = currentPrice;
+            changed = true;
+        }
+        return changed;
     }
 
     /**
@@ -57,49 +86,79 @@ class DealMonitor extends Monitor {
             
             let hasChanges = false;
             const newState = { ...this.state };
+            const isSingleRun = String(config.SINGLE_RUN).toLowerCase() === 'true';
 
             for (const product of products) {
                 // Security: Prevent Prototype Pollution
                 const productId = String(product.id);
                 if (productId === '__proto__' || productId === 'constructor' || productId === 'prototype') continue;
 
-                const stored = newState[productId];
-                const currentPrice = product.currentPrice;
+                let stored = newState[productId];
 
                 if (!stored) {
                     // First time seeing this product
+                    let minOffer = product.offerPrice;
+                    let minNormal = product.normalPrice;
+                    let minOfferDate = new Date().toISOString();
+                    let minNormalDate = new Date().toISOString();
+
+                    if (!isSingleRun) {
+                        console.log(`New product detected: ${product.name} (ID: ${productId}). Backfilling history...`);
+                        try {
+                            const history = await getProductHistory(productId);
+                            for (const entity of history) {
+                                for (const record of entity.pricing_history) {
+                                    if (!record.is_available) continue;
+                                    const offer = parseFloat(record.offer_price);
+                                    const normal = parseFloat(record.normal_price);
+                                    
+                                    if (offer < minOffer) {
+                                        minOffer = offer;
+                                        minOfferDate = record.timestamp;
+                                    }
+                                    if (normal < minNormal) {
+                                        minNormal = normal;
+                                        minNormalDate = record.timestamp;
+                                    }
+                                }
+                            }
+                            // Delay to avoid bursting API
+                            await sleep(2000);
+                        } catch (historyError) {
+                            console.error(`Error backfilling history for product ${productId}:`, historyError);
+                        }
+                    }
+
                     newState[productId] = {
-                        minPrice: currentPrice,
-                        lastPrice: currentPrice,
+                        minOfferPrice: minOffer,
+                        minOfferDate,
+                        minNormalPrice: minNormal,
+                        minNormalDate,
+                        lastOfferPrice: product.offerPrice,
+                        lastNormalPrice: product.normalPrice,
                         name: product.name,
                         slug: product.slug,
                         pictureUrl: product.pictureUrl
                     };
                     hasChanges = true;
-                } else {
-                    const oldMin = stored.minPrice;
-                    const oldLast = stored.lastPrice;
-
-                    if (currentPrice < oldMin) {
-                        // New historic low
-                        stored.minPrice = currentPrice;
-                        stored.lastPrice = currentPrice;
-                        stored.name = product.name;
-                        hasChanges = true;
-                        this.notify({ product, type: 'NEW_LOW', oldMin });
-                    } else if (currentPrice === oldMin && oldLast > oldMin) {
-                        // Back to historic low
-                        stored.lastPrice = currentPrice;
-                        stored.name = product.name;
-                        hasChanges = true;
-                        this.notify({ product, type: 'BACK_TO_LOW', oldMin });
-                    } else if (stored.lastPrice !== currentPrice || stored.name !== product.name) {
-                        // Other update (e.g. price change or name update)
-                        stored.lastPrice = currentPrice;
-                        stored.name = product.name;
-                        hasChanges = true;
-                    }
+                    continue;
                 }
+
+                const currentOffer = product.offerPrice;
+                const currentNormal = product.normalPrice;
+                const now = new Date().toISOString();
+                
+                let productChanged = false;
+
+                productChanged = await this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer') || productChanged;
+                productChanged = await this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal') || productChanged;
+
+                if (stored.name !== product.name) {
+                    stored.name = product.name;
+                    productChanged = true;
+                }
+
+                if (productChanged) hasChanges = true;
             }
 
             if (hasChanges) {
@@ -126,33 +185,46 @@ class DealMonitor extends Monitor {
      * Sends a notification about a deal.
      * @param {object} change The change details.
      */
-    notify(change) {
-        const { product, type } = change;
+    async notify(change) {
+        const { product, type, date } = change;
         const channel = this.getNotificationChannel();
         if (!channel) return;
 
         const productUrl = getProductUrl(product);
         const sanitizedName = sanitizeLinkText(product.name);
+        const pictureUrl = await getBestPictureUrl(product);
 
-        const title = type === 'NEW_LOW' 
-            ? `📉 ¡Nuevo mínimo histórico: ${sanitizedName}!`
-            : `🔄 ¡De nuevo a precio mínimo: ${sanitizedName}!`;
+        const notificationConfig = {
+            'NEW_LOW_OFFER': { title: `📉 ¡Nuevo mínimo histórico (Precio Tarjeta): ${sanitizedName}!`, color: 0x2ecc71 },
+            'BACK_TO_LOW_OFFER': { title: `🔄 ¡De nuevo a precio mínimo (Precio Tarjeta): ${sanitizedName}!`, showDate: true },
+            'NEW_LOW_NORMAL': { title: `📉 ¡Nuevo mínimo histórico (Cualquier medio): ${sanitizedName}!`, color: 0x27ae60 },
+            'BACK_TO_LOW_NORMAL': { title: `🔄 ¡De nuevo a precio mínimo (Cualquier medio): ${sanitizedName}!`, showDate: true }
+        };
+
+        const details = notificationConfig[type];
+        const title = details?.title || '';
+        const color = details?.color || 0x3498db;
+        const showDate = details?.showDate || false;
 
         const embed = new Discord.EmbedBuilder()
             .setTitle(title)
             .setURL(productUrl)
             .addFields([
-                { name: '💰 Precio actual', value: `**${formatCLP(product.currentPrice)}**`, inline: true },
-                { name: '🏷️ Precio normal', value: formatCLP(product.normalPrice), inline: true }
+                { name: '💳 Precio Tarjeta', value: `**${formatCLP(product.offerPrice)}**`, inline: true },
+                { name: '💰 Precio Normal', value: `**${formatCLP(product.normalPrice)}**`, inline: true }
             ])
-            .setColor(type === 'NEW_LOW' ? 0x2ecc71 : 0x3498db)
+            .setColor(color)
             .setTimestamp();
 
-        if (product.pictureUrl) {
-            embed.setThumbnail(product.pictureUrl);
+        if (showDate && date) {
+            embed.addFields([{ name: '🕒 Visto por última vez', value: formatDiscordTimestamp(date), inline: false }]);
         }
 
-        channel.send({ embeds: [embed] });
+        if (pictureUrl) {
+            embed.setThumbnail(pictureUrl);
+        }
+
+        await channel.send({ embeds: [embed] });
     }
 }
 
