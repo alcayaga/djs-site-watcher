@@ -15,7 +15,11 @@ jest.mock('got');
 jest.mock('../../src/utils/solotodo', () => ({
     ...jest.requireActual('../../src/utils/solotodo'),
     getProductHistory: jest.fn().mockResolvedValue([]),
-    getBestPictureUrl: jest.fn().mockImplementation(p => Promise.resolve(p.pictureUrl || p.picture_url))
+    getBestPictureUrl: jest.fn().mockImplementation(p => Promise.resolve(p.pictureUrl || p.picture_url)),
+    getAvailableEntities: jest.fn().mockResolvedValue([
+        { active_registry: { offer_price: "10000", normal_price: "10000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
+    ]),
+    getStores: jest.fn().mockResolvedValue(new Map([["https://api.com/stores/1/", "Store 1"]]))
 }));
 
 describe('DealMonitor', () => {
@@ -67,6 +71,7 @@ describe('DealMonitor', () => {
                 },
                 metadata: {
                     prices_per_currency: [{
+                        currency: 'https://publicapi.solotodo.com/currencies/1/',
                         offer_price: p.offerPrice.toString(),
                         normal_price: p.normalPrice.toString()
                     }]
@@ -165,6 +170,7 @@ describe('DealMonitor', () => {
         monitor.state = {};
         solotodo.getProductHistory.mockResolvedValue([
             {
+                entity: { currency: 'https://publicapi.solotodo.com/currencies/1/' },
                 pricing_history: [
                     { is_available: true, offer_price: "400000", normal_price: "410000", timestamp: "2024-12-01T10:00:00Z" },
                     { is_available: true, offer_price: "450000", normal_price: "460000", timestamp: "2024-12-02T10:00:00Z" }
@@ -190,15 +196,15 @@ describe('DealMonitor', () => {
         monitor.state = {
             '1': { 
                 id: 1, name: 'iPhone', 
-                minOfferPrice: 100, minOfferDate: oldDate,
-                lastOfferPrice: 150, 
-                minNormalPrice: 200, minNormalDate: oldDate,
-                lastNormalPrice: 250 
+                minOfferPrice: 10000, minOfferDate: oldDate,
+                lastOfferPrice: 15000, 
+                minNormalPrice: 20000, minNormalDate: oldDate,
+                lastNormalPrice: 25000 
             }
         };
 
         got.mockResolvedValue({
-            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 100, normalPrice: 250 }])
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 10000, normalPrice: 25000 }])
         });
 
         await monitor.check();
@@ -212,7 +218,7 @@ describe('DealMonitor', () => {
         expect(dateField).toBeDefined();
         expect(dateField.value).toContain('1733047200'); // Unix for 2024-12-01T10:00:00Z
 
-        expect(monitor.state['1'].lastOfferPrice).toBe(100);
+        expect(monitor.state['1'].lastOfferPrice).toBe(10000);
     });
 
     it('should NOT alert if price stays at historic low', async () => {
@@ -229,19 +235,182 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).not.toHaveBeenCalled();
     });
 
-    it('should filter out non-Apple brands', async () => {
+    it('should process products regardless of brand (filtering happens at API level)', async () => {
         monitor.state = {};
 
         got.mockResolvedValue({
             body: mockApiResponse([
-                { id: 1, name: 'iPhone', offerPrice: 100, normalPrice: 110, brand: 'Apple' },
-                { id: 2, name: 'Galaxy', offerPrice: 100, normalPrice: 110, brand: 'Samsung' }
+                { id: 1, name: 'iPhone', offerPrice: 10000, normalPrice: 11000, brand: 'Apple' },
+                { id: 2, name: 'Galaxy', offerPrice: 10000, normalPrice: 11000, brand: 'Samsung' }
             ])
         });
 
         await monitor.check();
 
         expect(monitor.state['1']).toBeDefined();
-        expect(monitor.state['2']).toBeUndefined();
+        expect(monitor.state['2']).toBeDefined();
+    });
+
+    it('should correctly parse products with alternative brand specs (e.g. HomePod Mini)', async () => {
+        monitor.state = {};
+        
+        const homePodData = JSON.stringify({
+            results: [{
+                product_entries: [{
+                    product: {
+                        id: 154867,
+                        name: "Apple HomePod Mini",
+                        slug: "apple-homepod-mini",
+                        picture_url: "pic.jpg",
+                        specs: {
+                            brand_unicode: "Apple"
+                        }
+                    },
+                    metadata: {
+                        prices_per_currency: [{
+                            currency: 'https://publicapi.solotodo.com/currencies/1/',
+                            offer_price: "99990",
+                            normal_price: "109990"
+                        }]
+                    }
+                }]
+            }]
+        });
+
+        got.mockResolvedValue({ body: homePodData });
+
+        await monitor.check();
+
+        expect(monitor.state['154867']).toBeDefined();
+        expect(monitor.state['154867'].name).toBe("Apple HomePod Mini");
+    });
+
+    it('should show only one alert if both prices reach new low', async () => {
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 500000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                lastOfferPrice: 500000, 
+                minNormalPrice: 600000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                lastNormalPrice: 600000 
+            }
+        };
+
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 450000, normalPrice: 550000 }])
+        });
+
+        await monitor.check();
+
+        expect(mockChannel.send).toHaveBeenCalledTimes(1);
+        const sendCall = mockChannel.send.mock.calls[0][0];
+        const embed = sendCall.embeds[0];
+        expect(embed.data.title).toContain('¡Nuevos mínimos históricos!');
+    });
+
+    it('should correctly parse products with multiple currencies and pick CLP', async () => {
+        monitor.state = {};
+        
+        const multiCurrencyData = JSON.stringify({
+            results: [{
+                product_entries: [{
+                    product: {
+                        id: 1, name: "iPhone Multi", slug: "iphone", picture_url: "pic.jpg",
+                        specs: { brand_unicode: "Apple" }
+                    },
+                    metadata: {
+                        prices_per_currency: [
+                            {
+                                currency: 'https://publicapi.solotodo.com/currencies/4/', // USD
+                                offer_price: "799.00", normal_price: "799.00"
+                            },
+                            {
+                                currency: 'https://publicapi.solotodo.com/currencies/1/', // CLP
+                                offer_price: "1000000.00", normal_price: "1100000.00"
+                            }
+                        ]
+                    }
+                }]
+            }]
+        });
+
+        got.mockResolvedValue({ body: multiCurrencyData });
+
+        await monitor.check();
+
+        expect(monitor.state['1']).toBeDefined();
+        expect(monitor.state['1'].lastOfferPrice).toBe(1000000);
+    });
+
+    it('should ignore non-CLP entities during backfill', async () => {
+        monitor.state = {};
+        solotodo.getProductHistory.mockResolvedValue([
+            {
+                entity: { currency: 'https://publicapi.solotodo.com/currencies/4/' }, // USD
+                pricing_history: [{ is_available: true, offer_price: "799", normal_price: "799", timestamp: "2024-12-01T10:00:00Z" }]
+            },
+            {
+                entity: { currency: 'https://publicapi.solotodo.com/currencies/1/' }, // CLP
+                pricing_history: [{ is_available: true, offer_price: "1000000", normal_price: "1100000", timestamp: "2024-12-02T10:00:00Z" }]
+            }
+        ]);
+
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 1200000, normalPrice: 1300000 }])
+        });
+
+        await monitor.check();
+
+        expect(monitor.state['1'].minOfferPrice).toBe(1000000); // Should pick the CLP one, not the 799 USD one
+    });
+
+    it('should support multiple URLs and combine results', async () => {
+        monitor.config.url = ['https://api1.com', 'https://api2.com'];
+        
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone 1', offerPrice: 10000, normalPrice: 11000 }])
+        }).mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 2, name: 'iPhone 2', offerPrice: 20000, normalPrice: 21000 }])
+        });
+
+        await monitor.check();
+
+        expect(got).toHaveBeenCalledTimes(2);
+        expect(got.mock.calls[0][0]).toContain('exclude_refurbished=true');
+        expect(monitor.state['1']).toBeDefined();
+        expect(monitor.state['2']).toBeDefined();
+    }, 15000);
+
+    it('should filter out unrealistically low prices (MIN_SANITY_PRICE)', async () => {
+        monitor.state = {};
+        
+        got.mockResolvedValue({
+            body: mockApiResponse([
+                { id: 1, name: 'iPhone Cheap', offerPrice: 799, normalPrice: 799, brand: 'Apple' },
+                { id: 2, name: 'iPhone Real', offerPrice: 500000, normalPrice: 550000, brand: 'Apple' }
+            ])
+        });
+
+        await monitor.check();
+
+        expect(monitor.state['1']).toBeUndefined();
+        expect(monitor.state['2']).toBeDefined();
+    });
+
+    it('should ignore mobile plan entities and suppress notification if no other entity exists', async () => {
+        const product = { id: 1, name: 'iPhone Plan', offerPrice: 199000, normalPrice: 199000 };
+        
+        // Mock entities where one is a plan
+        jest.spyOn(solotodo, 'getAvailableEntities').mockResolvedValue([
+            {
+                active_registry: { offer_price: "199000", normal_price: "199000", cell_monthly_payment: "41000" },
+                external_url: "https://plan.com",
+                store: "https://api.com/stores/1/"
+            }
+        ]);
+
+        await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+        expect(mockChannel.send).not.toHaveBeenCalled();
     });
 });

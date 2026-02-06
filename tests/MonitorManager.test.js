@@ -16,7 +16,7 @@ const createMockMonitorClass = (className) => {
      */
     const MockMonitor = jest.fn(function(name, monitorConfig) {
         this.name = name;
-        this.monitorConfig = monitorConfig;
+        this.config = monitorConfig;
         this.initialize = jest.fn().mockResolvedValue(this);
         this.start = jest.fn();
         this.stop = jest.fn();

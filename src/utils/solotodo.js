@@ -232,26 +232,36 @@ async function getAvailableEntities(productId) {
 }
 
 /**
- * Attempts to find a better picture URL if the current one is problematic (e.g. missing extension).
+ * Attempts to find a better picture URL if the current one is problematic (e.g. missing extension or from travel.cl).
  * @param {object} product The product object.
+ * @param {Array} [entities] Optional pre-fetched entities.
  * @returns {Promise<string>} The best available picture URL.
  */
-async function getBestPictureUrl(product) {
+async function getBestPictureUrl(product, entities = null) {
     const currentUrl = product.pictureUrl || product.picture_url;
-    if (!currentUrl) return null;
+    
+    /**
+     * Checks if a URL is invalid or blocked.
+     * @param {string} url The URL to check.
+     * @returns {boolean} True if invalid.
+     */
+    const isInvalid = (url) => {
+        if (!url) return true;
+        if (url.includes('tienda.travel.cl')) return true;
+        return !/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(url);
+    };
 
-    // If it has a common image extension, it's probably fine for Discord
-    if (/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(currentUrl)) {
+    if (!isInvalid(currentUrl)) {
         return currentUrl;
     }
 
     try {
         // Try to find an image from available entities
-        const entities = await getAvailableEntities(product.id);
-        for (const entity of entities) {
-            if (entity.picture_urls && entity.picture_urls.length > 0) {
+        const availableEntities = entities || await getAvailableEntities(product.id);
+        for (const entity of availableEntities) {
+            if (entity.picture_urls && Array.isArray(entity.picture_urls) && entity.picture_urls.length > 0) {
                 const entityUrl = entity.picture_urls[0];
-                if (/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(entityUrl)) {
+                if (!isInvalid(entityUrl)) {
                     return entityUrl;
                 }
             }
@@ -260,7 +270,7 @@ async function getBestPictureUrl(product) {
         console.error(`Error fetching alternative picture for product ${product.id}:`, e);
     }
 
-    return currentUrl;
+    return isInvalid(currentUrl) ? null : currentUrl;
 }
 
 let cachedStores = null;
