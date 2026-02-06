@@ -21,12 +21,17 @@ describe('DealMonitor', () => {
     let monitor;
     let mockChannel;
     let mockClient;
+    let mockMessage;
 
     beforeEach(() => {
         jest.clearAllMocks();
         
+        mockMessage = {
+            startThread: jest.fn().mockResolvedValue({})
+        };
+
         mockChannel = {
-            send: jest.fn().mockResolvedValue({})
+            send: jest.fn().mockResolvedValue(mockMessage)
         };
 
         mockClient = {
@@ -94,6 +99,10 @@ describe('DealMonitor', () => {
         await monitor.check();
 
         expect(mockChannel.send).toHaveBeenCalled();
+        expect(mockMessage.startThread).toHaveBeenCalledWith({
+            name: 'iPhone',
+            autoArchiveDuration: 10080
+        });
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
         expect(embed.data.title).toContain('Nuevo mínimo histórico (Precio Tarjeta)');
