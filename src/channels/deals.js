@@ -29,7 +29,7 @@ class DealsChannel extends ChannelHandler {
                 }
             } catch (e) {
                 hasValidLink = false;
-                console.error(`Failed to parse URL "${urlMatch[0]}":`, e);
+                console.warn(`Failed to parse URL "${urlMatch[0]}":`, e.message);
             }
         }
 
