@@ -231,6 +231,38 @@ async function getAvailableEntities(productId) {
     return [];
 }
 
+/**
+ * Attempts to find a better picture URL if the current one is problematic (e.g. missing extension).
+ * @param {object} product The product object.
+ * @returns {Promise<string>} The best available picture URL.
+ */
+async function getBestPictureUrl(product) {
+    const currentUrl = product.pictureUrl || product.picture_url;
+    if (!currentUrl) return null;
+
+    // If it has a common image extension, it's probably fine for Discord
+    if (/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(currentUrl)) {
+        return currentUrl;
+    }
+
+    try {
+        // Try to find an image from available entities
+        const entities = await getAvailableEntities(product.id);
+        for (const entity of entities) {
+            if (entity.picture_urls && entity.picture_urls.length > 0) {
+                const entityUrl = entity.picture_urls[0];
+                if (/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(entityUrl)) {
+                    return entityUrl;
+                }
+            }
+        }
+    } catch (e) {
+        console.error(`Error fetching alternative picture for product ${product.id}:`, e);
+    }
+
+    return currentUrl;
+}
+
 let cachedStores = null;
 let storesLastUpdated = 0;
 const STORES_CACHE_TTL = 3600000; // 1 hour
@@ -260,6 +292,25 @@ async function getStores() {
     return storeMap;
 }
 
+/**
+ * Fetches the pricing history of a product.
+ * @param {number|string} productId The product ID.
+ * @returns {Promise<Array>} List of entity pricing histories.
+ */
+async function getProductHistory(productId) {
+    // Fetch last 6 months of history by default to find a good minimum
+    const timestampBefore = new Date().toISOString();
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const timestampAfter = sixMonthsAgo.toISOString();
+
+    const response = await got(`https://publicapi.solotodo.com/products/${productId}/pricing_history/?timestamp_after=${timestampAfter}&timestamp_before=${timestampBefore}&exclude_refurbished=false`, {
+        responseType: 'json'
+    });
+
+    return response.body || [];
+}
+
 module.exports = {
     searchSolotodo,
     extractQuery,
@@ -267,5 +318,7 @@ module.exports = {
     getProductUrl,
     getSearchUrl,
     getAvailableEntities,
-    getStores
+    getStores,
+    getProductHistory,
+    getBestPictureUrl
 };

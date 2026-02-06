@@ -1,8 +1,15 @@
 const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const config = require('../config');
-const { formatCLP, sanitizeLinkText } = require('../utils/formatters');
-const { getProductUrl } = require('../utils/solotodo');
+const { formatCLP, sanitizeLinkText, formatDiscordTimestamp } = require('../utils/formatters');
+const { getProductUrl, getProductHistory, getBestPictureUrl } = require('../utils/solotodo');
+
+/**
+ * Helper to sleep for a given amount of time.
+ * @param {number} ms Milliseconds to sleep.
+ * @returns {Promise<void>}
+ */
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Monitor for Solotodo deals on Apple products.
@@ -35,7 +42,7 @@ class DealMonitor extends Monitor {
                         brand: product.specs.brand_brand_unicode || product.specs.brand_brand_name,
                         slug: product.slug,
                         pictureUrl: product.picture_url,
-                        currentPrice: parseFloat(prices.offer_price),
+                        offerPrice: parseFloat(prices.offer_price),
                         normalPrice: parseFloat(prices.normal_price)
                     };
                 })
@@ -57,49 +64,120 @@ class DealMonitor extends Monitor {
             
             let hasChanges = false;
             const newState = { ...this.state };
+            const isSingleRun = String(config.SINGLE_RUN).toLowerCase() === 'true';
 
             for (const product of products) {
                 // Security: Prevent Prototype Pollution
                 const productId = String(product.id);
                 if (productId === '__proto__' || productId === 'constructor' || productId === 'prototype') continue;
 
-                const stored = newState[productId];
-                const currentPrice = product.currentPrice;
+                let stored = newState[productId];
 
                 if (!stored) {
                     // First time seeing this product
+                    let minOffer = product.offerPrice;
+                    let minNormal = product.normalPrice;
+                    let minOfferDate = new Date().toISOString();
+                    let minNormalDate = new Date().toISOString();
+
+                    if (!isSingleRun) {
+                        console.log(`New product detected: ${product.name} (ID: ${productId}). Backfilling history...`);
+                        try {
+                            const history = await getProductHistory(productId);
+                            for (const entity of history) {
+                                for (const record of entity.pricing_history) {
+                                    if (!record.is_available) continue;
+                                    const offer = parseFloat(record.offer_price);
+                                    const normal = parseFloat(record.normal_price);
+                                    
+                                    if (offer < minOffer) {
+                                        minOffer = offer;
+                                        minOfferDate = record.timestamp;
+                                    }
+                                    if (normal < minNormal) {
+                                        minNormal = normal;
+                                        minNormalDate = record.timestamp;
+                                    }
+                                }
+                            }
+                            // Delay to avoid bursting API
+                            await sleep(2000);
+                        } catch (historyError) {
+                            console.error(`Error backfilling history for product ${productId}:`, historyError);
+                        }
+                    }
+
                     newState[productId] = {
-                        minPrice: currentPrice,
-                        lastPrice: currentPrice,
+                        minOfferPrice: minOffer,
+                        minOfferDate,
+                        minNormalPrice: minNormal,
+                        minNormalDate,
+                        lastOfferPrice: product.offerPrice,
+                        lastNormalPrice: product.normalPrice,
                         name: product.name,
                         slug: product.slug,
                         pictureUrl: product.pictureUrl
                     };
                     hasChanges = true;
-                } else {
-                    const oldMin = stored.minPrice;
-                    const oldLast = stored.lastPrice;
-
-                    if (currentPrice < oldMin) {
-                        // New historic low
-                        stored.minPrice = currentPrice;
-                        stored.lastPrice = currentPrice;
-                        stored.name = product.name;
-                        hasChanges = true;
-                        this.notify({ product, type: 'NEW_LOW', oldMin });
-                    } else if (currentPrice === oldMin && oldLast > oldMin) {
-                        // Back to historic low
-                        stored.lastPrice = currentPrice;
-                        stored.name = product.name;
-                        hasChanges = true;
-                        this.notify({ product, type: 'BACK_TO_LOW', oldMin });
-                    } else if (stored.lastPrice !== currentPrice || stored.name !== product.name) {
-                        // Other update (e.g. price change or name update)
-                        stored.lastPrice = currentPrice;
-                        stored.name = product.name;
-                        hasChanges = true;
-                    }
+                    continue;
                 }
+
+                // Simplified migration: reset to current if old structure found
+                if (stored.minPrice !== undefined) {
+                    stored.minOfferPrice = product.offerPrice;
+                    stored.minOfferDate = new Date().toISOString();
+                    stored.minNormalPrice = product.normalPrice;
+                    stored.minNormalDate = new Date().toISOString();
+                    stored.lastOfferPrice = product.offerPrice;
+                    stored.lastNormalPrice = product.normalPrice;
+                    delete stored.minPrice;
+                    delete stored.lastPrice;
+                }
+
+                const currentOffer = product.offerPrice;
+                const currentNormal = product.normalPrice;
+                const now = new Date().toISOString();
+                
+                let productChanged = false;
+
+                // Check Offer Price (Precio Tarjeta)
+                if (currentOffer < stored.minOfferPrice) {
+                    stored.minOfferPrice = currentOffer;
+                    stored.minOfferDate = now;
+                    stored.lastOfferPrice = currentOffer;
+                    await this.notify({ product, type: 'NEW_LOW_OFFER', date: now });
+                    productChanged = true;
+                } else if (currentOffer === stored.minOfferPrice && stored.lastOfferPrice > stored.minOfferPrice) {
+                    stored.lastOfferPrice = currentOffer;
+                    await this.notify({ product, type: 'BACK_TO_LOW_OFFER', date: stored.minOfferDate });
+                    productChanged = true;
+                } else if (currentOffer !== stored.lastOfferPrice) {
+                    stored.lastOfferPrice = currentOffer;
+                    productChanged = true;
+                }
+
+                // Check Normal Price
+                if (currentNormal < stored.minNormalPrice) {
+                    stored.minNormalPrice = currentNormal;
+                    stored.minNormalDate = now;
+                    stored.lastNormalPrice = currentNormal;
+                    await this.notify({ product, type: 'NEW_LOW_NORMAL', date: now });
+                    productChanged = true;
+                } else if (currentNormal === stored.minNormalPrice && stored.lastNormalPrice > stored.minNormalPrice) {
+                    stored.lastNormalPrice = currentNormal;
+                    await this.notify({ product, type: 'BACK_TO_LOW_NORMAL', date: stored.minNormalDate });
+                    productChanged = true;
+                } else if (currentNormal !== stored.lastNormalPrice) {
+                    stored.lastNormalPrice = currentNormal;
+                    productChanged = true;
+                }
+
+                if (stored.name !== product.name) {
+                    stored.name = product.name;
+                    productChanged = true;
+                }
+
+                if (productChanged) hasChanges = true;
             }
 
             if (hasChanges) {
@@ -126,30 +204,54 @@ class DealMonitor extends Monitor {
      * Sends a notification about a deal.
      * @param {object} change The change details.
      */
-    notify(change) {
-        const { product, type } = change;
+    async notify(change) {
+        const { product, type, date } = change;
         const channel = this.getNotificationChannel();
         if (!channel) return;
 
         const productUrl = getProductUrl(product);
         const sanitizedName = sanitizeLinkText(product.name);
+        const pictureUrl = await getBestPictureUrl(product);
 
-        const title = type === 'NEW_LOW' 
-            ? `📉 ¡Nuevo mínimo histórico: ${sanitizedName}!`
-            : `🔄 ¡De nuevo a precio mínimo: ${sanitizedName}!`;
+        let title = '';
+        let color = 0x3498db;
+        let showDate = false;
+
+        switch (type) {
+            case 'NEW_LOW_OFFER':
+                title = `📉 ¡Nuevo mínimo histórico (Precio Tarjeta): ${sanitizedName}!`;
+                color = 0x2ecc71;
+                break;
+            case 'BACK_TO_LOW_OFFER':
+                title = `🔄 ¡De nuevo a precio mínimo (Precio Tarjeta): ${sanitizedName}!`;
+                showDate = true;
+                break;
+            case 'NEW_LOW_NORMAL':
+                title = `📉 ¡Nuevo mínimo histórico (Cualquier medio): ${sanitizedName}!`;
+                color = 0x27ae60;
+                break;
+            case 'BACK_TO_LOW_NORMAL':
+                title = `🔄 ¡De nuevo a precio mínimo (Cualquier medio): ${sanitizedName}!`;
+                showDate = true;
+                break;
+        }
 
         const embed = new Discord.EmbedBuilder()
             .setTitle(title)
             .setURL(productUrl)
             .addFields([
-                { name: '💰 Precio actual', value: `**${formatCLP(product.currentPrice)}**`, inline: true },
-                { name: '🏷️ Precio normal', value: formatCLP(product.normalPrice), inline: true }
+                { name: '💳 Precio Tarjeta', value: `**${formatCLP(product.offerPrice)}**`, inline: true },
+                { name: '💰 Precio Normal', value: `**${formatCLP(product.normalPrice)}**`, inline: true }
             ])
-            .setColor(type === 'NEW_LOW' ? 0x2ecc71 : 0x3498db)
+            .setColor(color)
             .setTimestamp();
 
-        if (product.pictureUrl) {
-            embed.setThumbnail(product.pictureUrl);
+        if (showDate && date) {
+            embed.addFields([{ name: '🕒 Visto por última vez', value: formatDiscordTimestamp(date), inline: false }]);
+        }
+
+        if (pictureUrl) {
+            embed.setThumbnail(pictureUrl);
         }
 
         channel.send({ embeds: [embed] });

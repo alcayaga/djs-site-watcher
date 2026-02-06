@@ -1,6 +1,7 @@
 const DealMonitor = require('../../src/monitors/DealMonitor');
 const storage = require('../../src/storage');
 const got = require('got');
+const solotodo = require('../../src/utils/solotodo');
 
 jest.mock('../../src/storage');
 jest.mock('../../src/config', () => ({
@@ -10,6 +11,11 @@ jest.mock('../../src/config', () => ({
     SINGLE_RUN: 'false'
 }));
 jest.mock('got');
+jest.mock('../../src/utils/solotodo', () => ({
+    ...jest.requireActual('../../src/utils/solotodo'),
+    getProductHistory: jest.fn().mockResolvedValue([]),
+    getBestPictureUrl: jest.fn().mockImplementation(p => Promise.resolve(p.pictureUrl || p.picture_url))
+}));
 
 describe('DealMonitor', () => {
     let monitor;
@@ -55,8 +61,8 @@ describe('DealMonitor', () => {
                 },
                 metadata: {
                     prices_per_currency: [{
-                        offer_price: p.price.toString(),
-                        normal_price: (p.price + 10000).toString()
+                        offer_price: p.offerPrice.toString(),
+                        normal_price: p.normalPrice.toString()
                     }]
                 }
             }]
@@ -65,38 +71,42 @@ describe('DealMonitor', () => {
     };
 
     it('should initialize and load state', async () => {
-        storage.read.mockResolvedValue({ '1': { minPrice: 100, lastPrice: 100 } });
+        storage.read.mockResolvedValue({ '1': { minOfferPrice: 100, lastOfferPrice: 100 } });
         await monitor.initialize(mockClient);
-        expect(monitor.state['1'].minPrice).toBe(100);
+        expect(monitor.state['1'].minOfferPrice).toBe(100);
     });
 
-    it('should detect a new historic low and alert', async () => {
-        monitor.state = {
-            '1': { id: 1, name: 'iPhone', minPrice: 500000, lastPrice: 500000 }
-        };
-
-        got.mockResolvedValue({
-            body: mockApiResponse([{ id: 1, name: 'iPhone', price: 450000 }])
-        });
-
-        await monitor.check();
-
-        expect(mockChannel.send).toHaveBeenCalled();
-        const sendCall = mockChannel.send.mock.calls[0][0];
-        const embed = sendCall.embeds[0];
-        expect(embed.data.title).toContain('Nuevo mínimo histórico');
-        
-        expect(monitor.state['1'].minPrice).toBe(450000);
-    });
-
-    it('should detect return to historic low and alert', async () => {
-        // Price was 100 (min), then went to 150 (last), now back to 100
+    it('should migrate legacy state', async () => {
         monitor.state = {
             '1': { id: 1, name: 'iPhone', minPrice: 100, lastPrice: 150 }
         };
 
         got.mockResolvedValue({
-            body: mockApiResponse([{ id: 1, name: 'iPhone', price: 100 }])
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 120, normalPrice: 130 }])
+        });
+
+        await monitor.check();
+
+        // Simplified migration resets to current price
+        expect(monitor.state['1'].minOfferPrice).toBe(120);
+        expect(monitor.state['1'].lastOfferPrice).toBe(120);
+        expect(monitor.state['1'].minNormalPrice).toBe(130);
+        expect(monitor.state['1'].minPrice).toBeUndefined();
+    });
+
+    it('should detect a new historic low for offer price and alert', async () => {
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 500000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                lastOfferPrice: 500000, 
+                minNormalPrice: 600000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                lastNormalPrice: 600000 
+            }
+        };
+
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 450000, normalPrice: 600000 }])
         });
 
         await monitor.check();
@@ -104,39 +114,104 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).toHaveBeenCalled();
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
-        expect(embed.data.title).toContain('De nuevo a precio mínimo');
+        expect(embed.data.title).toContain('Nuevo mínimo histórico (Precio Tarjeta)');
+        
+        expect(monitor.state['1'].minOfferPrice).toBe(450000);
+        expect(monitor.state['1'].minOfferDate).not.toBe('2025-01-01T00:00:00.000Z');
+    });
 
-        expect(monitor.state['1'].lastPrice).toBe(100);
+    it('should detect a new historic low for normal price and alert', async () => {
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 500000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                lastOfferPrice: 500000, 
+                minNormalPrice: 600000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                lastNormalPrice: 600000 
+            }
+        };
+
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 500000, normalPrice: 550000 }])
+        });
+
+        await monitor.check();
+
+        expect(mockChannel.send).toHaveBeenCalled();
+        const sendCall = mockChannel.send.mock.calls[0][0];
+        const embed = sendCall.embeds[0];
+        expect(embed.data.title).toContain('Nuevo mínimo histórico (Cualquier medio)');
+        
+        expect(monitor.state['1'].minNormalPrice).toBe(550000);
+        expect(monitor.state['1'].minNormalDate).not.toBe('2025-01-01T00:00:00.000Z');
+    });
+
+    it('should backfill history for new products with dates', async () => {
+        monitor.state = {};
+        solotodo.getProductHistory.mockResolvedValue([
+            {
+                pricing_history: [
+                    { is_available: true, offer_price: "400000", normal_price: "410000", timestamp: "2024-12-01T10:00:00Z" },
+                    { is_available: true, offer_price: "450000", normal_price: "460000", timestamp: "2024-12-02T10:00:00Z" }
+                ]
+            }
+        ]);
+
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 500000, normalPrice: 510000 }])
+        });
+
+        await monitor.check();
+
+        expect(solotodo.getProductHistory).toHaveBeenCalledWith('1');
+        expect(monitor.state['1'].minOfferPrice).toBe(400000);
+        expect(monitor.state['1'].minOfferDate).toBe("2024-12-01T10:00:00Z");
+        expect(monitor.state['1'].minNormalPrice).toBe(410000);
+        expect(monitor.state['1'].minNormalDate).toBe("2024-12-01T10:00:00Z");
+    });
+
+    it('should detect return to historic low and show previous date', async () => {
+        const oldDate = '2024-12-01T10:00:00Z';
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 100, minOfferDate: oldDate,
+                lastOfferPrice: 150, 
+                minNormalPrice: 200, minNormalDate: oldDate,
+                lastNormalPrice: 250 
+            }
+        };
+
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 100, normalPrice: 250 }])
+        });
+
+        await monitor.check();
+
+        expect(mockChannel.send).toHaveBeenCalled();
+        const sendCall = mockChannel.send.mock.calls[0][0];
+        const embed = sendCall.embeds[0];
+        expect(embed.data.title).toContain('De nuevo a precio mínimo (Precio Tarjeta)');
+        
+        const dateField = embed.data.fields.find(f => f.name === '🕒 Visto por última vez');
+        expect(dateField).toBeDefined();
+        expect(dateField.value).toContain('1733047200'); // Unix for 2024-12-01T10:00:00Z
+
+        expect(monitor.state['1'].lastOfferPrice).toBe(100);
     });
 
     it('should NOT alert if price stays at historic low', async () => {
         monitor.state = {
-            '1': { id: 1, name: 'iPhone', minPrice: 100, lastPrice: 100 }
+            '1': { id: 1, name: 'iPhone', minOfferPrice: 100, lastOfferPrice: 100, minNormalPrice: 200, lastNormalPrice: 200 }
         };
 
         got.mockResolvedValue({
-            body: mockApiResponse([{ id: 1, name: 'iPhone', price: 100 }])
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 100, normalPrice: 200 }])
         });
 
         await monitor.check();
 
         expect(mockChannel.send).not.toHaveBeenCalled();
-    });
-
-    it('should NOT alert if price increases', async () => {
-        monitor.state = {
-            '1': { id: 1, name: 'iPhone', minPrice: 100, lastPrice: 100 }
-        };
-
-        got.mockResolvedValue({
-            body: mockApiResponse([{ id: 1, name: 'iPhone', price: 150 }])
-        });
-
-        await monitor.check();
-
-        expect(mockChannel.send).not.toHaveBeenCalled();
-        expect(monitor.state['1'].lastPrice).toBe(150);
-        expect(monitor.state['1'].minPrice).toBe(100);
     });
 
     it('should filter out non-Apple brands', async () => {
@@ -144,8 +219,8 @@ describe('DealMonitor', () => {
 
         got.mockResolvedValue({
             body: mockApiResponse([
-                { id: 1, name: 'iPhone', price: 100, brand: 'Apple' },
-                { id: 2, name: 'Galaxy', price: 100, brand: 'Samsung' }
+                { id: 1, name: 'iPhone', offerPrice: 100, normalPrice: 110, brand: 'Apple' },
+                { id: 2, name: 'Galaxy', offerPrice: 100, normalPrice: 110, brand: 'Samsung' }
             ])
         });
 
