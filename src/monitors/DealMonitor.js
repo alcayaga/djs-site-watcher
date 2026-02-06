@@ -1,8 +1,9 @@
 const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const config = require('../config');
+const got = require('got');
 const { formatCLP, sanitizeLinkText, formatDiscordTimestamp } = require('../utils/formatters');
-const { getProductUrl, getProductHistory, getBestPictureUrl } = require('../utils/solotodo');
+const { getProductUrl, getProductHistory, getBestPictureUrl, getAvailableEntities, getStores } = require('../utils/solotodo');
 const { sleep } = require('../utils/helpers');
 
 /**
@@ -10,6 +11,47 @@ const { sleep } = require('../utils/helpers');
  * Tracks price history and alerts when a product reaches its historic minimum price.
  */
 class DealMonitor extends Monitor {
+    /**
+     * Creates an instance of DealMonitor.
+     * @param {string} name The name of the monitor.
+     * @param {object} monitorConfig The configuration object.
+     */
+    constructor(name, monitorConfig) {
+        super(name, monitorConfig);
+        // Custom interval for DealMonitor: run once per hour (0 0 * * * *)
+        // or as specified in config.
+        if (!this.config.interval) {
+            this.config.interval = '0 0 * * * *';
+        }
+        this.setInterval(this.config.interval);
+    }
+
+    /**
+     * Fetches the data from the monitor's URL(s).
+     * Supports multiple URLs and appends exclude_refurbished=true.
+     * @returns {Promise<string>} The fetched data as a JSON string.
+     */
+    async fetch() {
+        const urls = Array.isArray(this.config.url) ? this.config.url : [this.config.url];
+        const allResults = [];
+
+        for (const baseUrl of urls) {
+            try {
+                const url = new URL(baseUrl);
+                url.searchParams.set('exclude_refurbished', 'true');
+                
+                const response = await got(url.toString());
+                const body = JSON.parse(response.body);
+                if (body.results) {
+                    allResults.push(...body.results);
+                }
+            } catch (e) {
+                console.error(`Error fetching from Solotodo URL ${baseUrl}:`, e);
+            }
+        }
+
+        return JSON.stringify({ results: allResults });
+    }
     /**
      * Parses the Solotodo API response.
      * @param {string} data The JSON string from the API.
@@ -48,17 +90,16 @@ class DealMonitor extends Monitor {
     }
 
     /**
-     * Internal helper to check for price updates and trigger notifications.
+     * Internal helper to check for price updates and determine notification type.
      * @private
      * @param {object} product The product object.
      * @param {string} now The current timestamp.
-     * @param {number} currentPrice The current price value.
+     * @param {number} currentPrice The current price.
      * @param {object} stored The stored state for this product.
-     * @param {string} priceType The type of price being checked ('Offer' or 'Normal').
-     * @returns {Promise<boolean>} True if the product state has changed.
+     * @param {string} priceType Either 'Offer' or 'Normal'.
+     * @returns {Promise<string|null>} The notification type if a trigger occurred, or 'CHANGED' if just price changed, or null.
      */
     async _checkPriceUpdate(product, now, currentPrice, stored, priceType) {
-        let changed = false;
         const minPriceKey = `min${priceType}Price`;
         const minDateKey = `min${priceType}Date`;
         const lastPriceKey = `last${priceType}Price`;
@@ -68,17 +109,15 @@ class DealMonitor extends Monitor {
             stored[minPriceKey] = currentPrice;
             stored[minDateKey] = now;
             stored[lastPriceKey] = currentPrice;
-            await this.notify({ product, type: `NEW_LOW_${notificationType}`, date: now });
-            changed = true;
+            return `NEW_LOW_${notificationType}`;
         } else if (currentPrice === stored[minPriceKey] && stored[lastPriceKey] > stored[minPriceKey]) {
             stored[lastPriceKey] = currentPrice;
-            await this.notify({ product, type: `BACK_TO_LOW_${notificationType}`, date: stored[minDateKey] });
-            changed = true;
+            return `BACK_TO_LOW_${notificationType}`;
         } else if (currentPrice !== stored[lastPriceKey]) {
             stored[lastPriceKey] = currentPrice;
-            changed = true;
+            return 'CHANGED';
         }
-        return changed;
+        return null;
     }
 
     /**
@@ -154,10 +193,17 @@ class DealMonitor extends Monitor {
                 const currentNormal = product.normalPrice;
                 const now = new Date().toISOString();
                 
-                let productChanged = false;
+                const offerTrigger = await this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer');
+                const normalTrigger = await this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal');
 
-                productChanged = await this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer') || productChanged;
-                productChanged = await this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal') || productChanged;
+                let productChanged = !!(offerTrigger || normalTrigger);
+
+                if (offerTrigger || normalTrigger) {
+                    const triggers = [offerTrigger, normalTrigger].filter(t => t && t !== 'CHANGED');
+                    if (triggers.length > 0) {
+                        await this.notify({ product, triggers, date: now, stored });
+                    }
+                }
 
                 if (stored.name !== product.name) {
                     stored.name = product.name;
@@ -192,25 +238,56 @@ class DealMonitor extends Monitor {
      * @param {object} change The change details.
      */
     async notify(change) {
-        const { product, type, date } = change;
+        const { product, triggers, date, stored } = change;
         const channel = this.getNotificationChannel();
         if (!channel) return;
 
+        const entities = await getAvailableEntities(product.id);
+        const storeMap = await getStores();
+        
         const productUrl = getProductUrl(product);
         const sanitizedName = sanitizeLinkText(product.name);
-        const pictureUrl = await getBestPictureUrl(product);
+        const pictureUrl = await getBestPictureUrl(product, entities);
 
-        const notificationConfig = {
-            'NEW_LOW_OFFER': { title: `📉 ¡Nuevo mínimo histórico (Precio Tarjeta): ${sanitizedName}!`, color: 0x2ecc71 },
-            'BACK_TO_LOW_OFFER': { title: `🔄 ¡De nuevo a precio mínimo (Precio Tarjeta): ${sanitizedName}!`, showDate: true },
-            'NEW_LOW_NORMAL': { title: `📉 ¡Nuevo mínimo histórico (Cualquier medio): ${sanitizedName}!`, color: 0x27ae60 },
-            'BACK_TO_LOW_NORMAL': { title: `🔄 ¡De nuevo a precio mínimo (Cualquier medio): ${sanitizedName}!`, showDate: true }
-        };
+        // Determine if both are new lows or back to lows
+        const bothNewLow = triggers.includes('NEW_LOW_OFFER') && triggers.includes('NEW_LOW_NORMAL');
+        const bothBackToLow = triggers.includes('BACK_TO_LOW_OFFER') && triggers.includes('BACK_TO_LOW_NORMAL');
+        
+        let title = '';
+        let color = 0x3498db;
+        let showDate = false;
+        let triggerDate = date;
 
-        const details = notificationConfig[type];
-        const title = details?.title || '';
-        const color = details?.color || 0x3498db;
-        const showDate = details?.showDate || false;
+        if (bothNewLow) {
+            title = `📉 ¡Nuevos mínimos históricos!: ${sanitizedName}`;
+            color = 0x2ecc71;
+        } else if (bothBackToLow) {
+            title = `🔄 ¡De nuevo a precios mínimos!: ${sanitizedName}`;
+            showDate = true;
+            triggerDate = stored.minOfferDate; // Use one of them
+        } else {
+            // Individual triggers
+            const type = triggers[0];
+            const notificationConfig = {
+                'NEW_LOW_OFFER': { title: `📉 ¡Nuevo mínimo histórico (Precio Tarjeta): ${sanitizedName}!`, color: 0x2ecc71 },
+                'BACK_TO_LOW_OFFER': { title: `🔄 ¡De nuevo a precio mínimo (Precio Tarjeta): ${sanitizedName}!`, showDate: true, date: stored.minOfferDate },
+                'NEW_LOW_NORMAL': { title: `📉 ¡Nuevo mínimo histórico (Cualquier medio): ${sanitizedName}!`, color: 0x27ae60 },
+                'BACK_TO_LOW_NORMAL': { title: `🔄 ¡De nuevo a precio mínimo (Cualquier medio): ${sanitizedName}!`, showDate: true, date: stored.minNormalDate }
+            };
+            const details = notificationConfig[type];
+            title = details?.title || '';
+            color = details?.color || 0x3498db;
+            showDate = details?.showDate || false;
+            if (details?.date) triggerDate = details.date;
+        }
+
+        // Find the best entity for a direct link
+        let bestEntity = null;
+        if (triggers.some(t => t.includes('OFFER'))) {
+            bestEntity = entities.sort((a, b) => parseFloat(a.active_registry.offer_price) - parseFloat(b.active_registry.offer_price))[0];
+        } else {
+            bestEntity = entities.sort((a, b) => parseFloat(a.active_registry.normal_price) - parseFloat(b.active_registry.normal_price))[0];
+        }
 
         const embed = new Discord.EmbedBuilder()
             .setTitle(title)
@@ -222,8 +299,13 @@ class DealMonitor extends Monitor {
             .setColor(color)
             .setTimestamp();
 
-        if (showDate && date) {
-            embed.addFields([{ name: '🕒 Visto por última vez', value: formatDiscordTimestamp(date), inline: false }]);
+        if (bestEntity) {
+            const storeName = storeMap.get(bestEntity.store) || 'Tienda';
+            embed.addFields([{ name: `🛒 Ver en ${storeName}`, value: `[Ir a la tienda](${bestEntity.external_url})`, inline: false }]);
+        }
+
+        if (showDate && triggerDate) {
+            embed.addFields([{ name: '🕒 Visto por última vez', value: formatDiscordTimestamp(triggerDate), inline: false }]);
         }
 
         if (pictureUrl) {

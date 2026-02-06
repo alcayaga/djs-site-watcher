@@ -55,12 +55,17 @@ class MonitorManager {
     }
 
     /**
-     * Sets the cron interval for all managed monitors.
+     * Sets the cron interval for all managed monitors that don't have a custom interval.
      * @param {number} minutes The interval in minutes.
      */
     setAllIntervals(minutes) {
         const cronTime = minutes < 60 ? `0 */${minutes} * * * *` : `0 0 * * * *`;
-        this.monitors.forEach(monitor => monitor.setInterval(cronTime));
+        this.monitors.forEach(monitor => {
+            // Only override if the monitor doesn't have a specific interval in its config
+            if (!monitor.config?.interval) {
+                monitor.setInterval(cronTime);
+            }
+        });
     }
 
     /**

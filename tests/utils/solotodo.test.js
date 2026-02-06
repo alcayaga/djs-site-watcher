@@ -1,4 +1,4 @@
-const { extractQuery, searchSolotodo, searchByUrl, getAvailableEntities, getStores, getProductHistory } = require('../../src/utils/solotodo');
+const { extractQuery, searchSolotodo, searchByUrl, getAvailableEntities, getStores, getProductHistory, getBestPictureUrl } = require('../../src/utils/solotodo');
 const got = require('got');
 
 jest.mock('got');
@@ -164,5 +164,49 @@ describe('Solotodo Utils - API functions', () => {
         const result = await getProductHistory(123);
         expect(result).toHaveLength(1);
         expect(got).toHaveBeenCalledWith(expect.stringContaining('products/123/pricing_history/'), expect.any(Object));
+    });
+
+    describe('getBestPictureUrl', () => {
+        it('should return current URL if it is valid', async () => {
+            const product = { pictureUrl: 'https://media.solotodo.com/pic.png' };
+            const result = await getBestPictureUrl(product);
+            expect(result).toBe('https://media.solotodo.com/pic.png');
+        });
+
+        it('should exclude tienda.travel.cl images and look into entities', async () => {
+            const product = { id: 1, pictureUrl: 'https://tienda.travel.cl/pic.jpg' };
+            const entities = [
+                { picture_urls: ['https://tienda.travel.cl/another.jpg'] },
+                { picture_urls: ['https://ripley.cl/good.png'] }
+            ];
+            
+            const result = await getBestPictureUrl(product, entities);
+            expect(result).toBe('https://ripley.cl/good.png');
+        });
+
+        it('should fetch entities if not provided and current URL is invalid', async () => {
+            const product = { id: 1, pictureUrl: 'invalid-url' };
+            got.mockResolvedValueOnce({
+                body: {
+                    results: [{
+                        entities: [{ picture_urls: ['https://ripley.cl/good.png'] }]
+                    }]
+                }
+            });
+            
+            const result = await getBestPictureUrl(product);
+            expect(result).toBe('https://ripley.cl/good.png');
+            expect(got).toHaveBeenCalledWith(expect.stringContaining('available_entities'), expect.any(Object));
+        });
+
+        it('should return null if no valid image is found anywhere', async () => {
+            const product = { id: 1, pictureUrl: 'https://tienda.travel.cl/pic.jpg' };
+            const entities = [
+                { picture_urls: ['https://tienda.travel.cl/another.jpg'] }
+            ];
+            
+            const result = await getBestPictureUrl(product, entities);
+            expect(result).toBeNull();
+        });
     });
 });

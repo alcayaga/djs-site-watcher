@@ -61,7 +61,11 @@ if (!config.monitors) {
         {
             name: 'Deal',
             enabled: true,
-            url: 'https://publicapi.solotodo.com/categories/50/browse/',
+            url: [
+                'https://publicapi.solotodo.com/categories/50/browse/?brands=756403&brands=769114',
+                'https://publicapi.solotodo.com/categories/6/browse/?brands=149039&',
+                'https://publicapi.solotodo.com/categories/25/browse/?brands=944507'
+            ],
             file: './config/deals.json',
         },
         {

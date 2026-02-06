@@ -244,4 +244,44 @@ describe('DealMonitor', () => {
         expect(monitor.state['1']).toBeDefined();
         expect(monitor.state['2']).toBeUndefined();
     });
+
+    it('should show only one alert if both prices reach new low', async () => {
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 500000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                lastOfferPrice: 500000, 
+                minNormalPrice: 600000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                lastNormalPrice: 600000 
+            }
+        };
+
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 450000, normalPrice: 550000 }])
+        });
+
+        await monitor.check();
+
+        expect(mockChannel.send).toHaveBeenCalledTimes(1);
+        const sendCall = mockChannel.send.mock.calls[0][0];
+        const embed = sendCall.embeds[0];
+        expect(embed.data.title).toContain('¡Nuevos mínimos históricos!');
+    });
+
+    it('should support multiple URLs and combine results', async () => {
+        monitor.config.url = ['https://api1.com', 'https://api2.com'];
+        
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone 1', offerPrice: 100, normalPrice: 110 }])
+        }).mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 2, name: 'iPhone 2', offerPrice: 200, normalPrice: 210 }])
+        });
+
+        await monitor.check();
+
+        expect(got).toHaveBeenCalledTimes(2);
+        expect(got.mock.calls[0][0]).toContain('exclude_refurbished=true');
+        expect(monitor.state['1']).toBeDefined();
+        expect(monitor.state['2']).toBeDefined();
+    });
 });
