@@ -29,13 +29,15 @@ class DealMonitor extends Monitor {
     /**
      * Fetches the data from the monitor's URL(s).
      * Supports multiple URLs and appends exclude_refurbished=true.
+     * Fetches are performed sequentially with a delay between them.
      * @returns {Promise<string>} The fetched data as a JSON string.
      */
     async fetch() {
         const urls = Array.isArray(this.config.url) ? this.config.url : [this.config.url];
         const allResults = [];
 
-        for (const baseUrl of urls) {
+        for (let i = 0; i < urls.length; i++) {
+            const baseUrl = urls[i];
             try {
                 const url = new URL(baseUrl);
                 url.searchParams.set('exclude_refurbished', 'true');
@@ -47,6 +49,11 @@ class DealMonitor extends Monitor {
                 }
             } catch (e) {
                 console.error(`Error fetching from Solotodo URL ${baseUrl}:`, e);
+            }
+
+            // Wait 5 seconds between requests, but not after the last one
+            if (i < urls.length - 1) {
+                await sleep(5000);
             }
         }
 
@@ -293,9 +300,9 @@ class DealMonitor extends Monitor {
         // Find the best entity for a direct link
         let bestEntity = null;
         if (triggers.some(t => t.includes('OFFER'))) {
-            bestEntity = entities.sort((a, b) => parseFloat(a.active_registry.offer_price) - parseFloat(b.active_registry.offer_price))[0];
+            bestEntity = [...entities].sort((a, b) => parseFloat(a.active_registry.offer_price) - parseFloat(b.active_registry.offer_price))[0];
         } else {
-            bestEntity = entities.sort((a, b) => parseFloat(a.active_registry.normal_price) - parseFloat(b.active_registry.normal_price))[0];
+            bestEntity = [...entities].sort((a, b) => parseFloat(a.active_registry.normal_price) - parseFloat(b.active_registry.normal_price))[0];
         }
 
         const embed = new Discord.EmbedBuilder()

@@ -283,5 +283,5 @@ describe('DealMonitor', () => {
         expect(got.mock.calls[0][0]).toContain('exclude_refurbished=true');
         expect(monitor.state['1']).toBeDefined();
         expect(monitor.state['2']).toBeDefined();
-    });
+    }, 15000);
 });
