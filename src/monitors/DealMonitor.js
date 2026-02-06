@@ -299,10 +299,11 @@ class DealMonitor extends Monitor {
 
         // Find the best entity for a direct link
         let bestEntity = null;
-        if (triggers.some(t => t.includes('OFFER'))) {
-            bestEntity = [...entities].sort((a, b) => parseFloat(a.active_registry.offer_price) - parseFloat(b.active_registry.offer_price))[0];
-        } else {
-            bestEntity = [...entities].sort((a, b) => parseFloat(a.active_registry.normal_price) - parseFloat(b.active_registry.normal_price))[0];
+        if (entities?.length > 0) {
+            const priceKey = triggers.some(t => t.includes('OFFER')) ? 'offer_price' : 'normal_price';
+            bestEntity = entities.reduce((min, p) => 
+                parseFloat(p.active_registry[priceKey]) < parseFloat(min.active_registry[priceKey]) ? p : min
+            );
         }
 
         const embed = new Discord.EmbedBuilder()
