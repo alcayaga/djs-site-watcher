@@ -79,10 +79,16 @@ class DealMonitor extends Monitor {
                         return null;
                     }
 
+                    // Extract brand - can be at specs.brand_brand_unicode or specs.brand_unicode depending on category
+                    const brand = product.specs.brand_brand_unicode || 
+                                  product.specs.brand_brand_name || 
+                                  product.specs.brand_unicode || 
+                                  product.specs.brand_name;
+
                     return {
                         id: product.id,
                         name: product.name,
-                        brand: product.specs.brand_brand_unicode || product.specs.brand_brand_name,
+                        brand: brand,
                         slug: product.slug,
                         pictureUrl: product.picture_url,
                         offerPrice: parseFloat(prices.offer_price),
@@ -301,9 +307,14 @@ class DealMonitor extends Monitor {
         let bestEntity = null;
         if (entities?.length > 0) {
             const priceKey = triggers.some(t => t.includes('OFFER')) ? 'offer_price' : 'normal_price';
-            bestEntity = entities.reduce((min, p) => 
-                parseFloat(p.active_registry[priceKey]) < parseFloat(min.active_registry[priceKey]) ? p : min
-            );
+            let minPrice = Infinity;
+            for (const entity of entities) {
+                const price = parseFloat(entity.active_registry?.[priceKey]);
+                if (!isNaN(price) && price < minPrice) {
+                    minPrice = price;
+                    bestEntity = entity;
+                }
+            }
         }
 
         const embed = new Discord.EmbedBuilder()
@@ -316,9 +327,10 @@ class DealMonitor extends Monitor {
             .setColor(color)
             .setTimestamp();
 
-        if (bestEntity) {
+        if (bestEntity && bestEntity.external_url) {
             const storeName = storeMap.get(bestEntity.store) || 'Tienda';
-            embed.addFields([{ name: `🛒 Ver en ${storeName}`, value: `[Ir a la tienda](${bestEntity.external_url})`, inline: false }]);
+            const safeUrl = bestEntity.external_url.replace(/\)/g, '%29');
+            embed.addFields([{ name: `🛒 Ver en ${storeName}`, value: `[Ir a la tienda](${safeUrl})`, inline: false }]);
         }
 
         if (showDate && triggerDate) {

@@ -245,6 +245,39 @@ describe('DealMonitor', () => {
         expect(monitor.state['2']).toBeUndefined();
     });
 
+    it('should correctly parse products with alternative brand specs (e.g. HomePod Mini)', async () => {
+        monitor.state = {};
+        
+        const homePodData = JSON.stringify({
+            results: [{
+                product_entries: [{
+                    product: {
+                        id: 154867,
+                        name: "Apple HomePod Mini",
+                        slug: "apple-homepod-mini",
+                        picture_url: "pic.jpg",
+                        specs: {
+                            brand_unicode: "Apple"
+                        }
+                    },
+                    metadata: {
+                        prices_per_currency: [{
+                            offer_price: "99990",
+                            normal_price: "109990"
+                        }]
+                    }
+                }]
+            }]
+        });
+
+        got.mockResolvedValue({ body: homePodData });
+
+        await monitor.check();
+
+        expect(monitor.state['154867']).toBeDefined();
+        expect(monitor.state['154867'].name).toBe("Apple HomePod Mini");
+    });
+
     it('should show only one alert if both prices reach new low', async () => {
         monitor.state = {
             '1': { 
