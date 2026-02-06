@@ -1,4 +1,4 @@
-const { ThreadAutoArchiveDuration, EmbedBuilder } = require('discord.js');
+const { ThreadAutoArchiveDuration, EmbedBuilder, RESTJSONErrorCodes } = require('discord.js');
 const ChannelHandler = require('../ChannelHandler');
 const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl, getAvailableEntities, getStores } = require('../utils/solotodo');
 const { sanitizeLinkText, formatCLP, sanitizeMarkdown } = require('../utils/formatters');
@@ -14,10 +14,28 @@ class DealsChannel extends ChannelHandler {
      */
     async process(message) {
         const urlMatch = message.content.match(/https?:\/\/[^\s]+/);
-        const hasLink = !!urlMatch;
+        let hasValidLink = false;
+        let validatedUrl = null;
+
+        if (urlMatch) {
+            try {
+                const potentialUrl = new URL(urlMatch[0]);
+                // Ensure it has a TLD-like structure (at least one dot)
+                // We also check that the dot is not at the start or end of the hostname
+                const hostname = potentialUrl.hostname;
+                if (hostname.includes('.') && !hostname.startsWith('.') && !hostname.endsWith('.')) {
+                    hasValidLink = true;
+                    validatedUrl = potentialUrl.href;
+                }
+            } catch (e) {
+                hasValidLink = false;
+                console.warn(`Failed to parse URL "${urlMatch[0]}":`, e.message);
+            }
+        }
+
         const hasAttachment = message.attachments.size > 0;
 
-        if (hasLink || hasAttachment) {
+        if (hasValidLink || hasAttachment) {
             // It's a deal, create a thread for discussion.
             let thread;
             try {
@@ -36,8 +54,8 @@ class DealsChannel extends ChannelHandler {
                 let product = null;
                 
                 // 1. Try exact URL match first
-                if (urlMatch) {
-                    product = await searchByUrl(urlMatch[0]);
+                if (validatedUrl) {
+                    product = await searchByUrl(validatedUrl);
                 }
 
                 // 2. If no exact match, try text query
@@ -64,7 +82,7 @@ class DealsChannel extends ChannelHandler {
                         embed.setThumbnail(product.picture_url);
                     }
 
-                    // New: Fetch prices from top 3 sellers
+                    // Fetch prices from top 3 sellers
                     try {
                         const [entities, storeMap] = await Promise.all([
                             getAvailableEntities(product.id),
@@ -120,7 +138,14 @@ class DealsChannel extends ChannelHandler {
             await message.delete();
         } catch (deleteError) {
             console.error('Error deleting message in DealsChannel handler:', deleteError);
-            // If deletion fails, we return early as we can't notify for a message that wasn't removed.
+            // If deletion fails, notify the channel about missing permissions
+            if (deleteError.code === RESTJSONErrorCodes.MissingPermissions) { // Missing Permissions
+                try {
+                    await message.reply('⚠️ No tengo permisos para moderar este canal. Por favor, asegúrate de que tenga el permiso "Gestionar mensajes".');
+                } catch (replyError) {
+                    console.error('Could not send permission warning to channel:', replyError);
+                }
+            }
             return true;
         }
 

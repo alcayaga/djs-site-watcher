@@ -1,6 +1,22 @@
-const { ThreadAutoArchiveDuration } = require('discord.js');
+const { ThreadAutoArchiveDuration, RESTJSONErrorCodes: _RESTJSONErrorCodes } = require('discord.js');
 const DealsChannel = require('../../src/channels/deals.js');
 const solotodo = require('../../src/utils/solotodo');
+
+jest.mock('discord.js', () => {
+    return {
+        ThreadAutoArchiveDuration: { OneWeek: 60 * 24 * 7 },
+        EmbedBuilder: jest.fn().mockImplementation(() => ({
+            setTitle: jest.fn().mockReturnThis(),
+            setURL: jest.fn().mockReturnThis(),
+            setDescription: jest.fn().mockReturnThis(),
+            setColor: jest.fn().mockReturnThis(),
+            setTimestamp: jest.fn().mockReturnThis(),
+            setThumbnail: jest.fn().mockReturnThis(),
+            addFields: jest.fn().mockReturnThis(),
+        })),
+        RESTJSONErrorCodes: { MissingPermissions: 50013 }
+    };
+});
 
 jest.mock('../../src/utils/solotodo');
 
@@ -147,5 +163,16 @@ describe('DealsChannel', () => {
         const thread = await mockMessage.startThread.mock.results[0].value;
         const embed = thread.send.mock.calls[0][0].embeds[0];
         expect(embed.setThumbnail).toHaveBeenCalledWith('https://media.solotodo.com/picture.png');
+    });
+
+    it('should notify channel if message deletion fails due to permissions', async () => {
+        const error = new Error('Missing Permissions');
+        error.code = 50013;
+        mockMessage.delete.mockRejectedValue(error);
+        mockMessage.reply = jest.fn().mockResolvedValue({});
+        
+        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        expect(handled).toBe(true);
+        expect(mockMessage.reply).toHaveBeenCalledWith(expect.stringContaining('No tengo permisos'));
     });
 });
