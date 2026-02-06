@@ -308,8 +308,8 @@ class DealMonitor extends Monitor {
             const notificationConfig = {
                 'NEW_LOW_OFFER': { title: `📉 ${sanitizedName} con nuevo mínimo histórico (con Tarjeta)`, color: 0x2ecc71 },
                 'BACK_TO_LOW_OFFER': { title: `🔄 ${sanitizedName} volvió al mínimo histórico (con Tarjeta)`, showDate: true, date: stored?.minOfferDate },
-                'NEW_LOW_NORMAL': { title: `📉 ${sanitizedName} con nuevo mínimo histórico (todo medio de pago): !`, color: 0x27ae60 },
-                'BACK_TO_LOW_NORMAL': { title: `🔄 ${sanitizedName} volvió al mínimo histórico (todo medio de pago): !`, showDate: true, date: stored?.minNormalDate }
+                'NEW_LOW_NORMAL': { title: `📉 ${sanitizedName} con nuevo mínimo histórico (todo medio de pago)`, color: 0x27ae60 },
+                'BACK_TO_LOW_NORMAL': { title: `🔄 ${sanitizedName} volvió al mínimo histórico (todo medio de pago)`, showDate: true, date: stored?.minNormalDate }
             };
             const details = notificationConfig[type];
             title = details?.title || '';
