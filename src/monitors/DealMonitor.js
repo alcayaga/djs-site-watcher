@@ -50,6 +50,12 @@ class DealMonitor extends Monitor {
     /**
      * Internal helper to check for price updates and trigger notifications.
      * @private
+     * @param {object} product The product object.
+     * @param {string} now The current timestamp.
+     * @param {number} currentPrice The current price value.
+     * @param {object} stored The stored state for this product.
+     * @param {string} priceType The type of price being checked ('Offer' or 'Normal').
+     * @returns {Promise<boolean>} True if the product state has changed.
      */
     async _checkPriceUpdate(product, now, currentPrice, stored, priceType) {
         let changed = false;
@@ -224,7 +230,27 @@ class DealMonitor extends Monitor {
             embed.setThumbnail(pictureUrl);
         }
 
-        await channel.send({ embeds: [embed] });
+        const message = await channel.send({ embeds: [embed] });
+
+        // Create a thread for discussion if supported (e.g., text channels in real runs)
+        if (message && typeof message.startThread === 'function') {
+            try {
+                let threadName = sanitizedName;
+                if (threadName.length > 100) {
+                    // Truncate at the last word boundary to avoid cutting words, and add an ellipsis.
+                    const lastSpaceIndex = threadName.substring(0, 100).lastIndexOf(' ');
+                    const truncationPoint = lastSpaceIndex > 0 ? lastSpaceIndex : 97;
+                    threadName = `${threadName.substring(0, truncationPoint)}...`;
+                }
+
+                await message.startThread({
+                    name: threadName.trim() || 'Discusión de la oferta',
+                    autoArchiveDuration: Discord.ThreadAutoArchiveDuration.OneWeek,
+                });
+            } catch (threadError) {
+                console.error(`Error creating thread for deal ${product.id}:`, threadError);
+            }
+        }
     }
 }
 

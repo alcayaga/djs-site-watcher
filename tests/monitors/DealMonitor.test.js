@@ -2,6 +2,7 @@ const DealMonitor = require('../../src/monitors/DealMonitor');
 const storage = require('../../src/storage');
 const got = require('got');
 const solotodo = require('../../src/utils/solotodo');
+const { ThreadAutoArchiveDuration } = require('discord.js');
 
 jest.mock('../../src/storage');
 jest.mock('../../src/config', () => ({
@@ -21,12 +22,17 @@ describe('DealMonitor', () => {
     let monitor;
     let mockChannel;
     let mockClient;
+    let mockMessage;
 
     beforeEach(() => {
         jest.clearAllMocks();
         
+        mockMessage = {
+            startThread: jest.fn().mockResolvedValue({})
+        };
+
         mockChannel = {
-            send: jest.fn().mockResolvedValue({})
+            send: jest.fn().mockResolvedValue(mockMessage)
         };
 
         mockClient = {
@@ -94,12 +100,39 @@ describe('DealMonitor', () => {
         await monitor.check();
 
         expect(mockChannel.send).toHaveBeenCalled();
+        expect(mockMessage.startThread).toHaveBeenCalledWith({
+            name: 'iPhone',
+            autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek
+        });
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
         expect(embed.data.title).toContain('Nuevo mínimo histórico (Precio Tarjeta)');
         
         expect(monitor.state['1'].minOfferPrice).toBe(450000);
         expect(monitor.state['1'].minOfferDate).not.toBe('2025-01-01T00:00:00.000Z');
+    });
+
+    it('should truncate long product names for thread titles at word boundary', async () => {
+        const longName = 'This is a very long product name that will definitely exceed the one hundred characters limit to test truncation logic correctly';
+        // length is ~130
+        
+        const product = {
+            id: 1,
+            name: longName,
+            offerPrice: 100,
+            normalPrice: 200
+        };
+
+        await monitor.notify({ product, type: 'NEW_LOW_OFFER' });
+
+        expect(mockMessage.startThread).toHaveBeenCalled();
+        const threadCall = mockMessage.startThread.mock.calls[0][0];
+        
+        // "This is a very long product name that will definitely exceed the one hundred characters limit to" is 96 chars
+        // The word "test" starts at index 97.
+        // lastSpaceIndex before 100 is at 96.
+        expect(threadCall.name).toBe('This is a very long product name that will definitely exceed the one hundred characters limit to...');
+        expect(threadCall.name.length).toBeLessThanOrEqual(100);
     });
 
     it('should detect a new historic low for normal price and alert', async () => {
