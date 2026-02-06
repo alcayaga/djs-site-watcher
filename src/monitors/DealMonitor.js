@@ -6,6 +6,8 @@ const { formatCLP, sanitizeLinkText, formatDiscordTimestamp } = require('../util
 const { getProductUrl, getProductHistory, getBestPictureUrl, getAvailableEntities, getStores } = require('../utils/solotodo');
 const { sleep } = require('../utils/helpers');
 
+const MIN_SANITY_PRICE = 1000; // Anything below 1,000 CLP is likely an error for Apple products in these categories
+
 /**
  * Monitor for Solotodo deals on Apple products.
  * Tracks price history and alerts when a product reaches its historic minimum price.
@@ -73,7 +75,11 @@ class DealMonitor extends Monitor {
                 .map(result => {
                     const entry = result.product_entries?.[0];
                     const product = entry?.product;
-                    const prices = entry?.metadata?.prices_per_currency?.[0];
+                    
+                    // Find the CLP (Currency 1) price in the metadata
+                    const prices = entry?.metadata?.prices_per_currency?.find(p => 
+                        p.currency === 'https://publicapi.solotodo.com/currencies/1/'
+                    );
 
                     if (!product || !prices) {
                         return null;
@@ -95,7 +101,7 @@ class DealMonitor extends Monitor {
                         normalPrice: parseFloat(prices.normal_price)
                     };
                 })
-                .filter(p => p && p.brand === 'Apple');
+                .filter(p => p && p.brand === 'Apple' && p.offerPrice >= MIN_SANITY_PRICE && p.normalPrice >= MIN_SANITY_PRICE);
         } catch (e) {
             console.error('Error parsing Solotodo data in DealMonitor:', e);
             return [];
@@ -165,16 +171,21 @@ class DealMonitor extends Monitor {
                         try {
                             const history = await getProductHistory(productId);
                             for (const entity of history) {
+                                // Only backfill history from CLP (Currency 1) entities
+                                if (entity.entity?.currency !== 'https://publicapi.solotodo.com/currencies/1/') {
+                                    continue;
+                                }
+
                                 for (const record of entity.pricing_history) {
                                     if (!record.is_available) continue;
                                     const offer = parseFloat(record.offer_price);
                                     const normal = parseFloat(record.normal_price);
                                     
-                                    if (offer < minOffer) {
+                                    if (offer >= MIN_SANITY_PRICE && offer < minOffer) {
                                         minOffer = offer;
                                         minOfferDate = record.timestamp;
                                     }
-                                    if (normal < minNormal) {
+                                    if (normal >= MIN_SANITY_PRICE && normal < minNormal) {
                                         minNormal = normal;
                                         minNormalDate = record.timestamp;
                                     }
@@ -303,19 +314,24 @@ class DealMonitor extends Monitor {
             if (details?.date) triggerDate = details.date;
         }
 
-        // Find the best entity for a direct link
+        // Find the best entity for a direct link (excluding mobile plans)
         let bestEntity = null;
         if (entities?.length > 0) {
             const priceKey = triggers.some(t => t.includes('OFFER')) ? 'offer_price' : 'normal_price';
             let minPrice = Infinity;
             for (const entity of entities) {
                 const price = parseFloat(entity.active_registry?.[priceKey]);
-                if (!isNaN(price) && price < minPrice) {
+                const isPlan = entity.active_registry?.cell_monthly_payment !== null;
+                if (!isPlan && !isNaN(price) && price < minPrice) {
                     minPrice = price;
                     bestEntity = entity;
                 }
             }
         }
+
+        // If no valid non-plan entity is found, we skip the notification as the price 
+        // drop is likely only available with a mobile plan or is an error.
+        if (!bestEntity) return;
 
         const embed = new Discord.EmbedBuilder()
             .setTitle(title)
@@ -327,7 +343,7 @@ class DealMonitor extends Monitor {
             .setColor(color)
             .setTimestamp();
 
-        if (bestEntity && bestEntity.external_url) {
+        if (bestEntity.external_url) {
             const storeName = storeMap.get(bestEntity.store) || 'Tienda';
             const safeUrl = bestEntity.external_url.replace(/\)/g, '%29');
             embed.addFields([{ name: `🛒 Ver en ${storeName}`, value: `[Ir a la tienda](${safeUrl})`, inline: false }]);
