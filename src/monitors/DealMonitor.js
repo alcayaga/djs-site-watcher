@@ -235,8 +235,16 @@ class DealMonitor extends Monitor {
         // Create a thread for discussion if supported (e.g., text channels in real runs)
         if (message && typeof message.startThread === 'function') {
             try {
+                let threadName = sanitizedName;
+                if (threadName.length > 100) {
+                    // Truncate at the last word boundary to avoid cutting words, and add an ellipsis.
+                    const lastSpaceIndex = threadName.substring(0, 100).lastIndexOf(' ');
+                    const truncationPoint = lastSpaceIndex > 0 ? lastSpaceIndex : 97;
+                    threadName = `${threadName.substring(0, truncationPoint)}...`;
+                }
+
                 await message.startThread({
-                    name: sanitizedName.substring(0, 100).trim() || 'Discusión de la oferta',
+                    name: threadName.trim() || 'Discusión de la oferta',
                     autoArchiveDuration: Discord.ThreadAutoArchiveDuration.OneWeek,
                 });
             } catch (threadError) {
