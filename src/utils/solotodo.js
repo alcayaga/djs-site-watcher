@@ -259,7 +259,7 @@ async function getBestPictureUrl(product, entities = null) {
         // Try to find an image from available entities
         const availableEntities = entities || await getAvailableEntities(product.id);
         for (const entity of availableEntities) {
-            if (entity.picture_urls && entity.picture_urls.length > 0) {
+            if (entity.picture_urls && Array.isArray(entity.picture_urls) && entity.picture_urls.length > 0) {
                 const entityUrl = entity.picture_urls[0];
                 if (!isInvalid(entityUrl)) {
                     return entityUrl;
