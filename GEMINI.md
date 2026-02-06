@@ -50,7 +50,7 @@
 ### Phase 3: Committing Standards
 * **Atomic Commits:** Adhere to the "One Idea = One Commit" rule. Isolate features, bug fixes, and refactors.
 * **Message Formatting:**
-    * **NO** backticks (`) or quotes ("") around filenames or code symbols in the commit message.
+    * **Escape Backticks:** You **MUST** escape backticks (e.g., `\`filename\``) when using `run_shell_command`. Failing to do so will break the shell command execution.
     * Use standard conventional commits format (e.g., `feat:`, `fix:`, `refactor:`).
 
 ### Phase 4: PR Cycle & CI/CD Loop
@@ -67,11 +67,12 @@ Once the work is committed, follow this EXACT cycle. Repeat this loop for every 
     * **Check Status:** AFTER sleeping, run `gh pr checks <PR-NUMBER>` to verify all tests passed.
     * **If checks fail:** Fix them (Go back to Phase 2) before asking for a review.
 
-3.  **Fetch Unresolved Reviews:**
+3.  **Fetch Unresolved Reviews (Including Outdated):**
     * Run exactly:
         ```bash
         gh pr-review review view <PR-NUMBER> -R alcayaga/djs-site-watcher --unresolved --reviewer gemini-code-assist
         ```
+    * **Note:** We removed `--not_outdated` because you must resolve ALL reviews, even if the code lines have changed (outdated).
     * **Logic Check:** If the JSON output shows reviews but the `comments` array inside them is empty (or missing), this implies **NO unresolved threads**. You may skip to Step 5.
 
 4.  **Handle Feedback (Iterate):**
