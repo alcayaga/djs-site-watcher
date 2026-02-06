@@ -116,9 +116,9 @@ class DealMonitor extends Monitor {
      * @param {number} currentPrice The current price.
      * @param {object} stored The stored state for this product.
      * @param {string} priceType Either 'Offer' or 'Normal'.
-     * @returns {Promise<string|null>} The notification type if a trigger occurred, or 'CHANGED' if just price changed, or null.
+     * @returns {string|null} The notification type if a trigger occurred, or 'CHANGED' if just price changed, or null.
      */
-    async _checkPriceUpdate(product, now, currentPrice, stored, priceType) {
+    _checkPriceUpdate(product, now, currentPrice, stored, priceType) {
         const minPriceKey = `min${priceType}Price`;
         const minDateKey = `min${priceType}Date`;
         const lastPriceKey = `last${priceType}Price`;
@@ -217,8 +217,8 @@ class DealMonitor extends Monitor {
                 const currentNormal = product.normalPrice;
                 const now = new Date().toISOString();
                 
-                const offerTrigger = await this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer');
-                const normalTrigger = await this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal');
+                const offerTrigger = this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer');
+                const normalTrigger = this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal');
 
                 let productChanged = !!(offerTrigger || normalTrigger);
 
@@ -297,7 +297,11 @@ class DealMonitor extends Monitor {
         } else if (bothBackToLow) {
             title = `🔄 ¡De nuevo a precios mínimos!: ${sanitizedName}`;
             showDate = true;
-            triggerDate = stored.minOfferDate; // Use one of them
+            triggerDate = stored?.minOfferDate; // Use one of them
+        } else if (triggers.length > 1) {
+            // Mixed triggers (e.g. one is NEW_LOW, other is BACK_TO_LOW)
+            title = `📉🔄 ¡Actualización de precios mínimos!: ${sanitizedName}`;
+            color = 0x2ecc71;
         } else {
             // Individual triggers
             const type = triggers[0];
@@ -345,7 +349,7 @@ class DealMonitor extends Monitor {
 
         if (bestEntity.external_url) {
             const storeName = storeMap.get(bestEntity.store) || 'Tienda';
-            const safeUrl = bestEntity.external_url.replace(/\)/g, '%29');
+            const safeUrl = encodeURI(bestEntity.external_url).replace(/\)/g, '%29');
             embed.addFields([{ name: `🛒 Ver en ${storeName}`, value: `[Ir a la tienda](${safeUrl})`, inline: false }]);
         }
 
