@@ -34,7 +34,7 @@ client.on(Events.ClientReady, async () => {
     state.load();
 
     // Initialize channel handlers
-    channelManager.initialize(client);
+    await channelManager.initialize(client);
 
     // Note: Slash commands are deployed via src/deploy-commands.js
     // You can uncomment the following lines to deploy on startup, but it's recommended to run the script manually.
@@ -57,7 +57,7 @@ client.on(Events.ClientReady, async () => {
 
     // Dynamically load all monitor classes
     const monitorClasses = [];
-    const monitorFiles = fs.readdirSync(path.join(__dirname, 'monitors'))
+    const monitorFiles = (await fs.promises.readdir(path.join(__dirname, 'monitors')))
         .filter(file => file.endsWith('.js'));
 
     for (const file of monitorFiles) {
