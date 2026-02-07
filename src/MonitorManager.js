@@ -78,9 +78,10 @@ class MonitorManager {
 
     /**
      * Triggers an immediate check for all managed monitors.
+     * @returns {Promise<void>}
      */
-    checkAll() {
-        this.monitors.forEach(monitor => monitor.check());
+    async checkAll() {
+        await Promise.allSettled(this.monitors.map(monitor => monitor.check()));
     }
 
     /**

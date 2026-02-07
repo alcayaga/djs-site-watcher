@@ -85,7 +85,7 @@ client.on(Events.ClientReady, async () => {
         if (process.env.NODE_ENV !== 'test') {
             setTimeout(() => {
                 process.exit();
-            }, 5000);
+            }, 20000);
         }
         return;
     }
