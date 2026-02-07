@@ -68,7 +68,7 @@ describe('Remove Command Interactive Features', () => {
             await removeCommand.handleComponent(mockInteraction, mockClient, mockState, {}, mockMonitorManager, 'select');
 
             expect(mockSiteMonitor.removeSiteByIndex).toHaveBeenCalledWith(0);
-            expect(mockState.sitesToMonitor).toEqual([{ id: 'site2', url: 'http://site2.com' }]);
+            
             expect(mockInteraction.update).toHaveBeenCalledWith(expect.objectContaining({
                 content: expect.stringContaining('Eliminando **site1**'),
                 components: []

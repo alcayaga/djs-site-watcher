@@ -93,8 +93,6 @@ describe('add command', () => {
 
             expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('Site');
             expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', '#test', false);
-            expect(mockState.sitesToMonitor).toHaveLength(1);
-            expect(mockState.sitesToMonitor[0].url).toBe('https://example.com');
             
             expect(mockInteraction.deferReply).toHaveBeenCalled();
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({

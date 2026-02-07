@@ -89,8 +89,7 @@ module.exports = {
         try {
             const { site, warning } = await siteMonitor.addSite(urlString, selector, force);
 
-            // Update local state to match the monitor's state (which is the source of truth)
-            state.sitesToMonitor = siteMonitor.state;
+            // Local state update removed. SiteMonitor is the source of truth.
             
             let warningMessage = '';
             if (warning) {

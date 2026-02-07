@@ -88,7 +88,7 @@ module.exports = {
             const removedSite = await siteMonitor.removeSiteByIndex(index);
 
             if (removedSite) {
-                state.sitesToMonitor = siteMonitor.state;
+                // Local state update removed. SiteMonitor is the source of truth.
                 // Update the ephemeral message to clear components
                 await interaction.update({ 
                     content: `Eliminando **${sanitizeMarkdown(removedSite.id)}**...`, 
