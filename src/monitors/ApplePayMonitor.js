@@ -144,23 +144,32 @@ class ApplePayMonitor extends Monitor {
             detectedChanges.push({ type: 'regionDiff', configName: 'main config', diff: diffString, url: this.CONFIG_URL });
         }
 
-        // Compare main config MarketGeos
-        const oldConfigMarketGeos = this.state.configMarketGeoIdentifiers || [];
-        const newConfigMarketGeos = newData.configMarketGeoIdentifiers || [];
-        
-        // Additions
-        newConfigMarketGeos.filter(newGeo => 
-            !oldConfigMarketGeos.some(oldGeo => oldGeo.id === newGeo.id)
-        ).forEach(geo => {
-            detectedChanges.push({ type: 'newMarketGeo', configName: 'main config', geo: geo, url: this.CONFIG_URL });
-        });
+        /**
+         * Helper to find MarketGeo changes (additions and removals).
+         * @param {Array} oldGeos The list of old MarketGeos.
+         * @param {Array} newGeos The list of new MarketGeos.
+         * @param {string} configName The name of the configuration source.
+         * @param {string} url The URL of the configuration source.
+         * @returns {Array} An array of detected change objects.
+         */
+        const findMarketGeoChanges = (oldGeos = [], newGeos = [], configName, url) => {
+            const changes = [];
+            // Additions
+            newGeos.filter(newGeo => !oldGeos.some(oldGeo => oldGeo.id === newGeo.id))
+                .forEach(geo => changes.push({ type: 'newMarketGeo', configName, geo, url }));
+            // Removals
+            oldGeos.filter(oldGeo => !newGeos.some(newGeo => newGeo.id === oldGeo.id))
+                .forEach(geo => changes.push({ type: 'removedMarketGeo', configName, geo, url }));
+            return changes;
+        };
 
-        // Removals
-        oldConfigMarketGeos.filter(oldGeo => 
-            !newConfigMarketGeos.some(newGeo => newGeo.id === oldGeo.id)
-        ).forEach(geo => {
-            detectedChanges.push({ type: 'removedMarketGeo', configName: 'main config', geo: geo, url: this.CONFIG_URL });
-        });
+        // Compare main config MarketGeos
+        detectedChanges.push(...findMarketGeoChanges(
+            this.state.configMarketGeoIdentifiers,
+            newData.configMarketGeoIdentifiers,
+            'main config',
+            this.CONFIG_URL
+        ));
 
         // Compare alt config region data
         if (this.state.configAltRegion !== newData.configAltRegion) {
@@ -181,22 +190,12 @@ class ApplePayMonitor extends Monitor {
         }
 
         // Compare alt config MarketGeos
-        const oldConfigAltMarketGeos = this.state.configAltMarketGeoIdentifiers || [];
-        const newConfigAltMarketGeos = newData.configAltMarketGeoIdentifiers || [];
-        
-        // Additions
-        newConfigAltMarketGeos.filter(newGeo => 
-            !oldConfigAltMarketGeos.some(oldGeo => oldGeo.id === newGeo.id)
-        ).forEach(geo => {
-            detectedChanges.push({ type: 'newMarketGeo', configName: 'alt config', geo: geo, url: this.CONFIG_ALT_URL });
-        });
-
-        // Removals
-        oldConfigAltMarketGeos.filter(oldGeo => 
-            !newConfigAltMarketGeos.some(newGeo => newGeo.id === oldGeo.id)
-        ).forEach(geo => {
-            detectedChanges.push({ type: 'removedMarketGeo', configName: 'alt config', geo: geo, url: this.CONFIG_ALT_URL });
-        });
+        detectedChanges.push(...findMarketGeoChanges(
+            this.state.configAltMarketGeoIdentifiers,
+            newData.configAltMarketGeoIdentifiers,
+            'alt config',
+            this.CONFIG_ALT_URL
+        ));
 
         return detectedChanges.length > 0 ? { changes: detectedChanges } : null;
     }
