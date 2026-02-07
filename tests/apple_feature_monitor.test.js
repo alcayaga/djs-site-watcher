@@ -25,7 +25,6 @@ describe('AppleFeatureMonitor', () => {
         mockMessageEmbedInstance = new Discord.EmbedBuilder();
         Discord.EmbedBuilder.mockReturnValue(mockMessageEmbedInstance);
 
-        client = new Discord.Client();
         monitorConfig = { keywords: ['chile', 'spanish'], url: 'http://apple.com/features', file: 'apple_feature.json' };
         appleFeatureMonitor = new AppleFeatureMonitor('AppleFeature', monitorConfig);
         appleFeatureMonitor.client = client; // Manually set client for testing check method
