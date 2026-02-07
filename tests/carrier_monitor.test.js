@@ -15,7 +15,6 @@ describe('CarrierMonitor', () => {
     let client;
     let carrierMonitor;
     let monitorConfig;
-    let mockMessageEmbedInstance;
     let mockChannel;
 
     beforeEach(() => {

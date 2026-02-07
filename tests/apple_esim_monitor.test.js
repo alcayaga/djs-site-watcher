@@ -13,7 +13,6 @@ describe('AppleEsimMonitor', () => {
     let client;
     let appleEsimMonitor;
     let monitorConfig;
-    let mockMessageEmbedInstance;
     let mockChannel;
 
     beforeEach(() => {

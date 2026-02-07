@@ -14,7 +14,6 @@ describe('AppleFeatureMonitor', () => {
     let client;
     let appleFeatureMonitor;
     let monitorConfig;
-    let mockMessageEmbedInstance;
     let mockChannel;
 
     beforeEach(() => {

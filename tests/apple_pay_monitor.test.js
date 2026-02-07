@@ -14,6 +14,7 @@ describe('ApplePayMonitor', () => {
     let client;
     let applePayMonitor;
     let monitorConfig;
+    let mockChannel;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -256,8 +257,6 @@ describe('ApplePayMonitor', () => {
 
     // Test notify method
     describe('notify method', () => {
-        let mockChannel;
-
         beforeEach(() => {
             mockChannel = client.channels.cache.get('mockChannelId');
             mockChannel.send.mockClear();
