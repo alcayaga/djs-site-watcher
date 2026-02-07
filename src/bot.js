@@ -83,9 +83,7 @@ client.on(Events.ClientReady, async () => {
         console.log('DEBUG / SINGLE RUN MODE ENABLED');
         await monitorManager.checkAll();
         if (process.env.NODE_ENV !== 'test') {
-            setTimeout(() => {
-                process.exit();
-            }, 20000);
+            process.exit();
         }
         return;
     }

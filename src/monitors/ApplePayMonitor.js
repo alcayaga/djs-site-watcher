@@ -203,8 +203,9 @@ class ApplePayMonitor extends Monitor {
     /**
      * Sends Discord notifications based on the detected changes.
      * @param {{changes: Array}} detectedChanges Object containing an array of changes.
+     * @returns {Promise<void>}
      */
-    notify(detectedChanges) {
+    async notify(detectedChanges) {
         const channel = this.getNotificationChannel();
         if (!channel) {
             console.error(`Notification channel not found for ${this.name}.`);
@@ -216,7 +217,7 @@ class ApplePayMonitor extends Monitor {
             { type: 'removedMarketGeo', title: '🚫 ¡Región eliminada de Transit para Apple Pay! 🐸', color: '#F44336' }
         ];
 
-        detectedChanges.changes.forEach(change => {
+        const notificationPromises = detectedChanges.changes.map(change => {
             if (change.type === 'regionDiff') {
                 const embed = new Discord.EmbedBuilder()
                     .setTitle(`¡Cambio en Apple Pay para ${this.REGION_TO_MONITOR}! 🐸`)
@@ -226,7 +227,7 @@ class ApplePayMonitor extends Monitor {
                     ])
                     .setFooter({ text: `Fuente: ${change.configName}` })
                     .setColor('#0071E3');
-                channel.send({ embeds: [embed] });
+                return channel.send({ embeds: [embed] });
             } else {
                 const config = marketGeoChanges.find(c => c.type === change.type);
                 if (config) {
@@ -239,10 +240,12 @@ class ApplePayMonitor extends Monitor {
                         ])
                         .setFooter({ text: `Fuente: ${change.configName}` })
                         .setColor(config.color);
-                    channel.send({ embeds: [embed] });
+                    return channel.send({ embeds: [embed] });
                 }
             }
+            return Promise.resolve();
         });
+        await Promise.all(notificationPromises);
     }
 }
 

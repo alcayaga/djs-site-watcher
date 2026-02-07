@@ -103,8 +103,9 @@ class AppleFeatureMonitor extends Monitor {
     /**
      * Sends notifications for new features or regions.
      * @param {{added: Array, removed: Array}} changes The changes to notify about.
+     * @returns {Promise<void>}
      */
-    notify(changes) {
+    async notify(changes) {
         const channel = this.getNotificationChannel();
         if (!channel) {
             console.error(`Notification channel not found for ${this.name}.`);
@@ -117,8 +118,8 @@ class AppleFeatureMonitor extends Monitor {
             { key: 'removed', title: '🚫 ¡Función de Apple eliminada! 🐸', color: '#F44336', logSuffix: 'removed' }
         ];
 
-        notificationConfigs.forEach(config => {
-            (changes[config.key] || []).forEach(item => {
+        const notificationPromises = notificationConfigs.flatMap(config =>
+            (changes[config.key] || []).map(item => {
                 console.log(`Apple feature ${config.logSuffix}: ${item.featureName} in ${item.region}`);
                 const embed = new Discord.EmbedBuilder()
                     .setTitle(config.title)
@@ -128,9 +129,10 @@ class AppleFeatureMonitor extends Monitor {
                         { name: '🔗 URL', value: encodeURI(`${url}#${item.id}`) }
                     ])
                     .setColor(config.color);
-                channel.send({ embeds: [embed] });
-            });
-        });
+                return channel.send({ embeds: [embed] });
+            })
+        );
+        await Promise.all(notificationPromises);
     }
 }
 

@@ -85,15 +85,16 @@ class CarrierMonitor extends Monitor {
     /**
      * Sends notifications for updated carriers.
      * @param {{updated: Array}} changes The changes to notify about.
+     * @returns {Promise<void>}
      */
-    notify(changes) {
+    async notify(changes) {
         const channel = this.getNotificationChannel();
         if (!channel) {
             console.error(`Notification channel not found for ${this.name}.`);
             return;
         }
 
-        changes.updated.forEach(carrier => {
+        const notificationPromises = changes.updated.map(carrier => {
             console.log('New carrier bundle version found:', carrier);
             const embed = new Discord.EmbedBuilder()
                 .setTitle(`📲 ¡Nuevo Carrier Bundle para ${sanitizeMarkdown(carrier.id)}! 🐸`)
@@ -104,8 +105,9 @@ class CarrierMonitor extends Monitor {
                     { name: `🕒 Actualizado`, value: `${formatDiscordTimestamp(carrier.lastUpdated)}` }
                 ])
                 .setColor(0x00FF00);
-            channel.send({ embeds: [embed] });
+            return channel.send({ embeds: [embed] });
         });
+        await Promise.all(notificationPromises);
     }
 }
 

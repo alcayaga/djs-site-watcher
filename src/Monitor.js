@@ -76,7 +76,7 @@ class Monitor {
             const changes = this.compare(newData);
 
             if (changes) {
-                this.notify(changes);
+                await this.notify(changes);
                 await this.saveState(newData);
                 this.state = newData;
             }
@@ -96,8 +96,9 @@ class Monitor {
                 /**
                  * Mocks the Discord channel send method by logging to console.
                  * @param {string|object} content The message content or embed object.
+                 * @returns {Promise<void>}
                  */
-                send: (content) => {
+                send: async (content) => {
                     if (content && typeof content === 'object' && content.title) {
                         console.log(`[SINGLE_RUN] [EMBED] ${content.title}`);
                         if (content.fields) {
@@ -138,12 +139,13 @@ class Monitor {
     /**
      * Sends a notification about the changes.
      * @param {*} changes The changes to notify about.
+     * @returns {Promise<void>}
      */
-    notify(changes) {
+    async notify(changes) {
         console.log(`Changes detected for ${this.name}:`, changes);
         const channel = this.getNotificationChannel();
         if (channel) {
-            channel.send(`Detected changes for ${this.name}!`);
+            await channel.send(`Detected changes for ${this.name}!`);
         }
     }
     

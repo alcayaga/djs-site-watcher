@@ -88,8 +88,9 @@ class AppleEsimMonitor extends Monitor {
     /**
      * Sends notifications for added or removed carriers.
      * @param {{added: Array, removed: Array}} changes The changes to notify about.
+     * @returns {Promise<void>}
      */
-    notify(changes) {
+    async notify(changes) {
         const channel = this.getNotificationChannel();
         if (!channel) {
             console.error(`Notification channel not found for ${this.name}.`);
@@ -101,8 +102,8 @@ class AppleEsimMonitor extends Monitor {
             { key: 'removed', title: `📱 ¡Operador de eSIM eliminado en ${country}! 🐸`, color: '#F44336', action: 'removed' }
         ];
 
-        notificationConfigs.forEach(config => {
-            (changes[config.key] || []).forEach(carrier => {
+        const notificationPromises = notificationConfigs.flatMap(config =>
+            (changes[config.key] || []).map(carrier => {
                 console.log(`Apple eSIM carrier change in ${country}: ${carrier.name} was ${config.action}.`);
                 const sanitizedName = sanitizeLinkText(carrier.name);
                 const sanitizedLink = encodeURI(carrier.link);
@@ -113,9 +114,10 @@ class AppleEsimMonitor extends Monitor {
                         { name: '✨ Capacidad', value: sanitizeMarkdown(carrier.capability), inline: true }
                     ])
                     .setColor(config.color);
-                channel.send({ embeds: [embed] });
-            });
-        });
+                return channel.send({ embeds: [embed] });
+            })
+        );
+        await Promise.all(notificationPromises);
     }
 }
 
