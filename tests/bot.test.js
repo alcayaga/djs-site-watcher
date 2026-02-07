@@ -11,13 +11,6 @@ jest.mock('cron', () => ({
     }),
 }));
 
-require('discord.js');
-require('../src/storage.js');
-require('got');
-require('jsdom');
-require('../src/state');
-require('../src/MonitorManager');
-
 // Mock handlers
 jest.mock('../src/handlers/interactionHandler', () => ({
     handleInteraction: jest.fn(),
