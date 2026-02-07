@@ -194,7 +194,8 @@ class DealMonitor extends Monitor {
                                 }
                             }
                             // Delay to avoid bursting API
-                            await sleep(2000);
+                            const backfillDelay = config.SOLOTODO_API_DELAY !== undefined ? config.SOLOTODO_API_DELAY : 2000;
+                            await sleep(backfillDelay);
                         } catch (historyError) {
                             console.error(`Error backfilling history for product ${productId}:`, historyError);
                         }
