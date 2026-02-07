@@ -109,7 +109,7 @@ module.exports = {
             await interaction.editReply({ embeds: [embed] });
         } catch (error) {
             console.error('Error adding site:', error);
-            await interaction.editReply({ content: `Error adding site: ${error.message}` });
+            await interaction.editReply({ content: `Error al agregar el sitio: ${error.message}` });
         }
     }
 };

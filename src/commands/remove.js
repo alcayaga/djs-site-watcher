@@ -55,7 +55,7 @@ module.exports = {
         const siteMonitor = monitorManager.getMonitor('Site');
 
         if (!siteMonitor) {
-            return interaction.reply({ content: 'Site monitor is not available.', flags: [MessageFlags.Ephemeral] });
+            return interaction.reply({ content: 'El monitor de sitios no está disponible.', flags: [MessageFlags.Ephemeral] });
         }
 
         return showRemovalDropdown(interaction, siteMonitor.state);

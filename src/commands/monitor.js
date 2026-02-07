@@ -56,7 +56,7 @@ module.exports = {
 
         if (targetMonitors.length === 0) {
             return interaction.reply({
-                content: `Monitor "${targetMonitorName}" not found.`, 
+                content: `No se encontró el monitor "${targetMonitorName}".`, 
                 flags: [MessageFlags.Ephemeral] 
             });
         }
