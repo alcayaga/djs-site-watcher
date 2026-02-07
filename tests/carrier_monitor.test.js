@@ -206,6 +206,12 @@ describe('CarrierMonitor', () => {
                 { name: '🔗 URL', value: 'http://v.com/48' },
                 { name: '🕒 Actualizado', value: '`now`' }
             ]);
+            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+                { name: '📦 Versión', value: '47.0', inline: true },
+                { name: '🛠️ Build', value: '47.0.1', inline: true },
+                { name: '🔗 URL', value: 'http://a.com/47' },
+                { name: '🕒 Actualizado', value: '`soon`' }
+            ]);
             expect(mockMessageEmbedInstance.data.color).toBe(0x00FF00);
         });
 
