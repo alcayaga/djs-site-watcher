@@ -12,8 +12,6 @@ describe('DealsChannel', () => {
     let mockConfig;
     let handlerConfig;
 
-    let mockEmbedInstance;
-
     beforeEach(() => {
         handlerConfig = {
             channelId: '456'
@@ -37,8 +35,7 @@ describe('DealsChannel', () => {
         mockState = {};
         mockConfig = {};
 
-        mockEmbedInstance = new Discord.EmbedBuilder();
-        Discord.EmbedBuilder.mockReturnValue(mockEmbedInstance);
+        Discord.EmbedBuilder.mockClear();
     });
 
     afterEach(() => {
@@ -88,13 +85,14 @@ describe('DealsChannel', () => {
         expect(mockMessage.author.send).toHaveBeenCalledWith(
             expect.objectContaining({
                 embeds: expect.arrayContaining([
-                    mockEmbedInstance
+                    expect.any(Object)
                 ])
             })
         );
         
         // Verify the embed was configured correctly
-        expect(mockEmbedInstance.data.description).toContain('fue eliminado porque no parece ser una oferta');
+        const embed = mockMessage.author.send.mock.calls[0][0].embeds[0];
+        expect(embed.data.description).toContain('fue eliminado porque no parece ser una oferta');
     });
 
     it('should present Solotodo product in an embed when a product is found', async () => {
@@ -117,14 +115,15 @@ describe('DealsChannel', () => {
         const thread = await mockMessage.startThread.mock.results[0].value;
         expect(thread.send).toHaveBeenCalledWith(expect.objectContaining({
             embeds: expect.arrayContaining([
-                mockEmbedInstance
+                expect.any(Object)
             ])
         }));
 
-        expect(mockEmbedInstance.data.title).toBe('Apple iPhone 15');
-        expect(mockEmbedInstance.data.url).toBe('https://solotodo.cl/products/123');
-        expect(mockEmbedInstance.data.description).toContain('[Apple iPhone 15](https://solotodo.cl/products/123)');
-        expect(mockEmbedInstance.addFields).toHaveBeenCalledWith(expect.objectContaining({
+        const embed = thread.send.mock.calls[0][0].embeds[0];
+        expect(embed.data.title).toBe('Apple iPhone 15');
+        expect(embed.data.url).toBe('https://solotodo.cl/products/123');
+        expect(embed.data.description).toContain('[Apple iPhone 15](https://solotodo.cl/products/123)');
+        expect(embed.addFields).toHaveBeenCalledWith(expect.objectContaining({
             name: expect.stringContaining('precios')
         }));
     });
@@ -144,7 +143,9 @@ describe('DealsChannel', () => {
         mockMessage.content = 'Oferta: https://some-store.com/iphone15';
         await handler.handle(mockMessage, mockState, mockConfig);
         
-        expect(mockEmbedInstance.data.thumbnail.url).toBe('https://media.solotodo.com/picture.png');
+        const thread = await mockMessage.startThread.mock.results[0].value;
+        const embed = thread.send.mock.calls[0][0].embeds[0];
+        expect(embed.data.thumbnail.url).toBe('https://media.solotodo.com/picture.png');
     });
 
     it('should notify channel if message deletion fails due to permissions', async () => {

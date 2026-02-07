@@ -22,8 +22,6 @@ describe('AppleFeatureMonitor', () => {
 
         client = new Discord.Client();
         mockChannel = client.channels.cache.get('mockChannelId');
-        mockMessageEmbedInstance = new Discord.EmbedBuilder();
-        Discord.EmbedBuilder.mockReturnValue(mockMessageEmbedInstance);
 
         monitorConfig = { keywords: ['chile', 'spanish'], url: 'http://apple.com/features', file: 'apple_feature.json' };
         appleFeatureMonitor = new AppleFeatureMonitor('AppleFeature', monitorConfig);
@@ -163,9 +161,6 @@ describe('AppleFeatureMonitor', () => {
         beforeEach(() => {
             mockChannel.send.mockClear();
             Discord.EmbedBuilder.mockClear();
-            mockMessageEmbedInstance.setTitle.mockClear();
-            mockMessageEmbedInstance.addFields.mockClear();
-            mockMessageEmbedInstance.setColor.mockClear();
         });
 
         it('should send embeds for each added feature/region', () => {
@@ -180,21 +175,25 @@ describe('AppleFeatureMonitor', () => {
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannel.send).toHaveBeenCalledTimes(2); // One for each added item
 
-            // Check title on the singleton mock (it will reflect the LAST call, but we can check all calls)
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('🌟 ¡Nueva función de Apple disponible! 🐸');
-            expect(mockMessageEmbedInstance.data.title).toBe('🌟 ¡Nueva función de Apple disponible! 🐸');
-            
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+            // Check first embed
+            const firstEmbed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(firstEmbed.data.title).toBe('🌟 ¡Nueva función de Apple disponible! 🐸');
+            expect(firstEmbed.addFields).toHaveBeenCalledWith([
                 { name: '✨ Función', value: 'New Feature', inline: true },
                 { name: '📍 Región/Idioma', value: 'New Region', inline: true },
                 { name: '🔗 URL', value: 'http://apple.com/features#new-feature' }
             ]);
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+            expect(firstEmbed.data.color).toBe('#0071E3');
+
+            // Check second embed
+            const secondEmbed = mockChannel.send.mock.calls[1][0].embeds[0];
+            expect(secondEmbed.data.title).toBe('🌟 ¡Nueva función de Apple disponible! 🐸');
+            expect(secondEmbed.addFields).toHaveBeenCalledWith([
                 { name: '✨ Función', value: 'Existing Feature', inline: true },
                 { name: '📍 Región/Idioma', value: 'New Locale', inline: true },
                 { name: '🔗 URL', value: 'http://apple.com/features#existing-feature' }
             ]);
-            expect(mockMessageEmbedInstance.data.color).toBe('#0071E3');
+            expect(secondEmbed.data.color).toBe('#0071E3');
         });
 
         it('should log an error if notification channel not found', () => {

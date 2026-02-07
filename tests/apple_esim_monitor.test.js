@@ -21,8 +21,6 @@ describe('AppleEsimMonitor', () => {
 
         client = new Discord.Client();
         mockChannel = client.channels.cache.get('mockChannelId');
-        mockMessageEmbedInstance = new Discord.EmbedBuilder();
-        Discord.EmbedBuilder.mockReturnValue(mockMessageEmbedInstance);
 
         monitorConfig = { country: 'Chile', file: 'apple_esim.json' };
         appleEsimMonitor = new AppleEsimMonitor('AppleEsim', monitorConfig);
@@ -143,9 +141,6 @@ describe('AppleEsimMonitor', () => {
         beforeEach(() => {
             mockChannel.send.mockClear();
             Discord.EmbedBuilder.mockClear();
-            mockMessageEmbedInstance.setTitle.mockClear();
-            mockMessageEmbedInstance.addFields.mockClear();
-            mockMessageEmbedInstance.setColor.mockClear();
         });
 
         it('should send embeds for added carriers', () => {
@@ -157,13 +152,14 @@ describe('AppleEsimMonitor', () => {
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannel.send).toHaveBeenCalledTimes(1);
-            expect(mockChannel.send).toHaveBeenCalledWith({ embeds: [mockMessageEmbedInstance] });
-            expect(mockMessageEmbedInstance.data.title).toBe('📱 ¡Operador de eSIM agregado en Chile! 🐸');
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+            
+            const embed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(embed.data.title).toBe('📱 ¡Operador de eSIM agregado en Chile! 🐸');
+            expect(embed.addFields).toHaveBeenCalledWith([
                 { name: '📡 Operador', value: '[New Carrier](new.com)', inline: true },
                 { name: '✨ Capacidad', value: 'General', inline: true }
             ]);
-            expect(mockMessageEmbedInstance.data.color).toBe('#4CAF50');
+            expect(embed.data.color).toBe('#4CAF50');
         });
 
         it('should send embeds for removed carriers', () => {
@@ -175,13 +171,14 @@ describe('AppleEsimMonitor', () => {
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannel.send).toHaveBeenCalledTimes(1);
-            expect(mockChannel.send).toHaveBeenCalledWith({ embeds: [mockMessageEmbedInstance] });
-            expect(mockMessageEmbedInstance.data.title).toBe('📱 ¡Operador de eSIM eliminado en Chile! 🐸');
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+            
+            const embed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(embed.data.title).toBe('📱 ¡Operador de eSIM eliminado en Chile! 🐸');
+            expect(embed.addFields).toHaveBeenCalledWith([
                 { name: '📡 Operador', value: '[Old Carrier](old.com)', inline: true },
                 { name: '✨ Capacidad', value: 'Specific', inline: true }
             ]);
-            expect(mockMessageEmbedInstance.data.color).toBe('#F44336');
+            expect(embed.data.color).toBe('#F44336');
         });
 
         it('should send embeds for both added and removed carriers', () => {
@@ -193,8 +190,12 @@ describe('AppleEsimMonitor', () => {
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannel.send).toHaveBeenCalledTimes(2);
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM agregado en Chile! 🐸');
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📱 ¡Operador de eSIM eliminado en Chile! 🐸');
+            
+            const addedEmbed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(addedEmbed.data.title).toBe('📱 ¡Operador de eSIM agregado en Chile! 🐸');
+            
+            const removedEmbed = mockChannel.send.mock.calls[1][0].embeds[0];
+            expect(removedEmbed.data.title).toBe('📱 ¡Operador de eSIM eliminado en Chile! 🐸');
         });
 
         it('should log an error if notification channel not found', () => {

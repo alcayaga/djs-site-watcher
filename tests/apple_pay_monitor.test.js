@@ -14,14 +14,12 @@ describe('ApplePayMonitor', () => {
     let client;
     let applePayMonitor;
     let monitorConfig;
-    let mockMessageEmbedInstance;
 
     beforeEach(() => {
         jest.clearAllMocks();
 
         client = new Discord.Client();
-        mockMessageEmbedInstance = new Discord.EmbedBuilder();
-        Discord.EmbedBuilder.mockReturnValue(mockMessageEmbedInstance);
+        mockChannel = client.channels.cache.get('mockChannelId');
 
         monitorConfig = { file: 'applepay.json', region: 'CL' };
         applePayMonitor = new ApplePayMonitor('ApplePay', monitorConfig);
@@ -262,6 +260,8 @@ describe('ApplePayMonitor', () => {
 
         beforeEach(() => {
             mockChannel = client.channels.cache.get('mockChannelId');
+            mockChannel.send.mockClear();
+            Discord.EmbedBuilder.mockClear();
         });
 
         it('should send embed for regionDiff change', () => {
@@ -270,14 +270,15 @@ describe('ApplePayMonitor', () => {
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannel.send).toHaveBeenCalledTimes(1); 
-            expect(mockChannel.send).toHaveBeenCalledWith({ embeds: [mockMessageEmbedInstance] });
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith(expect.stringContaining('¡Cambio en Apple Pay para CL! 🐸'));
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+            
+            const embed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(embed.data.title).toContain('¡Cambio en Apple Pay para CL! 🐸');
+            expect(embed.addFields).toHaveBeenCalledWith([
                 { name: '🔗 URL', value: 'http://config.com' },
                 { name: '📝 Cambios detectados', value: '```diff\ndiff content\n```' }
             ]);
-            expect(mockMessageEmbedInstance.setFooter).toHaveBeenCalledWith({ text: 'Fuente: main config' });
-            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#0071E3');
+            expect(embed.data.footer).toEqual({ text: 'Fuente: main config' });
+            expect(embed.data.color).toBe('#0071E3');
         });
 
         it('should send embed for newMarketGeo change', () => {
@@ -286,15 +287,16 @@ describe('ApplePayMonitor', () => {
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(mockChannel.send).toHaveBeenCalledTimes(1);
-            expect(mockChannel.send).toHaveBeenCalledWith({ embeds: [mockMessageEmbedInstance] });
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith(expect.stringContaining('¡Nueva región en Transit para Apple Pay! 🐸'));
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+            
+            const embed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(embed.data.title).toContain('¡Nueva región en Transit para Apple Pay! 🐸');
+            expect(embed.addFields).toHaveBeenCalledWith([
                 { name: '📍 Región', value: 'CL', inline: true },
                 { name: '🏷️ Nombre', value: 'New Geo', inline: true },
                 { name: '🔗 URL', value: 'http://alt-config.com' }
             ]);
-            expect(mockMessageEmbedInstance.setFooter).toHaveBeenCalledWith({ text: 'Fuente: alt config' });
-            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#0071E3');
+            expect(embed.data.footer).toEqual({ text: 'Fuente: alt config' });
+            expect(embed.data.color).toBe('#0071E3');
         });
 
         it('should log an error if notification channel not found', () => {

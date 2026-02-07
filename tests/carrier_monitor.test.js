@@ -23,8 +23,6 @@ describe('CarrierMonitor', () => {
 
         client = new Discord.Client();
         mockChannel = client.channels.cache.get('mockChannelId');
-        mockMessageEmbedInstance = new Discord.EmbedBuilder();
-        Discord.EmbedBuilder.mockReturnValue(mockMessageEmbedInstance);
 
         monitorConfig = { carriers: ['Verizon_US', 'ATT_US'], file: 'carrier.json' };
         carrierMonitor = new CarrierMonitor('Carrier', monitorConfig);
@@ -179,9 +177,6 @@ describe('CarrierMonitor', () => {
         beforeEach(() => {
             mockChannel.send.mockClear();
             Discord.EmbedBuilder.mockClear();
-            mockMessageEmbedInstance.setTitle.mockClear();
-            mockMessageEmbedInstance.addFields.mockClear();
-            mockMessageEmbedInstance.setColor.mockClear();
         });
 
         it('should send embeds for each updated carrier', () => {
@@ -197,22 +192,25 @@ describe('CarrierMonitor', () => {
             expect(mockChannel.send).toHaveBeenCalledTimes(2); // One for each updated item
 
             // Check calls on the mock
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📲 ¡Nuevo Carrier Bundle para Verizon_US! 🐸');
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📲 ¡Nuevo Carrier Bundle para ATT_US! 🐸');
-
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+            const firstEmbed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(firstEmbed.data.title).toBe('📲 ¡Nuevo Carrier Bundle para Verizon_US! 🐸');
+            expect(firstEmbed.addFields).toHaveBeenCalledWith([
                 { name: '📦 Versión', value: '48.0', inline: true },
                 { name: '🛠️ Build', value: '48.0.0', inline: true },
                 { name: '🔗 URL', value: 'http://v.com/48' },
                 { name: '🕒 Actualizado', value: '`now`' }
             ]);
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+            expect(firstEmbed.data.color).toBe(0x00FF00);
+
+            const secondEmbed = mockChannel.send.mock.calls[1][0].embeds[0];
+            expect(secondEmbed.data.title).toBe('📲 ¡Nuevo Carrier Bundle para ATT_US! 🐸');
+            expect(secondEmbed.addFields).toHaveBeenCalledWith([
                 { name: '📦 Versión', value: '47.0', inline: true },
                 { name: '🛠️ Build', value: '47.0.1', inline: true },
                 { name: '🔗 URL', value: 'http://a.com/47' },
                 { name: '🕒 Actualizado', value: '`soon`' }
             ]);
-            expect(mockMessageEmbedInstance.data.color).toBe(0x00FF00);
+            expect(secondEmbed.data.color).toBe(0x00FF00);
         });
 
         it('should log an error if notification channel not found', () => {
