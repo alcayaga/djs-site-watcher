@@ -20,7 +20,8 @@ describe('SiteMonitor', () => {
     let mockChannel;
 
     beforeEach(() => {
-        jest.clearAllMocks(); // Clear state of all mocks
+        jest.restoreAllMocks(); // Restore all mocks to original implementation
+        jest.clearAllMocks(); // Clear call history
 
         // Setup Discord Client and Channel from the manual mock
         client = new Discord.Client();
