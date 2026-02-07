@@ -56,8 +56,7 @@ class DealMonitor extends Monitor {
 
             // Wait configured delay between requests, but not after the last one
             if (i < urls.length - 1) {
-                const delay = config.SOLOTODO_API_DELAY !== undefined ? config.SOLOTODO_API_DELAY : 5000;
-                await sleep(delay);
+                await sleep(config.SOLOTODO_API_DELAY);
             }
         }
 
@@ -194,8 +193,7 @@ class DealMonitor extends Monitor {
                                 }
                             }
                             // Delay to avoid bursting API
-                            const backfillDelay = config.SOLOTODO_API_DELAY !== undefined ? config.SOLOTODO_API_DELAY : 2000;
-                            await sleep(backfillDelay);
+                            await sleep(config.SOLOTODO_API_DELAY);
                         } catch (historyError) {
                             console.error(`Error backfilling history for product ${productId}:`, historyError);
                         }

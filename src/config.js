@@ -21,7 +21,7 @@ storage.SENSITIVE_SETTINGS_KEYS.forEach(key => {
 
 // Type conversions and defaults
 config.AP_RESPONSE_DELAY = config.AP_RESPONSE_DELAY ? parseInt(config.AP_RESPONSE_DELAY, 10) : 5000;
-config.SOLOTODO_API_DELAY = config.SOLOTODO_API_DELAY ? parseInt(config.SOLOTODO_API_DELAY, 10) : 5000;
+config.SOLOTODO_API_DELAY = (p => Number.isFinite(p) ? p : 5000)(parseInt(config.SOLOTODO_API_DELAY, 10));
 
 if (!config.monitors) {
     config.monitors = [
