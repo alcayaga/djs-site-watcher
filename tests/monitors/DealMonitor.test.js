@@ -26,7 +26,6 @@ describe('DealMonitor', () => {
     let mockChannel;
     let mockClient;
     let mockMessage;
-    let mockEmbedInstance;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -38,8 +37,7 @@ describe('DealMonitor', () => {
         };
         mockChannel.send.mockResolvedValue(mockMessage);
         
-        mockEmbedInstance = new Discord.EmbedBuilder();
-        Discord.EmbedBuilder.mockReturnValue(mockEmbedInstance);
+        Discord.EmbedBuilder.mockClear();
 
         const monitorConfig = {
             name: 'Deal',

@@ -6,7 +6,6 @@ jest.mock('discord.js');
 describe('DealsChannel URL Validation', () => {
     let handler;
     let mockMessage;
-    let mockEmbedInstance;
 
     beforeEach(() => {
         handler = new DealsChannel('Deals', { channelId: '456' });
@@ -24,9 +23,6 @@ describe('DealsChannel URL Validation', () => {
                 send: jest.fn().mockResolvedValue({})
             }),
         };
-
-        mockEmbedInstance = new Discord.EmbedBuilder();
-        Discord.EmbedBuilder.mockReturnValue(mockEmbedInstance);
     });
 
     it('should reject invalid URL schemes', async () => {
