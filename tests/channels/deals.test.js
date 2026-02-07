@@ -13,6 +13,8 @@ describe('DealsChannel', () => {
     let handlerConfig;
 
     beforeEach(() => {
+        jest.clearAllMocks();
+        
         handlerConfig = {
             channelId: '456'
         };
@@ -34,8 +36,6 @@ describe('DealsChannel', () => {
         };
         mockState = {};
         mockConfig = {};
-
-        Discord.EmbedBuilder.mockClear();
     });
 
     afterEach(() => {

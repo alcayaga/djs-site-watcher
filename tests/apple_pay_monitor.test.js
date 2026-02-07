@@ -257,12 +257,6 @@ describe('ApplePayMonitor', () => {
 
     // Test notify method
     describe('notify method', () => {
-        beforeEach(() => {
-            mockChannel = client.channels.cache.get('mockChannelId');
-            mockChannel.send.mockClear();
-            Discord.EmbedBuilder.mockClear();
-        });
-
         it('should send embed for regionDiff change', () => {
             const changes = { changes: [{ type: 'regionDiff', configName: 'main config', diff: 'diff content', url: 'http://config.com' }] };
             applePayMonitor.notify(changes);

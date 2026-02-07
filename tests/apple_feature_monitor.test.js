@@ -157,11 +157,6 @@ describe('AppleFeatureMonitor', () => {
 
     // Test notify method
     describe('notify method', () => {
-        beforeEach(() => {
-            mockChannel.send.mockClear();
-            Discord.EmbedBuilder.mockClear();
-        });
-
         it('should send embeds for each added feature/region', () => {
             const changes = {
                 added: [

@@ -1,4 +1,3 @@
-const Discord = require('discord.js');
 const DealsChannel = require('../../src/channels/deals.js');
 
 jest.mock('discord.js');
@@ -46,8 +45,6 @@ describe('DealsChannel Solotodo Integration', () => {
             delete: jest.fn().mockResolvedValue({}),
             startThread: jest.fn().mockResolvedValue(mockThread),
         };
-
-        Discord.EmbedBuilder.mockClear();
 
         // Default mock implementations for URL helpers
         getProductUrl.mockImplementation(p => `https://www.solotodo.cl/products/${p.id}-${p.slug}`);

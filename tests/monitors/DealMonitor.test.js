@@ -37,8 +37,6 @@ describe('DealMonitor', () => {
         };
         mockChannel.send.mockResolvedValue(mockMessage);
         
-        Discord.EmbedBuilder.mockClear();
-
         const monitorConfig = {
             name: 'Deal',
             url: 'https://api.com/deals',

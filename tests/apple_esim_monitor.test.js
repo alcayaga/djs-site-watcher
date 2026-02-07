@@ -137,11 +137,6 @@ describe('AppleEsimMonitor', () => {
 
     // Test notify method
     describe('notify method', () => {
-        beforeEach(() => {
-            mockChannel.send.mockClear();
-            Discord.EmbedBuilder.mockClear();
-        });
-
         it('should send embeds for added carriers', () => {
             const changes = {
                 added: [{ name: 'New Carrier', link: 'new.com', capability: 'General' }],

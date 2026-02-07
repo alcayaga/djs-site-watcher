@@ -173,11 +173,6 @@ describe('CarrierMonitor', () => {
 
     // Test notify method
     describe('notify method', () => {
-        beforeEach(() => {
-            mockChannel.send.mockClear();
-            Discord.EmbedBuilder.mockClear();
-        });
-
         it('should send embeds for each updated carrier', () => {
             const changes = {
                 updated: [
