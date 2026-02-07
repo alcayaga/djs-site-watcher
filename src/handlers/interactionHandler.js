@@ -11,7 +11,7 @@ const commands = loadCommands();
  */
 async function handleInteractionError(interaction, error) {
     console.error(`Error handling interaction (${interaction.customId || interaction.commandName}):`, error);
-    const errorMessage = { content: 'There was an error processing this interaction.', flags: [MessageFlags.Ephemeral] };
+    const errorMessage = { content: 'Hubo un error al procesar esta interacción.', flags: [MessageFlags.Ephemeral] };
     
     if (interaction.deferred) {
         await interaction.editReply(errorMessage);
@@ -40,7 +40,7 @@ async function handleInteraction(interaction, client, state, config, monitorMana
         
         if (!hasPermission) {
             if (interaction.isAutocomplete()) return; // Silent fail for autocomplete
-            return interaction.reply({ content: 'You are not authorized to use this interaction.', flags: [MessageFlags.Ephemeral] });
+            return interaction.reply({ content: 'No estás autorizado para usar esta interacción.', flags: [MessageFlags.Ephemeral] });
         }
     }
 

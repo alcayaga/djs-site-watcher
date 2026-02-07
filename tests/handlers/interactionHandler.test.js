@@ -20,8 +20,9 @@ jest.mock('../../src/commands/add.js', () => ({
     data: { name: 'add' },
     execute: jest.fn(),
     handleModal: jest.fn(),
+    handleComponent: jest.fn(),
     autocomplete: jest.fn()
-}), { virtual: true });
+}));
 
 describe('Interaction Handler', () => {
     let mockInteraction, mockConfig, mockClient, mockState, mockMonitorManager;
@@ -29,6 +30,12 @@ describe('Interaction Handler', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         
+        // Ensure add.js mock methods are present (in case they were deleted by a test)
+        const addCommand = require('../../src/commands/add.js');
+        if (!addCommand.handleModal) {
+            addCommand.handleModal = jest.fn();
+        }
+
         mockConfig = {};
 
         mockInteraction = {
@@ -139,14 +146,14 @@ describe('Interaction Handler', () => {
             mockInteraction.customId = 'add:submit';
 
             const addCommand = require('../../src/commands/add.js');
-            // Temporarily remove handleModal
+            // Mock handleModal to be undefined
             const originalHandleModal = addCommand.handleModal;
-            delete addCommand.handleModal;
+            addCommand.handleModal = undefined;
             
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('error processing'),
+                content: expect.stringContaining('error al procesar'),
                 flags: [MessageFlags.Ephemeral]
             }));
 
@@ -167,7 +174,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('error processing'),
+                content: expect.stringContaining('error al procesar'),
                 flags: [MessageFlags.Ephemeral]
             }));
         });
@@ -185,7 +192,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('error processing'),
+                content: expect.stringContaining('error al procesar'),
                 flags: [MessageFlags.Ephemeral]
             }));
         });
@@ -203,7 +210,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('error processing'),
+                content: expect.stringContaining('error al procesar'),
                 flags: [MessageFlags.Ephemeral]
             }));
         });
@@ -219,7 +226,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('not authorized'),
+                content: expect.stringContaining('No estás autorizado'),
                 flags: [MessageFlags.Ephemeral]
             }));
         });
@@ -244,7 +251,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('error processing')
+                content: expect.stringContaining('error al procesar')
             }));
         });
 
@@ -257,7 +264,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('error processing')
+                content: expect.stringContaining('error al procesar')
             }));
         });
 
@@ -270,7 +277,7 @@ describe('Interaction Handler', () => {
             await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
 
             expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('error processing')
+                content: expect.stringContaining('error al procesar')
             }));
         });
     });
