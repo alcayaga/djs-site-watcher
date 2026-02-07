@@ -9,7 +9,8 @@ jest.mock('../../src/config', () => ({
     interval: 1,
     monitors: [],
     DISCORDJS_DEALS_CHANNEL_ID: '789',
-    SINGLE_RUN: 'false'
+    SINGLE_RUN: 'false',
+    SOLOTODO_API_DELAY: 0
 }));
 jest.mock('got');
 jest.mock('../../src/utils/solotodo', () => ({
@@ -20,6 +21,9 @@ jest.mock('../../src/utils/solotodo', () => ({
         { active_registry: { offer_price: "10000", normal_price: "10000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
     ]),
     getStores: jest.fn().mockResolvedValue(new Map([["https://api.com/stores/1/", "Store 1"]]))
+}));
+jest.mock('../../src/utils/helpers', () => ({
+    sleep: jest.fn().mockResolvedValue()
 }));
 
 describe('DealMonitor', () => {
@@ -379,7 +383,7 @@ describe('DealMonitor', () => {
         expect(got.mock.calls[0][0]).toContain('exclude_refurbished=true');
         expect(monitor.state['1']).toBeDefined();
         expect(monitor.state['2']).toBeDefined();
-    }, 15000);
+    });
 
     it('should filter out unrealistically low prices (MIN_SANITY_PRICE)', async () => {
         monitor.state = {};

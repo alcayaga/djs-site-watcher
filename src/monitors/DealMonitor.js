@@ -54,9 +54,9 @@ class DealMonitor extends Monitor {
                 console.error(`Error fetching from Solotodo URL ${baseUrl}:`, e);
             }
 
-            // Wait 5 seconds between requests, but not after the last one
+            // Wait configured delay between requests, but not after the last one
             if (i < urls.length - 1) {
-                await sleep(5000);
+                await sleep(config.SOLOTODO_API_DELAY);
             }
         }
 
@@ -193,7 +193,7 @@ class DealMonitor extends Monitor {
                                 }
                             }
                             // Delay to avoid bursting API
-                            await sleep(2000);
+                            await sleep(config.SOLOTODO_API_DELAY);
                         } catch (historyError) {
                             console.error(`Error backfilling history for product ${productId}:`, historyError);
                         }
