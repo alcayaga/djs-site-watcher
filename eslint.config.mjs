@@ -50,7 +50,7 @@ export default defineConfig([
   { files: ["**/*.json"], plugins: { json }, language: "json/json", extends: ["json/recommended"] },
   // Jest configuration for test files
   {
-    files: ["**/*.test.js"],
+    files: ["**/*.test.js", "**/__mocks__/**/*.{js,mjs,cjs}"],
     ...jest.configs["flat/recommended"],
     languageOptions: {
       globals: {

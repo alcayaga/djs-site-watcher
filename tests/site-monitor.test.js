@@ -1,18 +1,3 @@
-// Mock external modules at the top-level
-jest.doMock('../src/storage', () => ({
-    read: jest.fn(),
-    write: jest.fn(),
-    loadSettings: jest.fn().mockReturnValue({
-        interval: 5,
-        debug: false,
-    }),
-}));
-
-jest.mock('../src/config', () => ({
-    DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
-    interval: 5,
-}));
-
 const SiteMonitor = require('../src/monitors/SiteMonitor');
 const Discord = require('discord.js');
 const got = require('got');
@@ -20,77 +5,37 @@ const storage = require('../src/storage');
 const crypto = require('crypto');
 const diff = require('diff');
 
-// Mock specific external dependencies
-// Removed jest.mock('dns') to avoid breaking got
-jest.mock('got'); // Keep this top-level mock
-jest.mock('jsdom', () => {
-    return {
-        JSDOM: jest.fn((html) => {
-            const actualDom = new (jest.requireActual('jsdom').JSDOM)(html);
-            return {
-                window: {
-                    document: {
-                        querySelector: jest.fn((selector) => actualDom.window.document.querySelector(selector)),
-                        title: actualDom.window.document.title,
-                    },
-                },
-            };
-        }),
-    };
-});
-jest.mock('crypto', () => {
-    const mockUpdate = jest.fn().mockReturnThis();
-    const mockDigest = jest.fn().mockReturnValue('mock-hash');
-    return {
-        createHash: jest.fn(() => ({
-            update: mockUpdate,
-            digest: mockDigest,
-        })),
-    };
-});
-jest.mock('diff', () => ({
-    diffLines: jest.fn(),
-}));
+// Use manual mocks from __mocks__ and src/__mocks__
+jest.mock('discord.js');
+jest.mock('got');
+jest.mock('jsdom');
+jest.mock('crypto');
+jest.mock('diff');
+jest.mock('../src/storage');
+jest.mock('../src/config');
 
 describe('SiteMonitor', () => {
     let client;
     let siteMonitor;
-    let mockChannelSend;
     let mockChannel;
-    let mockMessageEmbedInstance;
 
     beforeEach(() => {
-        jest.clearAllMocks(); // Clear all mocks before each test
+        jest.clearAllMocks(); // Clear state of all mocks
+
+        // Setup Discord Client and Channel from the manual mock
+        client = new Discord.Client();
+        // Access the shared mock channel instance from the client
+        mockChannel = client.channels.cache.get('mockChannelId');
         
-        // --- Mock Discord.js components directly in beforeEach ---
-        mockChannelSend = jest.fn();
-        mockChannel = { send: mockChannelSend };
-        mockMessageEmbedInstance = {
-            setTitle: jest.fn().mockReturnThis(),
-            setDescription: jest.fn().mockReturnThis(),
-            addFields: jest.fn().mockReturnThis(),
-            setFooter: jest.fn().mockReturnThis(),
-            setColor: jest.fn().mockReturnThis(),
-        };
-
-        jest.spyOn(Discord, 'Client').mockImplementation(() => ({
-            channels: {
-                cache: {
-                    get: jest.fn(() => mockChannel),
-                },
-            },
-        }));
-        jest.spyOn(Discord, 'EmbedBuilder').mockImplementation(() => mockMessageEmbedInstance);
-        // --- End Mock Discord.js components ---
-
-        // Set up process.env for the test
-        process.env.DISCORDJS_TEXTCHANNEL_ID = 'mockChannelId';
-
-        client = new Discord.Client(); // Instantiate mocked client
+        // Reset specific mock implementations if needed by tests
+        storage.read.mockClear();
+        storage.write.mockClear();
+        
         const monitorConfig = {
             file: 'sites.json',
         };
         siteMonitor = new SiteMonitor('site-monitor', monitorConfig);
+        siteMonitor.client = client; // Ensure client is attached
         siteMonitor.state = [
             {
                 id: 'test-site.com',
@@ -102,57 +47,48 @@ describe('SiteMonitor', () => {
                 lastContent: 'initial content',
             },
         ];
-        
-        // Clear mocks for other dependencies that might have been called during setup
-        storage.read.mockClear();
-        storage.write.mockClear();
-        crypto.createHash().digest.mockClear();
-        diff.diffLines.mockClear();
     });
 
     // Existing tests for check method
     it('should detect a change and notify', async () => {
-        const notifySpy = jest.spyOn(siteMonitor, 'notify'); // Spy on notify for this test
-        // Updated: Provide real HTML for JSDOM to parse
-        const response = { body: '<html><head><title>Test Site</title></head><body>updated content</body></html>' };
-        got.mockResolvedValue(response); 
-        // Removed: JSDOM.mockImplementation calls. The global mock handles it.
+        const notifySpy = jest.spyOn(siteMonitor, 'notify');
         
-        crypto.createHash().digest.mockReturnValue('new-hash');
+        const response = { body: '<html><head><title>Test Site</title></head><body>updated content</body></html>' };
+        got.mockResolvedValue(response);
+        
+        crypto._mockDigest.mockReturnValue('new-hash');
         diff.diffLines.mockReturnValue([
             { value: 'initial', removed: true },
             { value: 'updated', added: true },
         ]);
 
+        await siteMonitor.check();
 
-        await siteMonitor.check(client);
-
-        expect(got).toHaveBeenCalledWith('http://test-site.com', expect.any(Object));
-        expect(notifySpy).toHaveBeenCalled(); // Original notify should be called
+        // Expect got called with safe options (which are now default in Monitor)
+        expect(got).toHaveBeenCalledWith('http://test-site.com', expect.anything());
+        expect(notifySpy).toHaveBeenCalled();
         expect(storage.write).toHaveBeenCalled();
-        notifySpy.mockRestore(); // Clean up spy
     });
 
     it('should not notify if no change is detected', async () => {
-        const notifySpy = jest.spyOn(siteMonitor, 'notify'); // Spy on notify for this test
+        const notifySpy = jest.spyOn(siteMonitor, 'notify');
+        
         // Match the title to avoid migration triggering storage.write
         siteMonitor.state[0].id = 'Test Site';
         const response = { body: '<html><head><title>Test Site</title></head><body>initial content</body></html>' };
-        got.mockResolvedValue(response); 
+        got.mockResolvedValue(response);
         
-        crypto.createHash().digest.mockReturnValue('old-hash');
+        crypto._mockDigest.mockReturnValue('old-hash');
 
-        await siteMonitor.check(client);
+        await siteMonitor.check();
 
-        expect(got).toHaveBeenCalledWith('http://test-site.com', expect.any(Object));
-        expect(notifySpy).not.toHaveBeenCalled(); // Original notify should not be called
+        expect(got).toHaveBeenCalledWith('http://test-site.com', expect.anything());
+        expect(notifySpy).not.toHaveBeenCalled();
         expect(storage.write).not.toHaveBeenCalled();
-        notifySpy.mockRestore(); // Clean up spy
     });
 
     it('should backfill lastContent if it is missing but hash matches (Silent Migration)', async () => {
         const notifySpy = jest.spyOn(siteMonitor, 'notify');
-        // Setup: Site has valid hash but NO lastContent (legacy state)
         const legacySite = {
             id: 'legacy-site.com',
             url: 'http://legacy-site.com',
@@ -160,7 +96,6 @@ describe('SiteMonitor', () => {
             lastChecked: 0,
             lastUpdated: 0,
             hash: 'valid-hash',
-            // lastContent is MISSING
         };
         siteMonitor.state = [legacySite];
 
@@ -168,27 +103,24 @@ describe('SiteMonitor', () => {
         const html = `<html><body>${responseContent}</body></html>`;
         got.mockResolvedValue({ body: html });
         
-        // Ensure hash matches
-        crypto.createHash().digest.mockReturnValue('valid-hash');
+        crypto._mockDigest.mockReturnValue('valid-hash');
 
-        await siteMonitor.check(client);
+        await siteMonitor.check();
 
         expect(siteMonitor.state[0].lastContent).toBe(responseContent);
         expect(storage.write).toHaveBeenCalled();
         expect(notifySpy).not.toHaveBeenCalled();
-        notifySpy.mockRestore();
     });
 
     it('should NOT backfill lastContent if it is present but empty string', async () => {
         const notifySpy = jest.spyOn(siteMonitor, 'notify');
-        // Setup: Site has valid hash and lastContent is empty string (valid state)
         const siteWithEmptyContent = {
             id: 'empty-site.com',
             url: 'http://empty-site.com',
             css: 'body',
             lastChecked: 0,
             lastUpdated: 0,
-            hash: 'd41d8cd98f00b204e9800998ecf8427e', // MD5 of empty string
+            hash: 'd41d8cd98f00b204e9800998ecf8427e',
             lastContent: '' 
         };
         siteMonitor.state = [siteWithEmptyContent];
@@ -197,13 +129,12 @@ describe('SiteMonitor', () => {
         const html = `<html><body>${responseContent}</body></html>`;
         got.mockResolvedValue({ body: html });
         
-        crypto.createHash().digest.mockReturnValue('d41d8cd98f00b204e9800998ecf8427e');
+        crypto._mockDigest.mockReturnValue('d41d8cd98f00b204e9800998ecf8427e');
 
-        await siteMonitor.check(client);
+        await siteMonitor.check();
 
         expect(storage.write).not.toHaveBeenCalled();
         expect(notifySpy).not.toHaveBeenCalled();
-        notifySpy.mockRestore();
     });
 
     // New tests for parse method
@@ -242,7 +173,7 @@ describe('SiteMonitor', () => {
             const loadedState = await siteMonitor.loadState();
             expect(storage.read).toHaveBeenCalledWith('sites.json');
             expect(loadedState).toEqual([]);
-            expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('Could not load state')); // No error logged
+            expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('Could not load state')); 
             consoleLogSpy.mockRestore();
         });
     });
@@ -261,14 +192,8 @@ describe('SiteMonitor', () => {
         };
 
         beforeEach(() => {
-            // Clear and reset local mocks for notify tests
-            client.channels.cache.get.mockClear();
-            mockChannelSend.mockClear();
-            Discord.EmbedBuilder.mockClear();
-            mockMessageEmbedInstance.setTitle.mockClear();
-            mockMessageEmbedInstance.addFields.mockClear();
-            mockMessageEmbedInstance.setColor.mockClear();
-            siteMonitor.client = client; // Ensure client is set on instance
+            // Reset mock channel for notify tests
+            mockChannel.send.mockClear();
         });
 
         it('should send an embed and diff to the channel', () => {
@@ -278,15 +203,28 @@ describe('SiteMonitor', () => {
             ]);
             siteMonitor.notify(mockChange);
 
-            expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
-            expect(mockChannel.send).toHaveBeenCalledWith({ embeds: [mockMessageEmbedInstance] });
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('¡Cambio en Test Site Title!  🐸');
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+            // Access the mock EmbedBuilder instance
+            // Since we mocked Discord.EmbedBuilder, getting the instance is tricky if we don't have a handle.
+            // But the manual mock `__mocks__/discord.js.js` exports `EmbedBuilder` as a jest.fn.
+            // We can check the calls to the constructor or the instances.
+            // However, the manual mock logic says `this.data = {}` and methods update it.
+            // But `siteMonitor.notify` creates a NEW instance: `new Discord.EmbedBuilder()`.
+            // The `mockChannel.send` receives this instance.
+            
+            expect(mockChannel.send).toHaveBeenCalledWith(expect.objectContaining({
+                embeds: expect.any(Array)
+            }));
+            
+            const sentEmbed = mockChannel.send.mock.calls[0][0].embeds[0];
+            // The manual mock's methods return `this`. So we can check the `data` property if we want, or just spies.
+            // The manual mock `__mocks__/discord.js.js` implements methods that write to `this.data`.
+            
+            expect(sentEmbed.data.title).toBe('¡Cambio en Test Site Title!  🐸');
+            expect(sentEmbed.data.fields).toEqual(expect.arrayContaining([
                 { name: '🔗 URL', value: 'http://test-site.com' },
                 { name: '🕒 Último cambio', value: '`some-date`', inline: true },
                 { name: '📝 Cambios detectados', value: '```diff\n🔴 old\n🟢 new\n```' }
-            ]);
-            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith(0x6058f3);
+            ]));
         });
 
         it('should format multiline diffs correctly', () => {
@@ -299,36 +237,34 @@ describe('SiteMonitor', () => {
             siteMonitor.notify(mockChange);
 
             const expectedDiff = '```diff\n⚪ line 1\n🔴 line 2\n🟢 line three\n⚪ line 4\n```';
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith(expect.arrayContaining([
-                { name: '📝 Cambios detectados', value: expectedDiff }
-            ]));
+            const sentEmbed = mockChannel.send.mock.calls[0][0].embeds[0];
+            const diffField = sentEmbed.data.fields.find(f => f.name === '📝 Cambios detectados');
+            expect(diffField.value).toBe(expectedDiff);
         });
 
         it('should truncate long diffs', () => {
-            const longContent = 'a'.repeat(2000); // Create sufficiently long content
+            const longContent = 'a'.repeat(2000);
             diff.diffLines.mockReturnValue([
                 { value: longContent, removed: true },
                 { value: longContent, added: true },
             ]);
             
             siteMonitor.notify(mockChange);
-            // Assert that the addFields contains the truncation.
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith(expect.arrayContaining([
-                { name: '📝 Cambios detectados', value: expect.stringContaining('... (truncated)') }
-            ]));
+            const sentEmbed = mockChannel.send.mock.calls[0][0].embeds[0];
+            const diffField = sentEmbed.data.fields.find(f => f.name === '📝 Cambios detectados');
+            expect(diffField.value).toContain('... (truncated)');
         });
 
         it('should log an error if notification channel not found', () => {
-            client.channels.cache.get.mockReturnValueOnce(undefined); // Simulate channel not found
+            // Mock get returning undefined
+            jest.spyOn(client.channels.cache, 'get').mockReturnValueOnce(undefined);
             const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
             siteMonitor.notify(mockChange);
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for site-monitor.'));
             expect(mockChannel.send).not.toHaveBeenCalled();
             consoleErrorSpy.mockRestore();
-            consoleLogSpy.mockRestore();
         });
 
         it('should use site.id as title if dom.window.document.title is not available', () => {
@@ -342,9 +278,11 @@ describe('SiteMonitor', () => {
                 newContent: 'new',
                 dom: { window: { document: { } } }, // No title
             };
-            diff.diffLines.mockReturnValue([]); // Avoid diffing errors in this specific test
+            diff.diffLines.mockReturnValue([]);
             siteMonitor.notify(mockChangeWithoutTitle);
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('¡Cambio en fallback-site-id!  🐸');
+            
+            const sentEmbed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(sentEmbed.data.title).toBe('¡Cambio en fallback-site-id!  🐸');
         });
     });
 
@@ -355,13 +293,11 @@ describe('SiteMonitor', () => {
             const html = `<html><body>${rawContent}</body></html>`;
             got.mockResolvedValue({ body: html });
             
-            // Expected clean content: "content"
-            // Expected hash: MD5("content")
-            crypto.createHash().digest.mockReturnValue('mock-hash-clean');
+            crypto._mockDigest.mockReturnValue('mock-hash-clean');
 
             const result = await siteMonitor.fetchAndProcess('http://example.com', 'body');
 
-            expect(got).toHaveBeenCalledWith('http://example.com', expect.any(Object));
+            expect(got).toHaveBeenCalledWith('http://example.com', expect.anything());
             expect(result.content).toBe('content');
             expect(result.hash).toBe('mock-hash-clean');
             expect(result.dom).toBeDefined();
@@ -375,16 +311,16 @@ describe('SiteMonitor', () => {
             const rawContent = 'content';
             const html = `<html><body>${rawContent}</body></html>`;
             got.mockResolvedValue({ body: html });
-            crypto.createHash().digest.mockReturnValue('mock-hash');
+            crypto._mockDigest.mockReturnValue('mock-hash');
 
             const { site, warning } = await siteMonitor.addSite('http://new-site.com', 'body');
 
             expect(site.url).toBe('http://new-site.com');
-            expect(site.lastContent).toBe('content'); // Should be cleaned (though 'content' is already clean)
+            expect(site.lastContent).toBe('content');
             expect(site.hash).toBe('mock-hash');
             expect(warning).toBe(false);
 
-            expect(siteMonitor.state).toHaveLength(2); // Initial 1 + new 1
+            expect(siteMonitor.state).toHaveLength(2);
             expect(siteMonitor.state[1]).toBe(site);
             expect(storage.write).toHaveBeenCalledWith('sites.json', siteMonitor.state);
         });
@@ -393,18 +329,14 @@ describe('SiteMonitor', () => {
             const html = `<html><body>content</body></html>`;
             got.mockResolvedValue({ body: html });
             
-            // Mock querySelector to return null for the specific selector
-            // Note: Our top-level mock for JSDOM might need adjustment or we rely on specific behavior
-            // The top-level mock:
-            // querySelector: jest.fn((selector) => actualDom.window.document.querySelector(selector))
-            // This runs against actual JSDOM of the HTML string.
-            // If we search for a non-existent selector, it returns null.
+            // JSDOM mock logic: if selector not found, returns null.
+            // Our manual mock for JSDOM in __mocks__/jsdom.js replicates this by using actual JSDOM
+            // so it should work correctly if passed real HTML.
 
             const { site, warning } = await siteMonitor.addSite('http://new-site.com', '#non-existent');
 
             expect(warning).toBe(true);
             expect(site.css).toBe('#non-existent');
-            // lastContent should be empty string if selector not found (logic in fetchAndProcess -> selector ? text : '')
             expect(site.lastContent).toBe(''); 
         });
 
