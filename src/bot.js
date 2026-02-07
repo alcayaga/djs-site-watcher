@@ -57,8 +57,18 @@ client.on(Events.ClientReady, async () => {
 
     // Dynamically load all monitor classes
     const monitorClasses = [];
-    const monitorFiles = (await fs.promises.readdir(path.join(__dirname, 'monitors')))
-        .filter(file => file.endsWith('.js'));
+    const monitorPath = path.join(__dirname, 'monitors');
+    let monitorFiles = [];
+    try {
+        monitorFiles = (await fs.promises.readdir(monitorPath))
+            .filter(file => file.endsWith('.js'));
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            console.warn(`Monitors directory not found at ${monitorPath}. No monitors will be loaded.`);
+        } else {
+            console.error(`Error reading monitors directory at ${monitorPath}:`, error);
+        }
+    }
 
     for (const file of monitorFiles) {
         const MonitorClass = require(`./monitors/${file}`);

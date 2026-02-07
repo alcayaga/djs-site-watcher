@@ -192,6 +192,7 @@ describe('Bot', () => {
     it('should initialize client and registers event handlers', () => {
         jest.doMock('../src/config', () => ({
             DISCORDJS_BOT_TOKEN: 'mock_token',
+            channels: []
         }));
         const bot = require('../src/bot.js');
         expect(bot.client).toBeDefined();
@@ -208,6 +209,7 @@ describe('Bot', () => {
                     monitors: [],
                     DISCORDJS_BOT_TOKEN: 'mock_token',
                     SINGLE_RUN: 'true',
+                    channels: []
                 }));
             });
 
@@ -232,6 +234,7 @@ describe('Bot', () => {
                     monitors: [],
                     DISCORDJS_BOT_TOKEN: 'mock_token',
                     SINGLE_RUN: 'false',
+                    channels: []
                 }));
             });
 

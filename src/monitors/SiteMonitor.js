@@ -42,9 +42,9 @@ class SiteMonitor extends Monitor {
     async check() {
         console.log(`Checking for ${this.name} updates...`);
         let sitesArray = Array.isArray(this.state) ? this.state : [];
-        let hasChanges = false;
 
         const checkPromises = sitesArray.map(async (site) => {
+            let hasChanged = false;
             try {
                 const { content, hash, dom } = await this.fetchAndProcess(site.url, site.css);
 
@@ -52,7 +52,7 @@ class SiteMonitor extends Monitor {
                 if (title && title.trim().length > 0 && site.id !== title) {
                     console.log(`[Migration] Updating ID for ${site.url} from '${site.id}' to '${title}'`);
                     site.id = title;
-                    hasChanges = true;
+                    hasChanged = true;
                 }
 
                 if (site.hash !== hash) {
@@ -65,31 +65,33 @@ class SiteMonitor extends Monitor {
                     site.lastContent = content;
                     
                     if (cleanOldContent !== content) {
-                        hasChanges = true;
+                        hasChanged = true;
                         this.notify({ site, oldContent, newContent: content, dom });
                     } else {
                         // Silent update (Migration to clean content)
-                        hasChanges = true; 
+                        hasChanged = true; 
                         console.log(`[Migration] Updated ${site.url} to clean content format without notification.`);
                     }
                 } else {
                     if (site.lastContent === undefined) {
                         site.lastContent = content;
-                        hasChanges = true;
+                        hasChanged = true;
                         console.log(`[Migration] Backfilled lastContent for ${site.url} without notification.`);
                     }
                     site.lastChecked = new Date().toISOString();
                 }
-                return site;
+                return { site, hasChanged };
             } catch (err) {
                 console.log(`${site.url} : ${err}`);
-                return site;
+                return { site, hasChanged: false };
             }
         });
 
-        const updatedSites = await Promise.all(checkPromises);
+        const results = await Promise.all(checkPromises);
+        const hasAnyChanges = results.some(r => r.hasChanged);
 
-        if (hasChanges) {
+        if (hasAnyChanges) {
+            const updatedSites = results.map(r => r.site);
             await this.saveState(updatedSites);
         }
     }
