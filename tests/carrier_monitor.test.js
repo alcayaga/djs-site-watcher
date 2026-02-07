@@ -155,19 +155,15 @@ describe('CarrierMonitor', () => {
 
     // Test saveState method
     describe('saveState method', () => {
-        it('should merge new state with existing state before calling super.saveState', async () => {
+        it('should overwrite state with new state (no merge) to prevent stale state', async () => {
             carrierMonitor.state = { "Existing Carrier": { version: '1.0', build: '1.0.0' } };
             const newState = { "New Carrier": { version: '2.0', build: '2.0.0' } };
-            const expectedMergedState = {
-                "Existing Carrier": { version: '1.0', build: '1.0.0' },
-                "New Carrier": { version: '2.0', build: '2.0.0' },
-            };
             
             jest.spyOn(Monitor.prototype, 'saveState').mockResolvedValue();
 
             await carrierMonitor.saveState(newState);
 
-            expect(Monitor.prototype.saveState).toHaveBeenCalledWith(expectedMergedState);
+            expect(Monitor.prototype.saveState).toHaveBeenCalledWith(newState);
         });
     });
 

@@ -44,12 +44,14 @@ class AppleFeatureMonitor extends Monitor {
     /**
      * Compares the old state with the new data to find new features or new regions for existing features.
      * @param {object} newData The newly parsed feature data.
-     * @returns {{added: Array}|null} An object with an array of new features/regions, or null if no changes.
+     * @returns {{added: Array, removed: Array}|null} An object with arrays of new and removed features/regions, or null if no changes.
      */
     compare(newData) {
         const added = [];
+        const removed = [];
         const oldFeatures = this.state || {};
 
+        // Detect additions
         for (const featureName in newData) {
             const newFeature = newData[featureName];
             const oldFeature = oldFeatures[featureName];
@@ -70,27 +72,40 @@ class AppleFeatureMonitor extends Monitor {
             }
         }
 
-        if (added.length > 0) {
-            return { added };
+        // Detect removals
+        for (const featureName in oldFeatures) {
+            const oldFeature = oldFeatures[featureName];
+            const newFeature = newData[featureName];
+
+            if (!newFeature) {
+                // Feature removed entirely
+                oldFeature.regions.forEach(region => {
+                    removed.push({ featureName, region, id: oldFeature.id });
+                });
+            } else {
+                // Existing feature, check for removed regions
+                const newRegions = newFeature.regions || [];
+                oldFeature.regions.forEach(region => {
+                    if (!newRegions.includes(region)) {
+                        removed.push({ featureName, region, id: oldFeature.id });
+                    }
+                });
+            }
+        }
+
+        if (added.length > 0 || removed.length > 0) {
+            return { added, removed };
         }
 
         return null;
     }
-    
-    /**
-     * Overrides the base saveState to merge new data with old data.
-     * @param {object} newState The new state to save.
-     */
-    async saveState(newState) {
-        const mergedState = { ...this.state, ...newState };
-        await super.saveState(mergedState);
-    }
 
     /**
      * Sends notifications for new features or regions.
-     * @param {{added: Array}} changes The changes to notify about.
+     * @param {{added: Array, removed: Array}} changes The changes to notify about.
+     * @returns {Promise<void>}
      */
-    notify(changes) {
+    async notify(changes) {
         const channel = this.getNotificationChannel();
         if (!channel) {
             console.error(`Notification channel not found for ${this.name}.`);
@@ -98,19 +113,26 @@ class AppleFeatureMonitor extends Monitor {
         }
         
         const url = this.config.url;
+        const notificationConfigs = [
+            { key: 'added', title: '🌟 ¡Nueva función de Apple disponible! 🐸', color: '#0071E3', logSuffix: 'found' },
+            { key: 'removed', title: '🚫 ¡Función de Apple eliminada! 🐸', color: '#F44336', logSuffix: 'removed' }
+        ];
 
-        changes.added.forEach(item => {
-            console.log(`New Apple feature found: ${item.featureName} in ${item.region}`);
-            const embed = new Discord.EmbedBuilder()
-                .setTitle(`🌟 ¡Nueva función de Apple disponible! 🐸`)
-                .addFields([
-                    { name: '✨ Función', value: sanitizeMarkdown(item.featureName), inline: true },
-                    { name: '📍 Región/Idioma', value: sanitizeMarkdown(item.region), inline: true },
-                    { name: '🔗 URL', value: encodeURI(`${url}#${item.id}`) }
-                ])
-                .setColor('#0071E3');
-            channel.send({ embeds: [embed] });
-        });
+        const notificationPromises = notificationConfigs.flatMap(config =>
+            (changes[config.key] || []).map(item => {
+                console.log(`Apple feature ${config.logSuffix}: ${item.featureName} in ${item.region}`);
+                const embed = new Discord.EmbedBuilder()
+                    .setTitle(config.title)
+                    .addFields([
+                        { name: '✨ Función', value: sanitizeMarkdown(item.featureName), inline: true },
+                        { name: '📍 Región/Idioma', value: sanitizeMarkdown(item.region), inline: true },
+                        { name: '🔗 URL', value: encodeURI(`${url}#${item.id}`) }
+                    ])
+                    .setColor(config.color);
+                return channel.send({ embeds: [embed] });
+            })
+        );
+        await Promise.all(notificationPromises);
     }
 }
 

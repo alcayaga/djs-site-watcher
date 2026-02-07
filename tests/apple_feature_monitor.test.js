@@ -135,23 +135,33 @@ describe('AppleFeatureMonitor', () => {
                 { featureName: "Feature 4", region: "Region D", id: "feature-4" },
             ]);
         });
+
+        it('should detect removed features and regions', () => {
+            appleFeatureMonitor.state = {
+                "Feature 1": { regions: ["Region A", "Region B"], id: "feature-1" },
+                "Feature 2": { regions: ["Region C"], id: "feature-2" },
+            };
+            const newState = {
+                "Feature 1": { regions: ["Region A"], id: "feature-1" },
+            };
+            const changes = appleFeatureMonitor.compare(newState);
+            expect(changes.removed).toHaveLength(2);
+            expect(changes.removed).toContainEqual({ featureName: "Feature 1", region: "Region B", id: "feature-1" });
+            expect(changes.removed).toContainEqual({ featureName: "Feature 2", region: "Region C", id: "feature-2" });
+        });
     });
 
     // Test saveState method
     describe('saveState method', () => {
-        it('should merge new state with existing state before calling super.saveState', async () => {
+        it('should overwrite state with new state (no merge) to prevent stale state', async () => {
             appleFeatureMonitor.state = { "Existing Feature": { regions: ["Old"], id: "exist-1" } };
             const newState = { "New Feature": { regions: ["New"], id: "new-1" } };
-            const expectedMergedState = {
-                "Existing Feature": { regions: ["Old"], id: "exist-1" },
-                "New Feature": { regions: ["New"], id: "new-1" },
-            };
             
             jest.spyOn(Monitor.prototype, 'saveState').mockResolvedValue();
 
             await appleFeatureMonitor.saveState(newState);
 
-            expect(Monitor.prototype.saveState).toHaveBeenCalledWith(expectedMergedState);
+            expect(Monitor.prototype.saveState).toHaveBeenCalledWith(newState);
         });
     });
 
@@ -188,6 +198,20 @@ describe('AppleFeatureMonitor', () => {
                 { name: '🔗 URL', value: 'http://apple.com/features#existing-feature' }
             ]);
             expect(secondEmbed.data.color).toBe('#0071E3');
+        });
+
+        it('should send embeds for each removed feature/region', () => {
+            const changes = {
+                removed: [
+                    { featureName: "Old Feature", region: "Old Region", id: "old-feature" },
+                ],
+            };
+            appleFeatureMonitor.notify(changes);
+
+            expect(mockChannel.send).toHaveBeenCalledTimes(1);
+            const embed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(embed.data.title).toContain('Función de Apple eliminada');
+            expect(embed.data.color).toBe('#F44336');
         });
 
         it('should log an error if notification channel not found', () => {

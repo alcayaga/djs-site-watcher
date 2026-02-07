@@ -105,7 +105,7 @@ class ApplePayMonitor extends Monitor {
 
     /**
      * Compares the new parsed data with the monitor's current state.
-     * Detects changes in SupportedRegions and new MarketGeos identifiers.
+     * Detects changes in SupportedRegions and new/removed MarketGeos identifiers.
      * @param {object} newData The newly parsed data.
      * @returns {{changes: Array}|null} An array of detected changes, or null if no changes.
      */
@@ -144,15 +144,32 @@ class ApplePayMonitor extends Monitor {
             detectedChanges.push({ type: 'regionDiff', configName: 'main config', diff: diffString, url: this.CONFIG_URL });
         }
 
+        /**
+         * Helper to find MarketGeo changes (additions and removals).
+         * @param {Array} oldGeos The list of old MarketGeos.
+         * @param {Array} newGeos The list of new MarketGeos.
+         * @param {string} configName The name of the configuration source.
+         * @param {string} url The URL of the configuration source.
+         * @returns {Array} An array of detected change objects.
+         */
+        const findMarketGeoChanges = (oldGeos = [], newGeos = [], configName, url) => {
+            const changes = [];
+            // Additions
+            newGeos.filter(newGeo => !oldGeos.some(oldGeo => oldGeo.id === newGeo.id))
+                .forEach(geo => changes.push({ type: 'newMarketGeo', configName, geo, url }));
+            // Removals
+            oldGeos.filter(oldGeo => !newGeos.some(newGeo => newGeo.id === oldGeo.id))
+                .forEach(geo => changes.push({ type: 'removedMarketGeo', configName, geo, url }));
+            return changes;
+        };
+
         // Compare main config MarketGeos
-        const oldConfigMarketGeos = this.state.configMarketGeoIdentifiers || [];
-        const newConfigMarketGeos = newData.configMarketGeoIdentifiers || [];
-        const newMarketGeosConfig = newConfigMarketGeos.filter(newGeo => 
-            !oldConfigMarketGeos.some(oldGeo => oldGeo.id === newGeo.id)
-        );
-        newMarketGeosConfig.forEach(geo => {
-            detectedChanges.push({ type: 'newMarketGeo', configName: 'main config', geo: geo, url: this.CONFIG_URL });
-        });
+        detectedChanges.push(...findMarketGeoChanges(
+            this.state.configMarketGeoIdentifiers,
+            newData.configMarketGeoIdentifiers,
+            'main config',
+            this.CONFIG_URL
+        ));
 
         // Compare alt config region data
         if (this.state.configAltRegion !== newData.configAltRegion) {
@@ -173,14 +190,12 @@ class ApplePayMonitor extends Monitor {
         }
 
         // Compare alt config MarketGeos
-        const oldConfigAltMarketGeos = this.state.configAltMarketGeoIdentifiers || [];
-        const newConfigAltMarketGeos = newData.configAltMarketGeoIdentifiers || [];
-        const newMarketGeosAltConfig = newConfigAltMarketGeos.filter(newGeo => 
-            !oldConfigAltMarketGeos.some(oldGeo => oldGeo.id === newGeo.id)
-        );
-        newMarketGeosAltConfig.forEach(geo => {
-            detectedChanges.push({ type: 'newMarketGeo', configName: 'alt config', geo: geo, url: this.CONFIG_ALT_URL });
-        });
+        detectedChanges.push(...findMarketGeoChanges(
+            this.state.configAltMarketGeoIdentifiers,
+            newData.configAltMarketGeoIdentifiers,
+            'alt config',
+            this.CONFIG_ALT_URL
+        ));
 
         return detectedChanges.length > 0 ? { changes: detectedChanges } : null;
     }
@@ -188,15 +203,21 @@ class ApplePayMonitor extends Monitor {
     /**
      * Sends Discord notifications based on the detected changes.
      * @param {{changes: Array}} detectedChanges Object containing an array of changes.
+     * @returns {Promise<void>}
      */
-    notify(detectedChanges) {
+    async notify(detectedChanges) {
         const channel = this.getNotificationChannel();
         if (!channel) {
             console.error(`Notification channel not found for ${this.name}.`);
             return;
         }
 
-        detectedChanges.changes.forEach(change => {
+        const marketGeoChanges = [
+            { type: 'newMarketGeo', title: '🌟 ¡Nueva región en Transit para Apple Pay! 🐸', color: '#0071E3' },
+            { type: 'removedMarketGeo', title: '🚫 ¡Región eliminada de Transit para Apple Pay! 🐸', color: '#F44336' }
+        ];
+
+        const notificationPromises = detectedChanges.changes.map(change => {
             if (change.type === 'regionDiff') {
                 const embed = new Discord.EmbedBuilder()
                     .setTitle(`¡Cambio en Apple Pay para ${this.REGION_TO_MONITOR}! 🐸`)
@@ -206,20 +227,25 @@ class ApplePayMonitor extends Monitor {
                     ])
                     .setFooter({ text: `Fuente: ${change.configName}` })
                     .setColor('#0071E3');
-                channel.send({ embeds: [embed] });
-            } else if (change.type === 'newMarketGeo') {
-                const embed = new Discord.EmbedBuilder()
-                    .setTitle(`🌟 ¡Nueva región en Transit para Apple Pay! 🐸`)
-                    .addFields([
-                        { name: '📍 Región', value: this.REGION_TO_MONITOR, inline: true },
-                        { name: '🏷️ Nombre', value: sanitizeMarkdown(change.geo.name || 'Unknown'), inline: true },
-                        { name: '🔗 URL', value: change.url }
-                    ])
-                    .setFooter({ text: `Fuente: ${change.configName}` })
-                    .setColor('#0071E3');
-                channel.send({ embeds: [embed] });
+                return channel.send({ embeds: [embed] });
+            } else {
+                const config = marketGeoChanges.find(c => c.type === change.type);
+                if (config) {
+                    const embed = new Discord.EmbedBuilder()
+                        .setTitle(config.title)
+                        .addFields([
+                            { name: '📍 Región', value: this.REGION_TO_MONITOR, inline: true },
+                            { name: '🏷️ Nombre', value: sanitizeMarkdown(change.geo.name || 'Unknown'), inline: true },
+                            { name: '🔗 URL', value: change.url }
+                        ])
+                        .setFooter({ text: `Fuente: ${change.configName}` })
+                        .setColor(config.color);
+                    return channel.send({ embeds: [embed] });
+                }
             }
+            return Promise.resolve();
         });
+        await Promise.all(notificationPromises);
     }
 }
 

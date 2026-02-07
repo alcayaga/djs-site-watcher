@@ -241,6 +241,28 @@ describe('ApplePayMonitor', () => {
             expect(changes.changes[0].geo).toEqual({ id: 'CL_AltGeo2', name: 'Chile Alt Geo 2' });
         });
 
+        it('should detect removedMarketGeo in main config', () => {
+            const newState = {
+                ...oldState,
+                configMarketGeoIdentifiers: [],
+            };
+            const changes = applePayMonitor.compare(newState);
+            expect(changes.changes).toHaveLength(1);
+            expect(changes.changes[0].type).toBe('removedMarketGeo');
+            expect(changes.changes[0].geo).toEqual({ id: 'CL_Geo1', name: 'Chile Geo 1' });
+        });
+
+        it('should detect removedMarketGeo in alt config', () => {
+            const newState = {
+                ...oldState,
+                configAltMarketGeoIdentifiers: [],
+            };
+            const changes = applePayMonitor.compare(newState);
+            expect(changes.changes).toHaveLength(1);
+            expect(changes.changes[0].type).toBe('removedMarketGeo');
+            expect(changes.changes[0].geo).toEqual({ id: 'CL_AltGeo1', name: 'Chile Alt Geo 1' });
+        });
+
         it('should return null if no changes are detected', () => {
             const changes = applePayMonitor.compare(oldState);
             expect(changes).toBeNull();
@@ -290,6 +312,18 @@ describe('ApplePayMonitor', () => {
             ]);
             expect(embed.data.footer).toEqual({ text: 'Fuente: alt config' });
             expect(embed.data.color).toBe('#0071E3');
+        });
+
+        it('should send embed for removedMarketGeo change', () => {
+            const changes = { changes: [{ type: 'removedMarketGeo', configName: 'main config', geo: { name: 'Old Geo', id: 'old-geo-id' }, url: 'http://config.com' }] };
+            applePayMonitor.notify(changes);
+
+            expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
+            expect(mockChannel.send).toHaveBeenCalledTimes(1);
+            
+            const embed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(embed.data.title).toContain('¡Región eliminada de Transit para Apple Pay! 🐸');
+            expect(embed.data.color).toBe('#F44336');
         });
 
         it('should log an error if notification channel not found', () => {

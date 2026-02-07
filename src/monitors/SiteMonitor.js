@@ -233,8 +233,9 @@ class SiteMonitor extends Monitor {
     /**
      * Sends a notification for a changed site.
      * @param {object} change The change object containing site, old/new content, and dom.
+     * @returns {Promise<void>}
      */
-    notify(change) {
+    async notify(change) {
         const { site, oldContent, newContent, dom } = change;
         const channel = this.getNotificationChannel();
         if (!channel) {
@@ -296,7 +297,7 @@ class SiteMonitor extends Monitor {
             .addFields(fields)
             .setColor(0x6058f3);
             
-        channel.send({ embeds: [embed] });
+        await channel.send({ embeds: [embed] });
     }
 }
 
