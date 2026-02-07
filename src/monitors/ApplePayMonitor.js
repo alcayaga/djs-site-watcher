@@ -212,6 +212,11 @@ class ApplePayMonitor extends Monitor {
             return;
         }
 
+        const marketGeoChanges = [
+            { type: 'newMarketGeo', title: '🌟 ¡Nueva región en Transit para Apple Pay! 🐸', color: '#0071E3' },
+            { type: 'removedMarketGeo', title: '🚫 ¡Región eliminada de Transit para Apple Pay! 🐸', color: '#F44336' }
+        ];
+
         detectedChanges.changes.forEach(change => {
             if (change.type === 'regionDiff') {
                 const embed = new Discord.EmbedBuilder()
@@ -223,28 +228,20 @@ class ApplePayMonitor extends Monitor {
                     .setFooter({ text: `Fuente: ${change.configName}` })
                     .setColor('#0071E3');
                 channel.send({ embeds: [embed] });
-            } else if (change.type === 'newMarketGeo') {
-                const embed = new Discord.EmbedBuilder()
-                    .setTitle(`🌟 ¡Nueva región en Transit para Apple Pay! 🐸`)
-                    .addFields([
-                        { name: '📍 Región', value: this.REGION_TO_MONITOR, inline: true },
-                        { name: '🏷️ Nombre', value: sanitizeMarkdown(change.geo.name || 'Unknown'), inline: true },
-                        { name: '🔗 URL', value: change.url }
-                    ])
-                    .setFooter({ text: `Fuente: ${change.configName}` })
-                    .setColor('#0071E3');
-                channel.send({ embeds: [embed] });
-            } else if (change.type === 'removedMarketGeo') {
-                const embed = new Discord.EmbedBuilder()
-                    .setTitle(`🚫 ¡Región eliminada de Transit para Apple Pay! 🐸`)
-                    .addFields([
-                        { name: '📍 Región', value: this.REGION_TO_MONITOR, inline: true },
-                        { name: '🏷️ Nombre', value: sanitizeMarkdown(change.geo.name || 'Unknown'), inline: true },
-                        { name: '🔗 URL', value: change.url }
-                    ])
-                    .setFooter({ text: `Fuente: ${change.configName}` })
-                    .setColor('#F44336'); // Red for removed
-                channel.send({ embeds: [embed] });
+            } else {
+                const config = marketGeoChanges.find(c => c.type === change.type);
+                if (config) {
+                    const embed = new Discord.EmbedBuilder()
+                        .setTitle(config.title)
+                        .addFields([
+                            { name: '📍 Región', value: this.REGION_TO_MONITOR, inline: true },
+                            { name: '🏷️ Nombre', value: sanitizeMarkdown(change.geo.name || 'Unknown'), inline: true },
+                            { name: '🔗 URL', value: change.url }
+                        ])
+                        .setFooter({ text: `Fuente: ${change.configName}` })
+                        .setColor(config.color);
+                    channel.send({ embeds: [embed] });
+                }
             }
         });
     }

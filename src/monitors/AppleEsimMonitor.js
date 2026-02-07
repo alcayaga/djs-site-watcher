@@ -96,33 +96,25 @@ class AppleEsimMonitor extends Monitor {
             return;
         }
         const country = this.config.country || 'Chile';
+        const notificationConfigs = [
+            { key: 'added', title: `📱 ¡Operador de eSIM agregado en ${country}! 🐸`, color: '#4CAF50', action: 'added' },
+            { key: 'removed', title: `📱 ¡Operador de eSIM eliminado en ${country}! 🐸`, color: '#F44336', action: 'removed' }
+        ];
 
-        changes.added.forEach(carrier => {
-            console.log(`Apple eSIM carrier change in ${country}: ${carrier.name} was added.`);
-            const sanitizedName = sanitizeLinkText(carrier.name);
-            const sanitizedLink = encodeURI(carrier.link);
-            const embed = new Discord.EmbedBuilder()
-                .setTitle(`📱 ¡Operador de eSIM agregado en ${country}! 🐸`)
-                .addFields([
-                    { name: '📡 Operador', value: `[${sanitizedName}](${sanitizedLink})`, inline: true },
-                    { name: '✨ Capacidad', value: sanitizeMarkdown(carrier.capability), inline: true }
-                ])
-                .setColor('#4CAF50'); // Green for added
-            channel.send({ embeds: [embed] });
-        });
-
-        changes.removed.forEach(carrier => {
-            console.log(`Apple eSIM carrier change in ${country}: ${carrier.name} was removed.`);
-            const sanitizedName = sanitizeLinkText(carrier.name);
-            const sanitizedLink = encodeURI(carrier.link);
-            const embed = new Discord.EmbedBuilder()
-                .setTitle(`📱 ¡Operador de eSIM eliminado en ${country}! 🐸`)
-                .addFields([
-                    { name: '📡 Operador', value: `[${sanitizedName}](${sanitizedLink})`, inline: true },
-                    { name: '✨ Capacidad', value: sanitizeMarkdown(carrier.capability), inline: true }
-                ])
-                .setColor('#F44336'); // Red for removed
-            channel.send({ embeds: [embed] });
+        notificationConfigs.forEach(config => {
+            (changes[config.key] || []).forEach(carrier => {
+                console.log(`Apple eSIM carrier change in ${country}: ${carrier.name} was ${config.action}.`);
+                const sanitizedName = sanitizeLinkText(carrier.name);
+                const sanitizedLink = encodeURI(carrier.link);
+                const embed = new Discord.EmbedBuilder()
+                    .setTitle(config.title)
+                    .addFields([
+                        { name: '📡 Operador', value: `[${sanitizedName}](${sanitizedLink})`, inline: true },
+                        { name: '✨ Capacidad', value: sanitizeMarkdown(carrier.capability), inline: true }
+                    ])
+                    .setColor(config.color);
+                channel.send({ embeds: [embed] });
+            });
         });
     }
 }

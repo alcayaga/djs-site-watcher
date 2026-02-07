@@ -112,31 +112,24 @@ class AppleFeatureMonitor extends Monitor {
         }
         
         const url = this.config.url;
+        const notificationConfigs = [
+            { key: 'added', title: '🌟 ¡Nueva función de Apple disponible! 🐸', color: '#0071E3', logSuffix: 'found' },
+            { key: 'removed', title: '🚫 ¡Función de Apple eliminada! 🐸', color: '#F44336', logSuffix: 'removed' }
+        ];
 
-        (changes.added || []).forEach(item => {
-            console.log(`New Apple feature found: ${item.featureName} in ${item.region}`);
-            const embed = new Discord.EmbedBuilder()
-                .setTitle(`🌟 ¡Nueva función de Apple disponible! 🐸`)
-                .addFields([
-                    { name: '✨ Función', value: sanitizeMarkdown(item.featureName), inline: true },
-                    { name: '📍 Región/Idioma', value: sanitizeMarkdown(item.region), inline: true },
-                    { name: '🔗 URL', value: encodeURI(`${url}#${item.id}`) }
-                ])
-                .setColor('#0071E3');
-            channel.send({ embeds: [embed] });
-        });
-
-        (changes.removed || []).forEach(item => {
-            console.log(`Apple feature removed: ${item.featureName} in ${item.region}`);
-            const embed = new Discord.EmbedBuilder()
-                .setTitle(`🚫 ¡Función de Apple eliminada! 🐸`)
-                .addFields([
-                    { name: '✨ Función', value: sanitizeMarkdown(item.featureName), inline: true },
-                    { name: '📍 Región/Idioma', value: sanitizeMarkdown(item.region), inline: true },
-                    { name: '🔗 URL', value: encodeURI(`${url}#${item.id}`) }
-                ])
-                .setColor('#F44336'); // Red for removed
-            channel.send({ embeds: [embed] });
+        notificationConfigs.forEach(config => {
+            (changes[config.key] || []).forEach(item => {
+                console.log(`Apple feature ${config.logSuffix}: ${item.featureName} in ${item.region}`);
+                const embed = new Discord.EmbedBuilder()
+                    .setTitle(config.title)
+                    .addFields([
+                        { name: '✨ Función', value: sanitizeMarkdown(item.featureName), inline: true },
+                        { name: '📍 Región/Idioma', value: sanitizeMarkdown(item.region), inline: true },
+                        { name: '🔗 URL', value: encodeURI(`${url}#${item.id}`) }
+                    ])
+                    .setColor(config.color);
+                channel.send({ embeds: [embed] });
+            });
         });
     }
 }
