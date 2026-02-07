@@ -1,6 +1,15 @@
-require('../src/MonitorManager');
-require('../src/config');
 const Discord = require('discord.js');
+
+// Mock config for MonitorManager
+jest.mock('../src/config', () => ({
+    monitors: [
+        { name: 'TestMonitor', enabled: true, file: 'test.json' },
+        { name: 'DisabledMonitor', enabled: false },
+        { name: 'NotFoundMonitor', enabled: true },
+    ],
+}));
+
+jest.mock('discord.js');
 
 // Helper to create a mock Monitor class with necessary methods
 /**

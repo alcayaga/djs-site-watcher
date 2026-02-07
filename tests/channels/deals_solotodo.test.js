@@ -1,5 +1,7 @@
+const Discord = require('discord.js');
 const DealsChannel = require('../../src/channels/deals.js');
 
+jest.mock('discord.js');
 // Mock the solotodo utils
 jest.mock('../../src/utils/solotodo', () => ({
     extractQuery: jest.fn(),
@@ -18,6 +20,7 @@ describe('DealsChannel Solotodo Integration', () => {
     let mockMessage;
     let mockThread;
     let handlerConfig;
+    let mockEmbedInstance;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -45,6 +48,9 @@ describe('DealsChannel Solotodo Integration', () => {
             startThread: jest.fn().mockResolvedValue(mockThread),
         };
 
+        mockEmbedInstance = new Discord.EmbedBuilder();
+        Discord.EmbedBuilder.mockReturnValue(mockEmbedInstance);
+
         // Default mock implementations for URL helpers
         getProductUrl.mockImplementation(p => `https://www.solotodo.cl/products/${p.id}-${p.slug}`);
         getSearchUrl.mockImplementation(q => `https://www.solotodo.cl/search?search=${encodeURIComponent(q)}`);
@@ -68,11 +74,10 @@ describe('DealsChannel Solotodo Integration', () => {
         expect(searchByUrl).toHaveBeenCalledWith('https://example.com/');
         expect(searchSolotodo).not.toHaveBeenCalled(); // Should skip text search
         expect(mockThread.send).toHaveBeenCalledWith(expect.objectContaining({
-            embeds: expect.arrayContaining([expect.any(Object)])
+            embeds: expect.arrayContaining([mockEmbedInstance])
         }));
 
-        const embed = mockThread.send.mock.calls[0][0].embeds[0];
-        expect(embed.setURL).toHaveBeenCalledWith('https://www.solotodo.cl/products/111-direct-url-product');
+        expect(mockEmbedInstance.data.url).toBe('https://www.solotodo.cl/products/111-direct-url-product');
     });
 
     it('should fetch and display top 3 cheapest sellers when a product is found', async () => {
@@ -150,15 +155,14 @@ describe('DealsChannel Solotodo Integration', () => {
         // Should display top 3 (Store 1: 90k, Store 4: 95k, Store 5: 105k)
         // Store 2: 110k is 4th. Store 3 is filtered.
         expect(mockThread.send).toHaveBeenCalledWith(expect.objectContaining({
-            embeds: expect.arrayContaining([expect.any(Object)])
+            embeds: expect.arrayContaining([mockEmbedInstance])
         }));
 
-        const embed = mockThread.send.mock.calls[0][0].embeds[0];
-        expect(embed.addFields).toHaveBeenCalledWith(expect.objectContaining({
+        expect(mockEmbedInstance.addFields).toHaveBeenCalledWith(expect.objectContaining({
             name: expect.stringContaining('Mejores precios actuales')
         }));
 
-        const priceField = embed.addFields.mock.calls[0][0].value;
+        const priceField = mockEmbedInstance.addFields.mock.calls[0][0].value;
         expect(priceField).toContain('Store 1');
         expect(priceField).toContain('Store 4');
         expect(priceField).toContain('Store 5');
@@ -187,11 +191,10 @@ describe('DealsChannel Solotodo Integration', () => {
         expect(extractQuery).toHaveBeenCalled();
         expect(searchSolotodo).toHaveBeenCalledWith('iphone 15');
         expect(mockThread.send).toHaveBeenCalledWith(expect.objectContaining({
-            embeds: expect.arrayContaining([expect.any(Object)])
+            embeds: expect.arrayContaining([mockEmbedInstance])
         }));
 
-        const embed = mockThread.send.mock.calls[0][0].embeds[0];
-        expect(embed.setURL).toHaveBeenCalledWith('https://www.solotodo.cl/products/222-text-search-product');
+        expect(mockEmbedInstance.data.url).toBe('https://www.solotodo.cl/products/222-text-search-product');
     });
 
     it('should post a generic search link if both methods fail but query exists', async () => {
@@ -203,11 +206,10 @@ describe('DealsChannel Solotodo Integration', () => {
         
         expect(handled).toBe(false);
         expect(mockThread.send).toHaveBeenCalledWith(expect.objectContaining({
-            embeds: expect.arrayContaining([expect.any(Object)])
+            embeds: expect.arrayContaining([mockEmbedInstance])
         }));
 
-        const embed = mockThread.send.mock.calls[0][0].embeds[0];
-        expect(embed.setURL).toHaveBeenCalledWith('https://www.solotodo.cl/search?search=unknown%20product');
+        expect(mockEmbedInstance.data.url).toBe('https://www.solotodo.cl/search?search=unknown%20product');
     });
 
     it('should do nothing if everything fails (no URL match, no query extracted)', async () => {

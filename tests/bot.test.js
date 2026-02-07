@@ -11,21 +11,12 @@ jest.mock('cron', () => ({
     }),
 }));
 
-const _MockMonitorClass = jest.fn().mockImplementation(function(name, monitorConfig) {
-    this.name = name;
-    this.monitorConfig = monitorConfig;
-    this.check = jest.fn();
-    this.saveState = jest.fn().mockResolvedValue(undefined);
-    this.state = [];
-    this.initialize = jest.fn().mockResolvedValue(this);
-});
-
-const _Discord = require('discord.js');
-const _storage = require('../src/storage.js');
-const _got = require('got');
-const _JSDOM = require('jsdom');
-const _state = require('../src/state');
-const _MonitorManager = require('../src/MonitorManager');
+require('discord.js');
+require('../src/storage.js');
+require('got');
+require('jsdom');
+require('../src/state');
+require('../src/MonitorManager');
 
 // Mock handlers
 jest.mock('../src/handlers/interactionHandler', () => ({
@@ -47,32 +38,11 @@ jest.mock('../src/MonitorManager', () => ({
     getAllMonitors: jest.fn(),
 }));
 
-// Mock storage
-jest.mock('../src/storage', () => ({
-    loadSites: jest.fn(),
-    saveSites: jest.fn(),
-    loadSettings: jest.fn(),
-    loadResponses: jest.fn().mockReturnValue([]),
-    read: jest.fn().mockResolvedValue({}),
-    write: jest.fn().mockResolvedValue(true),
-    migrateLegacyData: jest.fn(),
-    SENSITIVE_SETTINGS_KEYS: [],
-}));
-
-// Mock got
-jest.mock('got', () => jest.fn(() => Promise.resolve({ body: '<html><body>Generic Mock HTML</body></html>' })));
-
-// Mock jsdom
-jest.mock('jsdom', () => ({
-    JSDOM: jest.fn(() => ({
-        window: {
-            document: {
-                querySelector: jest.fn(() => null),
-                querySelectorAll: jest.fn(() => []),
-            },
-        },
-    })),
-}));
+// Mock storage, got, jsdom, discord.js using shared mocks
+jest.mock('../src/storage');
+jest.mock('got');
+jest.mock('jsdom');
+jest.mock('discord.js');
 
 // Mock fs
 jest.mock('fs', () => ({
@@ -83,95 +53,24 @@ jest.mock('fs', () => ({
     },
 }));
 
-// Mock discord.js
-jest.mock('discord.js', () => {
-    const originalDiscord = jest.requireActual('discord.js');
-    const EmbedBuilder = jest.fn(() => ({
-        setTitle: jest.fn().mockReturnThis(),
-        setColor: jest.fn().mockReturnThis(),
-        addFields: jest.fn().mockReturnThis(),
-    }));
-
-    const Collection = jest.fn(() => {
-        const map = new Map();
-        return {
-            set: (key, value) => map.set(key, value),
-            get: (key) => map.get(key),
-            find: (fn) => {
-                for (const item of map.values()) {
-                    if (fn(item)) {
-                        return item;
-                    }
-                }
-                return undefined;
-            },
-            values: () => map.values(),
-            map: (fn) => Array.from(map.values()).map(fn),
-        };
-    });
-    
-    const on = jest.fn();
-    const login = jest.fn();
-    const client = {
-        channels: {
-            cache: {
-                get: jest.fn(() => ({
-                    send: jest.fn().mockResolvedValue(true),
-                })),
-            },
-        },
-        on,
-        login,
-        emit: jest.fn(),
-        user: {
-            tag: 'test-bot'
-        },
-        application: {
-            commands: {
-                set: jest.fn().mockResolvedValue([])
-            }
-        }
-    };
-
-    return {
-        ...originalDiscord,
-        Client: jest.fn(() => client),
-        EmbedBuilder,
-        Collection,
-        GatewayIntentBits: {
-            Guilds: 1,
-            GuildMessages: 512,
-            MessageContent: 32768
-        },
-        Partials: {
-            Channel: 1
-        },
-        Events: {
-            ClientReady: 'clientReady',
-            InteractionCreate: 'interactionCreate',
-            MessageCreate: 'messageCreate'
-        }
-    };
-});
-
 describe('Bot', () => {
     // Helper to get the ready callback
     function getReadyCallback() {
-        const client = new (require('discord.js').Client)();
-        const call = client.on.mock.calls.find(call => call[0] === 'clientReady');
+        const { client } = require('../src/bot.js');
+        const call = client.on.mock.calls.find(call => call[0] === 'ready');
         return call ? call[1] : null;
     }
 
     // Helper to get the message callback
     function getMessageCallback() {
-        const client = new (require('discord.js').Client)();
+        const { client } = require('../src/bot.js');
         const call = client.on.mock.calls.find(call => call[0] === 'messageCreate');
         return call ? call[1] : null;
     }
 
     // Helper to get the interaction callback
     function getInteractionCallback() {
-        const client = new (require('discord.js').Client)();
+        const { client } = require('../src/bot.js');
         const call = client.on.mock.calls.find(call => call[0] === 'interactionCreate');
         return call ? call[1] : null;
     }
@@ -196,7 +95,7 @@ describe('Bot', () => {
         }));
         const bot = require('../src/bot.js');
         expect(bot.client).toBeDefined();
-        expect(bot.client.on).toHaveBeenCalledWith('clientReady', expect.any(Function));
+        expect(bot.client.on).toHaveBeenCalledWith('ready', expect.any(Function));
         expect(bot.client.on).toHaveBeenCalledWith('messageCreate', expect.any(Function));
         expect(bot.client.on).toHaveBeenCalledWith('interactionCreate', expect.any(Function));
     });

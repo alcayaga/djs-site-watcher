@@ -168,6 +168,9 @@ module.exports = {
       InteractionCreate: 'interactionCreate',
       MessageCreate: 'messageCreate',
   },
+  RESTJSONErrorCodes: {
+      MissingPermissions: 50013,
+  },
   PermissionFlagsBits: {
       ManageWebhooks: 1n << 29n,
       ManageGuild: 1n << 5n,

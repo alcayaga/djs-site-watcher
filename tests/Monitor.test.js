@@ -1,35 +1,15 @@
-let mockChannelSend = jest.fn();
-let mockClientChannelsCacheGet = jest.fn();
-
 const Monitor = require('../src/Monitor');
 const { CronJob, CronTime } = require('cron');
 const got = require('got');
 const storage = require('../src/storage');
 const Discord = require('discord.js');
-
+const config = require('../src/config');
 
 jest.mock('cron');
 jest.mock('got');
 jest.mock('../src/storage');
-
-jest.mock('discord.js', () => {
-    const mClient = {
-        channels: {
-            cache: {
-                get: mockClientChannelsCacheGet,
-            },
-        },
-    };
-    return { Client: jest.fn(() => mClient) };
-});
-
-const config = {
-    interval: 5,
-    DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
-    SINGLE_RUN: 'false'
-};
-
-jest.mock('../src/config', () => config);
+jest.mock('discord.js');
+jest.mock('../src/config');
 
 // A concrete implementation of the abstract Monitor class for testing
 class TestMonitor extends Monitor {
@@ -52,17 +32,15 @@ class TestMonitor extends Monitor {
 describe('Monitor', () => {
     let client;
     let testMonitor;
+    let mockChannel;
     const monitorConfig = { url: 'http://test.com', file: 'test.json' };
 
     beforeEach(() => {
         jest.clearAllMocks();
-        mockChannelSend = jest.fn(); // Reset mock function before each test
-        mockClientChannelsCacheGet = jest.fn(() => ({ send: mockChannelSend })); // Reset mock function before each test
-        Discord.Client.mockImplementation(() => ({
-            channels: { cache: { get: mockClientChannelsCacheGet } },
-        }));
 
         client = new Discord.Client();
+        mockChannel = client.channels.cache.get('mockChannelId');
+
         testMonitor = new TestMonitor('TestMonitor', monitorConfig);
         testMonitor.client = client; // Manually set client for testing check method
     });
@@ -173,12 +151,12 @@ describe('Monitor', () => {
     describe('notify method', () => {
         it('should send a message to the configured channel', () => {
             testMonitor.notify({ oldData: 'a', newData: 'b' });
-            expect(mockClientChannelsCacheGet).toHaveBeenCalledWith('mockChannelId');
-            expect(mockChannelSend).toHaveBeenCalledWith('Detected changes for TestMonitor!');
+            expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
+            expect(mockChannel.send).toHaveBeenCalledWith('Detected changes for TestMonitor!');
         });
 
         it('should log an error if notification channel not found', () => {
-            mockClientChannelsCacheGet.mockReturnValueOnce(undefined); // Simulate channel not found
+            client.channels.cache.get.mockReturnValueOnce(undefined); // Simulate channel not found
             const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
             testMonitor.notify({});
@@ -227,10 +205,10 @@ describe('Monitor', () => {
         it('should return Discord channel when SINGLE_RUN is false', () => {
             config.SINGLE_RUN = 'false';
             const expectedChannel = { send: jest.fn() };
-            mockClientChannelsCacheGet.mockReturnValue(expectedChannel);
+            client.channels.cache.get.mockReturnValue(expectedChannel);
             
             const channel = testMonitor.getNotificationChannel();
-            expect(mockClientChannelsCacheGet).toHaveBeenCalledWith('mockChannelId');
+            expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
             expect(channel).toBe(expectedChannel);
         });
 

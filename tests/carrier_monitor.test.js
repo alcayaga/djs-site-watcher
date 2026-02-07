@@ -2,7 +2,6 @@ const CarrierMonitor = require('../src/monitors/CarrierMonitor');
 const Monitor = require('../src/Monitor');
 const Discord = require('discord.js');
 const got = require('got');
-require('../src/storage'); // Only require, no assignment
 const plist = require('plist');
 
 // Mock external modules
@@ -10,38 +9,23 @@ jest.mock('plist');
 jest.mock('discord.js');
 jest.mock('got');
 jest.mock('../src/storage');
-jest.mock('../src/config', () => ({
-    DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
-    interval: 5,
-}));
+jest.mock('../src/config');
 
 describe('CarrierMonitor', () => {
     let client;
     let carrierMonitor;
     let monitorConfig;
-    let mockChannelSend;
     let mockMessageEmbedInstance;
+    let mockChannel;
 
     beforeEach(() => {
         jest.clearAllMocks();
 
-        // Setup Discord mocks
-        mockChannelSend = jest.fn();
-        mockMessageEmbedInstance = {
-            setTitle: jest.fn().mockReturnThis(),
-            addFields: jest.fn().mockReturnThis(),
-            setColor: jest.fn().mockReturnThis(),
-        };
-        jest.spyOn(Discord, 'Client').mockImplementation(() => ({
-            channels: {
-                cache: {
-                    get: jest.fn(() => ({ send: mockChannelSend })),
-                },
-            },
-        }));
-        jest.spyOn(Discord, 'EmbedBuilder').mockImplementation(() => mockMessageEmbedInstance);
-
         client = new Discord.Client();
+        mockChannel = client.channels.cache.get('mockChannelId');
+        mockMessageEmbedInstance = new Discord.EmbedBuilder();
+        Discord.EmbedBuilder.mockReturnValue(mockMessageEmbedInstance);
+
         monitorConfig = { carriers: ['Verizon_US', 'ATT_US'], file: 'carrier.json' };
         carrierMonitor = new CarrierMonitor('Carrier', monitorConfig);
         carrierMonitor.client = client; // Manually set client for testing check method
@@ -193,8 +177,7 @@ describe('CarrierMonitor', () => {
     // Test notify method
     describe('notify method', () => {
         beforeEach(() => {
-            mockChannelSend.mockClear();
-            Discord.Client.mock.results[0].value.channels.cache.get.mockClear();
+            mockChannel.send.mockClear();
             Discord.EmbedBuilder.mockClear();
             mockMessageEmbedInstance.setTitle.mockClear();
             mockMessageEmbedInstance.addFields.mockClear();
@@ -211,17 +194,19 @@ describe('CarrierMonitor', () => {
             carrierMonitor.notify(changes);
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
-            expect(mockChannelSend).toHaveBeenCalledTimes(2); // One for each updated item
+            expect(mockChannel.send).toHaveBeenCalledTimes(2); // One for each updated item
 
-            // Check first embed
+            // Check calls on the mock
             expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📲 ¡Nuevo Carrier Bundle para Verizon_US! 🐸');
+            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📲 ¡Nuevo Carrier Bundle para ATT_US! 🐸');
+
             expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
                 { name: '📦 Versión', value: '48.0', inline: true },
                 { name: '🛠️ Build', value: '48.0.0', inline: true },
                 { name: '🔗 URL', value: 'http://v.com/48' },
                 { name: '🕒 Actualizado', value: '`now`' }
             ]);
-            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith(0x00FF00);
+            expect(mockMessageEmbedInstance.data.color).toBe(0x00FF00);
         });
 
         it('should log an error if notification channel not found', () => {
@@ -232,7 +217,7 @@ describe('CarrierMonitor', () => {
             carrierMonitor.notify(changes);
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for Carrier.'));
-            expect(mockChannelSend).not.toHaveBeenCalled();
+            expect(mockChannel.send).not.toHaveBeenCalled();
             consoleErrorSpy.mockRestore();
         });
     });
