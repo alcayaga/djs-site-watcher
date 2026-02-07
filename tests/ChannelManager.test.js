@@ -25,7 +25,10 @@ jest.mock('fs', () => {
     return {
         ...originalFs,
         readdirSync: jest.fn().mockReturnValue(['test.js']),
-        existsSync: jest.fn().mockReturnValue(true)
+        existsSync: jest.fn().mockReturnValue(true),
+        promises: {
+            readdir: jest.fn().mockResolvedValue(['test.js']),
+        },
     };
 });
 

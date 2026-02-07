@@ -18,11 +18,19 @@ class ChannelManager {
      * Dynamically loads and initializes all channel handlers based on config.
      * @param {import('discord.js').Client} client The Discord client instance.
      */
-    initialize(client) {
+    async initialize(client) {
         const channelsPath = path.join(__dirname, 'channels');
-        if (!fs.existsSync(channelsPath)) return;
+        let handlerFiles;
+        try {
+            handlerFiles = (await fs.promises.readdir(channelsPath)).filter(file => file.endsWith('.js'));
+        } catch (error) {
+            if (error.code === 'ENOENT') {
+                return;
+            }
+            console.error(`Error reading channel handlers directory '${channelsPath}':`, error);
+            return;
+        }
 
-        const handlerFiles = fs.readdirSync(channelsPath).filter(file => file.endsWith('.js'));
         const handlerClassMap = new Map();
 
         for (const file of handlerFiles) {

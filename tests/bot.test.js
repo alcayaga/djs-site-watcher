@@ -78,6 +78,9 @@ jest.mock('jsdom', () => ({
 jest.mock('fs', () => ({
     readdirSync: jest.fn().mockReturnValue(['SiteMonitor.js']),
     existsSync: jest.fn().mockImplementation((path) => !path.toString().endsWith('channels')),
+    promises: {
+        readdir: jest.fn().mockResolvedValue(['SiteMonitor.js']),
+    },
 }));
 
 // Mock discord.js
@@ -189,6 +192,7 @@ describe('Bot', () => {
     it('should initialize client and registers event handlers', () => {
         jest.doMock('../src/config', () => ({
             DISCORDJS_BOT_TOKEN: 'mock_token',
+            channels: []
         }));
         const bot = require('../src/bot.js');
         expect(bot.client).toBeDefined();
@@ -205,6 +209,7 @@ describe('Bot', () => {
                     monitors: [],
                     DISCORDJS_BOT_TOKEN: 'mock_token',
                     SINGLE_RUN: 'true',
+                    channels: []
                 }));
             });
 
@@ -229,6 +234,7 @@ describe('Bot', () => {
                     monitors: [],
                     DISCORDJS_BOT_TOKEN: 'mock_token',
                     SINGLE_RUN: 'false',
+                    channels: []
                 }));
             });
 
