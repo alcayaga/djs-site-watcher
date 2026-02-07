@@ -54,9 +54,10 @@ class DealMonitor extends Monitor {
                 console.error(`Error fetching from Solotodo URL ${baseUrl}:`, e);
             }
 
-            // Wait 5 seconds between requests, but not after the last one
+            // Wait configured delay between requests, but not after the last one
             if (i < urls.length - 1) {
-                await sleep(5000);
+                const delay = config.SOLOTODO_API_DELAY !== undefined ? config.SOLOTODO_API_DELAY : 5000;
+                await sleep(delay);
             }
         }
 
