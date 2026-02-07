@@ -81,15 +81,6 @@ class CarrierMonitor extends Monitor {
 
         return null;
     }
-    
-    /**
-     * Overrides the base saveState to merge new data with old data.
-     * @param {object} newState The new state to save.
-     */
-    async saveState(newState) {
-        const mergedState = { ...this.state, ...newState };
-        await super.saveState(mergedState);
-    }
 
     /**
      * Sends notifications for updated carriers.
