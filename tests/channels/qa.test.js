@@ -1,5 +1,7 @@
 const QAChannel = require('../../src/channels/qa.js');
 
+jest.mock('discord.js');
+
 describe('QAChannel', () => {
     let handler;
     let mockMessage;

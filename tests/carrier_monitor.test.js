@@ -2,7 +2,6 @@ const CarrierMonitor = require('../src/monitors/CarrierMonitor');
 const Monitor = require('../src/Monitor');
 const Discord = require('discord.js');
 const got = require('got');
-require('../src/storage'); // Only require, no assignment
 const plist = require('plist');
 
 // Mock external modules
@@ -10,38 +9,20 @@ jest.mock('plist');
 jest.mock('discord.js');
 jest.mock('got');
 jest.mock('../src/storage');
-jest.mock('../src/config', () => ({
-    DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
-    interval: 5,
-}));
+jest.mock('../src/config');
 
 describe('CarrierMonitor', () => {
     let client;
     let carrierMonitor;
     let monitorConfig;
-    let mockChannelSend;
-    let mockMessageEmbedInstance;
+    let mockChannel;
 
     beforeEach(() => {
         jest.clearAllMocks();
 
-        // Setup Discord mocks
-        mockChannelSend = jest.fn();
-        mockMessageEmbedInstance = {
-            setTitle: jest.fn().mockReturnThis(),
-            addFields: jest.fn().mockReturnThis(),
-            setColor: jest.fn().mockReturnThis(),
-        };
-        jest.spyOn(Discord, 'Client').mockImplementation(() => ({
-            channels: {
-                cache: {
-                    get: jest.fn(() => ({ send: mockChannelSend })),
-                },
-            },
-        }));
-        jest.spyOn(Discord, 'EmbedBuilder').mockImplementation(() => mockMessageEmbedInstance);
-
         client = new Discord.Client();
+        mockChannel = client.channels.cache.get('mockChannelId');
+
         monitorConfig = { carriers: ['Verizon_US', 'ATT_US'], file: 'carrier.json' };
         carrierMonitor = new CarrierMonitor('Carrier', monitorConfig);
         carrierMonitor.client = client; // Manually set client for testing check method
@@ -192,15 +173,6 @@ describe('CarrierMonitor', () => {
 
     // Test notify method
     describe('notify method', () => {
-        beforeEach(() => {
-            mockChannelSend.mockClear();
-            Discord.Client.mock.results[0].value.channels.cache.get.mockClear();
-            Discord.EmbedBuilder.mockClear();
-            mockMessageEmbedInstance.setTitle.mockClear();
-            mockMessageEmbedInstance.addFields.mockClear();
-            mockMessageEmbedInstance.setColor.mockClear();
-        });
-
         it('should send embeds for each updated carrier', () => {
             const changes = {
                 updated: [
@@ -211,17 +183,28 @@ describe('CarrierMonitor', () => {
             carrierMonitor.notify(changes);
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
-            expect(mockChannelSend).toHaveBeenCalledTimes(2); // One for each updated item
+            expect(mockChannel.send).toHaveBeenCalledTimes(2); // One for each updated item
 
-            // Check first embed
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('📲 ¡Nuevo Carrier Bundle para Verizon_US! 🐸');
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+            // Check calls on the mock
+            const firstEmbed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(firstEmbed.data.title).toBe('📲 ¡Nuevo Carrier Bundle para Verizon_US! 🐸');
+            expect(firstEmbed.addFields).toHaveBeenCalledWith([
                 { name: '📦 Versión', value: '48.0', inline: true },
                 { name: '🛠️ Build', value: '48.0.0', inline: true },
                 { name: '🔗 URL', value: 'http://v.com/48' },
                 { name: '🕒 Actualizado', value: '`now`' }
             ]);
-            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith(0x00FF00);
+            expect(firstEmbed.data.color).toBe(0x00FF00);
+
+            const secondEmbed = mockChannel.send.mock.calls[1][0].embeds[0];
+            expect(secondEmbed.data.title).toBe('📲 ¡Nuevo Carrier Bundle para ATT_US! 🐸');
+            expect(secondEmbed.addFields).toHaveBeenCalledWith([
+                { name: '📦 Versión', value: '47.0', inline: true },
+                { name: '🛠️ Build', value: '47.0.1', inline: true },
+                { name: '🔗 URL', value: 'http://a.com/47' },
+                { name: '🕒 Actualizado', value: '`soon`' }
+            ]);
+            expect(secondEmbed.data.color).toBe(0x00FF00);
         });
 
         it('should log an error if notification channel not found', () => {
@@ -232,7 +215,7 @@ describe('CarrierMonitor', () => {
             carrierMonitor.notify(changes);
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for Carrier.'));
-            expect(mockChannelSend).not.toHaveBeenCalled();
+            expect(mockChannel.send).not.toHaveBeenCalled();
             consoleErrorSpy.mockRestore();
         });
     });

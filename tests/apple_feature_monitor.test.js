@@ -1,65 +1,27 @@
 const AppleFeatureMonitor = require('../src/monitors/AppleFeatureMonitor');
 const Monitor = require('../src/Monitor');
-// const { JSDOM } = require('jsdom'); // Comment out direct import
 const Discord = require('discord.js');
 const got = require('got');
-require('../src/storage'); // Only require, no assignment
 
 // Mock external modules
-jest.mock('jsdom', () => {
-    return {
-        JSDOM: jest.fn((html) => {
-            const actualDom = new (jest.requireActual('jsdom').JSDOM)(html);
-            return {
-                window: {
-                    document: {
-                        querySelectorAll: jest.fn((selector) => actualDom.window.document.querySelectorAll(selector)),
-                        querySelector: jest.fn((selector) => actualDom.window.document.querySelector(selector)),
-                        title: actualDom.window.document.title,
-                    },
-                },
-            };
-        }),
-    };
-});
+jest.mock('jsdom');
 jest.mock('discord.js');
 jest.mock('got');
 jest.mock('../src/storage');
-jest.mock('../src/config', () => ({
-    DISCORDJS_TEXTCHANNEL_ID: 'mockChannelId',
-    interval: 5,
-}));
+jest.mock('../src/config');
 
 describe('AppleFeatureMonitor', () => {
     let client;
     let appleFeatureMonitor;
     let monitorConfig;
-    let mockChannelSend;
-    let mockMessageEmbedInstance;
+    let mockChannel;
 
     beforeEach(() => {
         jest.clearAllMocks();
 
-        // Setup Discord mocks
-        mockChannelSend = jest.fn();
-        mockMessageEmbedInstance = {
-            setTitle: jest.fn().mockReturnThis(),
-            addFields: jest.fn().mockReturnThis(),
-            setColor: jest.fn().mockReturnThis(),
-        };
-        jest.spyOn(Discord, 'Client').mockImplementation(() => ({
-            channels: {
-                cache: {
-                    get: jest.fn(() => ({ send: mockChannelSend })),
-                },
-            },
-        }));
-        jest.spyOn(Discord, 'EmbedBuilder').mockImplementation(() => mockMessageEmbedInstance);
-
-        // JSDOM mock implementation is handled by the jest.mock('jsdom') block.
-        jest.requireMock('jsdom').JSDOM.mockClear();
-
         client = new Discord.Client();
+        mockChannel = client.channels.cache.get('mockChannelId');
+
         monitorConfig = { keywords: ['chile', 'spanish'], url: 'http://apple.com/features', file: 'apple_feature.json' };
         appleFeatureMonitor = new AppleFeatureMonitor('AppleFeature', monitorConfig);
         appleFeatureMonitor.client = client; // Manually set client for testing check method
@@ -195,15 +157,6 @@ describe('AppleFeatureMonitor', () => {
 
     // Test notify method
     describe('notify method', () => {
-        beforeEach(() => {
-            mockChannelSend.mockClear();
-            Discord.Client.mock.results[0].value.channels.cache.get.mockClear();
-            Discord.EmbedBuilder.mockClear();
-            mockMessageEmbedInstance.setTitle.mockClear();
-            mockMessageEmbedInstance.addFields.mockClear();
-            mockMessageEmbedInstance.setColor.mockClear();
-        });
-
         it('should send embeds for each added feature/region', () => {
             const changes = {
                 added: [
@@ -214,20 +167,27 @@ describe('AppleFeatureMonitor', () => {
             appleFeatureMonitor.notify(changes);
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
-            expect(mockChannelSend).toHaveBeenCalledTimes(2); // One for each added item
+            expect(mockChannel.send).toHaveBeenCalledTimes(2); // One for each added item
 
             // Check first embed
-            expect(mockMessageEmbedInstance.setTitle).toHaveBeenCalledWith('🌟 ¡Nueva función de Apple disponible! 🐸');
-            expect(mockMessageEmbedInstance.addFields).toHaveBeenCalledWith([
+            const firstEmbed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(firstEmbed.data.title).toBe('🌟 ¡Nueva función de Apple disponible! 🐸');
+            expect(firstEmbed.addFields).toHaveBeenCalledWith([
                 { name: '✨ Función', value: 'New Feature', inline: true },
                 { name: '📍 Región/Idioma', value: 'New Region', inline: true },
                 { name: '🔗 URL', value: 'http://apple.com/features#new-feature' }
             ]);
-            expect(mockMessageEmbedInstance.setColor).toHaveBeenCalledWith('#0071E3');
+            expect(firstEmbed.data.color).toBe('#0071E3');
 
-            // Need to ensure the second embed was also created/sent
-            // This is tricky with current mocking, as mockMessageEmbedInstance is a singleton.
-            // A more robust mock would return new instances of MessageEmbed.
+            // Check second embed
+            const secondEmbed = mockChannel.send.mock.calls[1][0].embeds[0];
+            expect(secondEmbed.data.title).toBe('🌟 ¡Nueva función de Apple disponible! 🐸');
+            expect(secondEmbed.addFields).toHaveBeenCalledWith([
+                { name: '✨ Función', value: 'Existing Feature', inline: true },
+                { name: '📍 Región/Idioma', value: 'New Locale', inline: true },
+                { name: '🔗 URL', value: 'http://apple.com/features#existing-feature' }
+            ]);
+            expect(secondEmbed.data.color).toBe('#0071E3');
         });
 
         it('should log an error if notification channel not found', () => {
@@ -238,7 +198,7 @@ describe('AppleFeatureMonitor', () => {
             appleFeatureMonitor.notify(changes);
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for AppleFeature.'));
-            expect(mockChannelSend).not.toHaveBeenCalled();
+            expect(mockChannel.send).not.toHaveBeenCalled();
             consoleErrorSpy.mockRestore();
         });
     });

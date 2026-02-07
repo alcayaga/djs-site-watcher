@@ -1,5 +1,7 @@
 const DealsChannel = require('../../src/channels/deals.js');
 
+jest.mock('discord.js');
+
 describe('DealsChannel URL Validation', () => {
     let handler;
     let mockMessage;

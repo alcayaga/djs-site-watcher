@@ -2,17 +2,12 @@ const DealMonitor = require('../../src/monitors/DealMonitor');
 const storage = require('../../src/storage');
 const got = require('got');
 const solotodo = require('../../src/utils/solotodo');
-const { ThreadAutoArchiveDuration } = require('discord.js');
+const Discord = require('discord.js');
 
-jest.mock('../../src/storage');
-jest.mock('../../src/config', () => ({
-    interval: 1,
-    monitors: [],
-    DISCORDJS_DEALS_CHANNEL_ID: '789',
-    SINGLE_RUN: 'false',
-    SOLOTODO_API_DELAY: 0
-}));
 jest.mock('got');
+jest.mock('discord.js');
+jest.mock('../../src/storage');
+jest.mock('../../src/config');
 jest.mock('../../src/utils/solotodo', () => ({
     ...jest.requireActual('../../src/utils/solotodo'),
     getProductHistory: jest.fn().mockResolvedValue([]),
@@ -35,22 +30,13 @@ describe('DealMonitor', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         
+        mockClient = new Discord.Client();
+        mockChannel = mockClient.channels.cache.get('mockDealsChannelId');
         mockMessage = {
             startThread: jest.fn().mockResolvedValue({})
         };
-
-        mockChannel = {
-            send: jest.fn().mockResolvedValue(mockMessage)
-        };
-
-        mockClient = {
-            channels: {
-                cache: {
-                    get: jest.fn().mockReturnValue(mockChannel)
-                }
-            }
-        };
-
+        mockChannel.send.mockResolvedValue(mockMessage);
+        
         const monitorConfig = {
             name: 'Deal',
             url: 'https://api.com/deals',
@@ -111,7 +97,7 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).toHaveBeenCalled();
         expect(mockMessage.startThread).toHaveBeenCalledWith({
             name: 'iPhone',
-            autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek
+            autoArchiveDuration: Discord.ThreadAutoArchiveDuration.OneWeek
         });
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];

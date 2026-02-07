@@ -1,5 +1,6 @@
 const DealsChannel = require('../../src/channels/deals.js');
 
+jest.mock('discord.js');
 // Mock the solotodo utils
 jest.mock('../../src/utils/solotodo', () => ({
     extractQuery: jest.fn(),
@@ -72,7 +73,7 @@ describe('DealsChannel Solotodo Integration', () => {
         }));
 
         const embed = mockThread.send.mock.calls[0][0].embeds[0];
-        expect(embed.setURL).toHaveBeenCalledWith('https://www.solotodo.cl/products/111-direct-url-product');
+        expect(embed.data.url).toBe('https://www.solotodo.cl/products/111-direct-url-product');
     });
 
     it('should fetch and display top 3 cheapest sellers when a product is found', async () => {
@@ -191,7 +192,7 @@ describe('DealsChannel Solotodo Integration', () => {
         }));
 
         const embed = mockThread.send.mock.calls[0][0].embeds[0];
-        expect(embed.setURL).toHaveBeenCalledWith('https://www.solotodo.cl/products/222-text-search-product');
+        expect(embed.data.url).toBe('https://www.solotodo.cl/products/222-text-search-product');
     });
 
     it('should post a generic search link if both methods fail but query exists', async () => {
@@ -207,7 +208,7 @@ describe('DealsChannel Solotodo Integration', () => {
         }));
 
         const embed = mockThread.send.mock.calls[0][0].embeds[0];
-        expect(embed.setURL).toHaveBeenCalledWith('https://www.solotodo.cl/search?search=unknown%20product');
+        expect(embed.data.url).toBe('https://www.solotodo.cl/search?search=unknown%20product');
     });
 
     it('should do nothing if everything fails (no URL match, no query extracted)', async () => {

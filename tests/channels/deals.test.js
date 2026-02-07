@@ -1,23 +1,8 @@
-const { ThreadAutoArchiveDuration, RESTJSONErrorCodes: _RESTJSONErrorCodes } = require('discord.js');
+const Discord = require('discord.js');
 const DealsChannel = require('../../src/channels/deals.js');
 const solotodo = require('../../src/utils/solotodo');
 
-jest.mock('discord.js', () => {
-    return {
-        ThreadAutoArchiveDuration: { OneWeek: 60 * 24 * 7 },
-        EmbedBuilder: jest.fn().mockImplementation(() => ({
-            setTitle: jest.fn().mockReturnThis(),
-            setURL: jest.fn().mockReturnThis(),
-            setDescription: jest.fn().mockReturnThis(),
-            setColor: jest.fn().mockReturnThis(),
-            setTimestamp: jest.fn().mockReturnThis(),
-            setThumbnail: jest.fn().mockReturnThis(),
-            addFields: jest.fn().mockReturnThis(),
-        })),
-        RESTJSONErrorCodes: { MissingPermissions: 50013 }
-    };
-});
-
+jest.mock('discord.js');
 jest.mock('../../src/utils/solotodo');
 
 describe('DealsChannel', () => {
@@ -28,6 +13,8 @@ describe('DealsChannel', () => {
     let handlerConfig;
 
     beforeEach(() => {
+        jest.clearAllMocks();
+        
         handlerConfig = {
             channelId: '456'
         };
@@ -63,7 +50,7 @@ describe('DealsChannel', () => {
         expect(mockMessage.delete).not.toHaveBeenCalled();
         expect(mockMessage.startThread).toHaveBeenCalledWith({
             name: content.substring(0, 100),
-            autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek
+            autoArchiveDuration: Discord.ThreadAutoArchiveDuration.OneWeek
         });
     });
 
@@ -79,7 +66,7 @@ describe('DealsChannel', () => {
         expect(mockMessage.delete).not.toHaveBeenCalled();
         expect(mockMessage.startThread).toHaveBeenCalledWith({
             name: expectedName,
-            autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek
+            autoArchiveDuration: Discord.ThreadAutoArchiveDuration.OneWeek
         });
     });
 
@@ -105,9 +92,7 @@ describe('DealsChannel', () => {
         
         // Verify the embed was configured correctly
         const embed = mockMessage.author.send.mock.calls[0][0].embeds[0];
-        expect(embed.setDescription).toHaveBeenCalledWith(
-            expect.stringContaining('fue eliminado porque no parece ser una oferta')
-        );
+        expect(embed.data.description).toContain('fue eliminado porque no parece ser una oferta');
     });
 
     it('should present Solotodo product in an embed when a product is found', async () => {
@@ -135,11 +120,9 @@ describe('DealsChannel', () => {
         }));
 
         const embed = thread.send.mock.calls[0][0].embeds[0];
-        expect(embed.setTitle).toHaveBeenCalledWith('Apple iPhone 15');
-        expect(embed.setURL).toHaveBeenCalledWith('https://solotodo.cl/products/123');
-        expect(embed.setDescription).toHaveBeenCalledWith(
-            expect.stringContaining('[Apple iPhone 15](https://solotodo.cl/products/123)')
-        );
+        expect(embed.data.title).toBe('Apple iPhone 15');
+        expect(embed.data.url).toBe('https://solotodo.cl/products/123');
+        expect(embed.data.description).toContain('[Apple iPhone 15](https://solotodo.cl/products/123)');
         expect(embed.addFields).toHaveBeenCalledWith(expect.objectContaining({
             name: expect.stringContaining('precios')
         }));
@@ -162,7 +145,7 @@ describe('DealsChannel', () => {
         
         const thread = await mockMessage.startThread.mock.results[0].value;
         const embed = thread.send.mock.calls[0][0].embeds[0];
-        expect(embed.setThumbnail).toHaveBeenCalledWith('https://media.solotodo.com/picture.png');
+        expect(embed.data.thumbnail.url).toBe('https://media.solotodo.com/picture.png');
     });
 
     it('should notify channel if message deletion fails due to permissions', async () => {
