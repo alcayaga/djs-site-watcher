@@ -8,16 +8,6 @@ const RESPONSES_FILE = './config/responses.json';
 const LEGACY_DIR = './src';
 const NEW_DIR = './config';
 
-const SENSITIVE_SETTINGS_KEYS = [
-    'DISCORDJS_BOT_TOKEN',
-    'DISCORDJS_TEXTCHANNEL_ID',
-    'SINGLE_RUN',
-    'DISCORDJS_APCHANNEL_ID',
-    'DISCORDJS_DEALS_CHANNEL_ID',
-    'DISCORDJS_CLIENT_ID',
-    'AP_RESPONSE_DELAY'
-];
-
 const REQUIRED_ENV_VARS = [
     'DISCORDJS_BOT_TOKEN',
     'DISCORDJS_CLIENT_ID',
@@ -27,6 +17,17 @@ const OPTIONAL_ENV_VARS = [
     'DISCORDJS_TEXTCHANNEL_ID',
     'DISCORDJS_APCHANNEL_ID',
     'DISCORDJS_DEALS_CHANNEL_ID'
+];
+
+const CONFIG_ENV_VARS = [
+    'SINGLE_RUN',
+    'AP_RESPONSE_DELAY'
+];
+
+const SENSITIVE_SETTINGS_KEYS = [
+    ...REQUIRED_ENV_VARS,
+    ...OPTIONAL_ENV_VARS,
+    ...CONFIG_ENV_VARS
 ];
 
 /**
@@ -44,7 +45,7 @@ function ensureConfigFiles() {
     }
 
     configTargets.forEach(target => {
-        const example = target.replace('.json', '_example.json');
+        const example = path.join(path.dirname(target), `${path.basename(target, '.json')}_example.json`);
         if (!fs.existsSync(target) && fs.existsSync(example)) {
             console.log(`[Setup] Creating ${target} from ${example}`);
             fs.copySync(example, target);
