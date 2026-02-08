@@ -8,15 +8,50 @@ const RESPONSES_FILE = './config/responses.json';
 const LEGACY_DIR = './src';
 const NEW_DIR = './config';
 
-const SENSITIVE_SETTINGS_KEYS = [
+const REQUIRED_ENV_VARS = [
     'DISCORDJS_BOT_TOKEN',
-    'DISCORDJS_TEXTCHANNEL_ID',
-    'SINGLE_RUN',
-    'DISCORDJS_APCHANNEL_ID',
-    'DISCORDJS_DEALS_CHANNEL_ID',
     'DISCORDJS_CLIENT_ID',
+];
+
+const OPTIONAL_ENV_VARS = [
+    'DISCORDJS_TEXTCHANNEL_ID',
+    'DISCORDJS_APCHANNEL_ID',
+    'DISCORDJS_DEALS_CHANNEL_ID'
+];
+
+const CONFIG_ENV_VARS = [
+    'SINGLE_RUN',
     'AP_RESPONSE_DELAY'
 ];
+
+const SENSITIVE_SETTINGS_KEYS = [
+    ...REQUIRED_ENV_VARS,
+    ...OPTIONAL_ENV_VARS,
+    ...CONFIG_ENV_VARS
+];
+
+/**
+ * Checks if config files exist, and if not, creates them from examples.
+ */
+function ensureConfigFiles() {
+    const configTargets = [
+        SITES_FILE,
+        SETTINGS_FILE,
+        RESPONSES_FILE
+    ];
+
+    if (!fs.existsSync(NEW_DIR)) {
+        fs.ensureDirSync(NEW_DIR);
+    }
+
+    configTargets.forEach(target => {
+        const example = path.join(path.dirname(target), `${path.basename(target, '.json')}_example.json`);
+        if (!fs.existsSync(target) && fs.existsSync(example)) {
+            console.log(`[Setup] Creating ${target} from ${example}`);
+            fs.copySync(example, target);
+        }
+    });
+}
 
 /**
  * Migrates legacy JSON files from src/ to config/ and patches paths.
@@ -175,4 +210,7 @@ module.exports = {
   read,
   write,
   SENSITIVE_SETTINGS_KEYS,
+  REQUIRED_ENV_VARS,
+  OPTIONAL_ENV_VARS,
+  ensureConfigFiles,
 };
