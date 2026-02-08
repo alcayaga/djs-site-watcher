@@ -45,7 +45,7 @@ function ensureConfigFiles() {
     }
 
     configTargets.forEach(target => {
-        const example = path.join(path.dirname(target), `${path.basename(target, '.json')}_example.json`);
+        const example = target.replace(/\.json$/, '_example.json');
         if (!fs.existsSync(target) && fs.existsSync(example)) {
             console.log(`[Setup] Creating ${target} from ${example}`);
             fs.copySync(example, target);
