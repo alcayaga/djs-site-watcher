@@ -22,17 +22,18 @@ const SENSITIVE_SETTINGS_KEYS = [
  * Checks if config files exist, and if not, creates them from examples.
  */
 function ensureConfigFiles() {
-    const configFiles = [
-        { target: SITES_FILE, example: './config/sites_example.json' },
-        { target: SETTINGS_FILE, example: './config/settings_example.json' },
-        { target: RESPONSES_FILE, example: './config/responses_example.json' }
+    const configTargets = [
+        SITES_FILE,
+        SETTINGS_FILE,
+        RESPONSES_FILE
     ];
 
     if (!fs.existsSync(NEW_DIR)) {
         fs.ensureDirSync(NEW_DIR);
     }
 
-    configFiles.forEach(({ target, example }) => {
+    configTargets.forEach(target => {
+        const example = target.replace('.json', '_example.json');
         if (!fs.existsSync(target) && fs.existsSync(example)) {
             console.log(`[Setup] Creating ${target} from ${example}`);
             fs.copySync(example, target);
