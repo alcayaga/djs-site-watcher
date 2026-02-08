@@ -30,7 +30,7 @@ if (process.env.NODE_ENV !== 'test' && missingRequiredVars.length > 0) {
 }
 
 const missingOptionalVars = storage.OPTIONAL_ENV_VARS.filter(key => !process.env[key]);
-if (missingOptionalVars.length > 0) {
+if (process.env.NODE_ENV !== 'test' && missingOptionalVars.length > 0) {
     console.warn(`⚠️  Missing optional environment variables: ${missingOptionalVars.join(', ')}. Some features may not work as expected.`);
 }
 
