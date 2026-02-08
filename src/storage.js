@@ -46,9 +46,13 @@ function ensureConfigFiles() {
 
     configTargets.forEach(target => {
         const example = target.replace(/\.json$/, '_example.json');
-        if (!fs.existsSync(target) && fs.existsSync(example)) {
-            console.log(`[Setup] Creating ${target} from ${example}`);
-            fs.copySync(example, target);
+        if (!fs.existsSync(target)) {
+            if (fs.existsSync(example)) {
+                console.log(`[Setup] Creating ${target} from ${example}`);
+                fs.copySync(example, target);
+            } else {
+                console.warn(`[Setup] Warning: Could not create ${target} because ${example} is missing.`);
+            }
         }
     });
 }
