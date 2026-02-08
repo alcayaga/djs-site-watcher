@@ -23,8 +23,18 @@ storage.SENSITIVE_SETTINGS_KEYS.forEach(key => {
     }
 });
 
-if (!config.DISCORDJS_BOT_TOKEN) {
-    throw new Error('❌ Missing DISCORDJS_BOT_TOKEN. Please set it in your .env file or environment variables.');
+const requiredVars = [
+    'DISCORDJS_BOT_TOKEN',
+    'DISCORDJS_CLIENT_ID',
+    'DISCORDJS_TEXTCHANNEL_ID',
+    'DISCORDJS_APCHANNEL_ID',
+    'DISCORDJS_DEALS_CHANNEL_ID'
+];
+
+const missingVars = requiredVars.filter(key => !config[key]);
+
+if (missingVars.length > 0) {
+    throw new Error(`❌ Missing required environment variables: ${missingVars.join(', ')}. Please set them in your .env file or environment variables.`);
 }
 
 // Type conversions and defaults
