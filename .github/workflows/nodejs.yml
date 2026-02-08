@@ -55,5 +55,8 @@ jobs:
         DISCORDJS_ADMINCHANNEL_ID: ${{ secrets.DISCORDJS_ADMINCHANNEL_ID }}
         DISCORDJS_APCHANNEL_ID: ${{ secrets.DISCORDJS_APCHANNEL_ID }}
         DISCORDJS_ROLE_ID: ${{ secrets.DISCORDJS_ROLE_ID }}
+        # Mocks for missing secrets to pass config validation
+        DISCORDJS_CLIENT_ID: 'mock-client-id'
+        DISCORDJS_DEALS_CHANNEL_ID: 'mock-deals-channel-id'
       run: npm start
       
