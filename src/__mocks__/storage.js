@@ -11,4 +11,6 @@ module.exports = {
     ensureConfigFiles: jest.fn(),
     saveSettings: jest.fn(),
     SENSITIVE_SETTINGS_KEYS: [],
+    REQUIRED_ENV_VARS: [],
+    OPTIONAL_ENV_VARS: [],
 };

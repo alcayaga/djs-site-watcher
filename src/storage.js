@@ -18,6 +18,17 @@ const SENSITIVE_SETTINGS_KEYS = [
     'AP_RESPONSE_DELAY'
 ];
 
+const REQUIRED_ENV_VARS = [
+    'DISCORDJS_BOT_TOKEN',
+    'DISCORDJS_CLIENT_ID',
+];
+
+const OPTIONAL_ENV_VARS = [
+    'DISCORDJS_TEXTCHANNEL_ID',
+    'DISCORDJS_APCHANNEL_ID',
+    'DISCORDJS_DEALS_CHANNEL_ID'
+];
+
 /**
  * Checks if config files exist, and if not, creates them from examples.
  */
@@ -198,5 +209,7 @@ module.exports = {
   read,
   write,
   SENSITIVE_SETTINGS_KEYS,
+  REQUIRED_ENV_VARS,
+  OPTIONAL_ENV_VARS,
   ensureConfigFiles,
 };

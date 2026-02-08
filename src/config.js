@@ -23,24 +23,13 @@ storage.SENSITIVE_SETTINGS_KEYS.forEach(key => {
     }
 });
 
-const requiredVars = [
-    'DISCORDJS_BOT_TOKEN',
-    'DISCORDJS_CLIENT_ID',
-];
-
-const optionalVars = [
-    'DISCORDJS_TEXTCHANNEL_ID',
-    'DISCORDJS_APCHANNEL_ID',
-    'DISCORDJS_DEALS_CHANNEL_ID'
-];
-
-const missingRequiredVars = requiredVars.filter(key => !config[key]);
+const missingRequiredVars = storage.REQUIRED_ENV_VARS.filter(key => !config[key]);
 
 if (process.env.NODE_ENV !== 'test' && missingRequiredVars.length > 0) {
     throw new Error(`❌ Missing required environment variables: ${missingRequiredVars.join(', ')}. Please set them in your .env file or environment variables.`);
 }
 
-const missingOptionalVars = optionalVars.filter(key => !config[key]);
+const missingOptionalVars = storage.OPTIONAL_ENV_VARS.filter(key => !config[key]);
 if (missingOptionalVars.length > 0) {
     console.warn(`⚠️  Missing optional environment variables: ${missingOptionalVars.join(', ')}. Some features may not work as expected.`);
 }
