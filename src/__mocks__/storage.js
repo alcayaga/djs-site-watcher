@@ -8,6 +8,7 @@ module.exports = {
     loadSites: jest.fn(),
     loadResponses: jest.fn(),
     migrateLegacyData: jest.fn(),
+    ensureConfigFiles: jest.fn(),
     saveSettings: jest.fn(),
     SENSITIVE_SETTINGS_KEYS: [],
 };
