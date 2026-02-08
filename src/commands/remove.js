@@ -87,26 +87,21 @@ module.exports = {
 
             const removedSite = await siteMonitor.removeSiteByIndex(index);
 
-            if (removedSite) {
-                // Local state update removed. SiteMonitor is the source of truth.
-                // Update the ephemeral message to clear components
-                await interaction.update({ 
-                    content: `Eliminando **${sanitizeMarkdown(removedSite.id)}**...`, 
-                    components: [] 
-                });
-                
-                // Send a public confirmation
-                await interaction.followUp({
-                    embeds: [new EmbedBuilder()
-                        .setTitle('✅ Sitio Eliminado')
-                        .setDescription(`Se ha eliminado **${sanitizeMarkdown(removedSite.id)}** de la lista de monitoreo correctamente.`)
-                        .setColor(0x57F287) // Discord Green
-                    ],
-                    allowedMentions: { parse: [] }
-                });
-            } else {
-                await interaction.update({ content: 'Hubo un error al intentar eliminar el sitio.', components: [] });
-            }
+            // Update the ephemeral message to clear components
+            await interaction.update({ 
+                content: `Eliminando **${sanitizeMarkdown(removedSite.id)}**...`, 
+                components: [] 
+            });
+            
+            // Send a public confirmation
+            await interaction.followUp({
+                embeds: [new EmbedBuilder()
+                    .setTitle('✅ Sitio Eliminado')
+                    .setDescription(`Se ha eliminado **${sanitizeMarkdown(removedSite.id)}** de la lista de monitoreo correctamente.`)
+                    .setColor(0x57F287) // Discord Green
+                ],
+                allowedMentions: { parse: [] }
+            });
         }
     }
 };
