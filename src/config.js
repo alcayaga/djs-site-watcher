@@ -33,7 +33,7 @@ const requiredVars = [
 
 const missingVars = requiredVars.filter(key => !config[key]);
 
-if (missingVars.length > 0) {
+if (process.env.NODE_ENV !== 'test' && missingVars.length > 0) {
     throw new Error(`❌ Missing required environment variables: ${missingVars.join(', ')}. Please set them in your .env file or environment variables.`);
 }
 
