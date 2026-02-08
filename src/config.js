@@ -5,7 +5,11 @@
 try {
     process.loadEnvFile();
 } catch (err) {
-    if (err.code !== 'ENOENT') throw err;
+    if (err.code === 'ENOENT') {
+        console.warn('⚠️ No .env file found. Proceeding with process.env variables.');
+    } else {
+        throw err;
+    }
 }
 
 const storage = require('./storage.js');
@@ -18,6 +22,10 @@ storage.SENSITIVE_SETTINGS_KEYS.forEach(key => {
         config[key] = process.env[key];
     }
 });
+
+if (!config.DISCORDJS_BOT_TOKEN) {
+    throw new Error('❌ Missing DISCORDJS_BOT_TOKEN. Please set it in your .env file or environment variables.');
+}
 
 // Type conversions and defaults
 config.AP_RESPONSE_DELAY = config.AP_RESPONSE_DELAY ? parseInt(config.AP_RESPONSE_DELAY, 10) : 5000;

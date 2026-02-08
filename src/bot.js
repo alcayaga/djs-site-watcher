@@ -18,6 +18,7 @@ const path = require('path');
 
 // Load configuration and state
 const storage = require('./storage');
+storage.ensureConfigFiles();
 storage.migrateLegacyData();
 
 const config = require('./config');
