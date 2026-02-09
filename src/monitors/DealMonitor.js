@@ -141,6 +141,20 @@ class DealMonitor extends Monitor {
     }
 
     /**
+     * Internal helper to log price drops that are not historic lows.
+     * @private
+     * @param {string} productName The name of the product.
+     * @param {string} priceType Either 'Offer' or 'Normal'.
+     * @param {number} previousPrice The previous price.
+     * @param {number} currentPrice The current price.
+     * @param {number} minPrice The historic minimum price.
+     */
+    _logPriceDrop(productName, priceType, previousPrice, currentPrice, minPrice) {
+        const typeLabel = priceType === 'Normal' ? ' (Normal)' : '';
+        console.log(`[DealMonitor] Price drop for ${productName}${typeLabel}: ${formatCLP(previousPrice)} -> ${formatCLP(currentPrice)} (Historic Low: ${formatCLP(minPrice)})`);
+    }
+
+    /**
      * Overrides the base check method to handle list of products and state merging.
      */
     async check() {
@@ -227,10 +241,10 @@ class DealMonitor extends Monitor {
 
                 // Log significant price drops that don't trigger a notification (Issue #83)
                 if (offerTrigger === 'CHANGED' && currentOffer < previousOfferPrice) {
-                    console.log(`[DealMonitor] Price drop for ${product.name}: ${formatCLP(previousOfferPrice)} -> ${formatCLP(currentOffer)} (Historic Low: ${formatCLP(stored.minOfferPrice)})`);
+                    this._logPriceDrop(product.name, 'Offer', previousOfferPrice, currentOffer, stored.minOfferPrice);
                 }
                 if (normalTrigger === 'CHANGED' && currentNormal < previousNormalPrice) {
-                    console.log(`[DealMonitor] Price drop for ${product.name} (Normal): ${formatCLP(previousNormalPrice)} -> ${formatCLP(currentNormal)} (Historic Low: ${formatCLP(stored.minNormalPrice)})`);
+                    this._logPriceDrop(product.name, 'Normal', previousNormalPrice, currentNormal, stored.minNormalPrice);
                 }
 
                 let productChanged = !!(offerTrigger || normalTrigger);
