@@ -218,8 +218,20 @@ class DealMonitor extends Monitor {
                 const currentNormal = product.normalPrice;
                 const now = new Date().toISOString();
                 
+                // Capture previous prices to detect drops that aren't new lows
+                const previousOfferPrice = stored.lastOfferPrice;
+                const previousNormalPrice = stored.lastNormalPrice;
+
                 const offerTrigger = this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer');
                 const normalTrigger = this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal');
+
+                // Log significant price drops that don't trigger a notification (Issue #83)
+                if (offerTrigger === 'CHANGED' && currentOffer < previousOfferPrice) {
+                    console.log(`[DealMonitor] Price drop for ${product.name}: ${formatCLP(previousOfferPrice)} -> ${formatCLP(currentOffer)} (Historic Low: ${formatCLP(stored.minOfferPrice)})`);
+                }
+                if (normalTrigger === 'CHANGED' && currentNormal < previousNormalPrice) {
+                    console.log(`[DealMonitor] Price drop for ${product.name} (Normal): ${formatCLP(previousNormalPrice)} -> ${formatCLP(currentNormal)} (Historic Low: ${formatCLP(stored.minNormalPrice)})`);
+                }
 
                 let productChanged = !!(offerTrigger || normalTrigger);
 

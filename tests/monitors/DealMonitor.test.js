@@ -403,4 +403,31 @@ describe('DealMonitor', () => {
 
         expect(mockChannel.send).not.toHaveBeenCalled();
     });
+
+    it('should log to console when price drops but is not a historic low', async () => {
+        const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+        
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 100000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                lastOfferPrice: 150000, 
+                minNormalPrice: 100000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                lastNormalPrice: 150000 
+            }
+        };
+
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 120000, normalPrice: 150000 }])
+        });
+
+        await monitor.check();
+
+        // Should check for the specific log message
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone'));
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('$150.000 -> $120.000'));
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Historic Low: $100.000'));
+        
+        consoleSpy.mockRestore();
+    });
 });
