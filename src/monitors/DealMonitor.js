@@ -357,24 +357,24 @@ class DealMonitor extends Monitor {
         let triggerDate = date;
 
         if (bothNewLow) {
-            statusText = '📉 **Nuevos mínimos históricos**';
+            statusText = 'Nuevos mínimos históricos';
             color = 0x2ecc71;
         } else if (bothBackToLow) {
-            statusText = '🔄 **Volvió a precios históricos**';
+            statusText = 'Volvió a precios históricos';
             showDate = true;
             triggerDate = stored?.minOfferDate; // Use one of them
         } else if (triggers.length > 1) {
             // Mixed triggers (e.g. one is NEW_LOW, other is BACK_TO_LOW)
-            statusText = '📉🔄 **Nuevos precios históricos**';
+            statusText = 'Nuevos precios históricos';
             color = 0x2ecc71;
         } else {
             // Individual triggers
             const type = triggers[0];
             const notificationConfig = {
-                'NEW_LOW_OFFER': { text: '📉 **Nuevo mínimo histórico (con Tarjeta)**', color: 0x2ecc71 },
-                'BACK_TO_LOW_OFFER': { text: '🔄 **Volvió al mínimo histórico (con Tarjeta)**', showDate: true, date: stored?.minOfferDate },
-                'NEW_LOW_NORMAL': { text: '📉 **Nuevo mínimo histórico (todo medio de pago)**', color: 0x27ae60 },
-                'BACK_TO_LOW_NORMAL': { text: '🔄 **Volvió al mínimo histórico (todo medio de pago)**', showDate: true, date: stored?.minNormalDate }
+                'NEW_LOW_OFFER': { text: 'Nuevo mínimo histórico (con Tarjeta)', color: 0x2ecc71 },
+                'BACK_TO_LOW_OFFER': { text: 'Volvió al mínimo histórico (con Tarjeta)', showDate: true, date: stored?.minOfferDate },
+                'NEW_LOW_NORMAL': { text: 'Nuevo mínimo histórico (todo medio de pago)', color: 0x27ae60 },
+                'BACK_TO_LOW_NORMAL': { text: 'Volvió al mínimo histórico (todo medio de pago)', showDate: true, date: stored?.minNormalDate }
             };
             const details = notificationConfig[type];
             statusText = details?.text || '';
@@ -402,10 +402,15 @@ class DealMonitor extends Monitor {
         // drop is likely only available with a mobile plan or is an error.
         if (!bestEntity) return;
 
+        let description = `[${statusText}](${productUrl})`;
+        if (showDate && triggerDate) {
+            description += ` de ${formatDiscordTimestamp(triggerDate)}`;
+        }
+
         const embed = new Discord.EmbedBuilder()
             .setTitle(title)
             //.setURL(productUrl)
-            .setDescription(`${statusText}\n[Solotodo](${productUrl})`)
+            .setDescription(description)
 
             .addFields([
                 { name: '💳 Precio Tarjeta', value: `${formatCLP(product.offerPrice)}`, inline: true },
@@ -413,10 +418,6 @@ class DealMonitor extends Monitor {
             ])
             .setColor(color)
             .setTimestamp();
-
-        if (showDate && triggerDate) {
-            embed.addFields([{ name: '🕒 Precio visto por última vez', value: formatDiscordTimestamp(triggerDate), inline: false }]);
-        }
 
         if (bestEntity.external_url) {
             const storeName = storeMap.get(bestEntity.store) || 'Tienda';
