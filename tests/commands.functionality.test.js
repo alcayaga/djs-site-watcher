@@ -1,3 +1,4 @@
+const { MessageFlags } = require('discord.js');
 const intervalCommand = require('../src/commands/interval');
 const monitorCommand = require('../src/commands/monitor');
 const storage = require('../src/storage');
@@ -110,7 +111,7 @@ describe('Command Functionality', () => {
                 embeds: expect.arrayContaining([expect.objectContaining({
                     data: expect.objectContaining({ title: '🔍 Ejecutando Revisión Manual' })
                 })]),
-                flags: expect.arrayContaining([64n]) // 64n is MessageFlags.Ephemeral (BigInt)
+                flags: expect.arrayContaining([MessageFlags.Ephemeral])
             }));
             
             mockMonitorManager.getAllMonitors().forEach(m => expect(m.check).toHaveBeenCalled());
@@ -118,7 +119,7 @@ describe('Command Functionality', () => {
                 embeds: expect.arrayContaining([expect.objectContaining({
                     data: expect.objectContaining({ title: '✅ Revisión Completada' })
                 })]),
-                flags: expect.arrayContaining([64n])
+                flags: expect.arrayContaining([MessageFlags.Ephemeral])
             }));
         });
     });
