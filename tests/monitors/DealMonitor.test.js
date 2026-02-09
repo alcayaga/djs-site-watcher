@@ -424,27 +424,18 @@ describe('DealMonitor', () => {
             consoleSpy.mockRestore();
         });
 
-        it('should log to console when offer price drops but is not a historic low', async () => {
+        it.each([
+            { priceType: 'offer', apiResponse: { id: 1, name: 'iPhone', offerPrice: 120000, normalPrice: 150000 }, expectedLog: '[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)' },
+            { priceType: 'normal', apiResponse: { id: 1, name: 'iPhone', offerPrice: 150000, normalPrice: 120000 }, expectedLog: '[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $120.000 (Historic Low: $100.000)' }
+        ])('should log to console when $priceType price drops but is not a historic low', async ({ apiResponse, expectedLog }) => {
             got.mockResolvedValue({
-                body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 120000, normalPrice: 150000 }])
+                body: mockApiResponse([apiResponse])
             });
     
             await monitor.check();
     
             expect(consoleSpy).toHaveBeenCalledWith('Checking for Deal updates...');
-            expect(consoleSpy).toHaveBeenCalledWith('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)');
-            expect(consoleSpy).toHaveBeenCalledTimes(2);
-        });
-    
-        it('should log to console when normal price drops but is not a historic low', async () => {
-            got.mockResolvedValue({
-                body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 150000, normalPrice: 120000 }])
-            });
-    
-            await monitor.check();
-    
-            expect(consoleSpy).toHaveBeenCalledWith('Checking for Deal updates...');
-            expect(consoleSpy).toHaveBeenCalledWith('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $120.000 (Historic Low: $100.000)');
+            expect(consoleSpy).toHaveBeenCalledWith(expectedLog);
             expect(consoleSpy).toHaveBeenCalledTimes(2);
         });
     });
