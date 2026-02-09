@@ -164,14 +164,15 @@ describe('DealMonitor', () => {
         expect(monitor.state['1'].minNormalDate).not.toBe('2025-01-01T00:00:00.000Z');
     });
 
-    it('should backfill history for new products with dates', async () => {
+    it('should backfill history using the LATEST date for minimum prices', async () => {
         monitor.state = {};
         solotodo.getProductHistory.mockResolvedValue([
             {
                 entity: { currency: 'https://publicapi.solotodo.com/currencies/1/' },
                 pricing_history: [
-                    { is_available: true, offer_price: "400000", normal_price: "410000", timestamp: "2024-12-01T10:00:00Z" },
-                    { is_available: true, offer_price: "450000", normal_price: "460000", timestamp: "2024-12-02T10:00:00Z" }
+                    { is_available: true, offer_price: "400000", normal_price: "410000", timestamp: "2024-12-01T10:00:00Z" }, // First hit of low
+                    { is_available: true, offer_price: "400000", normal_price: "410000", timestamp: "2024-12-05T10:00:00Z" }, // Latest hit of low (Should be this one)
+                    { is_available: true, offer_price: "450000", normal_price: "460000", timestamp: "2024-12-06T10:00:00Z" }  // Went up
                 ]
             }
         ]);
@@ -184,9 +185,9 @@ describe('DealMonitor', () => {
 
         expect(solotodo.getProductHistory).toHaveBeenCalledWith('1');
         expect(monitor.state['1'].minOfferPrice).toBe(400000);
-        expect(monitor.state['1'].minOfferDate).toBe("2024-12-01T10:00:00Z");
+        expect(monitor.state['1'].minOfferDate).toBe("2024-12-05T10:00:00Z"); // Expecting the latest one
         expect(monitor.state['1'].minNormalPrice).toBe(410000);
-        expect(monitor.state['1'].minNormalDate).toBe("2024-12-01T10:00:00Z");
+        expect(monitor.state['1'].minNormalDate).toBe("2024-12-05T10:00:00Z");
     });
 
     it('should detect return to historic low and show previous date', async () => {

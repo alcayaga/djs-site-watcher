@@ -243,11 +243,12 @@ class DealMonitor extends Monitor {
                                     const offer = parseFloat(record.offer_price);
                                     const normal = parseFloat(record.normal_price);
                                     
-                                    if (offer >= MIN_SANITY_PRICE && offer < minOffer) {
+                                    // Update on <= to capture the LAST seen date of the minimum price
+                                    if (offer >= MIN_SANITY_PRICE && offer <= minOffer) {
                                         minOffer = offer;
                                         minOfferDate = record.timestamp;
                                     }
-                                    if (normal >= MIN_SANITY_PRICE && normal < minNormal) {
+                                    if (normal >= MIN_SANITY_PRICE && normal <= minNormal) {
                                         minNormal = normal;
                                         minNormalDate = record.timestamp;
                                     }
