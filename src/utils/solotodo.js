@@ -43,6 +43,12 @@ const SOLOTODO_BASE_URL = 'https://www.solotodo.cl';
 const MIN_DESCRIPTIVE_SLUG_LENGTH = 5;
 const MAX_SKU_LIKE_SLUG_LENGTH = 10;
 
+// Domains that serve broken or non-standard images for Apple products.
+const BANNED_PICTURE_DOMAINS = [
+    'tienda.travel.cl',
+    'dojiw2m9tvv09.cloudfront.net'
+];
+
 /**
  * Generates a Solotodo product URL.
  * @param {object} product The product object.
@@ -247,11 +253,16 @@ async function getBestPictureUrl(product, entities = null) {
      */
     const isInvalid = (url) => {
         if (!url) return true;
-        const bannedDomains = [
-            'tienda.travel.cl',
-            'dojiw2m9tvv09.cloudfront.net'
-        ];
-        if (bannedDomains.some(domain => url.includes(domain))) return true;
+
+        try {
+            const hostname = new URL(url).hostname;
+            if (BANNED_PICTURE_DOMAINS.some(domain => hostname.endsWith(domain))) {
+                return true;
+            }
+        } catch {
+            return true;
+        }
+
         return !/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(url);
     };
 
@@ -278,11 +289,8 @@ async function getBestPictureUrl(product, entities = null) {
         console.error(`Error fetching alternative picture for product ${product.id}:`, e);
     }
 
-    if (isInvalid(currentUrl)) {
-        console.log(`[Solotodo] No alternative picture found for product ${product.id}`);
-        return null;
-    }
-    return currentUrl;
+    console.log(`[Solotodo] No alternative picture found for product ${product.id}`);
+    return null;
 }
 
 let cachedStores = null;
