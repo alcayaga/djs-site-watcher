@@ -28,6 +28,7 @@ List of features of the site-watcher bot:
 - Monitor Apple Pay Configurations (`ApplePay`)
 - Monitor Apple eSIM Carrier Support (`AppleEsim`)
 - Monitor Apple Feature Availability (`AppleFeature`)
+- Monitor Solotodo Deals (`Deal`)
 - Modular Channel Handlers for specialized channel behavior (Moderation, Q&A)
 - Open source!
 
