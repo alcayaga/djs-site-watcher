@@ -100,12 +100,13 @@ describe('Command Functionality', () => {
              ]);
         });
 
-        it('should trigger manual check with ephemeral message', async () => {
+        it('should trigger manual check with ephemeral message on success', async () => {
             mockInteraction.options.getSubcommand.mockReturnValue('check');
             mockInteraction.options.getString.mockReturnValue('all');
             mockInteraction.followUp = jest.fn();
 
-            await monitorCommand.execute(mockInteraction, {}, {}, {}, mockMonitorManager);
+            const client = {};
+            await monitorCommand.execute(mockInteraction, client, {}, {}, mockMonitorManager);
 
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
                 embeds: expect.arrayContaining([expect.objectContaining({
@@ -114,10 +115,35 @@ describe('Command Functionality', () => {
                 flags: [MessageFlags.Ephemeral]
             }));
             
-            mockMonitorManager.getAllMonitors().forEach(m => expect(m.check).toHaveBeenCalled());
+            mockMonitorManager.getAllMonitors().forEach(m => expect(m.check).toHaveBeenCalledWith(client));
             expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
                 embeds: expect.arrayContaining([expect.objectContaining({
                     data: expect.objectContaining({ title: '✅ Revisión Completada' })
+                })]),
+                flags: [MessageFlags.Ephemeral]
+            }));
+        });
+
+        it('should handle failed manual check with ephemeral message', async () => {
+            mockInteraction.options.getSubcommand.mockReturnValue('check');
+            mockInteraction.options.getString.mockReturnValue('all');
+            mockInteraction.followUp = jest.fn();
+
+            const mockError = new Error('test error');
+            mockMonitorManager.getAllMonitors()[0].check.mockRejectedValue(mockError);
+
+            const client = {};
+            await monitorCommand.execute(mockInteraction, client, {}, {}, mockMonitorManager);
+            
+            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                flags: [MessageFlags.Ephemeral]
+            }));
+
+            mockMonitorManager.getAllMonitors().forEach(m => expect(m.check).toHaveBeenCalledWith(client));
+
+            expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
+                embeds: expect.arrayContaining([expect.objectContaining({
+                    data: expect.objectContaining({ title: '⚠️ Fallo en la Revisión' })
                 })]),
                 flags: [MessageFlags.Ephemeral]
             }));
