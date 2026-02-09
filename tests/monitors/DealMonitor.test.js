@@ -252,7 +252,7 @@ describe('DealMonitor', () => {
     it('should use the exit date when returning to historic low', async () => {
         const exitDate = '2025-02-09T10:00:00.000Z'; // The date it went up
         // Unix timestamp for exitDate is 1739095200
-        const exitUnix = 1739095200;
+        const exitUnix = Math.floor(new Date(exitDate).getTime() / 1000);
 
         monitor.state = {
             '1': { 
