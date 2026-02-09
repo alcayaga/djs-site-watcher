@@ -141,6 +141,20 @@ class DealMonitor extends Monitor {
     }
 
     /**
+     * Internal helper to log price drops that are not historic lows.
+     * @private
+     * @param {string} productName The name of the product.
+     * @param {string} priceType Either 'Offer' or 'Normal'.
+     * @param {number} previousPrice The previous price.
+     * @param {number} currentPrice The current price.
+     * @param {number} minPrice The historic minimum price.
+     */
+    _logPriceDrop(productName, priceType, previousPrice, currentPrice, minPrice) {
+        const typeLabel = priceType === 'Normal' ? ' (Normal)' : '';
+        console.log(`[DealMonitor] Price drop for ${productName}${typeLabel}: ${formatCLP(previousPrice)} -> ${formatCLP(currentPrice)} (Historic Low: ${formatCLP(minPrice)})`);
+    }
+
+    /**
      * Overrides the base check method to handle list of products and state merging.
      */
     async check() {
@@ -218,8 +232,24 @@ class DealMonitor extends Monitor {
                 const currentNormal = product.normalPrice;
                 const now = new Date().toISOString();
                 
+                // Capture previous prices to detect drops that aren't new lows
+                const previousOfferPrice = stored.lastOfferPrice;
+                const previousNormalPrice = stored.lastNormalPrice;
+
                 const offerTrigger = this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer');
                 const normalTrigger = this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal');
+
+                // Log significant price drops that don't trigger a notification (Issue #83)
+                const priceChecks = [
+                    { type: 'Offer', trigger: offerTrigger, current: currentOffer, previous: previousOfferPrice, min: stored.minOfferPrice },
+                    { type: 'Normal', trigger: normalTrigger, current: currentNormal, previous: previousNormalPrice, min: stored.minNormalPrice }
+                ];
+
+                for (const check of priceChecks) {
+                    if (check.trigger === 'CHANGED' && check.current < check.previous) {
+                        this._logPriceDrop(product.name, check.type, check.previous, check.current, check.min);
+                    }
+                }
 
                 let productChanged = !!(offerTrigger || normalTrigger);
 

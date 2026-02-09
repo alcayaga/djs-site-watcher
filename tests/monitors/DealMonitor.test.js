@@ -403,4 +403,83 @@ describe('DealMonitor', () => {
 
         expect(mockChannel.send).not.toHaveBeenCalled();
     });
+
+    describe('price drop logging', () => {
+        let consoleSpy;
+
+        beforeEach(() => {
+            consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+            monitor.state = {
+                '1': { 
+                    id: 1, name: 'iPhone', 
+                    minOfferPrice: 100000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                    lastOfferPrice: 150000, 
+                    minNormalPrice: 100000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                    lastNormalPrice: 150000 
+                }
+            };
+        });
+
+        afterEach(() => {
+            consoleSpy.mockRestore();
+        });
+
+        it('should log to console when offer price drops but is not a historic low', async () => {
+            const apiResponse = { id: 1, name: 'iPhone', offerPrice: 120000, normalPrice: 150000 };
+            got.mockResolvedValue({ body: mockApiResponse([apiResponse]) });
+        
+            await monitor.check();
+        
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)'));
+            
+            // Ensure exactly one price drop was logged
+            const priceDropLogCalls = consoleSpy.mock.calls.filter(
+                (call) => typeof call[0] === 'string' && call[0].startsWith('[DealMonitor] Price drop for')
+            );
+            expect(priceDropLogCalls).toHaveLength(1);
+        });
+
+        it('should log to console when normal price drops but is not a historic low', async () => {
+            const apiResponse = { id: 1, name: 'iPhone', offerPrice: 150000, normalPrice: 120000 };
+            got.mockResolvedValue({ body: mockApiResponse([apiResponse]) });
+        
+            await monitor.check();
+        
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $120.000 (Historic Low: $100.000)'));
+            
+            // Ensure exactly one price drop was logged
+            const priceDropLogCalls = consoleSpy.mock.calls.filter(
+                (call) => typeof call[0] === 'string' && call[0].startsWith('[DealMonitor] Price drop for')
+            );
+            expect(priceDropLogCalls).toHaveLength(1);
+        });
+
+        it('should not log price drops when prices increase', async () => {
+            const apiResponse = { id: 1, name: 'iPhone', offerPrice: 160000, normalPrice: 150000 };
+            got.mockResolvedValue({ body: mockApiResponse([apiResponse]) });
+        
+            await monitor.check();
+        
+            const priceDropLogCalls = consoleSpy.mock.calls.filter(
+                (call) => typeof call[0] === 'string' && call[0].startsWith('[DealMonitor] Price drop for')
+            );
+            expect(priceDropLogCalls).toHaveLength(0);
+        });
+
+        it('should log for both prices if they both drop', async () => {
+            const apiResponse = { id: 1, name: 'iPhone', offerPrice: 120000, normalPrice: 130000 };
+            got.mockResolvedValue({ body: mockApiResponse([apiResponse]) });
+        
+            await monitor.check();
+        
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)'));
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $130.000 (Historic Low: $100.000)'));
+            
+            // Ensure both price drops were logged
+            const priceDropLogCalls = consoleSpy.mock.calls.filter(
+                (call) => typeof call[0] === 'string' && call[0].startsWith('[DealMonitor] Price drop for')
+            );
+            expect(priceDropLogCalls).toHaveLength(2);
+        });
+    });
 });
