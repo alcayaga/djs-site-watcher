@@ -100,56 +100,56 @@ describe('Command Functionality', () => {
              ]);
         });
 
-        it('should trigger manual check with ephemeral message on success', async () => {
-            mockInteraction.options.getSubcommand.mockReturnValue('check');
-            mockInteraction.options.getString.mockReturnValue('all');
-            mockInteraction.followUp = jest.fn();
+        describe('subcommand: check', () => {
+            beforeEach(() => {
+                mockInteraction.options.getSubcommand.mockReturnValue('check');
+                mockInteraction.options.getString.mockReturnValue('all');
+                mockInteraction.followUp = jest.fn();
+            });
 
-            const client = {};
-            await monitorCommand.execute(mockInteraction, client, {}, {}, mockMonitorManager);
+            it('should trigger manual check with ephemeral message on success', async () => {
+                const client = {};
+                await monitorCommand.execute(mockInteraction, client, {}, {}, mockMonitorManager);
 
-            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
-                embeds: expect.arrayContaining([expect.objectContaining({
-                    data: expect.objectContaining({ title: '🔍 Ejecutando Revisión Manual' })
-                })]),
-                flags: [MessageFlags.Ephemeral]
-            }));
-            
-            mockMonitorManager.getAllMonitors().forEach(m => expect(m.check).toHaveBeenCalledWith(client));
-            expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
-                embeds: expect.arrayContaining([expect.objectContaining({
-                    data: expect.objectContaining({ title: '✅ Revisión Completada' })
-                })]),
-                flags: [MessageFlags.Ephemeral]
-            }));
-        });
+                expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                    embeds: expect.arrayContaining([expect.objectContaining({
+                        data: expect.objectContaining({ title: '🔍 Ejecutando Revisión Manual' })
+                    })]),
+                    flags: [MessageFlags.Ephemeral]
+                }));
+                
+                mockMonitorManager.getAllMonitors().forEach(m => expect(m.check).toHaveBeenCalledWith(client));
+                expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
+                    embeds: expect.arrayContaining([expect.objectContaining({
+                        data: expect.objectContaining({ title: '✅ Revisión Completada' })
+                    })]),
+                    flags: [MessageFlags.Ephemeral]
+                }));
+            });
 
-        it('should handle failed manual check with ephemeral message', async () => {
-            mockInteraction.options.getSubcommand.mockReturnValue('check');
-            mockInteraction.options.getString.mockReturnValue('all');
-            mockInteraction.followUp = jest.fn();
+            it('should handle failed manual check with ephemeral message', async () => {
+                const mockError = new Error('test error');
+                mockMonitorManager.getAllMonitors()[0].check.mockRejectedValue(mockError);
 
-            const mockError = new Error('test error');
-            mockMonitorManager.getAllMonitors()[0].check.mockRejectedValue(mockError);
+                const client = {};
+                await monitorCommand.execute(mockInteraction, client, {}, {}, mockMonitorManager);
+                
+                expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                    embeds: expect.arrayContaining([expect.objectContaining({
+                        data: expect.objectContaining({ title: '🔍 Ejecutando Revisión Manual' })
+                    })]),
+                    flags: [MessageFlags.Ephemeral]
+                }));
 
-            const client = {};
-            await monitorCommand.execute(mockInteraction, client, {}, {}, mockMonitorManager);
-            
-            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
-                embeds: expect.arrayContaining([expect.objectContaining({
-                    data: expect.objectContaining({ title: '🔍 Ejecutando Revisión Manual' })
-                })]),
-                flags: [MessageFlags.Ephemeral]
-            }));
+                mockMonitorManager.getAllMonitors().forEach(m => expect(m.check).toHaveBeenCalledWith(client));
 
-            mockMonitorManager.getAllMonitors().forEach(m => expect(m.check).toHaveBeenCalledWith(client));
-
-            expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
-                embeds: expect.arrayContaining([expect.objectContaining({
-                    data: expect.objectContaining({ title: '⚠️ Fallo en la Revisión' })
-                })]),
-                flags: [MessageFlags.Ephemeral]
-            }));
+                expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
+                    embeds: expect.arrayContaining([expect.objectContaining({
+                        data: expect.objectContaining({ title: '⚠️ Fallo en la Revisión' })
+                    })]),
+                    flags: [MessageFlags.Ephemeral]
+                }));
+            });
         });
     });
 });
