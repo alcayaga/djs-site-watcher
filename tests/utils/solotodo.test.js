@@ -177,6 +177,7 @@ describe('Solotodo Utils - API functions', () => {
             const product = { id: 1, pictureUrl: 'https://tienda.travel.cl/pic.jpg' };
             const entities = [
                 { picture_urls: ['https://dojiw2m9tvv09.cloudfront.net/bad.png'] },
+                { picture_urls: ['https://subdomain.tienda.travel.cl/pic.jpg'] },
                 { picture_urls: ['https://ripley.cl/good.png'] }
             ];
             

@@ -259,7 +259,8 @@ async function getBestPictureUrl(product, entities = null) {
             if (BANNED_PICTURE_DOMAINS.some(domain => hostname === domain || hostname.endsWith('.' + domain))) {
                 return true;
             }
-        } catch {
+        } catch (e) {
+            console.warn(`[Solotodo] URL parsing failed for "${url}": ${e.message}`);
             return true;
         }
 
