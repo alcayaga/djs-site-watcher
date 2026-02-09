@@ -166,6 +166,20 @@ class DealMonitor extends Monitor {
         } else if (currentPrice === stored[minPriceKey] && stored[lastPriceKey] > stored[minPriceKey]) {
             stored[lastPriceKey] = currentPrice;
             return `BACK_TO_LOW_${notificationType}`;
+        } else if (currentPrice > stored[minPriceKey] && stored[lastPriceKey] === stored[minPriceKey]) {
+            /**
+             * "Update on Exit" Logic:
+             * When the price INCREASES from the historic minimum (i.e., the deal ends),
+             * we update the 'minDate' to "now".
+             * 
+             * Why?
+             * So that when the price eventually drops BACK to this low, the "Since [Date]" 
+             * in the notification will reflect the LAST time the deal was active (the exit date),
+             * rather than the original first-seen date.
+             */
+            stored[minDateKey] = now;
+            stored[lastPriceKey] = currentPrice;
+            return 'CHANGED';
         } else if (currentPrice !== stored[lastPriceKey]) {
             stored[lastPriceKey] = currentPrice;
             return 'CHANGED';
@@ -268,7 +282,7 @@ class DealMonitor extends Monitor {
                 // Capture previous prices to detect drops that aren't new lows
                 const previousOfferPrice = stored.lastOfferPrice;
                 const previousNormalPrice = stored.lastNormalPrice;
-
+                
                 const offerTrigger = this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer');
                 const normalTrigger = this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal');
 

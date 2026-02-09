@@ -221,6 +221,66 @@ describe('DealMonitor', () => {
         expect(monitor.state['1'].lastOfferPrice).toBe(10000);
     });
 
+    it('should update minDate when price INCREASES from historic low (Update on Exit)', async () => {
+        const oldDate = '2024-01-01T00:00:00.000Z';
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 10000, minOfferDate: oldDate,
+                lastOfferPrice: 10000, // Was at low
+                minNormalPrice: 20000, minNormalDate: oldDate,
+                lastNormalPrice: 20000 // Was at low
+            }
+        };
+
+        // Price increases (Deal Ends)
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 15000, normalPrice: 25000 }])
+        });
+
+        await monitor.check();
+
+        // 1. Verify MinDate Updated to Now (Exit Date)
+        expect(monitor.state['1'].minOfferDate).not.toBe(oldDate);
+        expect(monitor.state['1'].minNormalDate).not.toBe(oldDate);
+        
+        // 2. Verify No Notification (Just a state update)
+        expect(mockChannel.send).not.toHaveBeenCalled();
+    });
+    
+    it('should use the exit date when returning to historic low', async () => {
+        const exitDate = '2025-02-09T10:00:00.000Z'; // The date it went up
+        // Unix timestamp for exitDate is 1739095200
+        const exitUnix = 1739095200;
+
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 10000, minOfferDate: exitDate, // Already updated on exit
+                lastOfferPrice: 15000, // Currently high
+                minNormalPrice: 20000, minNormalDate: exitDate,
+                lastNormalPrice: 25000 
+            }
+        };
+
+        // Price returns to low
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 10000, normalPrice: 20000 }])
+        });
+
+        await monitor.check();
+
+        // 1. Verify Notification uses the Exit Date
+        expect(mockChannel.send).toHaveBeenCalled();
+        const sendCall = mockChannel.send.mock.calls[0][0];
+        const embed = sendCall.embeds[0];
+        
+        expect(embed.data.description).toContain(`<t:${exitUnix}:R>`);
+        
+        // 2. Verify Date did NOT update again (it keeps the exit date)
+        expect(monitor.state['1'].minOfferDate).toBe(exitDate);
+    });
+
     it('should NOT alert if price stays at historic low', async () => {
         monitor.state = {
             '1': { id: 1, name: 'iPhone', minOfferPrice: 100, lastOfferPrice: 100, minNormalPrice: 200, lastNormalPrice: 200 }
