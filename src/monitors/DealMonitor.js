@@ -350,33 +350,34 @@ class DealMonitor extends Monitor {
         const bothNewLow = triggers.includes('NEW_LOW_OFFER') && triggers.includes('NEW_LOW_NORMAL');
         const bothBackToLow = triggers.includes('BACK_TO_LOW_OFFER') && triggers.includes('BACK_TO_LOW_NORMAL');
         
-        let title = '';
+        let title = sanitizedName;
+        let statusText = '';
         let color = 0x3498db;
         let showDate = false;
         let triggerDate = date;
 
         if (bothNewLow) {
-            title = `📉 ${sanitizedName} con nuevos mínimos históricos`;
+            statusText = '📉 **Nuevos mínimos históricos**';
             color = 0x2ecc71;
         } else if (bothBackToLow) {
-            title = `🔄 ${sanitizedName} volvió a precios históricos`;
+            statusText = '🔄 **Volvió a precios históricos**';
             showDate = true;
             triggerDate = stored?.minOfferDate; // Use one of them
         } else if (triggers.length > 1) {
             // Mixed triggers (e.g. one is NEW_LOW, other is BACK_TO_LOW)
-            title = `📉🔄 ${sanitizedName} con nuevos precios históricos`;
+            statusText = '📉🔄 **Nuevos precios históricos**';
             color = 0x2ecc71;
         } else {
             // Individual triggers
             const type = triggers[0];
             const notificationConfig = {
-                'NEW_LOW_OFFER': { title: `📉 ${sanitizedName} con nuevo mínimo histórico (con Tarjeta)`, color: 0x2ecc71 },
-                'BACK_TO_LOW_OFFER': { title: `🔄 ${sanitizedName} volvió al mínimo histórico (con Tarjeta)`, showDate: true, date: stored?.minOfferDate },
-                'NEW_LOW_NORMAL': { title: `📉 ${sanitizedName} con nuevo mínimo histórico (todo medio de pago)`, color: 0x27ae60 },
-                'BACK_TO_LOW_NORMAL': { title: `🔄 ${sanitizedName} volvió al mínimo histórico (todo medio de pago)`, showDate: true, date: stored?.minNormalDate }
+                'NEW_LOW_OFFER': { text: '📉 **Nuevo mínimo histórico (con Tarjeta)**', color: 0x2ecc71 },
+                'BACK_TO_LOW_OFFER': { text: '🔄 **Volvió al mínimo histórico (con Tarjeta)**', showDate: true, date: stored?.minOfferDate },
+                'NEW_LOW_NORMAL': { text: '📉 **Nuevo mínimo histórico (todo medio de pago)**', color: 0x27ae60 },
+                'BACK_TO_LOW_NORMAL': { text: '🔄 **Volvió al mínimo histórico (todo medio de pago)**', showDate: true, date: stored?.minNormalDate }
             };
             const details = notificationConfig[type];
-            title = details?.title || '';
+            statusText = details?.text || '';
             color = details?.color || 0x3498db;
             showDate = details?.showDate || false;
             if (details?.date) triggerDate = details.date;
@@ -403,22 +404,24 @@ class DealMonitor extends Monitor {
 
         const embed = new Discord.EmbedBuilder()
             .setTitle(title)
-            .setURL(productUrl)
+            //.setURL(productUrl)
+            .setDescription(`${statusText}\n[Solotodo](${productUrl})`)
+
             .addFields([
-                { name: '💳 Precio Tarjeta', value: `**${formatCLP(product.offerPrice)}**`, inline: true },
-                { name: '💰 Precio Normal', value: `**${formatCLP(product.normalPrice)}**`, inline: true }
+                { name: '💳 Precio Tarjeta', value: `${formatCLP(product.offerPrice)}`, inline: true },
+                { name: '💰 Precio Normal', value: `${formatCLP(product.normalPrice)}`, inline: true }
             ])
             .setColor(color)
             .setTimestamp();
 
+        if (showDate && triggerDate) {
+            embed.addFields([{ name: '🕒 Precio visto por última vez', value: formatDiscordTimestamp(triggerDate), inline: false }]);
+        }
+
         if (bestEntity.external_url) {
             const storeName = storeMap.get(bestEntity.store) || 'Tienda';
             const safeUrl = encodeURI(bestEntity.external_url).replace(/\)/g, '%29');
-            embed.addFields([{ name: `🛒 ${storeName}`, value: `[Ir a la tienda ↗](${safeUrl})`, inline: false }]);
-        }
-
-        if (showDate && triggerDate) {
-            embed.addFields([{ name: '🕒 Precio visto por última vez', value: formatDiscordTimestamp(triggerDate), inline: false }]);
+            embed.addFields([{ name: `🛒 Vendido por ${storeName}`, value: `[Ir a la tienda ↗](${safeUrl})`, inline: false }]);
         }
 
         let attachment = null;
