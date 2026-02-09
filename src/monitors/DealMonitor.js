@@ -19,6 +19,30 @@ const MIME_TYPE_MAP = {
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
 /**
+ * Sniffs the image extension from a buffer's magic numbers.
+ * Supports JPEG, PNG, GIF and WebP.
+ * @param {Buffer} buffer The image buffer.
+ * @returns {string|null} The extension or null if not recognized.
+ */
+function sniffImageExtension(buffer) {
+    if (!buffer || buffer.length < 12) return null;
+    
+    // JPEG: FF D8 FF
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) return 'jpg';
+    
+    // PNG: 89 50 4E 47
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) return 'png';
+    
+    // GIF: 47 49 46 38 ("GIF8")
+    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) return 'gif';
+    
+    // WebP: RIFF .... WEBP
+    if (buffer.slice(0, 4).toString() === 'RIFF' && buffer.slice(8, 12).toString() === 'WEBP') return 'webp';
+    
+    return null;
+}
+
+/**
  * Monitor for Solotodo deals on Apple products.
  * Tracks price history and alerts when a product reaches its historic minimum price.
  */
@@ -422,11 +446,16 @@ class DealMonitor extends Monitor {
                     await new Promise((resolve, reject) => {
                         stream.on('response', (res) => {
                             contentType = res.headers['content-type'];
-                            // Strict validation: must have Content-Type and be in our allowed list
                             const pureType = contentType ? contentType.split(';')[0].trim() : null;
-                            if (!pureType || !MIME_TYPE_MAP[pureType]) {
+                            
+                            // Early reject for definitely non-image types
+                            const isPotentiallyImage = !pureType || 
+                                                       pureType === 'application/octet-stream' || 
+                                                       pureType.startsWith('image/');
+                            
+                            if (!isPotentiallyImage) {
                                 stream.destroy();
-                                reject(new Error('Resource is not a supported image type'));
+                                reject(new Error('Resource is definitely not an image'));
                             }
                         });
                         
@@ -446,22 +475,23 @@ class DealMonitor extends Monitor {
 
                     const buffer = Buffer.concat(chunks);
 
-                    // Determine extension from Content-Type header first, then fallback to URL
+                    // Determine extension from Content-Type header first
                     let extension = '';
-                    
                     if (contentType) {
                         const pureType = contentType.split(';')[0].trim();
                         extension = MIME_TYPE_MAP[pureType];
                     }
 
+                    // If not found by Content-Type (e.g. octet-stream), try sniffing the buffer
                     if (!extension) {
-                        const path = url.split('?')[0];
-                        const urlExt = path.split('.').pop();
-                        if (urlExt && urlExt !== path && urlExt.length > 0 && urlExt.length < 5) {
-                            extension = urlExt;
-                        } else {
-                            extension = 'jpg'; // Default fallback
-                        }
+                        extension = sniffImageExtension(buffer);
+                    }
+
+                    // Final security check: if we still don't have a recognized image extension, abort.
+                    // This prevents relaying malicious files or SVGs (since they are not in MIME_TYPE_MAP
+                    // and won't match our binary sniffer).
+                    if (!extension) {
+                        throw new Error('Resource content is not a supported image type');
                     }
 
                     const fileName = `product_${product.id}.${extension}`;

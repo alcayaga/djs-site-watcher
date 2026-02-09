@@ -507,34 +507,65 @@ describe('DealMonitor', () => {
             consoleErrorSpy.mockRestore();
         });
 
-        it('should reject non-image resources', async () => {
+        it('should download and attach image when content-type is octet-stream by sniffing buffer', async () => {
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://ambiguous.com/image', offerPrice: 100, normalPrice: 200 };
+            
+            solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
+            
+            // JPEG Magic Number: FF D8 FF
+            const jpegBuffer = Buffer.from([0xFF, 0xD8, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+            got.stream = jest.fn().mockImplementation(() => mockGotStream([jpegBuffer], { 'content-type': 'application/octet-stream' }));
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            const sendCall = mockChannel.send.mock.calls[0][0];
+            expect(sendCall.embeds[0].data.thumbnail.url).toBe('attachment://product_1.jpg');
+        });
+
+        it('should reject non-image resources even if potentially allowed by header', async () => {
             const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/malicious.sh', offerPrice: 100, normalPrice: 200 };
             
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
             
-            got.stream = jest.fn().mockImplementation(() => mockGotStream(['rm -rf /'], { 'content-type': 'text/plain' }));
+            // Generic header but malicious content
+            got.stream = jest.fn().mockImplementation(() => mockGotStream(['#!/bin/bash\nrm -rf /'], { 'content-type': 'application/octet-stream' }));
 
             const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource is not a supported image type'));
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource content is not a supported image type'));
             expect(Discord.AttachmentBuilder).not.toHaveBeenCalled();
             consoleErrorSpy.mockRestore();
         });
 
-        it('should reject if Content-Type is missing', async () => {
-            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic', offerPrice: 100, normalPrice: 200 };
+        it('should reject if Content-Type is explicitly not an image', async () => {
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/page.html', offerPrice: 100, normalPrice: 200 };
             
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
             
-            got.stream = jest.fn().mockImplementation(() => mockGotStream(['data'], {}));
+            got.stream = jest.fn().mockImplementation(() => mockGotStream(['<html></html>'], { 'content-type': 'text/html' }));
 
             const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource is not a supported image type'));
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource is definitely not an image'));
+            consoleErrorSpy.mockRestore();
+        });
+
+        it('should reject if Content-Type is missing but content is not an image', async () => {
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic', offerPrice: 100, normalPrice: 200 };
+            
+            solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
+            
+            got.stream = jest.fn().mockImplementation(() => mockGotStream(['not an image at all'], {}));
+
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource content is not a supported image type'));
             consoleErrorSpy.mockRestore();
         });
     });
