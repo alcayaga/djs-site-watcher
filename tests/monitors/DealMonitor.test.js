@@ -105,7 +105,8 @@ describe('DealMonitor', () => {
         });
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
-        expect(embed.data.title).toContain('con nuevo mínimo histórico (con Tarjeta)');
+        expect(embed.data.title).toBe('iPhone');
+        expect(embed.data.description).toBe('[Nuevo mínimo histórico (con Tarjeta)](https://www.solotodo.cl/products/1-slug)');
         
         expect(monitor.state['1'].minOfferPrice).toBe(450000);
         expect(monitor.state['1'].minOfferDate).not.toBe('2025-01-01T00:00:00.000Z');
@@ -154,7 +155,8 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).toHaveBeenCalled();
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
-        expect(embed.data.title).toContain('con nuevo mínimo histórico (todo medio de pago)');
+        expect(embed.data.title).toBe('iPhone');
+        expect(embed.data.description).toBe('[Nuevo mínimo histórico (todo medio de pago)](https://www.solotodo.cl/products/1-slug)');
         
         expect(monitor.state['1'].minNormalPrice).toBe(550000);
         expect(monitor.state['1'].minNormalDate).not.toBe('2025-01-01T00:00:00.000Z');
@@ -206,11 +208,12 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).toHaveBeenCalled();
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
-        expect(embed.data.title).toContain('volvió al mínimo histórico (con Tarjeta)');
+        expect(embed.data.title).toBe('iPhone');
+        // Unix for 2024-12-01T10:00:00Z is 1733047200
+        expect(embed.data.description).toBe('[Volvió al mínimo histórico (con Tarjeta)](https://www.solotodo.cl/products/1-slug) de <t:1733047200:R>');
         
         const dateField = embed.data.fields.find(f => f.name === '🕒 Precio visto por última vez');
-        expect(dateField).toBeDefined();
-        expect(dateField.value).toContain('1733047200'); // Unix for 2024-12-01T10:00:00Z
+        expect(dateField).toBeUndefined();
 
         expect(monitor.state['1'].lastOfferPrice).toBe(10000);
     });
@@ -299,7 +302,8 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).toHaveBeenCalledTimes(1);
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
-        expect(embed.data.title).toContain('con nuevos mínimos históricos');
+        expect(embed.data.title).toBe('iPhone');
+        expect(embed.data.description).toBe('[Nuevos mínimos históricos](https://www.solotodo.cl/products/1-slug)');
     });
 
     it('should correctly parse products with multiple currencies and pick CLP', async () => {
