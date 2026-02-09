@@ -313,8 +313,6 @@ class DealMonitor extends Monitor {
         const sanitizedName = sanitizeLinkText(product.name);
         const pictureUrl = await solotodo.getBestPictureUrl(product, entities);
 
-        console.log(`[DEBUG] pictureUrl: ${pictureUrl}`);
-
         // Determine if both are new lows or back to lows
         const bothNewLow = triggers.includes('NEW_LOW_OFFER') && triggers.includes('NEW_LOW_NORMAL');
         const bothBackToLow = triggers.includes('BACK_TO_LOW_OFFER') && triggers.includes('BACK_TO_LOW_NORMAL');
@@ -409,7 +407,26 @@ class DealMonitor extends Monitor {
                         timeout: { request: 5000 }
                     });
 
-                    const extension = url.split('.').pop().split('?')[0] || 'png';
+                    // Determine extension from Content-Type header first, then fallback to URL
+                    const contentType = response.headers['content-type'];
+                    let extension = '';
+                    
+                    if (contentType) {
+                        if (contentType.includes('image/jpeg')) extension = 'jpg';
+                        else if (contentType.includes('image/png')) extension = 'png';
+                        else if (contentType.includes('image/webp')) extension = 'webp';
+                        else if (contentType.includes('image/gif')) extension = 'gif';
+                    }
+
+                    if (!extension) {
+                        const urlExt = url.split('.').pop().split('?')[0];
+                        if (urlExt && urlExt.length > 0 && urlExt.length < 5) {
+                            extension = urlExt;
+                        } else {
+                            extension = 'jpg'; // Default fallback
+                        }
+                    }
+
                     const fileName = `product_${product.id}.${extension}`;
                     attachment = new Discord.AttachmentBuilder(response.body, { name: fileName });
                     embed.setThumbnail(`attachment://${fileName}`);
