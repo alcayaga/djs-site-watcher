@@ -23,6 +23,7 @@ describe('Command Functionality', () => {
                 getFocused: jest.fn() // For autocomplete
             },
             reply: jest.fn(),
+            editReply: jest.fn(),
             respond: jest.fn() // For autocomplete
         };
 
@@ -104,7 +105,6 @@ describe('Command Functionality', () => {
             beforeEach(() => {
                 mockInteraction.options.getSubcommand.mockReturnValue('check');
                 mockInteraction.options.getString.mockReturnValue('all');
-                mockInteraction.followUp = jest.fn();
             });
 
             it('should trigger manual check with ephemeral message on success', async () => {
@@ -119,11 +119,10 @@ describe('Command Functionality', () => {
                 }));
                 
                 mockMonitorManager.getAllMonitors().forEach(m => expect(m.check).toHaveBeenCalledWith(client));
-                expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
+                expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
                     embeds: expect.arrayContaining([expect.objectContaining({
                         data: expect.objectContaining({ title: '✅ Revisión Completada' })
-                    })]),
-                    flags: [MessageFlags.Ephemeral]
+                    })])
                 }));
             });
 
@@ -143,11 +142,10 @@ describe('Command Functionality', () => {
 
                 mockMonitorManager.getAllMonitors().forEach(m => expect(m.check).toHaveBeenCalledWith(client));
 
-                expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
+                expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
                     embeds: expect.arrayContaining([expect.objectContaining({
                         data: expect.objectContaining({ title: '⚠️ Fallo en la Revisión' })
-                    })]),
-                    flags: [MessageFlags.Ephemeral]
+                    })])
                 }));
             });
         });

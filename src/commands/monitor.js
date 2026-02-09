@@ -1,5 +1,12 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, EmbedBuilder } = require('discord.js');
 
+const COLORS = {
+    DEFAULT: 0x6058f3,
+    SUCCESS: 0x57F287,
+    WARNING: 0xFEE75C,
+    ERROR: 0xff0000,
+};
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('monitor')
@@ -62,7 +69,7 @@ module.exports = {
         }
 
         const embed = new EmbedBuilder()
-            .setColor(0x6058f3);
+            .setColor(COLORS.DEFAULT);
 
         switch (subCommand) {
             case 'start': {
@@ -76,7 +83,7 @@ module.exports = {
                 targetMonitors.forEach(monitor => monitor.stop());
                 embed.setTitle('🛑 Monitores Detenidos')
                      .setDescription(`Se han detenido correctamente: **${targetMonitors.map(m => m.name).join('**, **')}**`)
-                     .setColor(0xff0000);
+                     .setColor(COLORS.ERROR);
                 await interaction.reply({ embeds: [embed] });
                 break;
             }
@@ -98,26 +105,20 @@ module.exports = {
                 const results = await Promise.allSettled(targetMonitors.map(monitor => monitor.check(client)));
                 
                 const failures = results.filter(r => r.status === 'rejected');
+                const replyEmbed = new EmbedBuilder();
                 if (failures.length > 0) {
                     console.error(`${failures.length} monitor check(s) failed during manual trigger:`, failures);
-                    await interaction.followUp({ 
-                        embeds: [new EmbedBuilder()
-                            .setTitle('⚠️ Fallo en la Revisión')
-                            .setDescription(`Falló la revisión de **${failures.length}** monitor(es). Revisa los logs del bot para más detalles.`)
-                            .setColor(0xFEE75C) // Discord Yellow
-                        ],
-                        flags: [MessageFlags.Ephemeral] 
-                    });
+                    replyEmbed
+                        .setTitle('⚠️ Fallo en la Revisión')
+                        .setDescription(`Falló la revisión de **${failures.length}** monitor(es). Revisa los logs del bot para más detalles.`)
+                        .setColor(COLORS.WARNING);
                 } else {
-                    await interaction.followUp({ 
-                        embeds: [new EmbedBuilder()
-                            .setTitle('✅ Revisión Completada')
-                            .setDescription(`Se completó la revisión para: **${targetMonitors.map(m => m.name).join('**, **')}**`)
-                            .setColor(0x57F287) // Discord Green
-                        ],
-                        flags: [MessageFlags.Ephemeral] 
-                    });
+                    replyEmbed
+                        .setTitle('✅ Revisión Completada')
+                        .setDescription(`Se completó la revisión para: **${targetMonitors.map(m => m.name).join('**, **')}**`)
+                        .setColor(COLORS.SUCCESS);
                 }
+                await interaction.editReply({ embeds: [replyEmbed] });
                 break;
             }
         }
