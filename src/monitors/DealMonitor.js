@@ -3,11 +3,44 @@ const Monitor = require('../Monitor');
 const config = require('../config');
 const got = require('got');
 const { formatCLP, sanitizeLinkText, formatDiscordTimestamp } = require('../utils/formatters');
-const { getProductUrl, getProductHistory, getBestPictureUrl, getAvailableEntities, getStores } = require('../utils/solotodo');
+const solotodo = require('../utils/solotodo');
 const { sleep } = require('../utils/helpers');
 const { getSafeGotOptions } = require('../utils/network');
 
 const MIN_SANITY_PRICE = 1000; // Anything below 1,000 CLP is likely an error for Apple products in these categories
+
+const MIME_TYPE_MAP = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif'
+};
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+
+/**
+ * Sniffs the image extension from a buffer's magic numbers.
+ * Supports JPEG, PNG, GIF and WebP.
+ * @param {Buffer} buffer The image buffer.
+ * @returns {string|null} The extension or null if not recognized.
+ */
+function sniffImageExtension(buffer) {
+    if (!buffer || buffer.length < 12) return null;
+    
+    // JPEG: FF D8 FF
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) return 'jpg';
+    
+    // PNG: 89 50 4E 47
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) return 'png';
+    
+    // GIF: 47 49 46 38 ("GIF8")
+    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) return 'gif';
+    
+    // WebP: RIFF .... WEBP
+    if (buffer.slice(0, 4).toString() === 'RIFF' && buffer.slice(8, 12).toString() === 'WEBP') return 'webp';
+    
+    return null;
+}
 
 /**
  * Monitor for Solotodo deals on Apple products.
@@ -184,7 +217,7 @@ class DealMonitor extends Monitor {
                     if (!isSingleRun) {
                         console.log(`New product detected: ${product.name} (ID: ${productId}). Backfilling history...`);
                         try {
-                            const history = await getProductHistory(productId);
+                            const history = await solotodo.getProductHistory(productId);
                             for (const entity of history) {
                                 // Only backfill history from CLP (Currency 1) entities
                                 if (entity.entity?.currency !== 'https://publicapi.solotodo.com/currencies/1/') {
@@ -306,12 +339,12 @@ class DealMonitor extends Monitor {
             triggers = [];
         }
 
-        const entities = await getAvailableEntities(product.id);
-        const storeMap = await getStores();
+        const entities = await solotodo.getAvailableEntities(product.id);
+        const storeMap = await solotodo.getStores();
         
-        const productUrl = getProductUrl(product);
+        const productUrl = solotodo.getProductUrl(product);
         const sanitizedName = sanitizeLinkText(product.name);
-        const pictureUrl = await getBestPictureUrl(product, entities);
+        const pictureUrl = await solotodo.getBestPictureUrl(product, entities);
 
         // Determine if both are new lows or back to lows
         const bothNewLow = triggers.includes('NEW_LOW_OFFER') && triggers.includes('NEW_LOW_NORMAL');
@@ -388,11 +421,92 @@ class DealMonitor extends Monitor {
             embed.addFields([{ name: '🕒 Precio visto por última vez', value: formatDiscordTimestamp(triggerDate), inline: false }]);
         }
 
+        let attachment = null;
         if (pictureUrl) {
             embed.setThumbnail(pictureUrl);
+        } else {
+            // If no valid picture URL was found by getBestPictureUrl, try downloading the raw picture
+            // from Solotodo and uploading it as a Discord attachment.
+            const candidateUrls = [
+                product.pictureUrl,
+                ...(entities || []).map(e => e.picture_urls?.[0])
+            ].filter(Boolean);
+
+            for (const url of candidateUrls) {
+                try {
+                    const stream = got.stream(url, {
+                        ...getSafeGotOptions(),
+                        timeout: { request: 5000 }
+                    });
+
+                    const chunks = [];
+                    let receivedLength = 0;
+                    let contentType = null;
+
+                    await new Promise((resolve, reject) => {
+                        stream.on('response', (res) => {
+                            contentType = res.headers['content-type'];
+                            // Early reject for definitely non-image types
+                            const pureType = contentType ? contentType.split(';')[0].trim() : null;
+                            const isPotentiallyImage = !pureType || 
+                                                       pureType === 'application/octet-stream' || 
+                                                       pureType.startsWith('image/');
+                            
+                            if (!isPotentiallyImage) {
+                                stream.destroy(new Error('Resource is definitely not an image'));
+                            }
+                        });
+                        
+                        stream.on('data', (chunk) => {
+                            receivedLength += chunk.length;
+                            if (receivedLength > MAX_IMAGE_SIZE) {
+                                stream.destroy(new Error('Image too large'));
+                            } else {
+                                chunks.push(chunk);
+                            }
+                        });
+                        
+                        stream.on('end', () => resolve());
+                        stream.on('error', (err) => reject(err));
+                    });
+
+                    const buffer = Buffer.concat(chunks);
+
+                    // Determine extension from Content-Type header first
+                    let extension = '';
+                    if (contentType) {
+                        const pureType = contentType.split(';')[0].trim();
+                        extension = MIME_TYPE_MAP[pureType];
+                    }
+
+                    // If not found by Content-Type (e.g. octet-stream), try sniffing the buffer
+                    if (!extension) {
+                        extension = sniffImageExtension(buffer);
+                    }
+
+                    // Final security check: if we still don't have a recognized image extension, abort.
+                    // This prevents relaying malicious files or SVGs (since they are not in MIME_TYPE_MAP
+                    // and won't match our binary sniffer).
+                    if (!extension) {
+                        throw new Error('Resource content is not a supported image type');
+                    }
+
+                    const fileName = `product_${product.id}.${extension}`;
+                    attachment = new Discord.AttachmentBuilder(buffer, { name: fileName });
+                    embed.setThumbnail(`attachment://${fileName}`);
+                    break;
+                } catch (error) {
+                    console.error(`[DealMonitor] Failed to download fallback image for product ${product.id} from ${url}:`, error.message);
+                }
+            }
         }
 
-        const message = await channel.send({ embeds: [embed] });
+        const messageOptions = { embeds: [embed] };
+        if (attachment) {
+            messageOptions.files = [attachment];
+        }
+
+        const message = await channel.send(messageOptions);
 
         // Create a thread for discussion if supported (e.g., text channels in real runs)
         if (message && typeof message.startThread === 'function') {

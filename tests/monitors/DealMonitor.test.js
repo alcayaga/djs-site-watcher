@@ -47,6 +47,10 @@ describe('DealMonitor', () => {
         monitor.client = mockClient;
     });
 
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
     const mockApiResponse = (products) => {
         const results = products.map(p => ({
             product_entries: [{
@@ -402,6 +406,177 @@ describe('DealMonitor', () => {
         await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
         expect(mockChannel.send).not.toHaveBeenCalled();
+    });
+
+    describe('image handling', () => {
+        let consoleErrorSpy;
+
+        beforeEach(() => {
+            // Mock getAvailableEntities to ensure bestEntity is found (requires active_registry)
+            solotodo.getAvailableEntities.mockResolvedValue([
+                { active_registry: { offer_price: "100", normal_price: "200", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
+            ]);
+            consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        });
+
+        afterEach(() => {
+            consoleErrorSpy.mockRestore();
+        });
+
+        const mockGotStream = (chunks = ['fake-image-data'], headers = { 'content-type': 'image/jpeg' }) => {
+            const stream = new (require('events').EventEmitter)();
+            let destroyed = false;
+            stream.destroy = jest.fn((err) => {
+                destroyed = true;
+                if (err) process.nextTick(() => stream.emit('error', err));
+            });
+            process.nextTick(() => {
+                if (destroyed) return;
+                stream.emit('response', { headers });
+                if (destroyed) return;
+                chunks.forEach(chunk => {
+                    if (!destroyed) stream.emit('data', Buffer.from(chunk));
+                });
+                if (!destroyed) stream.emit('end');
+            });
+            return stream;
+        };
+
+        const mockGotStreamError = (error) => {
+            const stream = new (require('events').EventEmitter)();
+            stream.destroy = jest.fn();
+            process.nextTick(() => {
+                stream.emit('error', error);
+            });
+            return stream;
+        };
+
+        it('should download and attach image when no valid external picture URL is found', async () => {
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic.jpg', offerPrice: 100, normalPrice: 200 };
+            
+            solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
+            
+            got.stream = jest.fn().mockImplementation(() => mockGotStream(['fake-image-data'], { 'content-type': 'image/png' }));
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(got.stream).toHaveBeenCalledWith('http://banned.com/pic.jpg', expect.any(Object));
+            expect(Discord.AttachmentBuilder).toHaveBeenCalled();
+            
+            const sendCall = mockChannel.send.mock.calls[0][0];
+            expect(sendCall.files).toBeDefined();
+            // Expect .png because content-type was image/png
+            expect(sendCall.embeds[0].data.thumbnail.url).toBe('attachment://product_1.png');
+        });
+
+        it('should try entity pictures if product picture fails to download', async () => {
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic.jpg', offerPrice: 100, normalPrice: 200 };
+            const entities = [
+                { 
+                    picture_urls: ['http://entity.com/pic.png'],
+                    active_registry: { offer_price: "100", normal_price: "200", cell_monthly_payment: null },
+                    store: "https://api.com/stores/1/", 
+                    external_url: "https://store.com"
+                }
+            ];
+            
+            solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
+            solotodo.getAvailableEntities.mockResolvedValueOnce(entities);
+            
+            // First call fails, second succeeds
+            got.stream = jest.fn()
+                .mockImplementationOnce(() => mockGotStreamError(new Error('Download failed')))
+                .mockImplementationOnce(() => mockGotStream(['fake-image-data'], { 'content-type': 'image/png' }));
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(got.stream).toHaveBeenCalledWith('http://banned.com/pic.jpg', expect.any(Object));
+            expect(got.stream).toHaveBeenCalledWith('http://entity.com/pic.png', expect.any(Object));
+            expect(Discord.AttachmentBuilder).toHaveBeenCalledWith(expect.any(Buffer), expect.objectContaining({ name: 'product_1.png' }));
+        });
+        
+        it('should abort download if image is too large', async () => {
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/big.jpg', offerPrice: 100, normalPrice: 200 };
+            
+            solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
+            
+            // Simulate a stream that emits more than 5MB
+            const largeData = Buffer.alloc(5 * 1024 * 1024 + 100); 
+            
+            got.stream = jest.fn().mockImplementation(() => {
+                const stream = new (require('events').EventEmitter)();
+                let destroyed = false;
+                stream.destroy = jest.fn((err) => {
+                    destroyed = true;
+                    if (err) process.nextTick(() => stream.emit('error', err));
+                });
+                process.nextTick(() => {
+                    if (destroyed) return;
+                    stream.emit('response', { headers: { 'content-type': 'image/jpeg' } });
+                    if (destroyed) return;
+                    stream.emit('data', largeData);
+                    // Do NOT emit end manually, it should be destroyed during 'data'
+                });
+                return stream;
+            });
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Image too large'));
+        });
+
+        it('should download and attach image when content-type is octet-stream by sniffing buffer', async () => {
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://ambiguous.com/image', offerPrice: 100, normalPrice: 200 };
+            
+            solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
+            
+            // JPEG Magic Number: FF D8 FF
+            const jpegBuffer = Buffer.from([0xFF, 0xD8, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+            got.stream = jest.fn().mockImplementation(() => mockGotStream([jpegBuffer], { 'content-type': 'application/octet-stream' }));
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            const sendCall = mockChannel.send.mock.calls[0][0];
+            expect(sendCall.embeds[0].data.thumbnail.url).toBe('attachment://product_1.jpg');
+        });
+
+        it('should reject non-image resources even if potentially allowed by header', async () => {
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/malicious.sh', offerPrice: 100, normalPrice: 200 };
+            
+            solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
+            
+            // Generic header but malicious content
+            got.stream = jest.fn().mockImplementation(() => mockGotStream(['#!/bin/bash\nrm -rf /'], { 'content-type': 'application/octet-stream' }));
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource content is not a supported image type'));
+            expect(Discord.AttachmentBuilder).not.toHaveBeenCalled();
+        });
+
+        it('should reject if Content-Type is explicitly not an image', async () => {
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/page.html', offerPrice: 100, normalPrice: 200 };
+            
+            solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
+            
+            got.stream = jest.fn().mockImplementation(() => mockGotStream(['<html></html>'], { 'content-type': 'text/html' }));
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource is definitely not an image'));
+        });
+
+        it('should reject if Content-Type is missing but content is not an image', async () => {
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic', offerPrice: 100, normalPrice: 200 };
+            
+            solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
+            
+            got.stream = jest.fn().mockImplementation(() => mockGotStream(['not an image at all'], {}));
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource content is not a supported image type'));
+        });
     });
 
     describe('price drop logging', () => {
