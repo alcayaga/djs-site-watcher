@@ -115,6 +115,9 @@ describe('Command Functionality', () => {
             
             mockMonitorManager.getAllMonitors().forEach(m => expect(m.check).toHaveBeenCalled());
             expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
+                embeds: expect.arrayContaining([expect.objectContaining({
+                    data: expect.objectContaining({ title: '✅ Revisión Completada' })
+                })]),
                 flags: expect.arrayContaining([64n])
             }));
         });
