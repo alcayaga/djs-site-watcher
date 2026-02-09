@@ -256,7 +256,7 @@ async function getBestPictureUrl(product, entities = null) {
 
         try {
             const hostname = new URL(url).hostname;
-            if (BANNED_PICTURE_DOMAINS.some(domain => hostname.endsWith(domain))) {
+            if (BANNED_PICTURE_DOMAINS.some(domain => hostname === domain || hostname.endsWith('.' + domain))) {
                 return true;
             }
         } catch {
