@@ -32,36 +32,60 @@ List of features of the site-watcher bot:
 - Open source!
 
 ## Install
-Downloading the project:
+### 1. Create a Discord Application
+1. Go to the [Discord Developer Portal](https://discord.com/developers/applications).
+2. Click **New Application** and give it a name.
+3. Navigate to the **Bot** tab:
+   - Reset/Copy the **Bot Token** (you'll need this later).
+   - Under the **Privileged Gateway Intents** section, enable the **Message Content Intent**.
+4. Navigate to the **OAuth2** tab, then the **URL Generator** sub-menu:
+   - **Scopes**: Select `bot` and `applications.commands` from the list.
+   - **Bot Permissions**: Once `bot` is selected, a permission list will appear. Select the following:
+     - **General Permissions**: `View Channels`.
+     - **Text Permissions**: `Send Messages`, `Send Messages in Threads`, `Create Public Threads`, `Manage Messages`, `Embed Links`, `Attach Files`, `Read Message History`, and `Use Slash Commands`.
+   - Copy the generated URL at the bottom and use it to invite the bot to your server.
 
-1. Create a new discord bot on [discord.com/developers/applications](https://discord.com/developers/applications). A tutorial can be found [here](https://discordpy.readthedocs.io/en/latest/discord.html).   
-2. Make sure you have [git](https://git-scm.com/downloads) and [nodejs](https://nodejs.org/en/) installed.
-3. Clone the repository.
-4. Open `cmd.bat` in the repository folder.
-5. Type `npm install` and press `enter`.
+### 2. Project Setup
+1. Make sure you have [git](https://git-scm.com/downloads) and [Node.js](https://nodejs.org/en/) (v16.11.0 or higher) installed.
+2. Clone the repository:
+   ```bash
+   git clone https://github.com/alcayaga/djs-site-watcher.git
+   cd djs-site-watcher
+   ```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-Configuring the bot:
-
-1. Create a `.env` file from the `.env.example`.
-2. Add your discord bot token after `DISCORDJS_BOT_TOKEN=`. You can get this token from [discord.com/developers/applications](https://discord.com/developers/applications).
-3. Add your application (client) ID after `DISCORDJS_CLIENT_ID=`. This is found in the "General Information" tab of your application.
-4. Add the channel ID from the channel you want the update notifications in after `DISCORDJS_TEXTCHANNEL_ID=`. You can get this ID by right clicking the channel in discord and selecting `Copy ID`.  Make sure `Developer Mode` is on by going to `Settings → Appearance → Advanced → Developer Mode → ON`. Make sure the bot has permission to post in this channel.
-5. (Optional) Add the channel ID for Q&A auto-responses after `DISCORDJS_APCHANNEL_ID=`.
-6. (Optional) Add the channel ID for Deals moderation after `DISCORDJS_DEALS_CHANNEL_ID=`.
-7. (Optional) Configure `AP_RESPONSE_DELAY=` (milliseconds) for auto-responses (default: 5000).
-
-
-For starting and using the bot, see [Usage](#Usage).
+### 3. Configuration
+1. Create a `.env` file from the `.env.example`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Fill in the required fields in `.env`:
+   - `DISCORDJS_BOT_TOKEN`: Your bot token from step 1.
+   - `DISCORDJS_CLIENT_ID`: Found in the "General Information" tab of your application.
+   - `DISCORDJS_TEXTCHANNEL_ID`: The ID of the channel where notifications will be sent (Right-click channel -> Copy ID).
+3. (Optional) Configure additional channels for Q&A or Deals moderation by adding their IDs to `.env`.
 
 ## Usage
-The simplest method to monitor a site:
-1. Invite the bot to your Discord server using the OAuth2 URL generator in the Developer Portal (Scope: `bot`, `applications.commands`; Permissions: `Manage Server` or `Administrator`).
-2. Open the command line in the cloned repository folder.
-3. Register the slash commands by running `npm run deploy`. You only need to do this once or when commands change.
-4. Start the bot by typing `npm start`.
-5. In Discord (the bot should now be online), use the `/add` command. By default, only users with `Manage Server` permission can see and use the commands. You can further customize this in `Server Settings → Integrations`.
-6. Done! The added site is now being monitored.
-<sub>By default, the watch interval for every website is 5 minutes, but you can easily change this with the `/interval` command followed by the interval in minutes.</sub>
+### Starting the Bot
+1. **Register Slash Commands**: Run this once or whenever commands are updated:
+   ```bash
+   npm run deploy
+   ```
+2. **Start the Bot**:
+   ```bash
+   npm start
+   ```
+
+### Using the Bot
+Once the bot is online:
+1. In Discord, use the `/add` command to start monitoring a website.
+2. By default, only users with `Manage Server` permission can use the bot's commands. You can customize this in `Server Settings → Integrations`.
+3. Use `/help` to see all available commands.
+
+<sub>**Note**: The default watch interval is 5 minutes. You can change it globally with `/interval` or per-monitor if configured in `config/settings.json`.</sub>
 
 For all other options, see [Commands](#Commands).
 
