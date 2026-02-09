@@ -167,6 +167,19 @@ class DealMonitor extends Monitor {
             stored[lastPriceKey] = currentPrice;
             return `BACK_TO_LOW_${notificationType}`;
         } else if (currentPrice !== stored[lastPriceKey]) {
+            if (currentPrice > stored[minPriceKey] && stored[lastPriceKey] === stored[minPriceKey]) {
+                /**
+                 * "Update on Exit" Logic:
+                 * When the price INCREASES from the historic minimum (i.e., the deal ends),
+                 * we update the 'minDate' to "now".
+                 * 
+                 * Why?
+                 * So that when the price eventually drops BACK to this low, the "Since [Date]" 
+                 * in the notification will reflect the LAST time the deal was active (the exit date),
+                 * rather than the original first-seen date.
+                 */
+                stored[minDateKey] = now;
+            }
             stored[lastPriceKey] = currentPrice;
             return 'CHANGED';
         }
@@ -229,11 +242,12 @@ class DealMonitor extends Monitor {
                                     const offer = parseFloat(record.offer_price);
                                     const normal = parseFloat(record.normal_price);
                                     
-                                    if (offer >= MIN_SANITY_PRICE && offer < minOffer) {
+                                    // Update on <= to capture the LAST seen date of the minimum price
+                                    if (offer >= MIN_SANITY_PRICE && offer <= minOffer) {
                                         minOffer = offer;
                                         minOfferDate = record.timestamp;
                                     }
-                                    if (normal >= MIN_SANITY_PRICE && normal < minNormal) {
+                                    if (normal >= MIN_SANITY_PRICE && normal <= minNormal) {
                                         minNormal = normal;
                                         minNormalDate = record.timestamp;
                                     }
@@ -268,7 +282,7 @@ class DealMonitor extends Monitor {
                 // Capture previous prices to detect drops that aren't new lows
                 const previousOfferPrice = stored.lastOfferPrice;
                 const previousNormalPrice = stored.lastNormalPrice;
-
+                
                 const offerTrigger = this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer');
                 const normalTrigger = this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal');
 
