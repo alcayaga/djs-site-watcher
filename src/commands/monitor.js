@@ -93,7 +93,7 @@ module.exports = {
             case 'check': {
                 embed.setTitle('🔍 Ejecutando Revisión Manual')
                      .setDescription(`Revisando: **${targetMonitors.map(m => m.name).join('**, **')}**...`);
-                await interaction.reply({ embeds: [embed] });
+                await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
 
                 const results = await Promise.allSettled(targetMonitors.map(monitor => monitor.check(client)));
                 
