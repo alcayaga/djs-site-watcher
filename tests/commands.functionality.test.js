@@ -136,6 +136,9 @@ describe('Command Functionality', () => {
             await monitorCommand.execute(mockInteraction, client, {}, {}, mockMonitorManager);
             
             expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                embeds: expect.arrayContaining([expect.objectContaining({
+                    data: expect.objectContaining({ title: '🔍 Ejecutando Revisión Manual' })
+                })]),
                 flags: [MessageFlags.Ephemeral]
             }));
 
