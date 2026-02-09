@@ -54,47 +54,51 @@
     * Use standard conventional commits format (e.g., `feat:`, `fix:`, `refactor:`).
 
 ### Phase 4: PR Cycle & CI/CD Loop
-Once the work is committed, follow this EXACT cycle. Repeat this loop for every new commit pushed to the PR.
+Once the work is committed, follow this EXACT cycle.
 
-1.  **Push & Create:**
+1.  **Push & Trigger:**
     * `git push origin <branch_name>`
-    * **If New:** `gh pr create` (Draft description. **DO NOT** include `/gemini review` in the initial description. The first review is automatic).
-    * **If Existing:** Just push.
+    * **IF NEW PR:**
+        * `gh pr create` (Draft description).
+        * **STOP:** Do NOT comment `/gemini review`. The first review is automatic.
+    * **IF EXISTING PR:**
+        * **Trigger Review:** You MUST explicitly request a re-review immediately after pushing.
+        * Run: `gh pr comment <PR-NUMBER> --body "/gemini review"`
 
-2.  **MANDATORY WAIT (CI/CD):**
+2.  **MANDATORY WAIT (CI/CD & Review):**
     * **STOP.** Do not proceed immediately.
-    * You **MUST** run `sleep 250` in the terminal to allow CI/CD checks to complete.
+    * You **MUST** run `sleep 250` in the terminal.
+    * *Why?* This gives time for CI/CD checks to pass AND for the AI reviewer to post its comments from Step 1.
     * **Check Status:** AFTER sleeping, run `gh pr checks <PR-NUMBER>` to verify all tests passed.
-    * **If checks fail:** Fix them (Go back to Phase 2) before asking for a review.
+    * **If checks fail:** Fix them (Go back to Phase 2) before reading reviews.
 
 3.  **Fetch Unresolved Reviews (Including Outdated):**
     * Run exactly:
         ```bash
         gh pr-review review view <PR-NUMBER> -R alcayaga/djs-site-watcher --unresolved --reviewer gemini-code-assist
         ```
-    * **Note:** We removed `--not_outdated` because you must resolve ALL reviews, even if the code lines have changed (outdated).
-    * **Logic Check:** If the JSON output shows reviews but the `comments` array inside them is empty (or missing), this implies **NO unresolved threads**. You may skip to Step 5.
+    * **Logic Check:** If the JSON output shows reviews but the `comments` array inside them is empty (or missing), this implies **NO unresolved threads**. You may skip Step 4.
 
 4.  **Handle Feedback (Iterate):**
     * **Out of Scope:** If a review request is valid but outside the current PR's scope:
-        * Create a new issue: `gh issue create --title "..." --body "..." --label "..."`
-        * Resolve the comment: `gh pr-review threads resolve ...` with body "Moved to issue #XYZ".
+        * **Create Issue:** Create a detailed issue with full context. You MUST tag relevant labels and mention the source PR.
+        * `gh issue create --title "Refactor: ..." --body "Extracted from PR #123. Context: ..." --label "refactor"`
+        * **Resolve:** `gh pr-review threads resolve ...` with body "Moved to issue #XYZ".
     * **Reply (Contextual):** If you need to reply to a specific thread:
         * `gh pr-review comments reply <PR-NUMBER> ... --body "Your reply. /gemini review"`
-        * *Note:* Adding `/gemini review` here ONLY provides info on that specific thread. It does **NOT** trigger a full PR re-review.
+        * *Note:* Adding `/gemini review` here ONLY provides info on that specific thread.
     * **Resolve:** If you fixed the code issue:
         * `gh pr-review threads resolve -R alcayaga/djs-site-watcher <PR-NUMBER> --thread-id <PRRT_ID>`
 
-5.  **Trigger Full Re-Review (Final Step):**
-    * After addressing comments and pushing fixes, if you need a **fresh, full review** of the latest changes:
-    * Run: `gh pr comment <PR-NUMBER> --body "/gemini review"`
-    * **GO BACK TO PHASE 2** (Lint -> Test -> System Check -> Commit) if further changes are needed.
+5.  **Loop:**
+    * If you made code changes to fix the feedback, **GO BACK TO PHASE 2** (Lint -> Test -> System Check -> Commit -> Push -> Trigger).
 
 ## Testing Strategy Rules
 When validating changes, ALWAYS follow this strict execution order:
 
 1. **Targeted Unit Test:**
    - Run the specific test file: `npm test -- path/to/specific.test.js`
+   - **Mocks:** Leverage the `__mocks__` directory when mocking external dependencies or modules.
    - Goal: Fail fast.
 
 2. **Full Regression:**
