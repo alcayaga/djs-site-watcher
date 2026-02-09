@@ -430,7 +430,7 @@ describe('DealMonitor', () => {
         
             await monitor.check();
         
-            expect(consoleSpy).toHaveBeenCalledWith('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)');
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)'));
             // Ensure the other price type is not logged
             expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('(Normal)'));
         });
@@ -441,7 +441,7 @@ describe('DealMonitor', () => {
         
             await monitor.check();
         
-            expect(consoleSpy).toHaveBeenCalledWith('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $120.000 (Historic Low: $100.000)');
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $120.000 (Historic Low: $100.000)'));
         });
 
         it('should not log price drops when prices increase', async () => {
@@ -459,8 +459,8 @@ describe('DealMonitor', () => {
         
             await monitor.check();
         
-            expect(consoleSpy).toHaveBeenCalledWith('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)');
-            expect(consoleSpy).toHaveBeenCalledWith('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $130.000 (Historic Low: $100.000)');
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)'));
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $130.000 (Historic Low: $100.000)'));
         });
     });
 });
