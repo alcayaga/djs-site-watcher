@@ -98,13 +98,13 @@ if (!config.channels) {
     config.channels = [
         {
             name: 'QA',
-            handler: 'QA',
+            handler: 'QAChannel',
             enabled: true,
             channelId: config.DISCORDJS_APCHANNEL_ID,
         },
         {
             name: 'Deals',
-            handler: 'Deals',
+            handler: 'DealsChannel',
             enabled: true,
             channelId: config.DISCORDJS_DEALS_CHANNEL_ID,
         }
@@ -112,8 +112,8 @@ if (!config.channels) {
 } else {
     // Re-link IDs from environment variables for default handlers if they are missing in the JSON
     const handlerChannelMap = {
-        'QA': config.DISCORDJS_APCHANNEL_ID,
-        'Deals': config.DISCORDJS_DEALS_CHANNEL_ID,
+        'QAChannel': config.DISCORDJS_APCHANNEL_ID,
+        'DealsChannel': config.DISCORDJS_DEALS_CHANNEL_ID,
     };
 
     config.channels.forEach(channel => {

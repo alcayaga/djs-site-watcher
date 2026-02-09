@@ -1,5 +1,5 @@
 const Discord = require('discord.js');
-const DealsChannel = require('../../src/channels/deals.js');
+const DealsChannel = require('../../src/channels/DealsChannel.js');
 const solotodo = require('../../src/utils/solotodo');
 
 jest.mock('discord.js');

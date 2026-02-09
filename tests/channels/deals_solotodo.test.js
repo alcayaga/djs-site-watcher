@@ -1,4 +1,4 @@
-const DealsChannel = require('../../src/channels/deals.js');
+const DealsChannel = require('../../src/channels/DealsChannel.js');
 
 jest.mock('discord.js');
 // Mock the solotodo utils
