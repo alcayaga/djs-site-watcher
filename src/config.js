@@ -94,27 +94,23 @@ if (!config.monitors) {
 
 
 
+const defaultHandlerMappings = [
+    { name: 'QA', handler: 'QAChannel', envId: 'DISCORDJS_APCHANNEL_ID' },
+    { name: 'Deals', handler: 'DealsChannel', envId: 'DISCORDJS_DEALS_CHANNEL_ID' }
+];
+
 if (!config.channels) {
-    config.channels = [
-        {
-            name: 'QA',
-            handler: 'QA',
-            enabled: true,
-            channelId: config.DISCORDJS_APCHANNEL_ID,
-        },
-        {
-            name: 'Deals',
-            handler: 'Deals',
-            enabled: true,
-            channelId: config.DISCORDJS_DEALS_CHANNEL_ID,
-        }
-    ];
+    config.channels = defaultHandlerMappings.map(m => ({
+        name: m.name,
+        handler: m.handler,
+        enabled: true,
+        channelId: config[m.envId]
+    }));
 } else {
     // Re-link IDs from environment variables for default handlers if they are missing in the JSON
-    const handlerChannelMap = {
-        'QA': config.DISCORDJS_APCHANNEL_ID,
-        'Deals': config.DISCORDJS_DEALS_CHANNEL_ID,
-    };
+    const handlerChannelMap = Object.fromEntries(
+        defaultHandlerMappings.map(m => [m.handler, config[m.envId]])
+    );
 
     config.channels.forEach(channel => {
         if (!channel.channelId) {

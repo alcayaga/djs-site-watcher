@@ -1,4 +1,4 @@
-const QAChannel = require('../../src/channels/qa.js');
+const QAChannel = require('../../src/channels/QAChannel.js');
 
 jest.mock('discord.js');
 
