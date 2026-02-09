@@ -106,7 +106,8 @@ describe('DealMonitor', () => {
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
         expect(embed.data.title).toBe('iPhone');
-        expect(embed.data.description).toBe('[Nuevo mínimo histórico (con Tarjeta)](https://www.solotodo.cl/products/1-slug)');
+        expect(embed.data.description).toBe('Nuevo mínimo histórico con Tarjeta');
+        expect(embed.data.footer.text).toBe('powered by Solotodo');
         
         expect(monitor.state['1'].minOfferPrice).toBe(450000);
         expect(monitor.state['1'].minOfferDate).not.toBe('2025-01-01T00:00:00.000Z');
@@ -156,7 +157,8 @@ describe('DealMonitor', () => {
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
         expect(embed.data.title).toBe('iPhone');
-        expect(embed.data.description).toBe('[Nuevo mínimo histórico (todo medio de pago)](https://www.solotodo.cl/products/1-slug)');
+        expect(embed.data.description).toBe('Nuevo mínimo histórico con todo medio de pago');
+        expect(embed.data.footer.text).toBe('powered by Solotodo');
         
         expect(monitor.state['1'].minNormalPrice).toBe(550000);
         expect(monitor.state['1'].minNormalDate).not.toBe('2025-01-01T00:00:00.000Z');
@@ -210,7 +212,8 @@ describe('DealMonitor', () => {
         const embed = sendCall.embeds[0];
         expect(embed.data.title).toBe('iPhone');
         // Unix for 2024-12-01T10:00:00Z is 1733047200
-        expect(embed.data.description).toBe('[Volvió al mínimo histórico (con Tarjeta)](https://www.solotodo.cl/products/1-slug) de <t:1733047200:R>');
+        expect(embed.data.description).toBe('Volvió al mínimo histórico con Tarjeta de <t:1733047200:R>');
+        expect(embed.data.footer.text).toBe('powered by Solotodo');
         
         const dateField = embed.data.fields.find(f => f.name === '🕒 Precio visto por última vez');
         expect(dateField).toBeUndefined();
@@ -303,7 +306,8 @@ describe('DealMonitor', () => {
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
         expect(embed.data.title).toBe('iPhone');
-        expect(embed.data.description).toBe('[Nuevos mínimos históricos](https://www.solotodo.cl/products/1-slug)');
+        expect(embed.data.description).toBe('Nuevos mínimos históricos');
+        expect(embed.data.footer.text).toBe('powered by Solotodo');
     });
 
     it('should correctly parse products with multiple currencies and pick CLP', async () => {

@@ -342,7 +342,7 @@ class DealMonitor extends Monitor {
         const entities = await solotodo.getAvailableEntities(product.id);
         const storeMap = await solotodo.getStores();
         
-        const productUrl = solotodo.getProductUrl(product);
+        //const productUrl = solotodo.getProductUrl(product);
         const sanitizedName = sanitizeLinkText(product.name);
         const pictureUrl = await solotodo.getBestPictureUrl(product, entities);
 
@@ -371,10 +371,10 @@ class DealMonitor extends Monitor {
             // Individual triggers
             const type = triggers[0];
             const notificationConfig = {
-                'NEW_LOW_OFFER': { text: 'Nuevo mínimo histórico (con Tarjeta)', color: 0x2ecc71 },
-                'BACK_TO_LOW_OFFER': { text: 'Volvió al mínimo histórico (con Tarjeta)', showDate: true, date: stored?.minOfferDate },
-                'NEW_LOW_NORMAL': { text: 'Nuevo mínimo histórico (todo medio de pago)', color: 0x27ae60 },
-                'BACK_TO_LOW_NORMAL': { text: 'Volvió al mínimo histórico (todo medio de pago)', showDate: true, date: stored?.minNormalDate }
+                'NEW_LOW_OFFER': { text: 'Nuevo mínimo histórico con Tarjeta', color: 0x2ecc71 },
+                'BACK_TO_LOW_OFFER': { text: 'Volvió al mínimo histórico con Tarjeta', showDate: true, date: stored?.minOfferDate },
+                'NEW_LOW_NORMAL': { text: 'Nuevo mínimo histórico con todo medio de pago', color: 0x27ae60 },
+                'BACK_TO_LOW_NORMAL': { text: 'Volvió al mínimo histórico con todo medio de pago', showDate: true, date: stored?.minNormalDate }
             };
             const details = notificationConfig[type];
             statusText = details?.text || '';
@@ -402,7 +402,8 @@ class DealMonitor extends Monitor {
         // drop is likely only available with a mobile plan or is an error.
         if (!bestEntity) return;
 
-        let description = `[${statusText}](${productUrl})`;
+        //let description = `[${statusText}](${productUrl})`;
+        let description = statusText;
         if (showDate && triggerDate) {
             description += ` de ${formatDiscordTimestamp(triggerDate)}`;
         }
@@ -417,7 +418,8 @@ class DealMonitor extends Monitor {
                 { name: '💰 Precio Normal', value: `${formatCLP(product.normalPrice)}`, inline: true }
             ])
             .setColor(color)
-            .setTimestamp();
+            .setTimestamp()
+            .setFooter({ text: 'powered by Solotodo'});
 
         if (bestEntity.external_url) {
             const storeName = storeMap.get(bestEntity.store) || 'Tienda';
