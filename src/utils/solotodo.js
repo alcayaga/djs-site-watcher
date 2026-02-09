@@ -247,13 +247,20 @@ async function getBestPictureUrl(product, entities = null) {
      */
     const isInvalid = (url) => {
         if (!url) return true;
-        if (url.includes('tienda.travel.cl')) return true;
+        const bannedDomains = [
+            'tienda.travel.cl',
+            'dojiw2m9tvv09.cloudfront.net'
+        ];
+        if (bannedDomains.some(domain => url.includes(domain))) return true;
         return !/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(url);
     };
 
     if (!isInvalid(currentUrl)) {
+        console.log(`[Solotodo] Picture selected for product ${product.id}: ${currentUrl}`);
         return currentUrl;
     }
+
+    console.log(`[Solotodo] Invalid picture URL for product ${product.id}: ${currentUrl}`);
 
     try {
         // Try to find an image from available entities
@@ -262,6 +269,7 @@ async function getBestPictureUrl(product, entities = null) {
             if (entity.picture_urls && Array.isArray(entity.picture_urls) && entity.picture_urls.length > 0) {
                 const entityUrl = entity.picture_urls[0];
                 if (!isInvalid(entityUrl)) {
+                    console.log(`[Solotodo] Alternative picture selected for product ${product.id}: ${entityUrl}`);
                     return entityUrl;
                 }
             }
@@ -270,7 +278,11 @@ async function getBestPictureUrl(product, entities = null) {
         console.error(`Error fetching alternative picture for product ${product.id}:`, e);
     }
 
-    return isInvalid(currentUrl) ? null : currentUrl;
+    if (isInvalid(currentUrl)) {
+        console.log(`[Solotodo] No alternative picture found for product ${product.id}`);
+        return null;
+    }
+    return currentUrl;
 }
 
 let cachedStores = null;
