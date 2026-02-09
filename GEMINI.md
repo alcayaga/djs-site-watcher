@@ -57,7 +57,7 @@
 Once the work is committed, follow this EXACT cycle.
 
 1.  **Push & Trigger:**
-    * `git push origin <branch_name>`
+    * `git push -u origin HEAD`
     * **IF NEW PR:**
         * `gh pr create` (Draft description).
         * **STOP:** Do NOT comment `/gemini review`. The first review is automatic.
