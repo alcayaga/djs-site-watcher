@@ -100,22 +100,20 @@ module.exports = {
                 const failures = results.filter(r => r.status === 'rejected');
                 if (failures.length > 0) {
                     console.error(`${failures.length} monitor check(s) failed during manual trigger:`, failures);
-                    await interaction.followUp({ 
+                    await interaction.editReply({ 
                         embeds: [new EmbedBuilder()
                             .setTitle('⚠️ Fallo en la Revisión')
                             .setDescription(`Falló la revisión de **${failures.length}** monitor(es). Revisa los logs del bot para más detalles.`)
                             .setColor(0xFEE75C) // Discord Yellow
-                        ],
-                        flags: [MessageFlags.Ephemeral] 
+                        ]
                     });
                 } else {
-                    await interaction.followUp({ 
+                    await interaction.editReply({ 
                         embeds: [new EmbedBuilder()
                             .setTitle('✅ Revisión Completada')
                             .setDescription(`Se completó la revisión para: **${targetMonitors.map(m => m.name).join('**, **')}**`)
                             .setColor(0x57F287) // Discord Green
-                        ],
-                        flags: [MessageFlags.Ephemeral] 
+                        ]
                     });
                 }
                 break;
