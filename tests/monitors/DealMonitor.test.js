@@ -404,55 +404,48 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).not.toHaveBeenCalled();
     });
 
-    it('should log to console when offer price drops but is not a historic low', async () => {
-        const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-        
-        monitor.state = {
-            '1': { 
-                id: 1, name: 'iPhone', 
-                minOfferPrice: 100000, minOfferDate: '2025-01-01T00:00:00.000Z',
-                lastOfferPrice: 150000, 
-                minNormalPrice: 100000, minNormalDate: '2025-01-01T00:00:00.000Z',
-                lastNormalPrice: 150000 
-            }
-        };
+    describe('price drop logging', () => {
+        let consoleSpy;
 
-        got.mockResolvedValue({
-            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 120000, normalPrice: 150000 }])
+        beforeEach(() => {
+            consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+            monitor.state = {
+                '1': { 
+                    id: 1, name: 'iPhone', 
+                    minOfferPrice: 100000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                    lastOfferPrice: 150000, 
+                    minNormalPrice: 100000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                    lastNormalPrice: 150000 
+                }
+            };
         });
 
-        await monitor.check();
-
-        expect(consoleSpy).toHaveBeenCalledWith('Checking for Deal updates...');
-        expect(consoleSpy).toHaveBeenCalledWith('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)');
-        expect(consoleSpy).toHaveBeenCalledTimes(2);
-        
-        consoleSpy.mockRestore();
-    });
-
-    it('should log to console when normal price drops but is not a historic low', async () => {
-        const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-        
-        monitor.state = {
-            '1': { 
-                id: 1, name: 'iPhone', 
-                minOfferPrice: 100000, minOfferDate: '2025-01-01T00:00:00.000Z',
-                lastOfferPrice: 150000, 
-                minNormalPrice: 100000, minNormalDate: '2025-01-01T00:00:00.000Z',
-                lastNormalPrice: 150000 
-            }
-        };
-
-        got.mockResolvedValue({
-            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 150000, normalPrice: 120000 }])
+        afterEach(() => {
+            consoleSpy.mockRestore();
         });
 
-        await monitor.check();
-
-        expect(consoleSpy).toHaveBeenCalledWith('Checking for Deal updates...');
-        expect(consoleSpy).toHaveBeenCalledWith('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $120.000 (Historic Low: $100.000)');
-        expect(consoleSpy).toHaveBeenCalledTimes(2);
-        
-        consoleSpy.mockRestore();
+        it('should log to console when offer price drops but is not a historic low', async () => {
+            got.mockResolvedValue({
+                body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 120000, normalPrice: 150000 }])
+            });
+    
+            await monitor.check();
+    
+            expect(consoleSpy).toHaveBeenCalledWith('Checking for Deal updates...');
+            expect(consoleSpy).toHaveBeenCalledWith('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)');
+            expect(consoleSpy).toHaveBeenCalledTimes(2);
+        });
+    
+        it('should log to console when normal price drops but is not a historic low', async () => {
+            got.mockResolvedValue({
+                body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 150000, normalPrice: 120000 }])
+            });
+    
+            await monitor.check();
+    
+            expect(consoleSpy).toHaveBeenCalledWith('Checking for Deal updates...');
+            expect(consoleSpy).toHaveBeenCalledWith('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $120.000 (Historic Low: $100.000)');
+            expect(consoleSpy).toHaveBeenCalledTimes(2);
+        });
     });
 });
