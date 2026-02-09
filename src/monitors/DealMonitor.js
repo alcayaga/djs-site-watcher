@@ -9,6 +9,13 @@ const { getSafeGotOptions } = require('../utils/network');
 
 const MIN_SANITY_PRICE = 1000; // Anything below 1,000 CLP is likely an error for Apple products in these categories
 
+const MIME_TYPE_MAP = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif'
+};
+
 /**
  * Monitor for Solotodo deals on Apple products.
  * Tracks price history and alerts when a product reaches its historic minimum price.
@@ -437,10 +444,14 @@ class DealMonitor extends Monitor {
                     let extension = '';
                     
                     if (contentType) {
-                        if (contentType.includes('image/jpeg')) extension = 'jpg';
-                        else if (contentType.includes('image/png')) extension = 'png';
-                        else if (contentType.includes('image/webp')) extension = 'webp';
-                        else if (contentType.includes('image/gif')) extension = 'gif';
+                        const pureType = contentType.split(';')[0].trim();
+                        extension = MIME_TYPE_MAP[pureType];
+                        
+                        // Fallback: try inclusive match if exact match fails
+                        if (!extension) {
+                            const foundKey = Object.keys(MIME_TYPE_MAP).find(type => pureType.includes(type));
+                            if (foundKey) extension = MIME_TYPE_MAP[foundKey];
+                        }
                     }
 
                     if (!extension) {
