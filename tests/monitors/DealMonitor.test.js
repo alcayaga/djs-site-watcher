@@ -424,19 +424,43 @@ describe('DealMonitor', () => {
             consoleSpy.mockRestore();
         });
 
-        it.each([
-            { priceType: 'offer', apiResponse: { id: 1, name: 'iPhone', offerPrice: 120000, normalPrice: 150000 }, expectedLog: '[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)' },
-            { priceType: 'normal', apiResponse: { id: 1, name: 'iPhone', offerPrice: 150000, normalPrice: 120000 }, expectedLog: '[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $120.000 (Historic Low: $100.000)' }
-        ])('should log to console when $priceType price drops but is not a historic low', async ({ apiResponse, expectedLog }) => {
-            got.mockResolvedValue({
-                body: mockApiResponse([apiResponse])
-            });
-    
+        it('should log to console when offer price drops but is not a historic low', async () => {
+            const apiResponse = { id: 1, name: 'iPhone', offerPrice: 120000, normalPrice: 150000 };
+            got.mockResolvedValue({ body: mockApiResponse([apiResponse]) });
+        
             await monitor.check();
-    
-            expect(consoleSpy).toHaveBeenCalledWith('Checking for Deal updates...');
-            expect(consoleSpy).toHaveBeenCalledWith(expectedLog);
-            expect(consoleSpy).toHaveBeenCalledTimes(2);
+        
+            expect(consoleSpy).toHaveBeenCalledWith('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)');
+            // Ensure the other price type is not logged
+            expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('(Normal)'));
+        });
+
+        it('should log to console when normal price drops but is not a historic low', async () => {
+            const apiResponse = { id: 1, name: 'iPhone', offerPrice: 150000, normalPrice: 120000 };
+            got.mockResolvedValue({ body: mockApiResponse([apiResponse]) });
+        
+            await monitor.check();
+        
+            expect(consoleSpy).toHaveBeenCalledWith('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $120.000 (Historic Low: $100.000)');
+        });
+
+        it('should not log price drops when prices increase', async () => {
+            const apiResponse = { id: 1, name: 'iPhone', offerPrice: 160000, normalPrice: 150000 };
+            got.mockResolvedValue({ body: mockApiResponse([apiResponse]) });
+        
+            await monitor.check();
+        
+            expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for'));
+        });
+
+        it('should log for both prices if they both drop', async () => {
+            const apiResponse = { id: 1, name: 'iPhone', offerPrice: 120000, normalPrice: 130000 };
+            got.mockResolvedValue({ body: mockApiResponse([apiResponse]) });
+        
+            await monitor.check();
+        
+            expect(consoleSpy).toHaveBeenCalledWith('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)');
+            expect(consoleSpy).toHaveBeenCalledWith('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $130.000 (Historic Low: $100.000)');
         });
     });
 });
