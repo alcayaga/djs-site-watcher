@@ -282,7 +282,7 @@ describe('DealMonitor', () => {
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
         
-        expect(embed.data.description).toContain(`<t:${exitUnix}:R>`);
+        expect(embed.data.description).toBe(`Volvió a precios históricos de <t:${exitUnix}:R>`);
         
         // 2. Verify Date did NOT update again (it keeps the exit date)
         expect(monitor.state['1'].minOfferDate).toBe(exitDate);
