@@ -224,6 +224,10 @@ describe('DealMonitor', () => {
 
     it('should update minDate when price INCREASES from historic low (Update on Exit)', async () => {
         const oldDate = '2024-01-01T00:00:00.000Z';
+        const newDate = new Date('2024-02-01T00:00:00.000Z');
+        
+        jest.useFakeTimers().setSystemTime(newDate);
+
         monitor.state = {
             '1': { 
                 id: 1, name: 'iPhone', 
@@ -241,12 +245,14 @@ describe('DealMonitor', () => {
 
         await monitor.check();
 
-        // 1. Verify MinDate Updated to Now (Exit Date)
-        expect(monitor.state['1'].minOfferDate).not.toBe(oldDate);
-        expect(monitor.state['1'].minNormalDate).not.toBe(oldDate);
+        // 1. Verify MinDate Updated to EXACT new date
+        expect(monitor.state['1'].minOfferDate).toBe(newDate.toISOString());
+        expect(monitor.state['1'].minNormalDate).toBe(newDate.toISOString());
         
         // 2. Verify No Notification (Just a state update)
         expect(mockChannel.send).not.toHaveBeenCalled();
+
+        jest.useRealTimers();
     });
     
     it('should use the exit date when returning to historic low', async () => {
