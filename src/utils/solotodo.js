@@ -43,6 +43,12 @@ const SOLOTODO_BASE_URL = 'https://www.solotodo.cl';
 const MIN_DESCRIPTIVE_SLUG_LENGTH = 5;
 const MAX_SKU_LIKE_SLUG_LENGTH = 10;
 
+// Domains that serve broken or non-standard images for Apple products.
+const BANNED_PICTURE_DOMAINS = [
+    'tienda.travel.cl',
+    'dojiw2m9tvv09.cloudfront.net'
+];
+
 /**
  * Generates a Solotodo product URL.
  * @param {object} product The product object.
@@ -247,13 +253,26 @@ async function getBestPictureUrl(product, entities = null) {
      */
     const isInvalid = (url) => {
         if (!url) return true;
-        if (url.includes('tienda.travel.cl')) return true;
+
+        try {
+            const hostname = new URL(url).hostname;
+            if (BANNED_PICTURE_DOMAINS.some(domain => hostname === domain || hostname.endsWith('.' + domain))) {
+                return true;
+            }
+        } catch (e) {
+            console.warn(`[Solotodo] URL parsing failed for "${url}": ${e.message}`);
+            return true;
+        }
+
         return !/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(url);
     };
 
     if (!isInvalid(currentUrl)) {
+        console.log(`[Solotodo] Picture selected for product ${product.id}: ${currentUrl}`);
         return currentUrl;
     }
+
+    console.log(`[Solotodo] Invalid picture URL for product ${product.id}: ${currentUrl}`);
 
     try {
         // Try to find an image from available entities
@@ -262,6 +281,7 @@ async function getBestPictureUrl(product, entities = null) {
             if (entity.picture_urls && Array.isArray(entity.picture_urls) && entity.picture_urls.length > 0) {
                 const entityUrl = entity.picture_urls[0];
                 if (!isInvalid(entityUrl)) {
+                    console.log(`[Solotodo] Alternative picture selected for product ${product.id}: ${entityUrl}`);
                     return entityUrl;
                 }
             }
@@ -270,7 +290,8 @@ async function getBestPictureUrl(product, entities = null) {
         console.error(`Error fetching alternative picture for product ${product.id}:`, e);
     }
 
-    return isInvalid(currentUrl) ? null : currentUrl;
+    console.log(`[Solotodo] No alternative picture found for product ${product.id}`);
+    return null;
 }
 
 let cachedStores = null;

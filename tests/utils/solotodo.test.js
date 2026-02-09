@@ -173,10 +173,11 @@ describe('Solotodo Utils - API functions', () => {
             expect(result).toBe('https://media.solotodo.com/pic.png');
         });
 
-        it('should exclude tienda.travel.cl images and look into entities', async () => {
+        it('should exclude tienda.travel.cl and banned cloudfront images and look into entities', async () => {
             const product = { id: 1, pictureUrl: 'https://tienda.travel.cl/pic.jpg' };
             const entities = [
-                { picture_urls: ['https://tienda.travel.cl/another.jpg'] },
+                { picture_urls: ['https://dojiw2m9tvv09.cloudfront.net/bad.png'] },
+                { picture_urls: ['https://subdomain.tienda.travel.cl/pic.jpg'] },
                 { picture_urls: ['https://ripley.cl/good.png'] }
             ];
             
