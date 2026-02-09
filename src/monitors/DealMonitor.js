@@ -3,7 +3,7 @@ const Monitor = require('../Monitor');
 const config = require('../config');
 const got = require('got');
 const { formatCLP, sanitizeLinkText, formatDiscordTimestamp } = require('../utils/formatters');
-const { getProductUrl, getProductHistory, getBestPictureUrl, getAvailableEntities, getStores } = require('../utils/solotodo');
+const solotodo = require('../utils/solotodo');
 const { sleep } = require('../utils/helpers');
 const { getSafeGotOptions } = require('../utils/network');
 
@@ -184,7 +184,7 @@ class DealMonitor extends Monitor {
                     if (!isSingleRun) {
                         console.log(`New product detected: ${product.name} (ID: ${productId}). Backfilling history...`);
                         try {
-                            const history = await getProductHistory(productId);
+                            const history = await solotodo.getProductHistory(productId);
                             for (const entity of history) {
                                 // Only backfill history from CLP (Currency 1) entities
                                 if (entity.entity?.currency !== 'https://publicapi.solotodo.com/currencies/1/') {
@@ -306,12 +306,14 @@ class DealMonitor extends Monitor {
             triggers = [];
         }
 
-        const entities = await getAvailableEntities(product.id);
-        const storeMap = await getStores();
+        const entities = await solotodo.getAvailableEntities(product.id);
+        const storeMap = await solotodo.getStores();
         
-        const productUrl = getProductUrl(product);
+        const productUrl = solotodo.getProductUrl(product);
         const sanitizedName = sanitizeLinkText(product.name);
-        const pictureUrl = await getBestPictureUrl(product, entities);
+        const pictureUrl = await solotodo.getBestPictureUrl(product, entities);
+
+        console.log(`[DEBUG] pictureUrl: ${pictureUrl}`);
 
         // Determine if both are new lows or back to lows
         const bothNewLow = triggers.includes('NEW_LOW_OFFER') && triggers.includes('NEW_LOW_NORMAL');
@@ -388,11 +390,42 @@ class DealMonitor extends Monitor {
             embed.addFields([{ name: '🕒 Precio visto por última vez', value: formatDiscordTimestamp(triggerDate), inline: false }]);
         }
 
+        let attachment = null;
         if (pictureUrl) {
             embed.setThumbnail(pictureUrl);
+        } else {
+            // If no valid picture URL was found by getBestPictureUrl, try downloading the raw picture
+            // from Solotodo and uploading it as a Discord attachment.
+            const candidateUrls = [
+                product.pictureUrl,
+                ...(entities || []).map(e => e.picture_urls?.[0])
+            ].filter(Boolean);
+
+            for (const url of candidateUrls) {
+                try {
+                    const response = await got(url, {
+                        ...getSafeGotOptions(),
+                        responseType: 'buffer',
+                        timeout: { request: 5000 }
+                    });
+
+                    const extension = url.split('.').pop().split('?')[0] || 'png';
+                    const fileName = `product_${product.id}.${extension}`;
+                    attachment = new Discord.AttachmentBuilder(response.body, { name: fileName });
+                    embed.setThumbnail(`attachment://${fileName}`);
+                    break;
+                } catch (error) {
+                    console.error(`[DealMonitor] Failed to download fallback image for product ${product.id} from ${url}:`, error.message);
+                }
+            }
         }
 
-        const message = await channel.send({ embeds: [embed] });
+        const messageOptions = { embeds: [embed] };
+        if (attachment) {
+            messageOptions.files = [attachment];
+        }
+
+        const message = await channel.send(messageOptions);
 
         // Create a thread for discussion if supported (e.g., text channels in real runs)
         if (message && typeof message.startThread === 'function') {

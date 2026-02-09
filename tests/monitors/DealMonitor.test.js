@@ -47,6 +47,10 @@ describe('DealMonitor', () => {
         monitor.client = mockClient;
     });
 
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
     const mockApiResponse = (products) => {
         const results = products.map(p => ({
             product_entries: [{
@@ -402,6 +406,54 @@ describe('DealMonitor', () => {
         await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
         expect(mockChannel.send).not.toHaveBeenCalled();
+    });
+
+    describe('image handling', () => {
+        it('should download and attach image when no valid external picture URL is found', async () => {
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic.jpg', offerPrice: 100, normalPrice: 200 };
+            
+            // Mock getAvailableEntities to ensure bestEntity is found (requires active_registry)
+            solotodo.getAvailableEntities.mockResolvedValueOnce([
+                { active_registry: { offer_price: "100", normal_price: "200", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
+            ]);
+            
+            solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
+            got.mockResolvedValueOnce({ body: Buffer.from('fake-image-data') });
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(got).toHaveBeenCalledWith('http://banned.com/pic.jpg', expect.objectContaining({ responseType: 'buffer' }));
+            expect(Discord.AttachmentBuilder).toHaveBeenCalled();
+            
+            const sendCall = mockChannel.send.mock.calls[0][0];
+            expect(sendCall.files).toBeDefined();
+            expect(sendCall.embeds[0].data.thumbnail.url).toBe('attachment://product_1.jpg');
+        });
+
+        it('should try entity pictures if product picture fails to download', async () => {
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic.jpg', offerPrice: 100, normalPrice: 200 };
+            const entities = [
+                { 
+                    picture_urls: ['http://entity.com/pic.png'],
+                    active_registry: { offer_price: "100", normal_price: "200", cell_monthly_payment: null },
+                    store: "https://api.com/stores/1/", 
+                    external_url: "https://store.com"
+                }
+            ];
+            
+            solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
+            solotodo.getAvailableEntities.mockResolvedValueOnce(entities);
+            
+            // First call fails, second succeeds
+            got.mockRejectedValueOnce(new Error('Download failed'))
+               .mockResolvedValueOnce({ body: Buffer.from('fake-image-data') });
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(got).toHaveBeenCalledWith('http://banned.com/pic.jpg', expect.any(Object));
+            expect(got).toHaveBeenCalledWith('http://entity.com/pic.png', expect.any(Object));
+            expect(Discord.AttachmentBuilder).toHaveBeenCalledWith(expect.any(Buffer), expect.objectContaining({ name: 'product_1.png' }));
+        });
     });
 
     describe('price drop logging', () => {
