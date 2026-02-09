@@ -409,20 +409,35 @@ describe('DealMonitor', () => {
     });
 
     describe('image handling', () => {
+        let consoleErrorSpy;
+
         beforeEach(() => {
             // Mock getAvailableEntities to ensure bestEntity is found (requires active_registry)
             solotodo.getAvailableEntities.mockResolvedValue([
                 { active_registry: { offer_price: "100", normal_price: "200", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
             ]);
+            consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        });
+
+        afterEach(() => {
+            consoleErrorSpy.mockRestore();
         });
 
         const mockGotStream = (chunks = ['fake-image-data'], headers = { 'content-type': 'image/jpeg' }) => {
             const stream = new (require('events').EventEmitter)();
-            stream.destroy = jest.fn();
+            let destroyed = false;
+            stream.destroy = jest.fn((err) => {
+                destroyed = true;
+                if (err) process.nextTick(() => stream.emit('error', err));
+            });
             process.nextTick(() => {
+                if (destroyed) return;
                 stream.emit('response', { headers });
-                chunks.forEach(chunk => stream.emit('data', Buffer.from(chunk)));
-                stream.emit('end');
+                if (destroyed) return;
+                chunks.forEach(chunk => {
+                    if (!destroyed) stream.emit('data', Buffer.from(chunk));
+                });
+                if (!destroyed) stream.emit('end');
             });
             return stream;
         };
@@ -490,21 +505,24 @@ describe('DealMonitor', () => {
             
             got.stream = jest.fn().mockImplementation(() => {
                 const stream = new (require('events').EventEmitter)();
-                stream.destroy = jest.fn();
+                let destroyed = false;
+                stream.destroy = jest.fn((err) => {
+                    destroyed = true;
+                    if (err) process.nextTick(() => stream.emit('error', err));
+                });
                 process.nextTick(() => {
+                    if (destroyed) return;
                     stream.emit('response', { headers: { 'content-type': 'image/jpeg' } });
+                    if (destroyed) return;
                     stream.emit('data', largeData);
-                    // Do NOT emit end, it should destroy before that
+                    // Do NOT emit end manually, it should be destroyed during 'data'
                 });
                 return stream;
             });
 
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Image too large'));
-            consoleErrorSpy.mockRestore();
         });
 
         it('should download and attach image when content-type is octet-stream by sniffing buffer', async () => {
@@ -530,13 +548,10 @@ describe('DealMonitor', () => {
             // Generic header but malicious content
             got.stream = jest.fn().mockImplementation(() => mockGotStream(['#!/bin/bash\nrm -rf /'], { 'content-type': 'application/octet-stream' }));
 
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource content is not a supported image type'));
             expect(Discord.AttachmentBuilder).not.toHaveBeenCalled();
-            consoleErrorSpy.mockRestore();
         });
 
         it('should reject if Content-Type is explicitly not an image', async () => {
@@ -546,12 +561,9 @@ describe('DealMonitor', () => {
             
             got.stream = jest.fn().mockImplementation(() => mockGotStream(['<html></html>'], { 'content-type': 'text/html' }));
 
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource is definitely not an image'));
-            consoleErrorSpy.mockRestore();
         });
 
         it('should reject if Content-Type is missing but content is not an image', async () => {
@@ -561,12 +573,9 @@ describe('DealMonitor', () => {
             
             got.stream = jest.fn().mockImplementation(() => mockGotStream(['not an image at all'], {}));
 
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource content is not a supported image type'));
-            consoleErrorSpy.mockRestore();
         });
     });
 

@@ -446,24 +446,21 @@ class DealMonitor extends Monitor {
                     await new Promise((resolve, reject) => {
                         stream.on('response', (res) => {
                             contentType = res.headers['content-type'];
-                            const pureType = contentType ? contentType.split(';')[0].trim() : null;
-                            
                             // Early reject for definitely non-image types
+                            const pureType = contentType ? contentType.split(';')[0].trim() : null;
                             const isPotentiallyImage = !pureType || 
                                                        pureType === 'application/octet-stream' || 
                                                        pureType.startsWith('image/');
                             
                             if (!isPotentiallyImage) {
-                                stream.destroy();
-                                reject(new Error('Resource is definitely not an image'));
+                                stream.destroy(new Error('Resource is definitely not an image'));
                             }
                         });
                         
                         stream.on('data', (chunk) => {
                             receivedLength += chunk.length;
                             if (receivedLength > MAX_IMAGE_SIZE) {
-                                stream.destroy();
-                                reject(new Error('Image too large'));
+                                stream.destroy(new Error('Image too large'));
                             } else {
                                 chunks.push(chunk);
                             }
