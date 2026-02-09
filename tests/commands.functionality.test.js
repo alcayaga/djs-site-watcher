@@ -111,7 +111,7 @@ describe('Command Functionality', () => {
                 embeds: expect.arrayContaining([expect.objectContaining({
                     data: expect.objectContaining({ title: '🔍 Ejecutando Revisión Manual' })
                 })]),
-                flags: expect.arrayContaining([MessageFlags.Ephemeral])
+                flags: [MessageFlags.Ephemeral]
             }));
             
             mockMonitorManager.getAllMonitors().forEach(m => expect(m.check).toHaveBeenCalled());
@@ -119,7 +119,7 @@ describe('Command Functionality', () => {
                 embeds: expect.arrayContaining([expect.objectContaining({
                     data: expect.objectContaining({ title: '✅ Revisión Completada' })
                 })]),
-                flags: expect.arrayContaining([MessageFlags.Ephemeral])
+                flags: [MessageFlags.Ephemeral]
             }));
         });
     });
