@@ -240,11 +240,15 @@ class DealMonitor extends Monitor {
                 const normalTrigger = this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal');
 
                 // Log significant price drops that don't trigger a notification (Issue #83)
-                if (offerTrigger === 'CHANGED' && currentOffer < previousOfferPrice) {
-                    this._logPriceDrop(product.name, 'Offer', previousOfferPrice, currentOffer, stored.minOfferPrice);
-                }
-                if (normalTrigger === 'CHANGED' && currentNormal < previousNormalPrice) {
-                    this._logPriceDrop(product.name, 'Normal', previousNormalPrice, currentNormal, stored.minNormalPrice);
+                const priceChecks = [
+                    { type: 'Offer', trigger: offerTrigger, current: currentOffer, previous: previousOfferPrice, min: stored.minOfferPrice },
+                    { type: 'Normal', trigger: normalTrigger, current: currentNormal, previous: previousNormalPrice, min: stored.minNormalPrice }
+                ];
+
+                for (const check of priceChecks) {
+                    if (check.trigger === 'CHANGED' && check.current < check.previous) {
+                        this._logPriceDrop(product.name, check.type, check.previous, check.current, check.min);
+                    }
                 }
 
                 let productChanged = !!(offerTrigger || normalTrigger);
