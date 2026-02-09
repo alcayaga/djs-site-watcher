@@ -409,7 +409,14 @@ describe('DealMonitor', () => {
     });
 
     describe('image handling', () => {
-        const mockGotStream = (chunks = ['fake-image-data'], headers = {}) => {
+        beforeEach(() => {
+            // Mock getAvailableEntities to ensure bestEntity is found (requires active_registry)
+            solotodo.getAvailableEntities.mockResolvedValue([
+                { active_registry: { offer_price: "100", normal_price: "200", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
+            ]);
+        });
+
+        const mockGotStream = (chunks = ['fake-image-data'], headers = { 'content-type': 'image/jpeg' }) => {
             const stream = new (require('events').EventEmitter)();
             stream.destroy = jest.fn();
             process.nextTick(() => {
@@ -432,11 +439,6 @@ describe('DealMonitor', () => {
         it('should download and attach image when no valid external picture URL is found', async () => {
             const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic.jpg', offerPrice: 100, normalPrice: 200 };
             
-            // Mock getAvailableEntities to ensure bestEntity is found (requires active_registry)
-            solotodo.getAvailableEntities.mockResolvedValueOnce([
-                { active_registry: { offer_price: "100", normal_price: "200", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
-            ]);
-            
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
             
             got.stream = jest.fn().mockImplementation(() => mockGotStream(['fake-image-data'], { 'content-type': 'image/png' }));
@@ -455,10 +457,6 @@ describe('DealMonitor', () => {
         it('should default to jpg if no extension found', async () => {
              const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic_no_ext', offerPrice: 100, normalPrice: 200 };
             
-             solotodo.getAvailableEntities.mockResolvedValueOnce([
-                { active_registry: { offer_price: "100", normal_price: "200", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
-            ]);
-
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
             
             got.stream = jest.fn().mockImplementation(() => mockGotStream(['fake-image-data'], {}));
@@ -498,10 +496,6 @@ describe('DealMonitor', () => {
         it('should abort download if image is too large', async () => {
             const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/big.jpg', offerPrice: 100, normalPrice: 200 };
             
-            solotodo.getAvailableEntities.mockResolvedValueOnce([
-                { active_registry: { offer_price: "100", normal_price: "200", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
-            ]);
-            
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
             
             // Simulate a stream that emits more than 5MB
@@ -523,6 +517,22 @@ describe('DealMonitor', () => {
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Image too large'));
+            consoleErrorSpy.mockRestore();
+        });
+
+        it('should reject non-image resources', async () => {
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/malicious.sh', offerPrice: 100, normalPrice: 200 };
+            
+            solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
+            
+            got.stream = jest.fn().mockImplementation(() => mockGotStream(['rm -rf /'], { 'content-type': 'text/plain' }));
+
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource is not an image'));
+            expect(Discord.AttachmentBuilder).not.toHaveBeenCalled();
             consoleErrorSpy.mockRestore();
         });
     });

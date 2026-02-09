@@ -16,6 +16,8 @@ const MIME_TYPE_MAP = {
     'image/gif': 'gif'
 };
 
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+
 /**
  * Monitor for Solotodo deals on Apple products.
  * Tracks price history and alerts when a product reaches its historic minimum price.
@@ -406,8 +408,6 @@ class DealMonitor extends Monitor {
                 ...(entities || []).map(e => e.picture_urls?.[0])
             ].filter(Boolean);
 
-            const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
-
             for (const url of candidateUrls) {
                 try {
                     const stream = got.stream(url, {
@@ -422,6 +422,10 @@ class DealMonitor extends Monitor {
                     await new Promise((resolve, reject) => {
                         stream.on('response', (res) => {
                             contentType = res.headers['content-type'];
+                            if (contentType && !contentType.startsWith('image/')) {
+                                stream.destroy();
+                                reject(new Error('Resource is not an image'));
+                            }
                         });
                         
                         stream.on('data', (chunk) => {
@@ -446,12 +450,6 @@ class DealMonitor extends Monitor {
                     if (contentType) {
                         const pureType = contentType.split(';')[0].trim();
                         extension = MIME_TYPE_MAP[pureType];
-                        
-                        // Fallback: try inclusive match if exact match fails
-                        if (!extension) {
-                            const foundKey = Object.keys(MIME_TYPE_MAP).find(type => pureType.includes(type));
-                            if (foundKey) extension = MIME_TYPE_MAP[foundKey];
-                        }
                     }
 
                     if (!extension) {
