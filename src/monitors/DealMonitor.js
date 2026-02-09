@@ -399,16 +399,41 @@ class DealMonitor extends Monitor {
                 ...(entities || []).map(e => e.picture_urls?.[0])
             ].filter(Boolean);
 
+            const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+
             for (const url of candidateUrls) {
                 try {
-                    const response = await got(url, {
+                    const stream = got.stream(url, {
                         ...getSafeGotOptions(),
-                        responseType: 'buffer',
                         timeout: { request: 5000 }
                     });
 
+                    const chunks = [];
+                    let receivedLength = 0;
+                    let contentType = null;
+
+                    await new Promise((resolve, reject) => {
+                        stream.on('response', (res) => {
+                            contentType = res.headers['content-type'];
+                        });
+                        
+                        stream.on('data', (chunk) => {
+                            receivedLength += chunk.length;
+                            if (receivedLength > MAX_IMAGE_SIZE) {
+                                stream.destroy();
+                                reject(new Error('Image too large'));
+                            } else {
+                                chunks.push(chunk);
+                            }
+                        });
+                        
+                        stream.on('end', () => resolve());
+                        stream.on('error', (err) => reject(err));
+                    });
+
+                    const buffer = Buffer.concat(chunks);
+
                     // Determine extension from Content-Type header first, then fallback to URL
-                    const contentType = response.headers['content-type'];
                     let extension = '';
                     
                     if (contentType) {
@@ -428,7 +453,7 @@ class DealMonitor extends Monitor {
                     }
 
                     const fileName = `product_${product.id}.${extension}`;
-                    attachment = new Discord.AttachmentBuilder(response.body, { name: fileName });
+                    attachment = new Discord.AttachmentBuilder(buffer, { name: fileName });
                     embed.setThumbnail(`attachment://${fileName}`);
                     break;
                 } catch (error) {
