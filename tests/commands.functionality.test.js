@@ -98,5 +98,25 @@ describe('Command Functionality', () => {
                  { name: 'AppleEsim', value: 'AppleEsim' }
              ]);
         });
+
+        it('should trigger manual check with ephemeral message', async () => {
+            mockInteraction.options.getSubcommand.mockReturnValue('check');
+            mockInteraction.options.getString.mockReturnValue('all');
+            mockInteraction.followUp = jest.fn();
+
+            await monitorCommand.execute(mockInteraction, {}, {}, {}, mockMonitorManager);
+
+            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                embeds: expect.arrayContaining([expect.objectContaining({
+                    data: expect.objectContaining({ title: '🔍 Ejecutando Revisión Manual' })
+                })]),
+                flags: expect.arrayContaining([64n]) // 64n is MessageFlags.Ephemeral (BigInt)
+            }));
+            
+            mockMonitorManager.getAllMonitors().forEach(m => expect(m.check).toHaveBeenCalled());
+            expect(mockInteraction.followUp).toHaveBeenCalledWith(expect.objectContaining({
+                flags: expect.arrayContaining([64n])
+            }));
+        });
     });
 });
