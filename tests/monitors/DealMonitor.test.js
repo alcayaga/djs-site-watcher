@@ -454,19 +454,6 @@ describe('DealMonitor', () => {
             expect(sendCall.embeds[0].data.thumbnail.url).toBe('attachment://product_1.png');
         });
 
-        it('should default to jpg if no extension found', async () => {
-             const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic_no_ext', offerPrice: 100, normalPrice: 200 };
-            
-            solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
-            
-            got.stream = jest.fn().mockImplementation(() => mockGotStream(['fake-image-data'], {}));
-
-            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
-
-            const sendCall = mockChannel.send.mock.calls[0][0];
-            expect(sendCall.embeds[0].data.thumbnail.url).toBe('attachment://product_1.jpg');
-        });
-
         it('should try entity pictures if product picture fails to download', async () => {
             const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic.jpg', offerPrice: 100, normalPrice: 200 };
             const entities = [
@@ -531,8 +518,23 @@ describe('DealMonitor', () => {
 
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource is not an image'));
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource is not a supported image type'));
             expect(Discord.AttachmentBuilder).not.toHaveBeenCalled();
+            consoleErrorSpy.mockRestore();
+        });
+
+        it('should reject if Content-Type is missing', async () => {
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic', offerPrice: 100, normalPrice: 200 };
+            
+            solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
+            
+            got.stream = jest.fn().mockImplementation(() => mockGotStream(['data'], {}));
+
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource is not a supported image type'));
             consoleErrorSpy.mockRestore();
         });
     });

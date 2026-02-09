@@ -422,9 +422,11 @@ class DealMonitor extends Monitor {
                     await new Promise((resolve, reject) => {
                         stream.on('response', (res) => {
                             contentType = res.headers['content-type'];
-                            if (contentType && !contentType.startsWith('image/')) {
+                            // Strict validation: must have Content-Type and be in our allowed list
+                            const pureType = contentType ? contentType.split(';')[0].trim() : null;
+                            if (!pureType || !MIME_TYPE_MAP[pureType]) {
                                 stream.destroy();
-                                reject(new Error('Resource is not an image'));
+                                reject(new Error('Resource is not a supported image type'));
                             }
                         });
                         
@@ -453,8 +455,9 @@ class DealMonitor extends Monitor {
                     }
 
                     if (!extension) {
-                        const urlExt = url.split('.').pop().split('?')[0];
-                        if (urlExt && urlExt.length > 0 && urlExt.length < 5) {
+                        const path = url.split('?')[0];
+                        const urlExt = path.split('.').pop();
+                        if (urlExt && urlExt !== path && urlExt.length > 0 && urlExt.length < 5) {
                             extension = urlExt;
                         } else {
                             extension = 'jpg'; // Default fallback
