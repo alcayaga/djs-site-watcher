@@ -286,6 +286,36 @@ describe('SiteMonitor', () => {
             const sentEmbed = mockChannel.send.mock.calls[0][0].embeds[0];
             expect(sentEmbed.data.title).toBe('¡Cambio en fallback-site-id!  🐸');
         });
+
+        it('should log a CRITICAL error if both embed and fallback fail with Missing Permissions', async () => {
+            const mockChange = {
+                site: { url: 'http://test.com', lastUpdated: new Date() },
+                oldContent: 'old',
+                newContent: 'new',
+                dom: { window: { document: { title: 'Test' } } }
+            };
+
+            diff.diffLines.mockReturnValue([]);
+
+            const error = new Error('Missing Permissions');
+            error.code = 50013;
+            
+            mockChannel.send
+                .mockRejectedValueOnce(error) // Embed fails
+                .mockRejectedValueOnce(error); // Fallback fails
+
+            const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+            await siteMonitor.notify(mockChange);
+
+            expect(mockChannel.send).toHaveBeenCalledTimes(2);
+            expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('Missing permissions to send embed'));
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("CRITICAL: Missing 'Send Messages' permission"));
+
+            consoleWarnSpy.mockRestore();
+            consoleErrorSpy.mockRestore();
+        });
     });
 
     // New tests for fetchAndProcess method
