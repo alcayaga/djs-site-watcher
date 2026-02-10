@@ -1,6 +1,6 @@
 {
   "name": "discordbot-websitemonitor",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "",
   "main": "src/bot.js",
   "scripts": {
