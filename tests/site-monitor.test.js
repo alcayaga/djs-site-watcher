@@ -254,6 +254,7 @@ describe('SiteMonitor', () => {
             const sentEmbed = mockChannel.send.mock.calls[0][0].embeds[0];
             const diffField = sentEmbed.data.fields.find(f => f.name === '📝 Cambios detectados');
             expect(diffField.value).toContain('... (truncado)');
+            expect(diffField.value.length).toBeLessThanOrEqual(1024);
         });
 
         it('should log an error if notification channel not found', () => {
