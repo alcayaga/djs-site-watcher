@@ -43,7 +43,7 @@ if (process.env.NODE_ENV !== 'test' && missingOptionalVars.length > 0) {
 config.defaultChannelId = config.defaultChannelId ?? process.env.DISCORDJS_TEXTCHANNEL_ID;
 
 // Type conversions and defaults
-config.AP_RESPONSE_DELAY = config.AP_RESPONSE_DELAY ? parseInt(config.AP_RESPONSE_DELAY, 10) : 5000;
+config.AP_RESPONSE_DELAY = (p => Number.isFinite(p) ? p : 5000)(parseInt(config.AP_RESPONSE_DELAY, 10));
 config.SOLOTODO_API_DELAY = (p => Number.isFinite(p) ? p : 5000)(parseInt(config.SOLOTODO_API_DELAY, 10));
 
 if (!config.monitors) {
