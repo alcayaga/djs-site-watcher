@@ -36,10 +36,9 @@ async function handleInteraction(interaction, client, state, config, monitorMana
     // For non-ChatInput interactions (Modals, Components, Autocomplete), 
     // we must manually check permissions as setDefaultMemberPermissions only applies to the command trigger.
     if (!interaction.isChatInputCommand()) {
-        const isPublicInteraction = ['prev', 'next'].includes(interaction.customId);
         const hasPermission = interaction.memberPermissions && interaction.memberPermissions.has(PermissionFlagsBits.ManageGuild);
         
-        if (!hasPermission && !isPublicInteraction) {
+        if (!hasPermission) {
             if (interaction.isAutocomplete()) return; // Silent fail for autocomplete
             return interaction.reply({ content: 'No estás autorizado para usar esta interacción.', flags: [MessageFlags.Ephemeral] });
         }
