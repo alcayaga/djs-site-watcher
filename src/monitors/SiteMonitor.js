@@ -300,7 +300,7 @@ class SiteMonitor extends Monitor {
         try {
             await channel.send({ embeds: [embed] });
         } catch (error) {
-            if (error.code === 50013) { // Missing Permissions
+            if (error.code === Discord.RESTJSONErrorCodes.MissingPermissions) { // Missing Permissions
                 console.warn(`[SiteMonitor] Missing permissions to send embed in ${channel.name} (${channel.id}). Trying fallback message.`);
                 try {
                     await channel.send(`¡Cambio detectado en ${sanitizeMarkdown(title)}! 🐸\n${sanitizeMarkdown(site.url)}\n(No tengo permisos para enviar embeds en este canal)`);
