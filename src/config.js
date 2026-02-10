@@ -16,24 +16,27 @@ const storage = require('./storage.js');
 
 const config = storage.loadSettings();
 
-// Load sensitive environment variables defined in storage.js
+// Load environment variables.
 storage.SENSITIVE_SETTINGS_KEYS.forEach(key => {
     if (process.env[key] !== undefined) {
-        config[key] = process.env[key];
+        const isRequired = storage.REQUIRED_ENV_VARS.includes(key);
+        // Required vars (Secrets) take precedence from process.env.
+        // Others act as fallbacks if not in config.
+        if (isRequired || config[key] === undefined) {
+            config[key] = process.env[key];
+        }
     }
 });
 
-// Load optional environment variables (which might now be in settings.json but could still be in .env)
-storage.OPTIONAL_ENV_VARS.forEach(key => {
-    if (process.env[key] !== undefined && config[key] === undefined) {
-        config[key] = process.env[key];
-    }
-});
-
-const missingRequiredVars = storage.REQUIRED_ENV_VARS.filter(key => !process.env[key]);
+const missingRequiredVars = storage.REQUIRED_ENV_VARS.filter(key => !process.env[key] && !config[key]);
 
 if (process.env.NODE_ENV !== 'test' && missingRequiredVars.length > 0) {
     throw new Error(`❌ Missing required environment variables: ${missingRequiredVars.join(', ')}. Please set them in your .env file or environment variables.`);
+}
+
+const missingOptionalVars = storage.OPTIONAL_ENV_VARS.filter(key => !process.env[key] && !config[key]);
+if (process.env.NODE_ENV !== 'test' && missingOptionalVars.length > 0) {
+    console.warn(`⚠️  Missing optional environment variables: ${missingOptionalVars.join(', ')}. Some features may not work as expected.`);
 }
 
 // Map Global Default
