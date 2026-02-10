@@ -279,8 +279,8 @@ class SiteMonitor extends Monitor {
             }
         });
 
-        if (diffString.length > 1900) {
-            diffString = diffString.substring(0, 1900) + '\n... (truncated)';
+        if (diffString.length > 950) {
+            diffString = diffString.substring(0, 950) + '\n... (truncado)';
         }
 
         const fields = [
