@@ -37,7 +37,7 @@ if (process.env.NODE_ENV !== 'test' && missingRequiredVars.length > 0) {
 }
 
 // Map Global Default
-config.defaultChannelId = config.defaultChannelId || process.env.DISCORDJS_TEXTCHANNEL_ID;
+config.defaultChannelId = config.defaultChannelId ?? process.env.DISCORDJS_TEXTCHANNEL_ID;
 
 // Type conversions and defaults
 config.AP_RESPONSE_DELAY = config.AP_RESPONSE_DELAY ? parseInt(config.AP_RESPONSE_DELAY, 10) : 5000;
@@ -100,10 +100,10 @@ if (!config.monitors) {
 // Initialize specific monitor settings if missing
 config.monitors.forEach(monitor => {
     if (monitor.name === 'Deal') {
-        monitor.channelId = monitor.channelId || process.env.DISCORDJS_DEALS_CHANNEL_ID || config.defaultChannelId;
-        monitor.apiDelay = monitor.apiDelay !== undefined ? monitor.apiDelay : config.SOLOTODO_API_DELAY;
+        monitor.channelId = monitor.channelId ?? process.env.DISCORDJS_DEALS_CHANNEL_ID ?? config.defaultChannelId;
+        monitor.apiDelay = monitor.apiDelay ?? config.SOLOTODO_API_DELAY;
     } else {
-        monitor.channelId = monitor.channelId || config.defaultChannelId;
+        monitor.channelId = monitor.channelId ?? config.defaultChannelId;
     }
 });
 
@@ -117,7 +117,7 @@ if (!config.channels) {
         name: m.name,
         handler: m.handler,
         enabled: true,
-        channelId: process.env[m.envId] || config.defaultChannelId
+        channelId: process.env[m.envId] ?? config.defaultChannelId
     }));
 } else {
     // Re-link IDs from environment variables for default handlers if they are missing in the JSON
@@ -127,7 +127,7 @@ if (!config.channels) {
 
     config.channels.forEach(channel => {
         if (!channel.channelId) {
-            channel.channelId = handlerChannelMap[channel.handler] || config.defaultChannelId;
+            channel.channelId = handlerChannelMap[channel.handler] ?? config.defaultChannelId;
         }
     });
 }
@@ -135,7 +135,7 @@ if (!config.channels) {
 // Set channel-specific settings
 config.channels.forEach(channel => {
     if (channel.handler === 'QAChannel') {
-        channel.responseDelay = channel.responseDelay !== undefined ? channel.responseDelay : config.AP_RESPONSE_DELAY;
+        channel.responseDelay = channel.responseDelay ?? config.AP_RESPONSE_DELAY;
     }
 });
 
