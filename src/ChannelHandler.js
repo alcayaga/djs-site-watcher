@@ -49,6 +49,7 @@ class ChannelHandler {
      * @param {object} _state 
      * @returns {Promise<boolean>}
      */
+    // eslint-disable-next-line no-unused-vars
     async process(_message, _state) {
         throw new Error('Classes extending "ChannelHandler" must implement "process".');
     }

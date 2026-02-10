@@ -10,10 +10,11 @@ class DealsChannel extends ChannelHandler {
     /**
      * Handles the message for Deals moderation.
      * @param {import('discord.js').Message} message The message object.
-     * @param {object} _state The application state.
+     * @param {object} state The application state.
      * @returns {Promise<boolean>} True if handled.
      */
-    async process(message, _state) {
+    // eslint-disable-next-line no-unused-vars
+    async process(message, state) {
         const urlMatch = message.content.match(/https?:\/\/[^\s]+/);
         let hasValidLink = false;
         let validatedUrl = null;
