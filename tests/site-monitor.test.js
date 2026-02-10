@@ -298,7 +298,7 @@ describe('SiteMonitor', () => {
             diff.diffLines.mockReturnValue([]);
 
             const error = new Error('Missing Permissions');
-            error.code = 50013;
+            error.code = Discord.RESTJSONErrorCodes.MissingPermissions;
             
             mockChannel.send
                 .mockRejectedValueOnce(error) // Embed fails
@@ -311,7 +311,7 @@ describe('SiteMonitor', () => {
 
             expect(mockChannel.send).toHaveBeenCalledTimes(2);
             expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('Missing permissions to send embed'));
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("CRITICAL: Missing 'Send Messages' permission"));
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("CRITICAL: Missing 'Send Messages' permission"), error);
 
             consoleWarnSpy.mockRestore();
             consoleErrorSpy.mockRestore();

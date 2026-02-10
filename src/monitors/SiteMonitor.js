@@ -306,7 +306,7 @@ class SiteMonitor extends Monitor {
                     await channel.send(`¡Cambio detectado en ${sanitizeMarkdown(title)}! 🐸\n${sanitizeMarkdown(site.url)}\n(No tengo permisos para enviar embeds en este canal)`);
                 } catch (fallbackError) {
                     if (fallbackError.code === Discord.RESTJSONErrorCodes.MissingPermissions) {
-                        console.error(`[SiteMonitor] CRITICAL: Missing 'Send Messages' permission in ${channel.name} (${channel.id}). Cannot send ANY notification.`);
+                        console.error(`[SiteMonitor] CRITICAL: Missing 'Send Messages' permission in ${channel.name} (${channel.id}). Cannot send ANY notification.`, fallbackError);
                     } else {
                         console.error(`[SiteMonitor] Failed to send fallback message in ${channel.name} (${channel.id}):`, fallbackError);
                     }
