@@ -101,17 +101,23 @@ if (!config.monitors) {
 }
 
 // Initialize specific monitor settings if missing
+const monitorDefaults = {
+    'Deal': {
+        channelId: process.env.DISCORDJS_DEALS_CHANNEL_ID,
+        apiDelay: config.SOLOTODO_API_DELAY
+    }
+};
+
 config.monitors.forEach(monitor => {
-    if (monitor.name === 'Deal') {
-        monitor.channelId = monitor.channelId ?? process.env.DISCORDJS_DEALS_CHANNEL_ID ?? config.defaultChannelId;
-        monitor.apiDelay = monitor.apiDelay ?? config.SOLOTODO_API_DELAY;
-    } else {
-        monitor.channelId = monitor.channelId ?? config.defaultChannelId;
+    const defaults = monitorDefaults[monitor.name] || {};
+    monitor.channelId = monitor.channelId ?? defaults.channelId ?? config.defaultChannelId;
+    if (defaults.apiDelay !== undefined) {
+        monitor.apiDelay = monitor.apiDelay ?? defaults.apiDelay;
     }
 });
 
 const defaultHandlerMappings = [
-    { name: 'QA', handler: 'QAChannel', envId: 'DISCORDJS_APCHANNEL_ID' },
+    { name: 'QA', handler: 'QAChannel', envId: 'DISCORDJS_APCHANNEL_ID', defaults: { responseDelay: config.AP_RESPONSE_DELAY } },
     { name: 'Deals', handler: 'DealsChannel', envId: 'DISCORDJS_DEALS_CHANNEL_ID' }
 ];
 
@@ -120,7 +126,8 @@ if (!config.channels) {
         name: m.name,
         handler: m.handler,
         enabled: true,
-        channelId: process.env[m.envId] ?? config.defaultChannelId
+        channelId: process.env[m.envId] ?? config.defaultChannelId,
+        ...m.defaults
     }));
 } else {
     // Re-link IDs from environment variables for default handlers if they are missing in the JSON
@@ -129,6 +136,7 @@ if (!config.channels) {
     );
 
     config.channels.forEach(channel => {
+        // Apply channelId fallbacks
         if (!channel.channelId) {
             const mappedId = handlerChannelMap[channel.handler];
             channel.channelId = mappedId ?? config.defaultChannelId;
@@ -136,14 +144,15 @@ if (!config.channels) {
                 console.warn(`⚠️ Channel handler '${channel.name}' is missing 'channelId' and has no default mapping. Falling back to default channel ID.`);
             }
         }
+
+        // Apply other defaults if missing
+        const mapping = defaultHandlerMappings.find(m => m.handler === channel.handler);
+        if (mapping && mapping.defaults) {
+            Object.keys(mapping.defaults).forEach(key => {
+                channel[key] = channel[key] ?? mapping.defaults[key];
+            });
+        }
     });
 }
-
-// Set channel-specific settings
-config.channels.forEach(channel => {
-    if (channel.handler === 'QAChannel') {
-        channel.responseDelay = channel.responseDelay ?? config.AP_RESPONSE_DELAY;
-    }
-});
 
 module.exports = config;
