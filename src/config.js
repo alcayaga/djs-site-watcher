@@ -42,12 +42,20 @@ if (process.env.NODE_ENV !== 'test' && missingOptionalVars.length > 0) {
 // Map Global Default
 config.defaultChannelId = config.defaultChannelId ?? process.env.DISCORDJS_TEXTCHANNEL_ID;
 
-// Type conversions and defaults
-const parsedApDelay = parseInt(config.AP_RESPONSE_DELAY, 10);
-config.AP_RESPONSE_DELAY = Number.isFinite(parsedApDelay) ? parsedApDelay : 5000;
+/**
+ * Parses an environment variable as an integer with a default value.
+ * @param {string|number} value The value to parse.
+ * @param {number} defaultValue The default value if parsing fails.
+ * @returns {number} The parsed integer or default value.
+ */
+const parseEnvInt = (value, defaultValue) => {
+    const parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : defaultValue;
+};
 
-const parsedSoloTodoDelay = parseInt(config.SOLOTODO_API_DELAY, 10);
-config.SOLOTODO_API_DELAY = Number.isFinite(parsedSoloTodoDelay) ? parsedSoloTodoDelay : 5000;
+// Type conversions and defaults
+config.AP_RESPONSE_DELAY = parseEnvInt(config.AP_RESPONSE_DELAY, 5000);
+config.SOLOTODO_API_DELAY = parseEnvInt(config.SOLOTODO_API_DELAY, 5000);
 
 if (!config.monitors) {
     config.monitors = [
@@ -137,6 +145,9 @@ if (!config.channels) {
     const handlerChannelMap = Object.fromEntries(
         defaultHandlerMappings.map(m => [m.handler, process.env[m.envId]])
     );
+    const handlerMappingsMap = Object.fromEntries(
+        defaultHandlerMappings.map(m => [m.handler, m])
+    );
 
     config.channels.forEach(channel => {
         // Apply channelId fallbacks
@@ -149,7 +160,7 @@ if (!config.channels) {
         }
 
         // Apply other defaults if missing
-        const mapping = defaultHandlerMappings.find(m => m.handler === channel.handler);
+        const mapping = handlerMappingsMap[channel.handler];
         if (mapping && mapping.defaults) {
             Object.keys(mapping.defaults).forEach(key => {
                 channel[key] = channel[key] ?? mapping.defaults[key];
