@@ -6,7 +6,6 @@ describe('QAChannel', () => {
     let handler;
     let mockMessage;
     let mockState;
-    let mockConfig;
     let handlerConfig;
 
     beforeEach(() => {
@@ -35,21 +34,17 @@ describe('QAChannel', () => {
                 }
             ]
         };
-        mockConfig = {
-            AP_RESPONSE_DELAY: 0
-        };
     });
 
     it('should handle matching message in correct channel', async () => {
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
-        expect(handled).toBe(true);
+        await handler.handle(mockMessage, mockState);
         expect(mockMessage.reply).toHaveBeenCalledWith('mundo');
     });
 
     it('should process bot message if ignoreBots is false', async () => {
         handler.config.ignoreBots = false;
         mockMessage.author.bot = true;
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        const handled = await handler.handle(mockMessage, mockState);
         expect(handled).toBe(true);
     });
 });

@@ -9,10 +9,9 @@ class QAChannel extends ChannelHandler {
      * Handles the message for Q&A logic.
      * @param {Discord.Message} message The message object.
      * @param {object} state The application state.
-     * @param {object} config The application configuration.
      * @returns {Promise<boolean>} True if handled.
      */
-    async process(message, state, config) {
+    async process(message, state) {
         const ap_message = message.content.trim();
 
         for (const response of state.responses) {

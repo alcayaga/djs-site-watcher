@@ -24,7 +24,10 @@ export default defineConfig([
     ],
     languageOptions: { globals: globals.node },
     rules: {
-      "no-unused-vars": ["error", { "caughtErrors": "none" }],
+      "no-unused-vars": ["error", { 
+        "caughtErrors": "none",
+        "argsIgnorePattern": "^_"
+      }],
       "no-useless-escape": "off",
       // JSDoc rules for all JS files
       "jsdoc/require-description": "warn",

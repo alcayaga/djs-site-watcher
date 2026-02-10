@@ -28,6 +28,6 @@ describe('messageHandler', () => {
 
     it('should call channelManager.handleMessage', async () => {
         await handleMessage(mockMessage, mockState, mockConfig);
-        expect(channelManager.handleMessage).toHaveBeenCalledWith(mockMessage, mockState, mockConfig);
+        expect(channelManager.handleMessage).toHaveBeenCalledWith(mockMessage, mockState);
     });
 });
