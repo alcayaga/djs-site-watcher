@@ -25,13 +25,17 @@ class QAChannel extends ChannelHandler {
                 const reply_id = Math.floor(Math.random() * response.replies.length);
                 const reply = response.replies[reply_id];
 
+                const responsePayload = {};
                 if (reply.img_response !== "") {
-                    const img = new Discord.AttachmentBuilder(reply.img_response);
-                    message.channel.send({ files: [img] });
+                    responsePayload.files = [new Discord.AttachmentBuilder(reply.img_response)];
                 }
 
                 if (reply.text_response !== "") {
-                    message.reply(reply.text_response);
+                    responsePayload.content = reply.text_response;
+                }
+
+                if (Object.keys(responsePayload).length > 0) {
+                    await message.reply(responsePayload);
                 }
 
                 return true;
