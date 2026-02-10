@@ -40,10 +40,29 @@ describe('QAChannel', () => {
         };
     });
 
-    it('should handle matching message in correct channel', async () => {
+    it('should handle matching message in correct channel (text only)', async () => {
         const handled = await handler.handle(mockMessage, mockState, mockConfig);
         expect(handled).toBe(true);
-        expect(mockMessage.reply).toHaveBeenCalledWith('mundo');
+        expect(mockMessage.reply).toHaveBeenCalledWith({ content: 'mundo' });
+    });
+
+    it('should handle image responses', async () => {
+        mockState.responses[0].replies[0] = { text_response: '', img_response: 'image.png' };
+        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        expect(handled).toBe(true);
+        expect(mockMessage.reply).toHaveBeenCalledWith(expect.objectContaining({
+            files: expect.any(Array)
+        }));
+    });
+
+    it('should handle combined text and image responses', async () => {
+        mockState.responses[0].replies[0] = { text_response: 'mundo', img_response: 'image.png' };
+        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        expect(handled).toBe(true);
+        expect(mockMessage.reply).toHaveBeenCalledWith(expect.objectContaining({
+            content: 'mundo',
+            files: expect.any(Array)
+        }));
     });
 
     it('should process bot message if ignoreBots is false', async () => {
