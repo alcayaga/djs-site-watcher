@@ -297,7 +297,20 @@ class SiteMonitor extends Monitor {
             .addFields(fields)
             .setColor(0x6058f3);
             
-        await channel.send({ embeds: [embed] });
+        try {
+            await channel.send({ embeds: [embed] });
+        } catch (error) {
+            if (error.code === 50013) { // Missing Permissions
+                console.warn(`[SiteMonitor] Missing permissions to send embed in ${channel.name} (${channel.id}). Trying fallback message.`);
+                try {
+                    await channel.send(`¡Cambio detectado en ${sanitizeMarkdown(title)}! 🐸\n${sanitizeMarkdown(site.url)}\n(No tengo permisos para enviar embeds en este canal)`);
+                } catch (fallbackError) {
+                    console.error(`[SiteMonitor] Failed to send fallback message in ${channel.name} (${channel.id}):`, fallbackError);
+                }
+            } else {
+                throw error;
+            }
+        }
     }
 }
 
