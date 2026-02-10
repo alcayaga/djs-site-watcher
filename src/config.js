@@ -130,7 +130,11 @@ if (!config.channels) {
 
     config.channels.forEach(channel => {
         if (!channel.channelId) {
-            channel.channelId = handlerChannelMap[channel.handler] ?? config.defaultChannelId;
+            const mappedId = handlerChannelMap[channel.handler];
+            channel.channelId = mappedId ?? config.defaultChannelId;
+            if (!mappedId && config.defaultChannelId) {
+                console.warn(`⚠️ Channel handler '${channel.name}' is missing 'channelId' and has no default mapping. Falling back to default channel ID.`);
+            }
         }
     });
 }
