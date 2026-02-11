@@ -9,7 +9,6 @@ describe('DealsChannel', () => {
     let handler;
     let mockMessage;
     let mockState;
-    let mockConfig;
     let handlerConfig;
 
     beforeEach(() => {
@@ -35,7 +34,6 @@ describe('DealsChannel', () => {
             }),
         };
         mockState = {};
-        mockConfig = {};
     });
 
     afterEach(() => {
@@ -45,7 +43,7 @@ describe('DealsChannel', () => {
     it('should allow message with link and create thread', async () => {
         const content = 'Great deal here: https://example.com';
         mockMessage.content = content;
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        const handled = await handler.handle(mockMessage, mockState);
         expect(handled).toBe(false);
         expect(mockMessage.delete).not.toHaveBeenCalled();
         expect(mockMessage.startThread).toHaveBeenCalledWith({
@@ -61,7 +59,7 @@ describe('DealsChannel', () => {
     ])('should create thread with correct name for content "%s" when an attachment is present', async (content, expectedName) => {
         mockMessage.content = content;
         mockMessage.attachments.set('1', {});
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        const handled = await handler.handle(mockMessage, mockState);
         expect(handled).toBe(false);
         expect(mockMessage.delete).not.toHaveBeenCalled();
         expect(mockMessage.startThread).toHaveBeenCalledWith({
@@ -73,12 +71,12 @@ describe('DealsChannel', () => {
     it('should return true if thread creation fails', async () => {
         mockMessage.startThread.mockRejectedValue(new Error('Discord error'));
         mockMessage.content = 'Great deal here: https://example.com';
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        const handled = await handler.handle(mockMessage, mockState);
         expect(handled).toBe(true);
     });
 
     it('should delete and notify for message without link or attachment in Spanish', async () => {
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        const handled = await handler.handle(mockMessage, mockState);
         expect(handled).toBe(true);
         expect(mockMessage.delete).toHaveBeenCalled();
         expect(mockMessage.startThread).not.toHaveBeenCalled();
@@ -109,7 +107,7 @@ describe('DealsChannel', () => {
         solotodo.getProductUrl.mockReturnValue('https://solotodo.cl/products/123');
 
         mockMessage.content = 'Oferta: https://some-store.com/iphone15';
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        const handled = await handler.handle(mockMessage, mockState);
         
         expect(handled).toBe(false);
         const thread = await mockMessage.startThread.mock.results[0].value;
@@ -141,7 +139,7 @@ describe('DealsChannel', () => {
         solotodo.getProductUrl.mockReturnValue('https://solotodo.cl/products/123');
 
         mockMessage.content = 'Oferta: https://some-store.com/iphone15';
-        await handler.handle(mockMessage, mockState, mockConfig);
+        await handler.handle(mockMessage, mockState);
         
         const thread = await mockMessage.startThread.mock.results[0].value;
         const embed = thread.send.mock.calls[0][0].embeds[0];
@@ -154,7 +152,7 @@ describe('DealsChannel', () => {
         mockMessage.delete.mockRejectedValue(error);
         mockMessage.reply = jest.fn().mockResolvedValue({});
         
-        const handled = await handler.handle(mockMessage, mockState, mockConfig);
+        const handled = await handler.handle(mockMessage, mockState);
         expect(handled).toBe(true);
         expect(mockMessage.reply).toHaveBeenCalledWith(expect.stringContaining('No tengo permisos'));
     });

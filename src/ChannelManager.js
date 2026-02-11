@@ -79,14 +79,13 @@ class ChannelManager {
      * Dispatches a message to the appropriate channel handlers.
      * @param {import('discord.js').Message} message 
      * @param {object} state 
-     * @param {object} configObj 
      */
-    async handleMessage(message, state, configObj) {
+    async handleMessage(message, state) {
         const channelHandlers = this.handlers.get(message.channel.id);
         
         if (channelHandlers) {
             for (const handler of channelHandlers) {
-                const handled = await handler.handle(message, state, configObj);
+                const handled = await handler.handle(message, state);
                 if (handled) {
                     break;
                 }

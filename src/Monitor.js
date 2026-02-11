@@ -110,7 +110,9 @@ class Monitor {
                 }
             };
         }
-        return this.client.channels.cache.get(config.DISCORDJS_TEXTCHANNEL_ID);
+        
+        const channelId = this.config.channelId;
+        return this.client.channels.cache.get(channelId);
     }
 
     /**

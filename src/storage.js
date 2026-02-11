@@ -19,15 +19,12 @@ const OPTIONAL_ENV_VARS = [
     'DISCORDJS_DEALS_CHANNEL_ID'
 ];
 
-const CONFIG_ENV_VARS = [
-    'SINGLE_RUN',
-    'AP_RESPONSE_DELAY'
-];
-
 const SENSITIVE_SETTINGS_KEYS = [
     ...REQUIRED_ENV_VARS,
     ...OPTIONAL_ENV_VARS,
-    ...CONFIG_ENV_VARS
+    'SINGLE_RUN',
+    'AP_RESPONSE_DELAY',
+    'SOLOTODO_API_DELAY'
 ];
 
 /**
@@ -154,15 +151,6 @@ function saveSettings(settings) {
     // Scrub sensitive top-level keys
     const settingsToSave = { ...settings };
     SENSITIVE_SETTINGS_KEYS.forEach(key => delete settingsToSave[key]);
-
-    // Also scrub sensitive IDs from channel configurations
-    if (Array.isArray(settingsToSave.channels)) {
-        settingsToSave.channels = settingsToSave.channels.map(channel => {
-            const scrubbedChannel = { ...channel };
-            delete scrubbedChannel.channelId;
-            return scrubbedChannel;
-        });
-    }
 
     return fs.outputJSON(SETTINGS_FILE, settingsToSave, { spaces: 2 });
 }

@@ -63,16 +63,16 @@ describe('ChannelManager', () => {
         channelManager.handlers.set('123', [mockHandlerInstance]);
         
         const mockMessage = { channel: { id: '123' } };
-        await channelManager.handleMessage(mockMessage, {}, {});
+        await channelManager.handleMessage(mockMessage, {});
         
-        expect(mockHandlerInstance.handle).toHaveBeenCalled();
+        expect(mockHandlerInstance.handle).toHaveBeenCalledWith(mockMessage, {});
     });
 
     it('should not route message if no handler for channel', async () => {
         channelManager.handlers.set('123', [mockHandlerInstance]);
         
         const mockMessage = { channel: { id: '999' } };
-        await channelManager.handleMessage(mockMessage, {}, {});
+        await channelManager.handleMessage(mockMessage, {});
         
         expect(mockHandlerInstance.handle).not.toHaveBeenCalled();
     });

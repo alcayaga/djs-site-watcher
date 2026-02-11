@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 /**
  * Abstract base class for all channel handlers.
  *
@@ -32,16 +31,15 @@ class ChannelHandler {
      * Entry point for message handling. Performs common checks before calling process().
      * @param {import('discord.js').Message} message 
      * @param {object} state 
-     * @param {object} config 
      * @returns {Promise<boolean>}
      */
-    async handle(message, state, config) {
+    async handle(message, state) {
         // Common checks: ignore bots (unless configured otherwise)
         const shouldIgnoreBots = this.config.ignoreBots !== false;
         if (shouldIgnoreBots && message.author.bot) {
             return false;
         }
-        return this.process(message, state, config);
+        return this.process(message, state);
     }
 
     /**
@@ -49,10 +47,10 @@ class ChannelHandler {
      * @abstract
      * @param {import('discord.js').Message} _message 
      * @param {object} _state 
-     * @param {object} _config 
      * @returns {Promise<boolean>}
      */
-    async process(_message, _state, _config) {
+    // eslint-disable-next-line no-unused-vars
+    async process(_message, _state) {
         throw new Error('Classes extending "ChannelHandler" must implement "process".');
     }
 }

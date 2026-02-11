@@ -110,7 +110,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
 // When a message is sent, run this code (Auto-responses only)
 client.on(Events.MessageCreate, message => {
-    messageHandler.handleMessage(message, state, config);
+    messageHandler.handleMessage(message, state);
 });
 
 // Login to Discord with your client's token

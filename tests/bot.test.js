@@ -164,7 +164,6 @@ describe('Bot', () => {
         expect(messageHandler.handleMessage).toHaveBeenCalledWith(
             mockMessage,
             expect.anything(), // state
-            expect.anything(), // config
         );
     });
 

@@ -89,7 +89,7 @@ class DealMonitor extends Monitor {
 
             // Wait configured delay between requests, but not after the last one
             if (i < urls.length - 1) {
-                await sleep(config.SOLOTODO_API_DELAY);
+                await sleep(this.config.apiDelay);
             }
         }
 
@@ -254,7 +254,7 @@ class DealMonitor extends Monitor {
                                 }
                             }
                             // Delay to avoid bursting API
-                            await sleep(config.SOLOTODO_API_DELAY);
+                            await sleep(this.config.apiDelay);
                         } catch (historyError) {
                             console.error(`Error backfilling history for product ${productId}:`, historyError);
                         }
@@ -322,17 +322,6 @@ class DealMonitor extends Monitor {
         } catch (error) {
             console.error(`Error checking ${this.name}:`, error);
         }
-    }
-
-    /**
-     * Overrides the base getNotificationChannel to use the Deals channel.
-     * @returns {object|Discord.TextChannel} The notification channel.
-     */
-    getNotificationChannel() {
-        if (String(config.SINGLE_RUN).toLowerCase() === 'true') {
-            return super.getNotificationChannel();
-        }
-        return this.client.channels.cache.get(config.DISCORDJS_DEALS_CHANNEL_ID);
     }
 
     /**

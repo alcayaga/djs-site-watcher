@@ -6,7 +6,6 @@ jest.mock('../../src/ChannelManager');
 describe('messageHandler', () => {
     let mockMessage;
     let mockState;
-    let mockConfig;
 
     beforeEach(() => {
         mockMessage = {
@@ -18,16 +17,11 @@ describe('messageHandler', () => {
             reply: jest.fn().mockResolvedValue({}),
         };
         mockState = { responses: [] };
-        mockConfig = {
-            DISCORDJS_APCHANNEL_ID: '123',
-            DISCORDJS_DEALS_CHANNEL_ID: '456',
-            AP_RESPONSE_DELAY: 0
-        };
         jest.clearAllMocks();
     });
 
     it('should call channelManager.handleMessage', async () => {
-        await handleMessage(mockMessage, mockState, mockConfig);
-        expect(channelManager.handleMessage).toHaveBeenCalledWith(mockMessage, mockState, mockConfig);
+        await handleMessage(mockMessage, mockState);
+        expect(channelManager.handleMessage).toHaveBeenCalledWith(mockMessage, mockState);
     });
 });

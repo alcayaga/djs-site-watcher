@@ -40,17 +40,21 @@ describe('storage', () => {
             const settings = {
                 interval: 5,
                 DISCORDJS_BOT_TOKEN: 'secret-token',
+                DISCORDJS_TEXTCHANNEL_ID: '123',
+                defaultChannelId: '123',
                 other: 'value'
             };
             await storage.saveSettings(settings);
 
             const savedSettings = fs.outputJSON.mock.calls[0][1];
             expect(savedSettings.DISCORDJS_BOT_TOKEN).toBeUndefined();
+            expect(savedSettings.DISCORDJS_TEXTCHANNEL_ID).toBeUndefined();
+            expect(savedSettings.defaultChannelId).toBe('123');
             expect(savedSettings.interval).toBe(5);
             expect(savedSettings.other).toBe('value');
         });
 
-        it('should scrub channelId from channels array', async () => {
+        it('should preserve channelId in channels array', async () => {
             const settings = {
                 channels: [
                     { name: 'QA', channelId: '123', enabled: true },
@@ -60,8 +64,8 @@ describe('storage', () => {
             await storage.saveSettings(settings);
 
             const savedSettings = fs.outputJSON.mock.calls[fs.outputJSON.mock.calls.length - 1][1];
-            expect(savedSettings.channels[0].channelId).toBeUndefined();
-            expect(savedSettings.channels[1].channelId).toBeUndefined();
+            expect(savedSettings.channels[0].channelId).toBe('123');
+            expect(savedSettings.channels[1].channelId).toBe('456');
             expect(savedSettings.channels[0].name).toBe('QA');
         });
     });
