@@ -58,7 +58,8 @@ module.exports = {
             return interaction.reply({ content: 'El monitor de sitios no está disponible.', flags: [MessageFlags.Ephemeral] });
         }
 
-        return showRemovalDropdown(interaction, siteMonitor.state);
+        const sites = siteMonitor.state.filter(s => !s.guildId || s.guildId === interaction.guildId);
+        return showRemovalDropdown(interaction, sites);
     },
 
     /**
@@ -73,19 +74,27 @@ module.exports = {
      */
     async handleComponent(interaction, client, state, config, monitorManager, action) {
         const siteMonitor = monitorManager.getMonitor('Site');
+        const sites = siteMonitor.state.filter(s => !s.guildId || s.guildId === interaction.guildId);
         
         if (action === 'prompt') {
-            return showRemovalDropdown(interaction, siteMonitor.state);
+            return showRemovalDropdown(interaction, sites);
         }
 
         if (action === 'select' && interaction.componentType === ComponentType.StringSelect) {
             const index = parseInt(interaction.values[0], 10);
             
-            if (isNaN(index) || index < 0 || index >= siteMonitor.state.length) {
+            if (isNaN(index) || index < 0 || index >= sites.length) {
                 return interaction.update({ content: 'Selección inválida o el sitio ya no existe.', components: [] });
             }
 
-            const removedSite = await siteMonitor.removeSiteByIndex(index);
+            const siteToRemove = sites[index];
+            const globalIndex = siteMonitor.state.indexOf(siteToRemove);
+
+            if (globalIndex === -1) {
+                return interaction.update({ content: 'Error: No se pudo encontrar el sitio en la lista global.', components: [] });
+            }
+
+            const removedSite = await siteMonitor.removeSiteByIndex(globalIndex);
 
             // Update the ephemeral message to clear components
             await interaction.update({ 

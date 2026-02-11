@@ -92,9 +92,9 @@ describe('add command', () => {
             await addCommand.handleModal(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
             expect(mockMonitorManager.getMonitor).toHaveBeenCalledWith('Site');
-            expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', '#test', false);
+            expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', '#test', false, undefined);
             
-            expect(mockInteraction.deferReply).toHaveBeenCalled();
+            expect(mockInteraction.deferReply).toHaveBeenCalledWith({ flags: [expect.any(BigInt)] });
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
                 embeds: expect.any(Array)
             }));
@@ -110,7 +110,7 @@ describe('add command', () => {
 
             await addCommand.handleModal(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
-            expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', '#test', true);
+            expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', '#test', true, undefined);
         });
 
         it('should handle default selector', async () => {
@@ -130,7 +130,7 @@ describe('add command', () => {
 
             await addCommand.handleModal(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
-            expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', 'head', false);
+            expect(mockSiteMonitor.addSite).toHaveBeenCalledWith('https://example.com', 'head', false, undefined);
         });
 
         it('should handle errors during addSite', async () => {

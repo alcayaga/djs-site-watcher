@@ -52,7 +52,10 @@ describe('List, Remove, Help Commands', () => {
         it('should message if no sites', async () => {
             mockSiteMonitor.state = [];
             await listCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
-            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.stringContaining('No hay sitios'));
+            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                content: expect.stringContaining('No hay sitios'),
+                flags: [MessageFlags.Ephemeral]
+            }));
         });
     });
 
