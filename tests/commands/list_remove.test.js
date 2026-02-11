@@ -43,7 +43,7 @@ describe('List, Remove, Help Commands', () => {
         it('should show list of sites', async () => {
             await listCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
-            expect(mockInteraction.deferReply).toHaveBeenCalled();
+            expect(mockInteraction.deferReply).toHaveBeenCalledWith({ flags: [MessageFlags.Ephemeral] });
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
                 embeds: expect.any(Array)
             }));

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
 
 module.exports = {
@@ -27,7 +27,7 @@ module.exports = {
         const CHUNK_SIZE = 25;
 
         // Defer if it might take long, but listing is usually fast. 
-        await interaction.deferReply();
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
         for (let i = 0; i < siteCount; i += CHUNK_SIZE) {
             const chunk = sites.slice(i, i + CHUNK_SIZE);
