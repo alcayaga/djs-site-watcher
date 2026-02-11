@@ -116,7 +116,11 @@ module.exports = {
                 disabledRow.components.forEach(btn => btn.setDisabled(true));
                 await interaction.editReply({ components: [disabledRow] });
             } catch (error) {
-                // Interaction might have expired or message deleted
+                // It's expected that this may fail if the message is deleted or the interaction expires.
+                // We can ignore 'Unknown Message' (10008) and 'Unknown Interaction' (10062) errors.
+                if (error.code !== 10008 && error.code !== 10062) {
+                    console.error('Failed to disable pagination buttons on collector end:', error);
+                }
             }
         });
     },

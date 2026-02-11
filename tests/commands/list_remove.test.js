@@ -62,7 +62,7 @@ describe('List, Remove, Help Commands', () => {
             }));
         });
 
-        it('should enable pagination for > 5 sites', async () => {
+        it('should enable pagination for > 5 sites and handle button clicks', async () => {
             // Create 6 sites to trigger pagination
             const manySites = Array(6).fill(null).map((_, i) => ({
                 id: `site${i}`, url: `http://site${i}.com`, css: 'body', lastUpdated: 'now'
@@ -72,9 +72,41 @@ describe('List, Remove, Help Commands', () => {
             await listCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
             expect(mockInteraction.editReply).toHaveBeenCalled();
-            // Verify createMessageComponentCollector was called
+            
             const mockMessage = await mockInteraction.editReply.mock.results[0].value;
-            expect(mockMessage.createMessageComponentCollector).toHaveBeenCalled();
+            const mockCollector = mockMessage.createMessageComponentCollector.mock.results[0].value;
+            
+            // Get the 'collect' callback
+            const collectCallback = mockCollector.on.mock.calls.find(call => call[0] === 'collect')[1];
+            
+            // Simulate 'next' button click
+            const mockButtonInteraction = {
+                user: { id: 'test-user' },
+                customId: 'next',
+                update: jest.fn().mockResolvedValue(true)
+            };
+            
+            await collectCallback(mockButtonInteraction);
+            
+            expect(mockButtonInteraction.update).toHaveBeenCalledWith(expect.objectContaining({
+                embeds: [expect.objectContaining({
+                    data: expect.objectContaining({
+                        description: expect.stringContaining('Mostrando 6-6')
+                    })
+                })]
+            }));
+
+            // Simulate collector end
+            const endCall = mockCollector.on.mock.calls.find(call => call[0] === 'end');
+            const endCallback = endCall[1];
+            expect(endCallback).toBeDefined();
+            await endCallback();
+            
+            // Verify buttons are disabled in the last editReply call
+            const lastEditCall = mockInteraction.editReply.mock.calls[mockInteraction.editReply.mock.calls.length - 1][0];
+            const actionRow = lastEditCall.components[0];
+            expect(actionRow.components[0].data.disabled).toBe(true);
+            expect(actionRow.components[1].data.disabled).toBe(true);
         });
 
         it('should message if no sites', async () => {
