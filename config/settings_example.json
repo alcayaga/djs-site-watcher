@@ -1,3 +1,52 @@
 {
-  "interval": 5
+  "interval": 5,
+  "defaultChannelId": "YOUR_DEFAULT_CHANNEL_ID",
+  "monitors": [
+    {
+      "name": "AppleEsim",
+      "enabled": true,
+      "channelId": "YOUR_CHANNEL_ID"
+    },
+    {
+      "name": "Carrier",
+      "enabled": true,
+      "channelId": "YOUR_CHANNEL_ID"
+    },
+    {
+      "name": "AppleFeature",
+      "enabled": true,
+      "channelId": "YOUR_CHANNEL_ID"
+    },
+    {
+      "name": "ApplePay",
+      "enabled": true,
+      "channelId": "YOUR_CHANNEL_ID"
+    },
+    {
+      "name": "Deal",
+      "enabled": true,
+      "channelId": "YOUR_CHANNEL_ID",
+      "apiDelay": 5000
+    },
+    {
+      "name": "Site",
+      "enabled": true,
+      "channelId": "YOUR_CHANNEL_ID"
+    }
+  ],
+  "channels": [
+    {
+      "name": "QA",
+      "handler": "QAChannel",
+      "enabled": true,
+      "channelId": "YOUR_QA_CHANNEL_ID",
+      "responseDelay": 5000
+    },
+    {
+      "name": "Deals",
+      "handler": "DealsChannel",
+      "enabled": true,
+      "channelId": "YOUR_DEALS_CHANNEL_ID"
+    }
+  ]
 }

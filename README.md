@@ -66,8 +66,14 @@ List of features of the site-watcher bot:
 2. Fill in the required fields in `.env`:
    - `DISCORDJS_BOT_TOKEN`: Your bot token from step 1.
    - `DISCORDJS_CLIENT_ID`: Found in the "General Information" tab of your application.
-   - `DISCORDJS_TEXTCHANNEL_ID`: The ID of the channel where notifications will be sent (Right-click channel -> Copy ID).
-3. (Optional) Configure additional channels for Q&A or Deals moderation by adding their IDs to `.env`.
+
+3. Configure the bot in `config/settings.json`:
+   - `defaultChannelId`: The ID of the channel where notifications will be sent.
+   - `monitors`: Customize `channelId` and `apiDelay` for specific monitors.
+   - `channels`: Configure specific IDs and delays for Q&A or Deals moderation.
+   - `interval`: The refresh rate in minutes (default `5`).
+
+<sub>**Note**: Using `settings.json` is the recommended way to manage configuration.</sub>
 
 ## Usage
 ### Starting the Bot
@@ -154,15 +160,22 @@ The bot includes a modular system to handle messages in specific channels differ
 
 ### Q&A (`QA`)
 Automatically responds to messages matching regex patterns defined in `config/responses.json`.
-*   **Trigger**: Configured via `DISCORDJS_APCHANNEL_ID`.
+*   **Trigger**: Configured via `channelId` in `config/settings.json`.
 *   **Behavior**: Sends text or image replies based on triggers.
 
 ### Deals Moderation (`Deals`)
 Enforces a "deals-only" policy in a specific channel.
-*   **Trigger**: Configured via `DISCORDJS_DEALS_CHANNEL_ID`.
+*   **Trigger**: Configured via `channelId` in `config/settings.json`.
 *   **Behavior**: 
     *   Allows messages containing a link or an image.
     *   Deletes all other messages and sends a private message to the user asking them to use threads for discussion.
+
+## Migration to v3.1.0
+Version 3.1.0 moves advanced configuration (channel IDs and delays) from environment variables to `config/settings.json`.
+
+1.  **Centralized Config**: Use `config/settings.json` to manage all monitor and channel settings.
+2.  **Legacy Support**: Environment variables like `DISCORDJS_TEXTCHANNEL_ID`, `DISCORDJS_APCHANNEL_ID`, and `DISCORDJS_DEALS_CHANNEL_ID` are now deprecated and will be removed in future versions.
+3.  **Automatic Backfill**: If `settings.json` is missing these values, the bot will still attempt to use the legacy environment variables if they are set.
 
 ## Migration from v2 to v3
 Version 3.0.0 introduces Discord Slash Commands.
