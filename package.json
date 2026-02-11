@@ -8,7 +8,8 @@
     "start": "node ./src/bot.js",
     "dev": "nodemon ./src/bot.js",
     "lint": "eslint .",
-    "deploy": "node src/deploy-commands.js"
+    "deploy": "node src/deploy-commands.js",
+    "preflight": "npm ci && npm run lint && npm run test && SINGLE_RUN=true npm run start"
   },
   "keywords": [],
   "author": "",
