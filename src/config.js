@@ -142,12 +142,11 @@ if (!config.channels) {
     }));
 } else {
     // Re-link IDs from environment variables for default handlers if they are missing in the JSON
-    const handlerChannelMap = Object.fromEntries(
-        defaultHandlerMappings.map(m => [m.handler, process.env[m.envId]])
-    );
-    const handlerMappingsMap = Object.fromEntries(
-        defaultHandlerMappings.map(m => [m.handler, m])
-    );
+    const { handlerChannelMap, handlerMappingsMap } = defaultHandlerMappings.reduce((acc, mapping) => {
+        acc.handlerChannelMap[mapping.handler] = process.env[mapping.envId];
+        acc.handlerMappingsMap[mapping.handler] = mapping;
+        return acc;
+    }, { handlerChannelMap: {}, handlerMappingsMap: {} });
 
     config.channels.forEach(channel => {
         // Apply channelId fallbacks
