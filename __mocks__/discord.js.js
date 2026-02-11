@@ -74,15 +74,35 @@ const MockTextInputBuilder = jest.fn(function() {
 });
 
 const MockActionRowBuilder = jest.fn(function() {
-    this.addComponents = jest.fn().mockReturnThis();
+    this.components = [];
+    this.addComponents = jest.fn().mockImplementation((...components) => {
+        this.components.push(...components);
+        return this;
+    });
 });
 
 const MockButtonBuilder = jest.fn(function() {
-    this.setCustomId = jest.fn().mockReturnThis();
-    this.setLabel = jest.fn().mockReturnThis();
-    this.setStyle = jest.fn().mockReturnThis();
-    this.setEmoji = jest.fn().mockReturnThis();
-    this.setDisabled = jest.fn().mockReturnThis();
+    this.data = {};
+    this.setCustomId = jest.fn().mockImplementation((id) => {
+        this.data.custom_id = id;
+        return this;
+    });
+    this.setLabel = jest.fn().mockImplementation((label) => {
+        this.data.label = label;
+        return this;
+    });
+    this.setStyle = jest.fn().mockImplementation((style) => {
+        this.data.style = style;
+        return this;
+    });
+    this.setEmoji = jest.fn().mockImplementation((emoji) => {
+        this.data.emoji = emoji;
+        return this;
+    });
+    this.setDisabled = jest.fn().mockImplementation((disabled) => {
+        this.data.disabled = disabled;
+        return this;
+    });
 });
 
 const MockStringSelectMenuBuilder = jest.fn(function() {

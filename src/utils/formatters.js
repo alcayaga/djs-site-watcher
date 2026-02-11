@@ -20,7 +20,12 @@ function formatDiscordTimestamp(dateStr) {
 function sanitizeMarkdown(text) {
     if (!text) return '';
     return text
+        .replace(/\\/g, '\\\\') // Escape backslashes first
         .replace(/`/g, '\\`') // Escape backticks
+        .replace(/\*/g, '\\*') // Escape asterisks
+        .replace(/_/g, '\\_') // Escape underscores
+        .replace(/~/g, '\\~') // Escape tildes
+        .replace(/\|/g, '\\|') // Escape pipes
         .replace(/\[/g, '\\[') // Escape square brackets
         .replace(/\]/g, '\\]')
         .replace(/</g, '\\<') // Escape less than

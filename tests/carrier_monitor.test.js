@@ -183,7 +183,7 @@ describe('CarrierMonitor', () => {
 
             // Check calls on the mock
             const firstEmbed = mockChannel.send.mock.calls[0][0].embeds[0];
-            expect(firstEmbed.data.title).toBe('📲 ¡Nuevo Carrier Bundle para Verizon_US! 🐸');
+            expect(firstEmbed.data.title).toBe('📲 ¡Nuevo Carrier Bundle para Verizon\\_US! 🐸');
             expect(firstEmbed.addFields).toHaveBeenCalledWith([
                 { name: '📦 Versión', value: '48.0', inline: true },
                 { name: '🛠️ Build', value: '48.0.0', inline: true },
@@ -193,7 +193,7 @@ describe('CarrierMonitor', () => {
             expect(firstEmbed.data.color).toBe(0x00FF00);
 
             const secondEmbed = mockChannel.send.mock.calls[1][0].embeds[0];
-            expect(secondEmbed.data.title).toBe('📲 ¡Nuevo Carrier Bundle para ATT_US! 🐸');
+            expect(secondEmbed.data.title).toBe('📲 ¡Nuevo Carrier Bundle para ATT\\_US! 🐸');
             expect(secondEmbed.addFields).toHaveBeenCalledWith([
                 { name: '📦 Versión', value: '47.0', inline: true },
                 { name: '🛠️ Build', value: '47.0.1', inline: true },
