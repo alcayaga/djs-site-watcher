@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
 
 module.exports = {
@@ -30,13 +30,6 @@ module.exports = {
         // Defer if it might take long, but listing is usually fast. 
         await interaction.deferReply();
 
-        const removeButton = new ButtonBuilder()
-            .setCustomId('remove:prompt')
-            .setLabel('Eliminar un sitio...')
-            .setStyle(ButtonStyle.Danger);
-
-        const row = new ActionRowBuilder().addComponents(removeButton);
-
         for (let i = 0; i < siteCount; i += CHUNK_SIZE) {
             const chunk = sites.slice(i, i + CHUNK_SIZE);
             const embed = new EmbedBuilder()
@@ -51,11 +44,7 @@ module.exports = {
 
             embed.addFields(fields);
             
-            const isLastChunk = i + CHUNK_SIZE >= siteCount;
             const options = { embeds: [embed] };
-            if (isLastChunk) {
-                options.components = [row];
-            }
 
             if (i === 0) {
                 await interaction.editReply(options);
