@@ -64,57 +64,7 @@ const parseEnvInt = (value, defaultValue) => {
 config.AP_RESPONSE_DELAY = parseEnvInt(config.AP_RESPONSE_DELAY, 5000);
 config.SOLOTODO_API_DELAY = parseEnvInt(config.SOLOTODO_API_DELAY, 5000);
 
-const defaultMonitors = [
-    {
-        name: 'AppleEsim',
-        enabled: true,
-        url: 'https://support.apple.com/en-us/101569',
-        file: './config/apple_esim.json',
-        country: 'Chile',
-    },
-    {
-        name: 'Carrier',
-        enabled: true,
-        url: 'https://s.mzstatic.com/version',
-        file: './config/carriers.json',
-        carriers: [
-            'EntelPCS_cl',
-            'movistar_cl',
-            'Claro_cl',
-            'Nextel_cl'
-        ],
-    },
-    {
-        name: 'AppleFeature',
-        enabled: true,
-        url: 'https://www.apple.com/ios/feature-availability/',
-        file: './config/apple_features.json',
-        keywords: ['chile', 'spanish (latin america)', 'scl'],
-    },
-    {
-        name: 'ApplePay',
-        enabled: true,
-        file: './config/apple_pay_responses.json',
-        configUrl: 'https://smp-device-content.apple.com/static/region/v2/config.json',
-        configAltUrl: 'https://smp-device-content.apple.com/static/region/v2/config-alt.json',
-        region: 'CL',
-    },
-    {
-        name: 'Deal',
-        enabled: true,
-        url: [
-            'https://publicapi.solotodo.com/categories/50/browse/?brands=756403&brands=769114',
-            'https://publicapi.solotodo.com/categories/6/browse/?brands=149039',
-            'https://publicapi.solotodo.com/categories/25/browse/?brands=944507'
-        ],
-        file: './config/deals.json',
-    },
-    {
-        name: 'Site',
-        enabled: true,
-        file: './config/sites.json',
-    },
-];
+const defaultMonitors = require('./defaultMonitors.js');
 
 if (!config.monitors) {
     config.monitors = defaultMonitors;
@@ -165,11 +115,12 @@ if (!config.channels) {
     }));
 } else {
     // Re-link IDs from environment variables for default handlers if they are missing in the JSON
-    const { handlerChannelMap, handlerMappingsMap } = defaultHandlerMappings.reduce((acc, mapping) => {
-        acc.handlerChannelMap[mapping.handler] = process.env[mapping.envId];
-        acc.handlerMappingsMap[mapping.handler] = mapping;
-        return acc;
-    }, { handlerChannelMap: {}, handlerMappingsMap: {} });
+    const handlerChannelMap = Object.fromEntries(
+        defaultHandlerMappings.map(mapping => [mapping.handler, process.env[mapping.envId]])
+    );
+    const handlerMappingsMap = Object.fromEntries(
+        defaultHandlerMappings.map(mapping => [mapping.handler, mapping])
+    );
 
     config.channels.forEach(channel => {
         // Apply channelId fallbacks
