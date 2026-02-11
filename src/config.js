@@ -161,7 +161,11 @@ if (!config.channels) {
         // Apply other defaults if missing
         const mapping = handlerMappingsMap[channel.handler];
         if (mapping && mapping.defaults) {
-            Object.assign(channel, { ...mapping.defaults, ...channel });
+            for (const key in mapping.defaults) {
+                if (channel[key] === undefined) {
+                    channel[key] = mapping.defaults[key];
+                }
+            }
         }
     });
 }
