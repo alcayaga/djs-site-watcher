@@ -1,11 +1,10 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('list')
-        .setDescription('Show list of added sites.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+        .setDescription('Show list of added sites.'),
     /**
      * Executes the list command.
      *
