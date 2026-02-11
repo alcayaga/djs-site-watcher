@@ -8,16 +8,28 @@ describe('List, Remove, Help Commands', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        
+        const mockCollector = {
+            on: jest.fn(),
+            stop: jest.fn()
+        };
+        
+        const mockMessage = {
+            createMessageComponentCollector: jest.fn().mockReturnValue(mockCollector)
+        };
+
         mockInteraction = {
             options: {
                 getInteger: jest.fn(),
             },
             reply: jest.fn(),
             deferReply: jest.fn(),
-            editReply: jest.fn(),
+            editReply: jest.fn().mockResolvedValue(mockMessage),
             followUp: jest.fn(),
             deferred: false,
-            replied: false
+            replied: false,
+            user: { id: 'test-user' },
+            guildId: 'test-guild'
         };
         mockState = {
             sitesToMonitor: [
@@ -45,8 +57,24 @@ describe('List, Remove, Help Commands', () => {
 
             expect(mockInteraction.deferReply).toHaveBeenCalledWith({ flags: [MessageFlags.Ephemeral] });
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
-                embeds: expect.any(Array)
+                embeds: expect.any(Array),
+                components: expect.any(Array)
             }));
+        });
+
+        it('should enable pagination for > 5 sites', async () => {
+            // Create 6 sites to trigger pagination
+            const manySites = Array(6).fill(null).map((_, i) => ({
+                id: `site${i}`, url: `http://site${i}.com`, css: 'body', lastUpdated: 'now'
+            }));
+            mockSiteMonitor.state = manySites;
+
+            await listCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
+
+            expect(mockInteraction.editReply).toHaveBeenCalled();
+            // Verify createMessageComponentCollector was called
+            const mockMessage = await mockInteraction.editReply.mock.results[0].value;
+            expect(mockMessage.createMessageComponentCollector).toHaveBeenCalled();
         });
 
         it('should message if no sites', async () => {
