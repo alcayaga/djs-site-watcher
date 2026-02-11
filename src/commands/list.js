@@ -54,7 +54,7 @@ module.exports = {
 
             const fields = chunk.map((site, index) => ({
                 name: `${start + index + 1}. ${sanitizeMarkdown(site.id || 'Sitio desconocido')}`.substring(0, 256),
-                value: `🔗 **URL:** ${sanitizeMarkdown(site.url || '')}\n🔍 **CSS:** \`${sanitizeMarkdown(site.css || '')}\`\n🕒 **Actualizado:** ${formatDiscordTimestamp(site.lastUpdated)}`.substring(0, 1024)
+                value: `🔗 **URL:** ${sanitizeMarkdown((site.url || '').substring(0, 300))}\n🔍 **CSS:** \`${sanitizeMarkdown((site.css || '').substring(0, 100))}\`\n🕒 **Actualizado:** ${formatDiscordTimestamp(site.lastUpdated)}`.substring(0, 1024)
             }));
 
             embed.addFields(fields);
