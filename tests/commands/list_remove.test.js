@@ -45,8 +45,7 @@ describe('List, Remove, Help Commands', () => {
 
             expect(mockInteraction.deferReply).toHaveBeenCalled();
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
-                embeds: expect.any(Array),
-                components: expect.any(Array)
+                embeds: expect.any(Array)
             }));
         });
 

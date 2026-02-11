@@ -1,4 +1,4 @@
-const { PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { MessageFlags } = require('discord.js');
 const { loadCommands } = require('../utils/commandLoader');
 
 // Load commands once
@@ -33,17 +33,6 @@ async function handleInteractionError(interaction, error) {
  * @returns {Promise<void>}
  */
 async function handleInteraction(interaction, client, state, config, monitorManager) {
-    // For non-ChatInput interactions (Modals, Components, Autocomplete), 
-    // we must manually check permissions as setDefaultMemberPermissions only applies to the command trigger.
-    if (!interaction.isChatInputCommand()) {
-        const hasPermission = interaction.memberPermissions && interaction.memberPermissions.has(PermissionFlagsBits.ManageGuild);
-        
-        if (!hasPermission) {
-            if (interaction.isAutocomplete()) return; // Silent fail for autocomplete
-            return interaction.reply({ content: 'No estás autorizado para usar esta interacción.', flags: [MessageFlags.Ephemeral] });
-        }
-    }
-
     if (interaction.isChatInputCommand()) {
         const command = commands.get(interaction.commandName);
         if (!command) return;

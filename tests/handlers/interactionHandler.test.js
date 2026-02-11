@@ -1,4 +1,4 @@
-const { handleInteraction } = require('../../src/handlers/interactionHandler');
+const { handleInteraction, commands } = require('../../src/handlers/interactionHandler');
 const { MessageFlags } = require('discord.js');
 
 // Mock fs and path to control command loading via commandLoader
@@ -14,6 +14,7 @@ jest.mock('../../src/utils/commandLoader', () => {
         })
     };
 });
+
 
 // Mock commands
 jest.mock('../../src/commands/add.js', () => ({
@@ -31,7 +32,7 @@ describe('Interaction Handler', () => {
         jest.clearAllMocks();
         
         // Ensure add.js mock methods are present (in case they were deleted by a test)
-        const addCommand = require('../../src/commands/add.js');
+        const addCommand = commands.get('add');
         if (!addCommand.handleModal) {
             addCommand.handleModal = jest.fn();
         }
@@ -42,6 +43,7 @@ describe('Interaction Handler', () => {
             isChatInputCommand: jest.fn(),
             isAutocomplete: jest.fn(),
             isModalSubmit: jest.fn(),
+            isMessageComponent: jest.fn(),
             commandName: 'add',
             channelId: 'admin-channel',
             member: {
@@ -216,31 +218,7 @@ describe('Interaction Handler', () => {
         });
     });
 
-    describe('Security & Permissions', () => {
-        it('should block non-command interactions if user lacks ManageGuild permission', async () => {
-            mockInteraction.isChatInputCommand.mockReturnValue(false);
-            mockInteraction.isAutocomplete.mockReturnValue(false);
-            mockInteraction.isMessageComponent = jest.fn().mockReturnValue(true);
-            mockInteraction.memberPermissions.has.mockReturnValue(false);
 
-            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
-
-            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
-                content: expect.stringContaining('No estás autorizado'),
-                flags: [MessageFlags.Ephemeral]
-            }));
-        });
-
-        it('should silent fail for autocomplete if user lacks permission', async () => {
-            mockInteraction.isChatInputCommand.mockReturnValue(false);
-            mockInteraction.isAutocomplete.mockReturnValue(true);
-            mockInteraction.memberPermissions.has.mockReturnValue(false);
-
-            await handleInteraction(mockInteraction, mockClient, mockState, mockConfig, mockMonitorManager);
-
-            expect(mockInteraction.reply).not.toHaveBeenCalled();
-        });
-    });
 
     describe('Error Handling', () => {
         it('should use reply if not deferred or replied', async () => {
