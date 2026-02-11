@@ -27,6 +27,10 @@ module.exports = {
         }
 
         const ITEMS_PER_PAGE = 5;
+        const PAGINATION_TIMEOUT = 60000;
+        const PREV_BUTTON_ID = 'prev';
+        const NEXT_BUTTON_ID = 'next';
+        
         const totalPages = Math.ceil(sites.length / ITEMS_PER_PAGE);
         let currentPage = 0;
 
@@ -50,7 +54,7 @@ module.exports = {
 
             const fields = chunk.map((site, index) => ({
                 name: `${start + index + 1}. ${sanitizeMarkdown(site.id || 'Sitio desconocido')}`.substring(0, 256),
-                value: `🔗 **URL:** ${sanitizeMarkdown(site.url.substring(0, 500))}\n🔍 **CSS:** \`${sanitizeMarkdown(site.css.substring(0, 200))}\`\n🕒 **Actualizado:** ${formatDiscordTimestamp(site.lastUpdated)}`
+                value: `🔗 **URL:** ${sanitizeMarkdown((site.url || '').substring(0, 500))}\n🔍 **CSS:** \`${sanitizeMarkdown((site.css || '').substring(0, 200))}\`\n🕒 **Actualizado:** ${formatDiscordTimestamp(site.lastUpdated)}`.substring(0, 1024)
             }));
 
             embed.addFields(fields);
@@ -66,13 +70,13 @@ module.exports = {
             const row = new ActionRowBuilder();
             
             const prevButton = new ButtonBuilder()
-                .setCustomId('prev')
+                .setCustomId(PREV_BUTTON_ID)
                 .setLabel('Anterior')
                 .setStyle(ButtonStyle.Primary)
                 .setDisabled(page === 0);
 
             const nextButton = new ButtonBuilder()
-                .setCustomId('next')
+                .setCustomId(NEXT_BUTTON_ID)
                 .setLabel('Siguiente')
                 .setStyle(ButtonStyle.Primary)
                 .setDisabled(page === totalPages - 1);
@@ -90,7 +94,7 @@ module.exports = {
 
         const collector = response.createMessageComponentCollector({ 
             componentType: ComponentType.Button, 
-            time: 60000 
+            time: PAGINATION_TIMEOUT 
         });
 
         collector.on('collect', async i => {
@@ -98,9 +102,9 @@ module.exports = {
                  return i.reply({ content: 'Solo quien ejecutó el comando puede usar los botones.', flags: [MessageFlags.Ephemeral] });
             }
 
-            if (i.customId === 'prev') {
+            if (i.customId === PREV_BUTTON_ID) {
                 currentPage = Math.max(0, currentPage - 1);
-            } else if (i.customId === 'next') {
+            } else if (i.customId === NEXT_BUTTON_ID) {
                 currentPage = Math.min(totalPages - 1, currentPage + 1);
             }
 
