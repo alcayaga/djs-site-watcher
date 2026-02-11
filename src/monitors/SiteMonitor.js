@@ -140,15 +140,20 @@ class SiteMonitor extends Monitor {
      * @param {string} url The URL of the site.
      * @param {string} css The CSS selector.
      * @param {boolean} force Whether to force adding the site even if it fails to fetch.
+     * @param {string|null} guildId The ID of the guild where the site was added.
      * @returns {Promise<{site: object, warning: boolean}>} The added site object and warning flag.
      */
-    async addSite(url, css, force = false) {
+    async addSite(url, css, force = false, guildId = null) {
         if (!Array.isArray(this.state)) {
             this.state = [];
         }
 
-        // Check for duplicates
-        const existingSite = this.state.find(s => s.url === url && s.css === css);
+        // Check for duplicates within the same guild
+        const existingSite = this.state.find(s => 
+            s.url === url && 
+            s.css === css && 
+            (s.guildId || null) === (guildId || null)
+        );
         if (existingSite) {
             return { site: existingSite, warning: false };
         }
@@ -185,6 +190,7 @@ class SiteMonitor extends Monitor {
             id: id,
             url: url,
             css: css,
+            guildId: guildId,
             lastChecked: time.toISOString(),
             lastUpdated: time.toISOString(),
             hash: hash,

@@ -1,10 +1,9 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('help')
-        .setDescription('Show all commands.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+        .setDescription('Show all commands.'),
     /**
      * Executes the help command.
      * @param {import('discord.js').ChatInputCommandInteraction} interaction The interaction object.

@@ -43,7 +43,7 @@ describe('List, Remove, Help Commands', () => {
         it('should show list of sites', async () => {
             await listCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
 
-            expect(mockInteraction.deferReply).toHaveBeenCalled();
+            expect(mockInteraction.deferReply).toHaveBeenCalledWith({ flags: [MessageFlags.Ephemeral] });
             expect(mockInteraction.editReply).toHaveBeenCalledWith(expect.objectContaining({
                 embeds: expect.any(Array)
             }));
@@ -52,7 +52,10 @@ describe('List, Remove, Help Commands', () => {
         it('should message if no sites', async () => {
             mockSiteMonitor.state = [];
             await listCommand.execute(mockInteraction, mockClient, mockState, {}, mockMonitorManager);
-            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.stringContaining('No hay sitios'));
+            expect(mockInteraction.reply).toHaveBeenCalledWith(expect.objectContaining({
+                content: expect.stringContaining('No hay sitios'),
+                flags: [MessageFlags.Ephemeral]
+            }));
         });
     });
 

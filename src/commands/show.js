@@ -1,11 +1,10 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const listCommand = require('./list');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('show')
-        .setDescription('Show list of added sites (alias for /list).')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+        .setDescription('Show list of added sites (alias for /list).'),
     /**
      * Executes the show command.
      * @param {import('discord.js').ChatInputCommandInteraction} interaction The interaction object.

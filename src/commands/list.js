@@ -1,11 +1,10 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('list')
-        .setDescription('Show list of added sites.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+        .setDescription('Show list of added sites.'),
     /**
      * Executes the list command.
      *
@@ -18,17 +17,20 @@ module.exports = {
      */
     async execute(interaction, client, state, config, monitorManager) {
         const siteMonitor = monitorManager.getMonitor('Site');
-        const sites = siteMonitor ? siteMonitor.state : [];
+        const allSites = siteMonitor ? siteMonitor.state : [];
+        
+        // Filter by guildId (allow null/undefined for backward compatibility or global sites)
+        const sites = allSites.filter(site => !site.guildId || site.guildId === interaction.guildId);
 
         if (sites.length < 1) {
-            return interaction.reply('No hay sitios siendo monitoreados. Agrega uno con `/add`.');
+            return interaction.reply({ content: 'No hay sitios siendo monitoreados en este servidor. Agrega uno con `/add`.', flags: [MessageFlags.Ephemeral] });
         }
 
         const siteCount = sites.length;
-        const CHUNK_SIZE = 25;
+        const CHUNK_SIZE = 5; // Reduced for embed length safety
 
         // Defer if it might take long, but listing is usually fast. 
-        await interaction.deferReply();
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
         for (let i = 0; i < siteCount; i += CHUNK_SIZE) {
             const chunk = sites.slice(i, i + CHUNK_SIZE);
@@ -44,7 +46,7 @@ module.exports = {
 
             embed.addFields(fields);
             
-            const options = { embeds: [embed] };
+            const options = { embeds: [embed], flags: [MessageFlags.Ephemeral] };
 
             if (i === 0) {
                 await interaction.editReply(options);

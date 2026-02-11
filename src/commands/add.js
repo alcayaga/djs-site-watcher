@@ -84,10 +84,10 @@ module.exports = {
         const siteMonitor = monitorManager.getMonitor('Site');
 
         // Defer reply since adding a site might take a moment (fetching)
-        await interaction.deferReply();
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
         try {
-            const { site, warning } = await siteMonitor.addSite(urlString, selector, force);
+            const { site, warning } = await siteMonitor.addSite(urlString, selector, force, interaction.guildId);
 
             // Local state update removed. SiteMonitor is the source of truth.
             
