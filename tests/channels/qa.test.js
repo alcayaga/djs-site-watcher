@@ -62,6 +62,26 @@ describe('QAChannel', () => {
         }));
     });
 
+    it('should handle missing text_response key gracefully', async () => {
+        mockState.responses[0].replies[0] = { img_response: 'image.png' };
+        const handled = await handler.handle(mockMessage, mockState);
+        expect(handled).toBe(true);
+        expect(mockMessage.reply).toHaveBeenCalledWith({
+            files: [expect.any(Object)]
+        });
+        expect(mockMessage.reply.mock.calls[0][0]).not.toHaveProperty('content');
+    });
+
+    it('should handle missing img_response key gracefully', async () => {
+        mockState.responses[0].replies[0] = { text_response: 'mundo' };
+        const handled = await handler.handle(mockMessage, mockState);
+        expect(handled).toBe(true);
+        expect(mockMessage.reply).toHaveBeenCalledWith({
+            content: 'mundo'
+        });
+        expect(mockMessage.reply.mock.calls[0][0]).not.toHaveProperty('files');
+    });
+
     it('should process bot message if ignoreBots is false', async () => {
         handler.config.ignoreBots = false;
         mockMessage.author.bot = true;
