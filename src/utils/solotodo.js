@@ -224,10 +224,15 @@ async function searchByUrl(url) {
 /**
  * Fetches available entities for a product.
  * @param {number|string} productId The product ID.
+ * @param {boolean} [excludeRefurbished=false] Whether to exclude refurbished entities.
  * @returns {Promise<Array>} List of entities.
  */
-async function getAvailableEntities(productId) {
-    const response = await got(`https://publicapi.solotodo.com/products/available_entities/?countries=1&ids=${productId}`, {
+async function getAvailableEntities(productId, excludeRefurbished = true) {
+    let url = `https://publicapi.solotodo.com/products/available_entities/?countries=1&ids=${productId}`;
+    if (excludeRefurbished) {
+        url += '&exclude_refurbished=true';
+    }
+    const response = await got(url, {
         responseType: 'json'
     });
 
@@ -335,7 +340,7 @@ async function getProductHistory(productId) {
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     const timestampAfter = sixMonthsAgo.toISOString();
 
-    const response = await got(`https://publicapi.solotodo.com/products/${productId}/pricing_history/?timestamp_after=${timestampAfter}&timestamp_before=${timestampBefore}&exclude_refurbished=false`, {
+    const response = await got(`https://publicapi.solotodo.com/products/${productId}/pricing_history/?timestamp_after=${timestampAfter}&timestamp_before=${timestampBefore}&exclude_refurbished=true`, {
         responseType: 'json'
     });
 

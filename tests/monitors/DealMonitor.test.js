@@ -483,6 +483,57 @@ describe('DealMonitor', () => {
         expect(mockChannel.send).not.toHaveBeenCalled();
     });
 
+    it('should ignore refurbished entities and suppress notification if no new entity exists', async () => {
+        const product = { id: 1, name: 'iPhone Refurb', offerPrice: 499000, normalPrice: 499000 };
+        
+        // Mock entities where one is refurbished
+        jest.spyOn(solotodo, 'getAvailableEntities').mockResolvedValue([
+            {
+                active_registry: { offer_price: "499000", normal_price: "499000", cell_monthly_payment: null },
+                external_url: "https://reuse.com",
+                condition: "https://schema.org/RefurbishedCondition",
+                store: "https://api.com/stores/1/"
+            }
+        ]);
+
+        await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+        expect(mockChannel.send).not.toHaveBeenCalled();
+    });
+
+    it('should prefer new entities over refurbished ones even if refurbished is cheaper', async () => {
+        const product = { id: 1, name: 'iPhone Mixed', offerPrice: 499000, normalPrice: 599000 };
+        
+        // Mock entities: Refurbished is cheaper ($499k), New is $599k
+        jest.spyOn(solotodo, 'getAvailableEntities').mockResolvedValue([
+            {
+                active_registry: { offer_price: "499000", normal_price: "499000", cell_monthly_payment: null },
+                external_url: "https://reuse.com",
+                condition: "https://schema.org/RefurbishedCondition",
+                store: "https://api.com/stores/2/"
+            },
+            {
+                active_registry: { offer_price: "599000", normal_price: "599000", cell_monthly_payment: null },
+                external_url: "https://abc.cl",
+                condition: "https://schema.org/NewCondition",
+                store: "https://api.com/stores/3/"
+            }
+        ]);
+        solotodo.getStores.mockResolvedValue(new Map([
+            ["https://api.com/stores/2/", "Reuse"],
+            ["https://api.com/stores/3/", "ABC.cl"]
+        ]));
+
+        await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+        expect(mockChannel.send).toHaveBeenCalled();
+        const sendCall = mockChannel.send.mock.calls[0][0];
+        const embed = sendCall.embeds[0];
+        // Should link to ABC.cl, not Reuse
+        expect(embed.data.fields.find(f => f.name.includes('Vendido por ABC.cl'))).toBeDefined();
+        expect(embed.data.fields.find(f => f.name.includes('Vendido por Reuse'))).toBeUndefined();
+    });
+
     describe('image handling', () => {
         let consoleErrorSpy;
 

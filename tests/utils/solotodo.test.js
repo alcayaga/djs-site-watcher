@@ -136,6 +136,18 @@ describe('Solotodo Utils - API functions', () => {
         const entities = await getAvailableEntities(355711);
         expect(entities).toHaveLength(1);
         expect(entities[0].id).toBe(1);
+        expect(got).toHaveBeenCalledWith(expect.stringContaining('exclude_refurbished=true'), expect.any(Object));
+    });
+
+    it('getAvailableEntities should allow including refurbished if explicitly requested', async () => {
+        got.mockResolvedValueOnce({
+            body: {
+                results: [{ entities: [] }]
+            }
+        });
+
+        await getAvailableEntities(355711, false);
+        expect(got).not.toHaveBeenCalledWith(expect.stringContaining('exclude_refurbished=true'), expect.any(Object));
     });
 
     it('getStores should return a map of stores and cache them', async () => {
@@ -164,6 +176,7 @@ describe('Solotodo Utils - API functions', () => {
         const result = await getProductHistory(123);
         expect(result).toHaveLength(1);
         expect(got).toHaveBeenCalledWith(expect.stringContaining('products/123/pricing_history/'), expect.any(Object));
+        expect(got).toHaveBeenCalledWith(expect.stringContaining('exclude_refurbished=true'), expect.any(Object));
     });
 
     describe('getBestPictureUrl', () => {

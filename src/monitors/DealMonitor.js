@@ -399,7 +399,8 @@ class DealMonitor extends Monitor {
             for (const entity of entities) {
                 const price = parseFloat(entity.active_registry?.[priceKey]);
                 const isPlan = entity.active_registry?.cell_monthly_payment !== null;
-                if (!isPlan && !isNaN(price) && price < minPrice) {
+                const isRefurbished = entity.condition === 'https://schema.org/RefurbishedCondition';
+                if (!isPlan && !isRefurbished && !isNaN(price) && price < minPrice) {
                     minPrice = price;
                     bestEntity = entity;
                 }
