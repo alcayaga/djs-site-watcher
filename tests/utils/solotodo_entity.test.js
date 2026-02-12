@@ -2,7 +2,7 @@ const solotodo = require('../../src/utils/solotodo');
 
 describe('Solotodo Entity Selection', () => {
     describe('findBestEntity', () => {
-        const REFURBISHED_URL = 'https://schema.org/RefurbishedCondition';
+        const REFURBISHED_URL = solotodo.REFURBISHED_CONDITION_URL;
         const NEW_URL = 'https://schema.org/NewCondition';
 
         it('should return null if entities list is empty or null', () => {

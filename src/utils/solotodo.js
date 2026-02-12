@@ -397,5 +397,6 @@ module.exports = {
     getStores,
     getProductHistory,
     getBestPictureUrl,
-    findBestEntity
+    findBestEntity,
+    REFURBISHED_CONDITION_URL
 };
