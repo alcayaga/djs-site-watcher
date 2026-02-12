@@ -1,4 +1,5 @@
 const got = require('got');
+const { getSafeGotOptions } = require('./network');
 
 // List of known Apple products to prioritize extraction.
 // Sorted by specificity (longer strings first) to ensure "Pro Max" matches before "Pro".
@@ -224,10 +225,19 @@ async function searchByUrl(url) {
 /**
  * Fetches available entities for a product.
  * @param {number|string} productId The product ID.
+ * @param {boolean} [excludeRefurbished=true] Whether to exclude refurbished entities.
  * @returns {Promise<Array>} List of entities.
  */
-async function getAvailableEntities(productId) {
-    const response = await got(`https://publicapi.solotodo.com/products/available_entities/?countries=1&ids=${productId}`, {
+async function getAvailableEntities(productId, excludeRefurbished = true) {
+    const url = new URL('https://publicapi.solotodo.com/products/available_entities/');
+    url.searchParams.set('countries', '1');
+    url.searchParams.set('ids', String(productId));
+    if (excludeRefurbished) {
+        url.searchParams.set('exclude_refurbished', 'true');
+    }
+    
+    const response = await got(url.toString(), {
+        ...getSafeGotOptions(),
         responseType: 'json'
     });
 
@@ -335,7 +345,13 @@ async function getProductHistory(productId) {
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     const timestampAfter = sixMonthsAgo.toISOString();
 
-    const response = await got(`https://publicapi.solotodo.com/products/${productId}/pricing_history/?timestamp_after=${timestampAfter}&timestamp_before=${timestampBefore}&exclude_refurbished=false`, {
+    const url = new URL(`https://publicapi.solotodo.com/products/${productId}/pricing_history/`);
+    url.searchParams.set('timestamp_after', timestampAfter);
+    url.searchParams.set('timestamp_before', timestampBefore);
+    url.searchParams.set('exclude_refurbished', 'true');
+
+    const response = await got(url.toString(), {
+        ...getSafeGotOptions(),
         responseType: 'json'
     });
 

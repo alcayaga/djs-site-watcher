@@ -7,6 +7,8 @@ const solotodo = require('../utils/solotodo');
 const { sleep } = require('../utils/helpers');
 const { getSafeGotOptions } = require('../utils/network');
 
+const REFURBISHED_CONDITION_URL = 'https://schema.org/RefurbishedCondition';
+
 const MIN_SANITY_PRICE = 1000; // Anything below 1,000 CLP is likely an error for Apple products in these categories
 
 const MIME_TYPE_MAP = {
@@ -399,7 +401,8 @@ class DealMonitor extends Monitor {
             for (const entity of entities) {
                 const price = parseFloat(entity.active_registry?.[priceKey]);
                 const isPlan = entity.active_registry?.cell_monthly_payment !== null;
-                if (!isPlan && !isNaN(price) && price < minPrice) {
+                const isRefurbished = entity.condition === REFURBISHED_CONDITION_URL;
+                if (!isPlan && !isRefurbished && !isNaN(price) && price < minPrice) {
                     minPrice = price;
                     bestEntity = entity;
                 }
