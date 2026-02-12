@@ -167,6 +167,9 @@ class DealMonitor extends Monitor {
             stored[lastPriceKey] = currentPrice;
             return `BACK_TO_LOW_${notificationType}`;
         } else if (currentPrice !== stored[lastPriceKey]) {
+            // Log ALL price changes to debug phantom spikes
+            console.log(`[DealMonitor] Price change for ${product.name} (ID: ${product.id}) [${priceType}]: ${formatCLP(stored[lastPriceKey])} -> ${formatCLP(currentPrice)} (Min: ${formatCLP(stored[minPriceKey])})`);
+
             if (currentPrice > stored[minPriceKey] && stored[lastPriceKey] === stored[minPriceKey]) {
                 /**
                  * "Update on Exit" Logic:
