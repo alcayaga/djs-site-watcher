@@ -1,4 +1,5 @@
 const got = require('got');
+const { getSafeGotOptions } = require('./network');
 
 // List of known Apple products to prioritize extraction.
 // Sorted by specificity (longer strings first) to ensure "Pro Max" matches before "Pro".
@@ -236,6 +237,7 @@ async function getAvailableEntities(productId, excludeRefurbished = true) {
     }
     
     const response = await got(url.toString(), {
+        ...getSafeGotOptions(),
         responseType: 'json'
     });
 
@@ -349,6 +351,7 @@ async function getProductHistory(productId) {
     url.searchParams.set('exclude_refurbished', 'true');
 
     const response = await got(url.toString(), {
+        ...getSafeGotOptions(),
         responseType: 'json'
     });
 
