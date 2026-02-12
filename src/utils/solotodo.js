@@ -375,7 +375,7 @@ function findBestEntity(entities, triggers = []) {
 
     for (const entity of entities) {
         const price = parseFloat(entity.active_registry?.[priceKey]);
-        const isPlan = entity.active_registry?.cell_monthly_payment !== null;
+        const isPlan = entity.active_registry?.cell_monthly_payment != null;
         const isRefurbished = entity.condition === REFURBISHED_CONDITION_URL;
         
         if (!isPlan && !isRefurbished && !isNaN(price) && price < minPrice) {
