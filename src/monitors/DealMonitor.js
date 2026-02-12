@@ -302,9 +302,10 @@ class DealMonitor extends Monitor {
      * @private
      * @param {Array<string>} triggers The list of triggers.
      * @param {object} stored The stored state.
-     * @returns {object} Metadata including statusText, color, showDate, and triggerDate.
+     * @param {string} date The current date.
+     * @returns {object} Metadata including description and color.
      */
-    _getNotificationMetadata(triggers, stored) {
+    _getNotificationMetadata(triggers, stored, date) {
         const bothNewLow = triggers.includes('NEW_LOW_OFFER') && triggers.includes('NEW_LOW_NORMAL');
         const bothBackToLow = triggers.includes('BACK_TO_LOW_OFFER') && triggers.includes('BACK_TO_LOW_NORMAL');
         
@@ -338,7 +339,12 @@ class DealMonitor extends Monitor {
             if (details?.date) triggerDate = details.date;
         }
 
-        return { statusText, color, showDate, triggerDate };
+        let description = statusText;
+        if (showDate && (triggerDate || date)) {
+            description += ` de ${formatDiscordTimestamp(triggerDate || date)}`;
+        }
+
+        return { description, color };
     }
 
     /**
@@ -390,12 +396,7 @@ class DealMonitor extends Monitor {
 
         // 3. Prepare Metadata
         const sanitizedName = sanitizeLinkText(product.name);
-        const { statusText, color, showDate, triggerDate } = this._getNotificationMetadata(triggers, stored);
-        
-        let description = statusText;
-        if (showDate && (triggerDate || date)) {
-            description += ` de ${formatDiscordTimestamp(triggerDate || date)}`;
-        }
+        const { description, color } = this._getNotificationMetadata(triggers, stored, date);
 
         // 4. Build Embed
         const embed = new Discord.EmbedBuilder()
