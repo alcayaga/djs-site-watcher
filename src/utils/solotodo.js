@@ -343,7 +343,12 @@ async function getProductHistory(productId) {
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     const timestampAfter = sixMonthsAgo.toISOString();
 
-    const response = await got(`https://publicapi.solotodo.com/products/${productId}/pricing_history/?timestamp_after=${timestampAfter}&timestamp_before=${timestampBefore}&exclude_refurbished=true`, {
+    const url = new URL(`https://publicapi.solotodo.com/products/${productId}/pricing_history/`);
+    url.searchParams.set('timestamp_after', timestampAfter);
+    url.searchParams.set('timestamp_before', timestampBefore);
+    url.searchParams.set('exclude_refurbished', 'true');
+
+    const response = await got(url.toString(), {
         responseType: 'json'
     });
 
