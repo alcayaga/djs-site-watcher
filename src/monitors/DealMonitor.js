@@ -8,8 +8,6 @@ const { sleep } = require('../utils/helpers');
 const { getSafeGotOptions } = require('../utils/network');
 const { downloadImage } = require('../utils/image');
 
-const REFURBISHED_CONDITION_URL = 'https://schema.org/RefurbishedCondition';
-
 const MIN_SANITY_PRICE = 1000; // Anything below 1,000 CLP is likely an error for Apple products in these categories
 
 /**
@@ -362,20 +360,7 @@ class DealMonitor extends Monitor {
         }
 
         // Find the best entity for a direct link (excluding mobile plans)
-        let bestEntity = null;
-        if (entities?.length > 0) {
-            const priceKey = triggers.some(t => t.includes('OFFER')) ? 'offer_price' : 'normal_price';
-            let minPrice = Infinity;
-            for (const entity of entities) {
-                const price = parseFloat(entity.active_registry?.[priceKey]);
-                const isPlan = entity.active_registry?.cell_monthly_payment !== null;
-                const isRefurbished = entity.condition === REFURBISHED_CONDITION_URL;
-                if (!isPlan && !isRefurbished && !isNaN(price) && price < minPrice) {
-                    minPrice = price;
-                    bestEntity = entity;
-                }
-            }
-        }
+        const bestEntity = solotodo.findBestEntity(entities, triggers);
 
         // If no valid non-plan entity is found, we skip the notification as the price 
         // drop is likely only available with a mobile plan or is an error.

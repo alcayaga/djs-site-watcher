@@ -358,6 +358,35 @@ async function getProductHistory(productId) {
     return response.body || [];
 }
 
+const REFURBISHED_CONDITION_URL = 'https://schema.org/RefurbishedCondition';
+
+/**
+ * Finds the best entity from a list based on price and conditions.
+ * @param {Array} entities List of entities.
+ * @param {Array<string>} triggers List of triggers (e.g. ['NEW_LOW_OFFER']).
+ * @returns {object|null} The best entity or null.
+ */
+function findBestEntity(entities, triggers = []) {
+    if (!entities || entities.length === 0) return null;
+
+    const priceKey = triggers.some(t => t.includes('OFFER')) ? 'offer_price' : 'normal_price';
+    let bestEntity = null;
+    let minPrice = Infinity;
+
+    for (const entity of entities) {
+        const price = parseFloat(entity.active_registry?.[priceKey]);
+        const isPlan = entity.active_registry?.cell_monthly_payment != null;
+        const isRefurbished = entity.condition === REFURBISHED_CONDITION_URL;
+        
+        if (!isPlan && !isRefurbished && !isNaN(price) && price < minPrice) {
+            minPrice = price;
+            bestEntity = entity;
+        }
+    }
+
+    return bestEntity;
+}
+
 module.exports = {
     searchSolotodo,
     extractQuery,
@@ -367,5 +396,6 @@ module.exports = {
     getAvailableEntities,
     getStores,
     getProductHistory,
-    getBestPictureUrl
+    getBestPictureUrl,
+    findBestEntity
 };
