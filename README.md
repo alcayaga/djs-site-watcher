@@ -196,5 +196,15 @@ If you prefer to migrate manually:
 2. Move all `.json` files from `src/` to `config/`.
 3. In `config/settings.json`, update any `"file": "./src/..."` entries to `"file": "./config/..."`.
 
+## Troubleshooting
+
+### Debugging Deal Alerts
+If you suspect false positive alerts (e.g., "Back to Historic Low" when the price never changed), check the logs for:
+`[DealMonitor] Price change for ...`
+This log entry records every price movement (up or down), including the product ID, name, old price, new price, and stored minimum.
+
+- **Phantom Spike:** You will see a price INCREASE log followed immediately by a price DECREASE log in the next check cycle.
+- **Legitimate Change:** The price will stabilize at the new value.
+
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
