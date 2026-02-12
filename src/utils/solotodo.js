@@ -228,11 +228,14 @@ async function searchByUrl(url) {
  * @returns {Promise<Array>} List of entities.
  */
 async function getAvailableEntities(productId, excludeRefurbished = true) {
-    let url = `https://publicapi.solotodo.com/products/available_entities/?countries=1&ids=${productId}`;
+    const url = new URL('https://publicapi.solotodo.com/products/available_entities/');
+    url.searchParams.set('countries', '1');
+    url.searchParams.set('ids', String(productId));
     if (excludeRefurbished) {
-        url += '&exclude_refurbished=true';
+        url.searchParams.set('exclude_refurbished', 'true');
     }
-    const response = await got(url, {
+    
+    const response = await got(url.toString(), {
         responseType: 'json'
     });
 
