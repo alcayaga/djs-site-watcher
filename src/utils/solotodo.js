@@ -224,7 +224,7 @@ async function searchByUrl(url) {
 /**
  * Fetches available entities for a product.
  * @param {number|string} productId The product ID.
- * @param {boolean} [excludeRefurbished=false] Whether to exclude refurbished entities.
+ * @param {boolean} [excludeRefurbished=true] Whether to exclude refurbished entities.
  * @returns {Promise<Array>} List of entities.
  */
 async function getAvailableEntities(productId, excludeRefurbished = true) {
