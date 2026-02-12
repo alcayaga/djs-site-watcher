@@ -355,10 +355,11 @@ class DealMonitor extends Monitor {
      * @returns {Promise<Discord.AttachmentBuilder|null>} The attachment or null.
      */
     async _getFallbackAttachment(product, entities) {
-        const candidateUrls = [
+        const allUrls = [
             product.pictureUrl,
             ...(entities || []).map(e => e.picture_urls?.[0])
-        ].filter(Boolean);
+        ];
+        const candidateUrls = [...new Set(allUrls.filter(Boolean))];
 
         for (const url of candidateUrls) {
             try {
