@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Features
 
 - **list:** Implement interactive pagination (31f30a7)
-- **commands:** Make /list and /help commands public (issue #118) (cc233ac)
+- **commands:** Make /list and /help commands accessible to all users (ephemeral) (issue #118) (cc233ac)
 - **auth:** Implement per-command authorization (issue #37) (371a417)
 
 ### Bug Fixes
