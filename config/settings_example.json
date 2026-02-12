@@ -26,7 +26,8 @@
       "name": "Deal",
       "enabled": true,
       "channelId": "YOUR_CHANNEL_ID",
-      "apiDelay": 5000
+      "apiDelay": 5000,
+      "verboseLogging": false
     },
     {
       "name": "Site",
