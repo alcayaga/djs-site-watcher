@@ -394,21 +394,18 @@ class DealMonitor extends Monitor {
     async notify(change) {
         let { product, triggers, stored, type } = change;
         
-        // Backward compatibility & Safety for logging
+        // Backward compatibility
         if (!triggers && type) triggers = [type];
-        const safeTriggers = Array.isArray(triggers) ? triggers : [];
+        if (!Array.isArray(triggers)) triggers = [];
 
         if (this.config.verboseLogging) {
             const minOffer = stored?.minOfferPrice !== undefined ? formatCLP(stored.minOfferPrice) : 'N/A';
             const minNormal = stored?.minNormalPrice !== undefined ? formatCLP(stored.minNormalPrice) : 'N/A';
-            console.log(`[DealMonitor] Raising Discord alert for ${product.name} (ID: ${product.id}). Triggers: ${safeTriggers.join(', ')}. Current: ${formatCLP(product.offerPrice)}/${formatCLP(product.normalPrice)}. Min: ${minOffer}/${minNormal}`);
+            console.log(`[DealMonitor] Raising Discord alert for ${product.name} (ID: ${product.id}). Triggers: ${triggers.join(', ')}. Current: ${formatCLP(product.offerPrice)}/${formatCLP(product.normalPrice)}. Min: ${minOffer}/${minNormal}`);
         }
         
         const channel = this.getNotificationChannel();
         if (!channel) return;
-
-        // Ensure triggers is an array for the rest of the method
-        if (!Array.isArray(triggers)) triggers = safeTriggers;
 
         // 1. Fetch Data
         const entities = await solotodo.getAvailableEntities(product.id);
