@@ -174,7 +174,10 @@ module.exports = {
       MentionableSelect: 7,
       ChannelSelect: 8
   },
-  AttachmentBuilder: jest.fn(),
+  AttachmentBuilder: jest.fn(function(buffer, options) {
+      this.attachment = buffer;
+      this.name = options?.name;
+  }),
   GatewayIntentBits: {
       Guilds: 1,
       GuildMessages: 512,

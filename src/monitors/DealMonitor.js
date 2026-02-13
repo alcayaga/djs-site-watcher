@@ -298,39 +298,20 @@ class DealMonitor extends Monitor {
     }
 
     /**
-     * Sends a notification about a deal.
-     * @param {object} change The change details.
+     * Determines the notification metadata based on triggers.
+     * @private
+     * @param {Array<string>} triggers The list of triggers.
+     * @param {object} stored The stored state.
+     * @returns {object} Metadata including description and color.
      */
-    async notify(change) {
-        let { product, triggers, date, stored, type } = change;
-        const channel = this.getNotificationChannel();
-        if (!channel) return;
-
-        // Backward compatibility: If 'type' is provided instead of 'triggers', convert it.
-        if (!triggers && type) {
-            triggers = [type];
-        }
-
-        if (!Array.isArray(triggers)) {
-            triggers = [];
-        }
-
-        const entities = await solotodo.getAvailableEntities(product.id);
-        const storeMap = await solotodo.getStores();
-        
-        //const productUrl = solotodo.getProductUrl(product);
-        const sanitizedName = sanitizeLinkText(product.name);
-        const pictureUrl = await solotodo.getBestPictureUrl(product, entities);
-
-        // Determine if both are new lows or back to lows
+    _getNotificationMetadata(triggers, stored) {
         const bothNewLow = triggers.includes('NEW_LOW_OFFER') && triggers.includes('NEW_LOW_NORMAL');
         const bothBackToLow = triggers.includes('BACK_TO_LOW_OFFER') && triggers.includes('BACK_TO_LOW_NORMAL');
         
-        let title = sanitizedName;
         let statusText = '';
         let color = 0x3498db;
         let showDate = false;
-        let triggerDate = date;
+        let triggerDate = null;
 
         if (bothNewLow) {
             statusText = 'Nuevos mínimos históricos';
@@ -338,13 +319,11 @@ class DealMonitor extends Monitor {
         } else if (bothBackToLow) {
             statusText = 'Volvió a precios históricos';
             showDate = true;
-            triggerDate = stored?.minOfferDate; // Use one of them
+            triggerDate = stored?.minOfferDate;
         } else if (triggers.length > 1) {
-            // Mixed triggers (e.g. one is NEW_LOW, other is BACK_TO_LOW)
             statusText = 'Nuevos precios históricos';
             color = 0x2ecc71;
         } else {
-            // Individual triggers
             const type = triggers[0];
             const notificationConfig = {
                 'NEW_LOW_OFFER': { text: 'Nuevo mínimo histórico con Tarjeta', color: 0x2ecc71 },
@@ -359,24 +338,70 @@ class DealMonitor extends Monitor {
             if (details?.date) triggerDate = details.date;
         }
 
-        // Find the best entity for a direct link (excluding mobile plans)
-        const bestEntity = solotodo.findBestEntity(entities, triggers);
-
-        // If no valid non-plan entity is found, we skip the notification as the price 
-        // drop is likely only available with a mobile plan or is an error.
-        if (!bestEntity) return;
-
-        //let description = `[${statusText}](${productUrl})`;
         let description = statusText;
         if (showDate && triggerDate) {
             description += ` de ${formatDiscordTimestamp(triggerDate)}`;
         }
 
-        const embed = new Discord.EmbedBuilder()
-            .setTitle(title)
-            //.setURL(productUrl)
-            .setDescription(description)
+        return { description, color };
+    }
 
+    /**
+     * Attempts to download a fallback image if the primary picture URL is invalid.
+     * @private
+     * @param {object} product The product object.
+     * @param {Array} entities The list of entities.
+     * @returns {Promise<Discord.AttachmentBuilder|null>} The attachment or null.
+     */
+    async _getFallbackAttachment(product, entities) {
+        const allUrls = [
+            product.pictureUrl,
+            ...entities.map(e => e.picture_urls?.[0])
+        ];
+        const candidateUrls = [...new Set(allUrls.filter(Boolean))];
+
+        for (const url of candidateUrls) {
+            try {
+                const { buffer, extension } = await downloadImage(url);
+                const fileName = `product_${product.id}.${extension}`;
+                return new Discord.AttachmentBuilder(buffer, { name: fileName });
+            } catch (error) {
+                console.error(`[DealMonitor] Failed to download fallback image for product ${product.id} from ${url}:`, error.message);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Sends a notification about a deal.
+     * @param {object} change The change details.
+     */
+    async notify(change) {
+        let { product, triggers, stored, type } = change;
+        const channel = this.getNotificationChannel();
+        if (!channel) return;
+
+        // Backward compatibility
+        if (!triggers && type) triggers = [type];
+        if (!Array.isArray(triggers)) triggers = [];
+
+        // 1. Fetch Data
+        const entities = await solotodo.getAvailableEntities(product.id);
+        const storeMap = await solotodo.getStores();
+        const pictureUrl = await solotodo.getBestPictureUrl(product, entities);
+        const bestEntity = solotodo.findBestEntity(entities, triggers);
+
+        // 2. Validate
+        if (!bestEntity) return;
+
+        // 3. Prepare Metadata
+        const sanitizedName = sanitizeLinkText(product.name);
+        const { description, color } = this._getNotificationMetadata(triggers, stored);
+
+        // 4. Build Embed
+        const embed = new Discord.EmbedBuilder()
+            .setTitle(sanitizedName)
+            .setDescription(description)
             .addFields([
                 { name: '💳 Precio Tarjeta', value: `${formatCLP(product.offerPrice)}`, inline: true },
                 { name: '💰 Precio Normal', value: `${formatCLP(product.normalPrice)}`, inline: true }
@@ -391,44 +416,28 @@ class DealMonitor extends Monitor {
             embed.addFields([{ name: `🛒 Vendido por ${storeName}`, value: `[Ir a la tienda ↗](${safeUrl})`, inline: false }]);
         }
 
+        // 5. Handle Image / Attachment
         let attachment = null;
         if (pictureUrl) {
             embed.setThumbnail(pictureUrl);
         } else {
-            // If no valid picture URL was found by getBestPictureUrl, try downloading the raw picture
-            // from Solotodo and uploading it as a Discord attachment.
-            const candidateUrls = [
-                product.pictureUrl,
-                ...(entities || []).map(e => e.picture_urls?.[0])
-            ].filter(Boolean);
-
-            for (const url of candidateUrls) {
-                try {
-                    const { buffer, extension } = await downloadImage(url);
-
-                    const fileName = `product_${product.id}.${extension}`;
-                    attachment = new Discord.AttachmentBuilder(buffer, { name: fileName });
-                    embed.setThumbnail(`attachment://${fileName}`);
-                    break;
-                } catch (error) {
-                    console.error(`[DealMonitor] Failed to download fallback image for product ${product.id} from ${url}:`, error.message);
-                }
+            attachment = await this._getFallbackAttachment(product, entities);
+            if (attachment) {
+                embed.setThumbnail(`attachment://${attachment.name}`);
             }
         }
 
+        // 6. Send
         const messageOptions = { embeds: [embed] };
-        if (attachment) {
-            messageOptions.files = [attachment];
-        }
+        if (attachment) messageOptions.files = [attachment];
 
         const message = await channel.send(messageOptions);
 
-        // Create a thread for discussion if supported (e.g., text channels in real runs)
+        // 7. Create Thread
         if (message && typeof message.startThread === 'function') {
             try {
                 let threadName = sanitizedName;
                 if (threadName.length > 100) {
-                    // Truncate at the last word boundary to avoid cutting words, and add an ellipsis.
                     const lastSpaceIndex = threadName.substring(0, 100).lastIndexOf(' ');
                     const truncationPoint = lastSpaceIndex > 0 ? lastSpaceIndex : 97;
                     threadName = `${threadName.substring(0, truncationPoint)}...`;
