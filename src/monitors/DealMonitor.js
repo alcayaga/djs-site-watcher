@@ -399,8 +399,8 @@ class DealMonitor extends Monitor {
         if (!Array.isArray(triggers)) triggers = [];
 
         if (this.config.verboseLogging) {
-            const minOffer = stored?.minOfferPrice !== undefined ? formatCLP(stored.minOfferPrice) : 'N/A';
-            const minNormal = stored?.minNormalPrice !== undefined ? formatCLP(stored.minNormalPrice) : 'N/A';
+            const minOffer = stored?.minOfferPrice != null ? formatCLP(stored.minOfferPrice) : 'N/A';
+            const minNormal = stored?.minNormalPrice != null ? formatCLP(stored.minNormalPrice) : 'N/A';
             console.log(`[DealMonitor] Raising Discord alert for ${product.name} (ID: ${product.id}). Triggers: ${triggers.join(', ')}. Current: ${formatCLP(product.offerPrice)}/${formatCLP(product.normalPrice)}. Min: ${minOffer}/${minNormal}`);
         }
         
