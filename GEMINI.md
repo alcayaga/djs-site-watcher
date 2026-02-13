@@ -87,7 +87,7 @@ the `update-pr` skill to commit the new changes. After that:
 
 2.  **Loop:**
     If you made code changes to fix the feedback that need a new commit, you must always activate the `update-pr` skill
-    and hanle the new feedback as described in the previous section.
+    and handle the new feedback as described in the previous section.
 
 
 
