@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 
 ### Chores
 
-- **monitor:** Add verbose logging for price changes (e0d5927)
+- **monitor:** Refine verbose logging for price changes (e0d5927)
 
 ## [3.1.0] - 2026-02-12
 
