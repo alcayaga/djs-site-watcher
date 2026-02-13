@@ -127,20 +127,29 @@ class DealMonitor extends Monitor {
         const notificationType = priceType.toUpperCase();
 
         if (currentPrice < stored[minPriceKey]) {
+            if (this.config.verboseLogging) {
+                console.log(`[DealMonitor] ${product.name} (ID: ${product.id}) [${priceType}] NEW HISTORIC LOW: ${formatCLP(stored[minPriceKey])} -> ${formatCLP(currentPrice)}`);
+            }
             stored[minPriceKey] = currentPrice;
             stored[minDateKey] = now;
             stored[lastPriceKey] = currentPrice;
             return `NEW_LOW_${notificationType}`;
         } else if (currentPrice === stored[minPriceKey] && stored[lastPriceKey] > stored[minPriceKey]) {
+            if (this.config.verboseLogging) {
+                console.log(`[DealMonitor] ${product.name} (ID: ${product.id}) [${priceType}] BACK TO HISTORIC LOW: ${formatCLP(currentPrice)}`);
+            }
             stored[lastPriceKey] = currentPrice;
             return `BACK_TO_LOW_${notificationType}`;
         } else if (currentPrice !== stored[lastPriceKey]) {
+            const isIncrease = currentPrice > stored[lastPriceKey];
+            const wasAtMin = stored[lastPriceKey] === stored[minPriceKey];
+
             // Log ALL price changes to debug phantom spikes if verbose logging is enabled
             if (this.config.verboseLogging) {
                 console.log(`[DealMonitor] Price change for ${product.name} (ID: ${product.id}) [${priceType}]: ${formatCLP(stored[lastPriceKey])} -> ${formatCLP(currentPrice)} (Min: ${formatCLP(stored[minPriceKey])})`);
             }
 
-            if (currentPrice > stored[minPriceKey] && stored[lastPriceKey] === stored[minPriceKey]) {
+            if (isIncrease && wasAtMin) {
                 /**
                  * "Update on Exit" Logic:
                  * When the price INCREASES from the historic minimum (i.e., the deal ends),
@@ -151,6 +160,9 @@ class DealMonitor extends Monitor {
                  * in the notification will reflect the LAST time the deal was active (the exit date),
                  * rather than the original first-seen date.
                  */
+                if (this.config.verboseLogging) {
+                    console.log(`[DealMonitor] ${product.name} (ID: ${product.id}) [${priceType}] exited historic low. Updating minDate to ${now}`);
+                }
                 stored[minDateKey] = now;
             }
             stored[lastPriceKey] = currentPrice;
@@ -226,6 +238,7 @@ class DealMonitor extends Monitor {
                                     }
                                 }
                             }
+                            console.log(`[DealMonitor] Backfill for ${product.name} (ID: ${productId}) complete. Min Offer: ${formatCLP(minOffer)} (${minOfferDate}), Min Normal: ${formatCLP(minNormal)} (${minNormalDate})`);
                             // Delay to avoid bursting API
                             await sleep(this.config.apiDelay);
                         } catch (historyError) {
@@ -378,12 +391,20 @@ class DealMonitor extends Monitor {
      */
     async notify(change) {
         let { product, triggers, stored, type } = change;
+        
+        // Backward compatibility & Safety for logging
+        if (!triggers && type) triggers = [type];
+        const safeTriggers = Array.isArray(triggers) ? triggers : [];
+        const minOffer = stored?.minOfferPrice !== undefined ? formatCLP(stored.minOfferPrice) : 'N/A';
+        const minNormal = stored?.minNormalPrice !== undefined ? formatCLP(stored.minNormalPrice) : 'N/A';
+
+        console.log(`[DealMonitor] Raising Discord alert for ${product.name} (ID: ${product.id}). Triggers: ${safeTriggers.join(', ')}. Current: ${formatCLP(product.offerPrice)}/${formatCLP(product.normalPrice)}. Min: ${minOffer}/${minNormal}`);
+        
         const channel = this.getNotificationChannel();
         if (!channel) return;
 
-        // Backward compatibility
-        if (!triggers && type) triggers = [type];
-        if (!Array.isArray(triggers)) triggers = [];
+        // Ensure triggers is an array for the rest of the method
+        if (!Array.isArray(triggers)) triggers = safeTriggers;
 
         // 1. Fetch Data
         const entities = await solotodo.getAvailableEntities(product.id);
