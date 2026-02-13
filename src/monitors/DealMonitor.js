@@ -302,10 +302,9 @@ class DealMonitor extends Monitor {
      * @private
      * @param {Array<string>} triggers The list of triggers.
      * @param {object} stored The stored state.
-     * @param {string} date The current date.
      * @returns {object} Metadata including description and color.
      */
-    _getNotificationMetadata(triggers, stored, date) {
+    _getNotificationMetadata(triggers, stored) {
         const bothNewLow = triggers.includes('NEW_LOW_OFFER') && triggers.includes('NEW_LOW_NORMAL');
         const bothBackToLow = triggers.includes('BACK_TO_LOW_OFFER') && triggers.includes('BACK_TO_LOW_NORMAL');
         
@@ -340,8 +339,8 @@ class DealMonitor extends Monitor {
         }
 
         let description = statusText;
-        if (showDate && (triggerDate || date)) {
-            description += ` de ${formatDiscordTimestamp(triggerDate || date)}`;
+        if (showDate && triggerDate) {
+            description += ` de ${formatDiscordTimestamp(triggerDate)}`;
         }
 
         return { description, color };
@@ -357,7 +356,7 @@ class DealMonitor extends Monitor {
     async _getFallbackAttachment(product, entities) {
         const allUrls = [
             product.pictureUrl,
-            ...(entities || []).map(e => e.picture_urls?.[0])
+            ...entities.map(e => e.picture_urls?.[0])
         ];
         const candidateUrls = [...new Set(allUrls.filter(Boolean))];
 
@@ -378,7 +377,7 @@ class DealMonitor extends Monitor {
      * @param {object} change The change details.
      */
     async notify(change) {
-        let { product, triggers, date, stored, type } = change;
+        let { product, triggers, stored, type } = change;
         const channel = this.getNotificationChannel();
         if (!channel) return;
 
@@ -397,7 +396,7 @@ class DealMonitor extends Monitor {
 
         // 3. Prepare Metadata
         const sanitizedName = sanitizeLinkText(product.name);
-        const { description, color } = this._getNotificationMetadata(triggers, stored, date);
+        const { description, color } = this._getNotificationMetadata(triggers, stored);
 
         // 4. Build Embed
         const embed = new Discord.EmbedBuilder()
