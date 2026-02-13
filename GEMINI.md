@@ -47,6 +47,7 @@ and general website changes, alerting users via Discord. It also supports modula
   (variable names, commit messages, JSDoc, inline comments).
 - **UI/User-Facing Text:** MUST be in **Spanish** (e.g., Discord embed titles, 
   descriptions, error messages sent to users).
+- To avoid shell escaping issues with multi-line Markdown, you **MUST** escape backticks.
 - Actively identify technical debt and propose architectural improvements or
   modernizations alongside your implementation tasks.
 
@@ -70,43 +71,24 @@ Always activate the `pr-creator` skill for PR generation, even when using the
 
 
 ### PR Cycle & CI/CD Loop
-Once the PR is created with the `pr-creator` skill, follow this EXACT cycle.
+Once the PR is created with the `pr-creator` skill and new changes are made, you must always activate 
+the `update-pr` skill to commit the new changes. After that:
 
-1.  **MANDATORY WAIT (CI/CD & Review):**
-    * **STOP.** Do not proceed immediately.
-    * You **MUST** run `sleep 250` in the terminal.
-    * *Why?* This gives time for CI/CD checks to pass AND for the AI reviewer to post its comments.
-    * **Check Status:** AFTER sleeping, run `gh pr checks <PR-NUMBER>` to verify all tests passed.
-    * **If checks fail:** Fix them before reading reviews.
-
-2.  **Fetch Unresolved Reviews (Including Outdated):**
-    * Run exactly:
-        ```bash
-        gh pr-review review view <PR-NUMBER> -R alcayaga/djs-site-watcher --unresolved --reviewer gemini-code-assist
-        ```
-    * **Logic Check:** If the JSON output shows reviews but the `comments` array inside them is empty (or missing), this implies **NO unresolved threads**. You may skip Step 4.
-
-3.  **Handle Feedback (Iterate):**
+1.  **Handle Feedback (Iterate):**
     * **Out of Scope:** If a review request is valid but outside the current PR's scope:
         * **Create Issue:** Create a detailed issue with full context. You MUST tag relevant labels and mention the source PR.
         * `gh issue create --title "Refactor: ..." --body "Extracted from PR #123. Context: ..." --label "refactor"`
         * **Resolve:** `gh pr-review threads resolve ...` with body "Moved to issue #XYZ".
     * **Reply (Contextual):** If you need to reply to a specific thread:
-        * `gh pr-review comments reply <PR-NUMBER> ... --body "Your reply. /gemini review"`
-        * *Note:* Adding `/gemini review` here ONLY provides info on that specific thread.
+        * `gh pr-review comments reply <PR-NUMBER> ... --body "Your reply."`
+        * *Note:* Adding `/gemini review` here ONLY request feedback about that specific thread.
     * **Resolve:** If you fixed the code issue:
         * `gh pr-review threads resolve -R alcayaga/djs-site-watcher <PR-NUMBER> --thread-id <PRRT_ID>`
 
-4.  **Loop:**
-    * If you made code changes to fix the feedback, you must repeat the cycle of:
+2.  **Loop:**
+    If you made code changes to fix the feedback that need a new commit, you must always activate the `update-pr` skill
+    and handle the new feedback as described in the previous section.
 
-    - `npm run preflight`
-    - Commit
-    - Push
-    - Trigger a new review `gh pr comment <PR-NUMBER> --body "/gemini review"
-    - MANDATORY WAIT (CI/CD & Review)
-    - Fetch Unresolved Reviews
-    - Handle Feedback
 
 
 ## Testing Strategy Rules

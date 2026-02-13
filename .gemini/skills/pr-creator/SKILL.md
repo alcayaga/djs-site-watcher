@@ -80,9 +80,28 @@ Follow these steps to create a Pull Request:
       repository uses it (e.g., `feat(ui): add new button`,
       `fix(core): resolve crash`).
 
+9.  **CI/CD Check**: Use the `gh` CLI to verify that all the PR checks have passed.
+
+    ```bash
+    gh pr checks <PR_NUMBER> --watch -i 60
+    ```
+
+10. **Code Review**: Fetch feedback from the AI reviewer
+
+    ```bash
+    node scripts/fetch_reviews.cjs <PR_NUMBER> <REPO> --new
+    ```
+
+
 ## Principles
 
 - **Safety First**: NEVER push to `master`. This is your highest priority.
 - **Compliance**: Never ignore the PR template. It exists for a reason.
 - **Completeness**: Fill out all relevant sections.
 - **Accuracy**: Don't check boxes for tasks you haven't done.
+
+
+## Resources
+
+### scripts/
+- `fetch_reviews.cjs`: Fetches and parses reviews from `gemini-code-assist`.
