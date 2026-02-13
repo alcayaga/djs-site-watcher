@@ -401,12 +401,6 @@ class DealMonitor extends Monitor {
         const channel = this.getNotificationChannel();
         if (!channel) return;
 
-        if (this.config.verboseLogging) {
-            const minOffer = stored?.minOfferPrice != null ? formatCLP(stored.minOfferPrice) : 'N/A';
-            const minNormal = stored?.minNormalPrice != null ? formatCLP(stored.minNormalPrice) : 'N/A';
-            console.log(`[DealMonitor] Raising Discord alert for ${product.name} (ID: ${product.id}). Triggers: ${triggers.join(', ')}. Current: ${formatCLP(product.offerPrice)}/${formatCLP(product.normalPrice)}. Min: ${minOffer}/${minNormal}`);
-        }
-        
         // 1. Fetch Data
         const entities = await solotodo.getAvailableEntities(product.id);
         const storeMap = await solotodo.getStores();
@@ -450,6 +444,12 @@ class DealMonitor extends Monitor {
         }
 
         // 6. Send
+        if (this.config.verboseLogging) {
+            const minOffer = stored?.minOfferPrice != null ? formatCLP(stored.minOfferPrice) : 'N/A';
+            const minNormal = stored?.minNormalPrice != null ? formatCLP(stored.minNormalPrice) : 'N/A';
+            console.log(`[DealMonitor] Raising Discord alert for ${product.name} (ID: ${product.id}). Triggers: ${triggers.join(', ')}. Current: ${formatCLP(product.offerPrice)}/${formatCLP(product.normalPrice)}. Min: ${minOffer}/${minNormal}`);
+        }
+
         const messageOptions = { embeds: [embed] };
         if (attachment) messageOptions.files = [attachment];
 
