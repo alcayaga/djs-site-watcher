@@ -238,7 +238,9 @@ class DealMonitor extends Monitor {
                                     }
                                 }
                             }
-                            console.log(`[DealMonitor] Backfill for ${product.name} (ID: ${productId}) complete. Min Offer: ${formatCLP(minOffer)} (${minOfferDate}), Min Normal: ${formatCLP(minNormal)} (${minNormalDate})`);
+                            if (this.config.verboseLogging) {
+                                console.log(`[DealMonitor] Backfill for ${product.name} (ID: ${productId}) complete. Min Offer: ${formatCLP(minOffer)} (${minOfferDate}), Min Normal: ${formatCLP(minNormal)} (${minNormalDate})`);
+                            }
                             // Delay to avoid bursting API
                             await sleep(this.config.apiDelay);
                         } catch (historyError) {
@@ -395,10 +397,12 @@ class DealMonitor extends Monitor {
         // Backward compatibility & Safety for logging
         if (!triggers && type) triggers = [type];
         const safeTriggers = Array.isArray(triggers) ? triggers : [];
-        const minOffer = stored?.minOfferPrice !== undefined ? formatCLP(stored.minOfferPrice) : 'N/A';
-        const minNormal = stored?.minNormalPrice !== undefined ? formatCLP(stored.minNormalPrice) : 'N/A';
 
-        console.log(`[DealMonitor] Raising Discord alert for ${product.name} (ID: ${product.id}). Triggers: ${safeTriggers.join(', ')}. Current: ${formatCLP(product.offerPrice)}/${formatCLP(product.normalPrice)}. Min: ${minOffer}/${minNormal}`);
+        if (this.config.verboseLogging) {
+            const minOffer = stored?.minOfferPrice !== undefined ? formatCLP(stored.minOfferPrice) : 'N/A';
+            const minNormal = stored?.minNormalPrice !== undefined ? formatCLP(stored.minNormalPrice) : 'N/A';
+            console.log(`[DealMonitor] Raising Discord alert for ${product.name} (ID: ${product.id}). Triggers: ${safeTriggers.join(', ')}. Current: ${formatCLP(product.offerPrice)}/${formatCLP(product.normalPrice)}. Min: ${minOffer}/${minNormal}`);
+        }
         
         const channel = this.getNotificationChannel();
         if (!channel) return;
