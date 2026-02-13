@@ -398,15 +398,15 @@ class DealMonitor extends Monitor {
         if (!triggers && type) triggers = [type];
         if (!Array.isArray(triggers)) triggers = [];
 
+        const channel = this.getNotificationChannel();
+        if (!channel) return;
+
         if (this.config.verboseLogging) {
             const minOffer = stored?.minOfferPrice != null ? formatCLP(stored.minOfferPrice) : 'N/A';
             const minNormal = stored?.minNormalPrice != null ? formatCLP(stored.minNormalPrice) : 'N/A';
             console.log(`[DealMonitor] Raising Discord alert for ${product.name} (ID: ${product.id}). Triggers: ${triggers.join(', ')}. Current: ${formatCLP(product.offerPrice)}/${formatCLP(product.normalPrice)}. Min: ${minOffer}/${minNormal}`);
         }
         
-        const channel = this.getNotificationChannel();
-        if (!channel) return;
-
         // 1. Fetch Data
         const entities = await solotodo.getAvailableEntities(product.id);
         const storeMap = await solotodo.getStores();
