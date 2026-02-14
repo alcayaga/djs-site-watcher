@@ -124,7 +124,31 @@ class DealMonitor extends Monitor {
         const minPriceKey = `min${priceType}Price`;
         const minDateKey = `min${priceType}Date`;
         const lastPriceKey = `last${priceType}Price`;
+        const pendingExitKey = `pendingExit${priceType}`;
         const notificationType = priceType.toUpperCase();
+
+        // 1. Check for Pending Exit Confirmation
+        if (stored[pendingExitKey]) {
+            if (currentPrice > stored[minPriceKey]) {
+                // CONFIRMED EXIT
+                if (this.config.verboseLogging) {
+                    console.log(`[DealMonitor] Confirmed exit from historic low for ${product.name}. Updating minDate to ${stored[pendingExitKey].date}`);
+                }
+                stored[minDateKey] = stored[pendingExitKey].date; // Use the original exit date
+                stored[lastPriceKey] = currentPrice;
+                delete stored[pendingExitKey];
+                return 'CHANGED';
+            } else if (currentPrice === stored[minPriceKey]) {
+                // PHANTOM SPIKE (Back to Min)
+                if (this.config.verboseLogging) {
+                    console.log(`[DealMonitor] Phantom spike ignored for ${product.name}. Returning to historic low state.`);
+                }
+                delete stored[pendingExitKey];
+                return 'PENDING';
+            }
+            // If current < min, treat as NEW_LOW below (clearing pending)
+            delete stored[pendingExitKey];
+        }
 
         if (currentPrice < stored[minPriceKey]) {
             if (this.config.verboseLogging) {
@@ -146,25 +170,26 @@ class DealMonitor extends Monitor {
 
             // Log ALL price changes to debug phantom spikes if verbose logging is enabled
             if (this.config.verboseLogging) {
-                console.log(`[DealMonitor] Price change for ${product.name} (ID: ${product.id}) [${priceType}]: ${formatCLP(stored[lastPriceKey])} -> ${formatCLP(currentPrice)} (Min: ${formatCLP(stored[minPriceKey])})`);
+                console.log(`[DealMonitor] Price change for ${product.name} (ID: ${product.id}) [${priceType}] (Min: ${formatCLP(stored[minPriceKey])})`);
             }
 
             if (isIncrease && wasAtMin) {
                 /**
-                 * "Update on Exit" Logic:
-                 * When the price INCREASES from the historic minimum (i.e., the deal ends),
-                 * we update the 'minDate' to "now".
+                 * "Update on Exit" Logic with Confirmation:
+                 * When the price INCREASES from the historic minimum, we don't update minDate immediately.
+                 * Instead, we mark it as "Pending Exit".
                  * 
                  * Why?
-                 * So that when the price eventually drops BACK to this low, the "Since [Date]" 
-                 * in the notification will reflect the LAST time the deal was active (the exit date),
-                 * rather than the original first-seen date.
+                 * To avoid "Phantom Spikes" where the price goes up for one cycle and immediately returns.
+                 * This prevents false "Back to Historic Low" alerts.
                  */
                 if (this.config.verboseLogging) {
-                    console.log(`[DealMonitor] ${product.name} (ID: ${product.id}) [${priceType}] exited historic low. Updating minDate to ${now}`);
+                    console.log(`[DealMonitor] Potential exit from historic low for ${product.name} (ID: ${product.id}) [${priceType}]. Waiting for confirmation...`);
                 }
-                stored[minDateKey] = now;
+                stored[pendingExitKey] = { date: now, price: currentPrice };
+                return 'PENDING';
             }
+            
             stored[lastPriceKey] = currentPrice;
             return 'CHANGED';
         }
@@ -289,7 +314,7 @@ class DealMonitor extends Monitor {
                 let productChanged = !!(offerTrigger || normalTrigger);
 
                 if (offerTrigger || normalTrigger) {
-                    const triggers = [offerTrigger, normalTrigger].filter(t => t && t !== 'CHANGED');
+                    const triggers = [offerTrigger, normalTrigger].filter(t => t && t !== 'CHANGED' && t !== 'PENDING');
                     if (triggers.length > 0) {
                         await this.notify({ product, triggers, date: now, stored });
                     }
