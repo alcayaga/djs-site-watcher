@@ -171,7 +171,7 @@ class DealMonitor extends Monitor {
 
             // Log ALL price changes to debug phantom spikes if verbose logging is enabled
             if (this.config.verboseLogging) {
-                console.log(`[DealMonitor] Price change for ${product.name} (ID: ${product.id}) [${priceType}] (Min: ${formatCLP(stored[minPriceKey])})`);
+                console.log(`[DealMonitor] Price change for ${product.name} (ID: ${product.id}) [${priceType}]: ${formatCLP(stored[lastPriceKey])} -> ${formatCLP(currentPrice)} (Min: ${formatCLP(stored[minPriceKey])})`);
             }
 
             if (isIncrease && wasAtMin) {
@@ -227,7 +227,7 @@ class DealMonitor extends Monitor {
             for (const product of products) {
                 // Security: Prevent Prototype Pollution
                 const productId = String(product.id);
-                if (productId === '__proto__' || productId === 'constructor' || productId === 'prototype' || productId === 'toString' || productId === 'valueOf') continue;
+                if (productId in Object.prototype) continue;
 
                 let stored = newState[productId];
 
