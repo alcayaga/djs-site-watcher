@@ -1,3 +1,37 @@
+// Override console methods to add timestamps
+const originalLog = console.log;
+const originalWarn = console.warn;
+const originalError = console.error;
+
+/**
+ * Gets the current date and time in a formatted string.
+ * @returns {string} The formatted timestamp [YYYY-MM-DD HH:mm:ss]
+ */
+function getTimestamp() {
+    return new Date().toISOString().replace('T', ' ').substring(0, 19);
+}
+
+/**
+ * Overrides console.log to include a timestamp.
+ * @param {...any} args - The arguments to log.
+ * @returns {void}
+ */
+console.log = (...args) => originalLog(`[${getTimestamp()}]`, ...args);
+
+/**
+ * Overrides console.warn to include a timestamp.
+ * @param {...any} args - The arguments to log.
+ * @returns {void}
+ */
+console.warn = (...args) => originalWarn(`[${getTimestamp()}]`, ...args);
+
+/**
+ * Overrides console.error to include a timestamp.
+ * @param {...any} args - The arguments to log.
+ * @returns {void}
+ */
+console.error = (...args) => originalError(`[${getTimestamp()}]`, ...args);
+
 // Import required modules
 const { Client, GatewayIntentBits, Partials, Events } = require('discord.js');
 const client = new Client({
