@@ -145,9 +145,10 @@ class DealMonitor extends Monitor {
                 }
                 delete stored[pendingExitKey];
                 return 'PENDING';
+            } else {
+                // New low detected, clear pending exit and fall through to new low logic.
+                delete stored[pendingExitKey];
             }
-            // If current < min, treat as NEW_LOW below (clearing pending)
-            delete stored[pendingExitKey];
         }
 
         if (currentPrice < stored[minPriceKey]) {
@@ -186,7 +187,7 @@ class DealMonitor extends Monitor {
                 if (this.config.verboseLogging) {
                     console.log(`[DealMonitor] Potential exit from historic low for ${product.name} (ID: ${product.id}) [${priceType}]. Waiting for confirmation...`);
                 }
-                stored[pendingExitKey] = { date: now, price: currentPrice };
+                stored[pendingExitKey] = { date: now };
                 return 'PENDING';
             }
             
@@ -226,7 +227,7 @@ class DealMonitor extends Monitor {
             for (const product of products) {
                 // Security: Prevent Prototype Pollution
                 const productId = String(product.id);
-                if (productId === '__proto__' || productId === 'constructor' || productId === 'prototype') continue;
+                if (productId === '__proto__' || productId === 'constructor' || productId === 'prototype' || productId === 'toString' || productId === 'valueOf') continue;
 
                 let stored = newState[productId];
 
