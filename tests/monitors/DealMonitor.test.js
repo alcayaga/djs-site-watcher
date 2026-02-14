@@ -49,6 +49,7 @@ describe('DealMonitor', () => {
 
     afterEach(() => {
         jest.restoreAllMocks();
+        jest.useRealTimers();
     });
 
     const mockApiResponse = (products) => {
@@ -222,7 +223,7 @@ describe('DealMonitor', () => {
         expect(monitor.state['1'].lastOfferPrice).toBe(10000);
     });
 
-    it('should update minDate when price INCREASES from historic low (Update on Exit)', async () => {
+    it('should start pending exit when price INCREASES from historic low', async () => {
         const oldDate = '2024-01-01T00:00:00.000Z';
         const newDate = new Date('2024-02-01T00:00:00.000Z');
         
@@ -245,11 +246,13 @@ describe('DealMonitor', () => {
 
         await monitor.check();
 
-        // 1. Verify MinDate Updated to EXACT new date
-        expect(monitor.state['1'].minOfferDate).toBe(newDate.toISOString());
-        expect(monitor.state['1'].minNormalDate).toBe(newDate.toISOString());
+        // 1. Verify MinDate NOT Updated yet (Pending Confirmation)
+        expect(monitor.state['1'].minOfferDate).toBe(oldDate);
+        expect(monitor.state['1'].minNormalDate).toBe(oldDate);
+        expect(monitor.state['1'].pendingExitOffer).toBeDefined();
+        expect(monitor.state['1'].pendingExitNormal).toBeDefined();
         
-        // 2. Verify No Notification (Just a state update)
+        // 2. Verify No Notification
         expect(mockChannel.send).not.toHaveBeenCalled();
 
         jest.useRealTimers();
@@ -290,16 +293,93 @@ describe('DealMonitor', () => {
 
     it('should NOT alert if price stays at historic low', async () => {
         monitor.state = {
-            '1': { id: 1, name: 'iPhone', minOfferPrice: 100, lastOfferPrice: 100, minNormalPrice: 200, lastNormalPrice: 200 }
+            '1': { id: 1, name: 'iPhone', minOfferPrice: 100000, lastOfferPrice: 100000, minNormalPrice: 200000, lastNormalPrice: 200000 }
         };
 
         got.mockResolvedValue({
-            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 100, normalPrice: 200 }])
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 100000, normalPrice: 200000 }])
         });
 
         await monitor.check();
 
         expect(mockChannel.send).not.toHaveBeenCalled();
+    });
+
+    it('should ignore phantom spikes (High -> Low) and NOT trigger Back to Low alert', async () => {
+        // Initial State: At Historic Low
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 100000, minOfferDate: '2024-01-01T00:00:00.000Z',
+                lastOfferPrice: 100000, 
+                minNormalPrice: 200000, minNormalDate: '2024-01-01T00:00:00.000Z',
+                lastNormalPrice: 200000 
+            }
+        };
+
+        // Step 1: Phantom Spike (Price goes up)
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 150000, normalPrice: 200000 }])
+        });
+
+        await monitor.check();
+
+        // Expectation 1: No alert (yet), and minDate should NOT change yet (pending confirmation)
+        expect(mockChannel.send).not.toHaveBeenCalled();
+        expect(monitor.state['1'].minOfferDate).toBe('2024-01-01T00:00:00.000Z');
+        expect(monitor.state['1'].pendingExitOffer).toBeDefined(); // Internal implementation detail check
+
+        // Step 2: Immediate Return (Price goes back down)
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 100000, normalPrice: 200000 }])
+        });
+
+        await monitor.check();
+
+        // Expectation 2: STILL No alert (Phantom ignored)
+        expect(mockChannel.send).not.toHaveBeenCalled();
+        expect(monitor.state['1'].pendingExitOffer).toBeUndefined();
+        expect(monitor.state['1'].lastOfferPrice).toBe(100000);
+    });
+
+    it('should confirm price increase after two checks and update minDate', async () => {
+        const startDate = '2024-01-01T00:00:00.000Z';
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 100000, minOfferDate: startDate,
+                lastOfferPrice: 100000, 
+                minNormalPrice: 200000, minNormalDate: startDate,
+                lastNormalPrice: 200000 
+            }
+        };
+
+        const now = new Date();
+        jest.useFakeTimers().setSystemTime(now);
+
+        // Step 1: Price Increase (First detection)
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 150000, normalPrice: 200000 }])
+        });
+
+        await monitor.check();
+
+        // Not confirmed yet
+        expect(monitor.state['1'].minOfferDate).toBe(startDate);
+
+        // Step 2: Price Increase Sustained (Confirmation)
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 150000, normalPrice: 200000 }])
+        });
+
+        await monitor.check();
+
+        // Confirmed! Date should be updated to the time of the FIRST detection (Step 1)
+        expect(monitor.state['1'].minOfferDate).toBe(now.toISOString());
+        expect(monitor.state['1'].pendingExitOffer).toBeUndefined();
+        expect(monitor.state['1'].lastOfferPrice).toBe(150000);
+
+        jest.useRealTimers();
     });
 
     it('should process products regardless of brand (filtering happens at API level)', async () => {
