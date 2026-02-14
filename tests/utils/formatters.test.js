@@ -21,7 +21,16 @@ describe('Formatters Utils', () => {
         });
 
         it('should return code block with input string if date is invalid', () => {
+            // Note: sanitizeMarkdown does not escape hyphens, so 'invalid-date' remains as is
             expect(formatDiscordTimestamp('invalid-date')).toBe('`invalid-date`');
+        });
+
+        it('should sanitize invalid date strings to prevent markdown injection', () => {
+            const maliciousInput = '` @everyone';
+            // Expect backticks to be escaped and mentions to be defanged
+            // sanitizeMarkdown('` @everyone') -> '\` @\u200beveryone'
+            // formatDiscordTimestamp wraps it in backticks -> `\` @\u200beveryone`
+            expect(formatDiscordTimestamp(maliciousInput)).toBe('`\\` @\u200beveryone`');
         });
     });
 
