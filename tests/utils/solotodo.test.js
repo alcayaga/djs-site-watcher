@@ -105,7 +105,7 @@ describe('Solotodo Utils - API functions', () => {
 
         const result = await searchSolotodo('iPhone 15');
         expect(result.id).toBe(2);
-        expect(got).toHaveBeenCalledWith(expect.stringContaining('search=iPhone%2015'), expect.any(Object));
+        expect(got).toHaveBeenCalledWith(expect.stringContaining('search=iPhone+15'), expect.any(Object));
     });
 
     it('searchByUrl should return product and augment it with picture and slug if missing', async () => {

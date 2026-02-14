@@ -82,7 +82,10 @@ function getSearchUrl(query) {
  * @returns {Promise<object|null>} The first product found or null.
  */
 async function searchSolotodo(query) {
-    const response = await got(`${SOLOTODO_API_URL}/products?search=${encodeURIComponent(query)}`, {
+    const url = new URL(`${SOLOTODO_API_URL}/products/`);
+    url.searchParams.set('search', query);
+    const response = await got(url.toString(), {
+        ...getSafeGotOptions(),
         responseType: 'json'
     });
 
@@ -194,7 +197,10 @@ function extractQuery(content) {
  */
 async function searchByUrl(url) {
     try {
-        const response = await got(`${SOLOTODO_API_URL}/entities/by_url/?url=${encodeURIComponent(url)}`, {
+        const apiUrl = new URL(`${SOLOTODO_API_URL}/entities/by_url/`);
+        apiUrl.searchParams.set('url', url);
+        const response = await got(apiUrl.toString(), {
+            ...getSafeGotOptions(),
             responseType: 'json'
         });
 
@@ -327,6 +333,7 @@ async function getStores() {
     }
 
     const response = await got(`${SOLOTODO_API_URL}/stores/`, {
+        ...getSafeGotOptions(),
         responseType: 'json'
     });
 
