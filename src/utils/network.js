@@ -1,6 +1,9 @@
 const dns = require('dns');
 const ipaddr = require('ipaddr.js');
 
+const DEFAULT_REQUEST_TIMEOUT = 10000;
+const DEFAULT_RETRY_LIMIT = 2;
+
 /**
  * Checks if an IP address is private or reserved.
  * @param {string} ip The IP address.
@@ -24,6 +27,22 @@ function isPrivateIP(ip) {
  */
 function getSafeGotOptions() {
     return {
+        timeout: {
+            request: DEFAULT_REQUEST_TIMEOUT
+        },
+        retry: {
+            limit: DEFAULT_RETRY_LIMIT
+        },
+        hooks: {
+            beforeRequest: [
+                (options) => {
+                    const hostname = options.url.hostname;
+                    if (ipaddr.isValid(hostname) && isPrivateIP(hostname)) {
+                        throw new Error(`SSRF Prevention: Access to private IP ${hostname} is denied.`);
+                    }
+                }
+            ]
+        },
         /**
          * Custom DNS lookup to prevent access to private IP addresses.
          * @param {string} hostname The hostname to lookup.

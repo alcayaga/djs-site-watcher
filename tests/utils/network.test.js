@@ -1,6 +1,31 @@
-const { isPrivateIP } = require('../../src/utils/network');
+const { isPrivateIP, getSafeGotOptions } = require('../../src/utils/network');
 
 describe('Network Utils', () => {
+    describe('getSafeGotOptions', () => {
+        it('should return default timeout and retry options', () => {
+            const options = getSafeGotOptions();
+            expect(options.timeout.request).toBe(10000);
+            expect(options.retry.limit).toBe(2);
+            expect(typeof options.dnsLookup).toBe('function');
+            expect(options.hooks.beforeRequest).toHaveLength(1);
+        });
+
+        it('should block private IPs in beforeRequest hook', () => {
+            const options = getSafeGotOptions();
+            const beforeRequest = options.hooks.beforeRequest[0];
+            
+            const mockOptions = (hostname) => ({
+                url: { hostname }
+            });
+
+            expect(() => beforeRequest(mockOptions('127.0.0.1'))).toThrow('SSRF Prevention');
+            expect(() => beforeRequest(mockOptions('10.0.0.1'))).toThrow('SSRF Prevention');
+            expect(() => beforeRequest(mockOptions('192.168.1.1'))).toThrow('SSRF Prevention');
+            expect(() => beforeRequest(mockOptions('google.com'))).not.toThrow();
+            expect(() => beforeRequest(mockOptions('8.8.8.8'))).not.toThrow();
+        });
+    });
+
     describe('isPrivateIP', () => {
         it('should return true for private IPv4 addresses', () => {
             expect(isPrivateIP('127.0.0.1')).toBe(true);
