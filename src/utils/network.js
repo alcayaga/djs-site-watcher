@@ -1,6 +1,9 @@
 const dns = require('dns');
 const ipaddr = require('ipaddr.js');
 
+const DEFAULT_REQUEST_TIMEOUT = 10000;
+const DEFAULT_RETRY_LIMIT = 2;
+
 /**
  * Checks if an IP address is private or reserved.
  * @param {string} ip The IP address.
@@ -25,10 +28,10 @@ function isPrivateIP(ip) {
 function getSafeGotOptions() {
     return {
         timeout: {
-            request: 10000
+            request: DEFAULT_REQUEST_TIMEOUT
         },
         retry: {
-            limit: 2
+            limit: DEFAULT_RETRY_LIMIT
         },
         /**
          * Custom DNS lookup to prevent access to private IP addresses.
