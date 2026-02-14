@@ -355,7 +355,7 @@ class DealMonitor extends Monitor {
 
         let description = statusText;
         if (showDate && triggerDate) {
-            description += ` de ${formatDiscordTimestamp(triggerDate)}`;
+            description += ` de ${formatDiscordTimestamp(triggerDate, 'd')}`;
         }
 
         return { description, color };

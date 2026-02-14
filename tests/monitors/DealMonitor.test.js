@@ -213,7 +213,7 @@ describe('DealMonitor', () => {
         const embed = sendCall.embeds[0];
         expect(embed.data.title).toBe('iPhone');
         // Unix for 2024-12-01T10:00:00Z is 1733047200
-        expect(embed.data.description).toBe('Volvió al mínimo histórico con Tarjeta de <t:1733047200:R>');
+        expect(embed.data.description).toBe('Volvió al mínimo histórico con Tarjeta de <t:1733047200:d>');
         expect(embed.data.footer.text).toBe('powered by Solotodo');
         
         const dateField = embed.data.fields.find(f => f.name === '🕒 Precio visto por última vez');
@@ -282,7 +282,7 @@ describe('DealMonitor', () => {
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
         
-        expect(embed.data.description).toBe(`Volvió a precios históricos de <t:${exitUnix}:R>`);
+        expect(embed.data.description).toBe(`Volvió a precios históricos de <t:${exitUnix}:d>`);
         
         // 2. Verify Date did NOT update again (it keeps the exit date)
         expect(monitor.state['1'].minOfferDate).toBe(exitDate);

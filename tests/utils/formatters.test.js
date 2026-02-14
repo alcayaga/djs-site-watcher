@@ -1,6 +1,30 @@
-const { sanitizeMarkdown, sanitizeLinkText } = require('../../src/utils/formatters');
+const { sanitizeMarkdown, sanitizeLinkText, formatDiscordTimestamp } = require('../../src/utils/formatters');
 
 describe('Formatters Utils', () => {
+    describe('formatDiscordTimestamp', () => {
+        it('should format valid date string with default style (R)', () => {
+            const date = new Date('2023-01-01T00:00:00Z');
+            const unix = Math.floor(date.getTime() / 1000);
+            expect(formatDiscordTimestamp(date.toISOString())).toBe(`<t:${unix}:R>`);
+        });
+
+        it('should format valid date string with custom style', () => {
+            const date = new Date('2023-01-01T00:00:00Z');
+            const unix = Math.floor(date.getTime() / 1000);
+            expect(formatDiscordTimestamp(date.toISOString(), 'd')).toBe(`<t:${unix}:d>`);
+            expect(formatDiscordTimestamp(date.toISOString(), 'F')).toBe(`<t:${unix}:F>`);
+        });
+
+        it('should return "Nunca" for empty input', () => {
+            expect(formatDiscordTimestamp(null)).toBe('Nunca');
+            expect(formatDiscordTimestamp('')).toBe('Nunca');
+        });
+
+        it('should return code block with input string if date is invalid', () => {
+            expect(formatDiscordTimestamp('invalid-date')).toBe('`invalid-date`');
+        });
+    });
+
     describe('sanitizeMarkdown', () => {
         it('should escape backticks', () => {
             const input = 'Code with `backticks`';

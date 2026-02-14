@@ -1,14 +1,15 @@
 /**
  * Formats a date string to a Discord relative timestamp.
  * @param {string} dateStr The date string to format.
+ * @param {string} [style='R'] The Discord timestamp style (e.g., 'R', 'd', 'D', 't', 'T', 'f', 'F'). Defaults to 'R' (Relative).
  * @returns {string} The formatted Discord timestamp, or "Nunca" if the date is invalid or missing.
  */
-function formatDiscordTimestamp(dateStr) {
+function formatDiscordTimestamp(dateStr, style = 'R') {
     if (!dateStr) return 'Nunca';
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return `\`${dateStr}\``;
     const unix = Math.floor(date.getTime() / 1000);
-    return `<t:${unix}:R>`;
+    return `<t:${unix}:${style}>`;
 }
 
 /**
