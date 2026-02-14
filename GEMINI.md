@@ -108,3 +108,5 @@ When validating changes, ALWAYS follow this strict execution order:
 
 ## Troubleshooting
 If you need access to Production data, you can get the instructions at docs/production.md
+
+(This file is not committed to the repository as it contains sensitive information.)

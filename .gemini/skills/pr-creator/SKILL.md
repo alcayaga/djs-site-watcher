@@ -83,7 +83,7 @@ Follow these steps to create a Pull Request:
 9.  **CI/CD Check**: Use the `gh` CLI to verify that all the PR checks have passed.
 
     ```bash
-    gh pr checks <PR_NUMBER> --watch -i 60
+    gh pr checks <PR_NUMBER> --watch -i 10
     ```
 
 10. **Code Review**: Fetch feedback from the AI reviewer
