@@ -129,14 +129,16 @@ class DealMonitor extends Monitor {
 
         // 1. Check for Pending Exit Confirmation
         if (stored[pendingExitKey]) {
+            const pendingExitDate = stored[pendingExitKey].date;
+            delete stored[pendingExitKey]; // Delete upfront to avoid repetition
+
             if (currentPrice > stored[minPriceKey]) {
                 // CONFIRMED EXIT
                 if (this.config.verboseLogging) {
-                    console.log(`[DealMonitor] Confirmed exit from historic low for ${product.name}. Updating minDate to ${stored[pendingExitKey].date}`);
+                    console.log(`[DealMonitor] Confirmed exit from historic low for ${product.name}. Updating minDate to ${pendingExitDate}`);
                 }
-                stored[minDateKey] = stored[pendingExitKey].date; // Use the original exit date
+                stored[minDateKey] = pendingExitDate; // Use the original exit date
                 stored[lastPriceKey] = currentPrice;
-                delete stored[pendingExitKey];
                 return 'CHANGED';
             } else if (currentPrice === stored[minPriceKey]) {
                 // PHANTOM SPIKE (Back to Min)
@@ -144,12 +146,10 @@ class DealMonitor extends Monitor {
                     console.log(`[DealMonitor] Phantom spike ignored for ${product.name}. Returning to historic low state.`);
                 }
                 stored[lastPriceKey] = currentPrice;
-                delete stored[pendingExitKey];
                 return 'PENDING';
-            } else {
-                // New low detected, clear pending exit and fall through to new low logic.
-                delete stored[pendingExitKey];
             }
+            // If currentPrice < stored[minPriceKey], we fall through to the new low logic below.
+            // The pending exit has been correctly cleared.
         }
 
         if (currentPrice < stored[minPriceKey]) {
