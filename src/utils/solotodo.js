@@ -42,8 +42,10 @@ const APPLE_PRODUCTS = [
 
 const SOLOTODO_BASE_URL = 'https://www.solotodo.cl';
 const SOLOTODO_API_URL = 'https://publicapi.solotodo.com';
-const SOLOTODO_CLP_CURRENCY_URL = `${SOLOTODO_API_URL}/currencies/1/`;
-const SOLOTODO_USD_CURRENCY_URL = `${SOLOTODO_API_URL}/currencies/4/`;
+const SOLOTODO_CLP_CURRENCY_ID = '1';
+const SOLOTODO_USD_CURRENCY_ID = '4';
+const SOLOTODO_CLP_CURRENCY_URL = `${SOLOTODO_API_URL}/currencies/${SOLOTODO_CLP_CURRENCY_ID}/`;
+const SOLOTODO_USD_CURRENCY_URL = `${SOLOTODO_API_URL}/currencies/${SOLOTODO_USD_CURRENCY_ID}/`;
 const CHILE_COUNTRY_ID = '1';
 
 const REFURBISHED_CONDITION_URL = 'https://schema.org/RefurbishedCondition';
@@ -403,6 +405,8 @@ function findBestEntity(entities, triggers = []) {
 module.exports = {
     SOLOTODO_BASE_URL,
     SOLOTODO_API_URL,
+    SOLOTODO_CLP_CURRENCY_ID,
+    SOLOTODO_USD_CURRENCY_ID,
     SOLOTODO_CLP_CURRENCY_URL,
     SOLOTODO_USD_CURRENCY_URL,
     CHILE_COUNTRY_ID,
