@@ -59,7 +59,7 @@ Follow these steps to commit new changes to an existing Pull Request:
 9.  **CI/CD Check**: Use the `gh` CLI to verify that all the PR checks have passed.
 
     ```bash
-    gh pr checks <PR_NUMBER> --watch -i 60
+    gh pr checks <PR_NUMBER> --watch -i 10
     ```
 
 10. **Fetch Unresolved Reviews**: Fetch any unresolved feedback to address in the next iteration.
