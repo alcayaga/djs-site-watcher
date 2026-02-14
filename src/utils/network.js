@@ -33,6 +33,16 @@ function getSafeGotOptions() {
         retry: {
             limit: DEFAULT_RETRY_LIMIT
         },
+        hooks: {
+            beforeRequest: [
+                (options) => {
+                    const hostname = options.url.hostname;
+                    if (ipaddr.isValid(hostname) && isPrivateIP(hostname)) {
+                        throw new Error(`SSRF Prevention: Access to private IP ${hostname} is denied.`);
+                    }
+                }
+            ]
+        },
         /**
          * Custom DNS lookup to prevent access to private IP addresses.
          * @param {string} hostname The hostname to lookup.
