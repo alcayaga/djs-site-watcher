@@ -143,6 +143,7 @@ class DealMonitor extends Monitor {
                 if (this.config.verboseLogging) {
                     console.log(`[DealMonitor] Phantom spike ignored for ${product.name}. Returning to historic low state.`);
                 }
+                stored[lastPriceKey] = currentPrice;
                 delete stored[pendingExitKey];
                 return 'PENDING';
             } else {
@@ -187,6 +188,7 @@ class DealMonitor extends Monitor {
                 if (this.config.verboseLogging) {
                     console.log(`[DealMonitor] Potential exit from historic low for ${product.name} (ID: ${product.id}) [${priceType}]. Waiting for confirmation...`);
                 }
+                stored[lastPriceKey] = currentPrice;
                 stored[pendingExitKey] = { date: now };
                 return 'PENDING';
             }
