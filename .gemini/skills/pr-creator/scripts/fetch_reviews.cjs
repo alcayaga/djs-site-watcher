@@ -34,8 +34,18 @@ if (!prNumber || !repo) {
 }
 
 // --- Helper Functions ---
+/**
+ * Sleeps for a specified number of milliseconds.
+ * @param {number} ms The number of milliseconds to sleep.
+ * @returns {Promise<void>} A promise that resolves after the specified time.
+ */
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+/**
+ * Executes a shell command and returns the parsed JSON output.
+ * @param {string} command The command to execute.
+ * @returns {Promise<Object|null>} The parsed JSON output or null if empty/error.
+ */
 async function execCmd(command) {
   try {
     const { stdout } = await execPromise(command);
@@ -48,12 +58,20 @@ async function execCmd(command) {
   }
 }
 
+/**
+ * Gets the latest comment from the PR.
+ * @returns {Promise<Object|null>} The latest comment object or null if none found.
+ */
 async function getLatestComment() {
   const data = await execCmd(`gh pr view ${prNumber} -R ${repo} --json comments`);
   if (!data || !data.comments || data.comments.length === 0) return null;
   return data.comments[data.comments.length - 1];
 }
 
+/**
+ * Fetches reviews that are either changes requested or have unresolved comments.
+ * @returns {Promise<Array>} An array of review objects.
+ */
 async function getReviews() {
   const cmd = `gh pr-review review view ${prNumber} -R ${repo} --reviewer ${BOT_NAME} --unresolved`;
   const data = await execCmd(cmd);
@@ -72,6 +90,11 @@ async function getReviews() {
   });
 }
 
+/**
+ * Counts the number of unresolved threads in the reviews.
+ * @param {Array} reviews The array of review objects.
+ * @returns {number} The count of unresolved threads.
+ */
 function countUnresolvedThreads(reviews) {
   let count = 0;
   reviews.forEach(r => {
@@ -86,6 +109,10 @@ function countUnresolvedThreads(reviews) {
 }
 
 // --- Main Logic ---
+/**
+ * Main function to monitor the PR for reviews.
+ * @returns {Promise<void>}
+ */
 async function main() {
   const startTime = Date.now();
   let triggerTimestamp = 0; 
