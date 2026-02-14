@@ -1,6 +1,15 @@
-const { isPrivateIP } = require('../../src/utils/network');
+const { isPrivateIP, getSafeGotOptions } = require('../../src/utils/network');
 
 describe('Network Utils', () => {
+    describe('getSafeGotOptions', () => {
+        it('should return default timeout and retry options', () => {
+            const options = getSafeGotOptions();
+            expect(options.timeout.request).toBe(10000);
+            expect(options.retry.limit).toBe(2);
+            expect(typeof options.dnsLookup).toBe('function');
+        });
+    });
+
     describe('isPrivateIP', () => {
         it('should return true for private IPv4 addresses', () => {
             expect(isPrivateIP('127.0.0.1')).toBe(true);

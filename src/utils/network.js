@@ -24,6 +24,12 @@ function isPrivateIP(ip) {
  */
 function getSafeGotOptions() {
     return {
+        timeout: {
+            request: 10000
+        },
+        retry: {
+            limit: 2
+        },
         /**
          * Custom DNS lookup to prevent access to private IP addresses.
          * @param {string} hostname The hostname to lookup.
