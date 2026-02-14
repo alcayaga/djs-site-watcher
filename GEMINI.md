@@ -71,10 +71,9 @@ Always activate the `pr-creator` skill for PR generation, even when using the
 
 
 ### PR Cycle & CI/CD Loop
-Once the PR is created with the `pr-creator` skill and new changes are made, you must always activate 
-the `update-pr` skill to commit the new changes. After that:
+Once the PR is created with the `pr-creator` skill, you are going to get the results of the PR checks and a Code Review.
 
-1.  **Handle Feedback (Iterate):**
+1.  **Code Review:**
     * **Out of Scope:** If a review request is valid but outside the current PR's scope:
         * **Create Issue:** Create a detailed issue with full context. You MUST tag relevant labels and mention the source PR.
         * `gh issue create --title "Refactor: ..." --body "Extracted from PR #123. Context: ..." --label "refactor"`
@@ -86,10 +85,13 @@ the `update-pr` skill to commit the new changes. After that:
         * `gh pr-review threads resolve -R alcayaga/djs-site-watcher <PR-NUMBER> --thread-id <PRRT_ID>`
 
 2.  **Loop:**
-    If you made code changes to fix the feedback that need a new commit, you must always activate the `update-pr` skill
-    and handle the new feedback as described in the previous section.
+    If you made code changes to resolve a feedback review. After the changes are made, then you must always activate the `update-pr` skill
+    in order to commit new changes to an existing pull request.
 
+    After the skill is executed, you are going to get the results of the PR checks and a new Code Review. Iterate on the feedback
+    as described on the last section.
 
+The loop ends once there are no more unattended reviews or after 5 iterations as long as there is only medium priority reviews or lower.
 
 ## Testing Strategy Rules
 When validating changes, ALWAYS follow this strict execution order:
@@ -101,3 +103,10 @@ When validating changes, ALWAYS follow this strict execution order:
 
 2. **Full Validation:**
    - Execute only if targeted test passes: `npm run preflight`
+
+
+## Troubleshooting
+If you need access to Production data, you can access the server using `ssh gemini-cli@home.alcayaga.net`
+
+* Enviroment location: `/home/pi/bin/djs-site-watcher`
+* Logs: `/home/pi/.pm2/logs`

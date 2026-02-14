@@ -75,11 +75,9 @@ async function getReviews() {
 function countUnresolvedThreads(reviews) {
   let count = 0;
   reviews.forEach(r => {
-    // If it's a "Request Changes" with no comments, that counts as 1 "blocker"
     if (r.state === 'CHANGES_REQUESTED' && (!r.comments || r.comments.length === 0)) {
       count++;
     } 
-    // Otherwise count the specific unresolved comments
     else if (r.comments) {
       count += r.comments.filter(c => c.is_resolved === false).length;
     }
@@ -107,8 +105,10 @@ async function main() {
     }
 
     const body = latestComment.body ? latestComment.body.trim().toLowerCase() : "";
-    if (!body.startsWith(TRIGGER_PHRASE)) {
-      console.error(`   ✖ Latest comment is not '${TRIGGER_PHRASE}'. Exiting.`);
+    
+    // CHANGED: Use .includes() instead of .startsWith() to allow mixed comments
+    if (!body.includes(TRIGGER_PHRASE)) {
+      console.error(`   ✖ Latest comment does not contain '${TRIGGER_PHRASE}'. Exiting.`);
       process.exit(0);
     }
 
@@ -125,8 +125,6 @@ async function main() {
 
   console.error(`   ℹ️  Found ${threadCount} unresolved items (across ${reviews.length} reviews).`);
   
-  // Find if any of these are NEWER than the trigger
-  // (In --new mode, triggerTimestamp is 0, so any existence is enough)
   const completedReview = reviews.find(r => {
     const reviewTime = new Date(r.submitted_at).getTime();
     return reviewTime > triggerTimestamp;
@@ -134,7 +132,6 @@ async function main() {
 
   if (completedReview) {
     console.error("\n✅ Unresolved review found!");
-    // OUTPUT: Compact JSON for the agent
     console.log(JSON.stringify(reviews)); 
     process.exit(0);
   }
@@ -159,7 +156,6 @@ async function main() {
     if (newReviews.length > 0) {
       const newCount = countUnresolvedThreads(newReviews);
       console.error(`\n🎉 New review detected! (${newCount} new unresolved items)`);
-      // OUTPUT: Compact JSON for the agent
       console.log(JSON.stringify(currentReviews)); 
       process.exit(0);
     }
