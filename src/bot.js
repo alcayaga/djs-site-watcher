@@ -19,7 +19,16 @@ methodsToPatch.forEach(method => {
          * @returns {void}
          */
         console[method] = (...args) => {
-            originalMethod(`[${getTimestamp()}]`, ...args);
+            const timestamp = `[${getTimestamp()}]`;
+            if (args.length > 0 && typeof args[0] === 'string') {
+                // If the first argument is a string, prepend the timestamp to it
+                // to preserve printf-like formatting (e.g., console.log('%s', val))
+                args[0] = `${timestamp} ${args[0]}`;
+                originalMethod(...args);
+            } else {
+                // Otherwise, just prepend the timestamp as a separate argument
+                originalMethod(timestamp, ...args);
+            }
         };
     }
 });
