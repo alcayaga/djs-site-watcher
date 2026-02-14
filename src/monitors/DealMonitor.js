@@ -175,6 +175,8 @@ class DealMonitor extends Monitor {
                 console.log(`[DealMonitor] Price change for ${product.name} (ID: ${product.id}) [${priceType}]: ${formatCLP(stored[lastPriceKey])} -> ${formatCLP(currentPrice)} (Min: ${formatCLP(stored[minPriceKey])})`);
             }
 
+            stored[lastPriceKey] = currentPrice;
+
             if (isIncrease && wasAtMin) {
                 /**
                  * "Update on Exit" Logic with Confirmation:
@@ -188,12 +190,10 @@ class DealMonitor extends Monitor {
                 if (this.config.verboseLogging) {
                     console.log(`[DealMonitor] Potential exit from historic low for ${product.name} (ID: ${product.id}) [${priceType}]. Waiting for confirmation...`);
                 }
-                stored[lastPriceKey] = currentPrice;
                 stored[pendingExitKey] = { date: now };
                 return 'PENDING';
             }
             
-            stored[lastPriceKey] = currentPrice;
             return 'CHANGED';
         }
         return null;
