@@ -1,8 +1,4 @@
 // Override console methods to add timestamps
-const originalLog = console.log;
-const originalWarn = console.warn;
-const originalError = console.error;
-
 /**
  * Gets the current date and time in a formatted string.
  * @returns {string} The formatted timestamp [YYYY-MM-DD HH:mm:ss]
@@ -11,26 +7,22 @@ function getTimestamp() {
     return new Date().toISOString().replace('T', ' ').substring(0, 19);
 }
 
-/**
- * Overrides console.log to include a timestamp.
- * @param {...any} args - The arguments to log.
- * @returns {void}
- */
-console.log = (...args) => originalLog(`[${getTimestamp()}]`, ...args);
+const methodsToPatch = ['log', 'warn', 'error', 'info', 'debug', 'trace'];
 
-/**
- * Overrides console.warn to include a timestamp.
- * @param {...any} args - The arguments to log.
- * @returns {void}
- */
-console.warn = (...args) => originalWarn(`[${getTimestamp()}]`, ...args);
-
-/**
- * Overrides console.error to include a timestamp.
- * @param {...any} args - The arguments to log.
- * @returns {void}
- */
-console.error = (...args) => originalError(`[${getTimestamp()}]`, ...args);
+methodsToPatch.forEach(method => {
+    // Only patch existing methods to avoid errors
+    if (typeof console[method] === 'function') {
+        const originalMethod = console[method];
+        /**
+         * Overrides the console method to include a timestamp.
+         * @param {...any} args - The arguments to log.
+         * @returns {void}
+         */
+        console[method] = (...args) => {
+            originalMethod(`[${getTimestamp()}]`, ...args);
+        };
+    }
+});
 
 // Import required modules
 const { Client, GatewayIntentBits, Partials, Events } = require('discord.js');
