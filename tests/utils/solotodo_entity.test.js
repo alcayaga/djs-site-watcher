@@ -2,8 +2,8 @@ const solotodo = require('../../src/utils/solotodo');
 
 describe('Solotodo Entity Selection', () => {
     describe('findBestEntity', () => {
-        const REFURBISHED_URL = 'https://schema.org/RefurbishedCondition';
-        const NEW_URL = 'https://schema.org/NewCondition';
+        const REFURBISHED_URL = solotodo.REFURBISHED_CONDITION_URL;
+        const NEW_URL = solotodo.NEW_CONDITION_URL;
 
         it('should return null if entities list is empty or null', () => {
             expect(solotodo.findBestEntity([])).toBeNull();

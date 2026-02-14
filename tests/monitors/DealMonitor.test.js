@@ -65,7 +65,7 @@ describe('DealMonitor', () => {
                 },
                 metadata: {
                     prices_per_currency: [{
-                        currency: 'https://publicapi.solotodo.com/currencies/1/',
+                        currency: solotodo.SOLOTODO_CLP_CURRENCY_URL,
                         offer_price: p.offerPrice.toString(),
                         normal_price: p.normalPrice.toString()
                     }]
@@ -168,7 +168,7 @@ describe('DealMonitor', () => {
         monitor.state = {};
         solotodo.getProductHistory.mockResolvedValue([
             {
-                entity: { currency: 'https://publicapi.solotodo.com/currencies/1/' },
+                entity: { currency: solotodo.SOLOTODO_CLP_CURRENCY_URL },
                 pricing_history: [
                     { is_available: true, offer_price: "400000", normal_price: "410000", timestamp: "2024-12-01T10:00:00Z" }, // First hit of low
                     { is_available: true, offer_price: "400000", normal_price: "410000", timestamp: "2024-12-05T10:00:00Z" }, // Latest hit of low (Should be this one)
@@ -335,7 +335,7 @@ describe('DealMonitor', () => {
                     },
                     metadata: {
                         prices_per_currency: [{
-                            currency: 'https://publicapi.solotodo.com/currencies/1/',
+                            currency: solotodo.SOLOTODO_CLP_CURRENCY_URL,
                             offer_price: "99990",
                             normal_price: "109990"
                         }]
@@ -390,11 +390,11 @@ describe('DealMonitor', () => {
                     metadata: {
                         prices_per_currency: [
                             {
-                                currency: 'https://publicapi.solotodo.com/currencies/4/', // USD
+                                currency: solotodo.SOLOTODO_USD_CURRENCY_URL, // USD
                                 offer_price: "799.00", normal_price: "799.00"
                             },
                             {
-                                currency: 'https://publicapi.solotodo.com/currencies/1/', // CLP
+                                currency: solotodo.SOLOTODO_CLP_CURRENCY_URL, // CLP
                                 offer_price: "1000000.00", normal_price: "1100000.00"
                             }
                         ]
@@ -415,11 +415,11 @@ describe('DealMonitor', () => {
         monitor.state = {};
         solotodo.getProductHistory.mockResolvedValue([
             {
-                entity: { currency: 'https://publicapi.solotodo.com/currencies/4/' }, // USD
+                entity: { currency: solotodo.SOLOTODO_USD_CURRENCY_URL }, // USD
                 pricing_history: [{ is_available: true, offer_price: "799", normal_price: "799", timestamp: "2024-12-01T10:00:00Z" }]
             },
             {
-                entity: { currency: 'https://publicapi.solotodo.com/currencies/1/' }, // CLP
+                entity: { currency: solotodo.SOLOTODO_CLP_CURRENCY_URL }, // CLP
                 pricing_history: [{ is_available: true, offer_price: "1000000", normal_price: "1100000", timestamp: "2024-12-02T10:00:00Z" }]
             }
         ]);
@@ -515,7 +515,7 @@ describe('DealMonitor', () => {
             {
                 active_registry: { offer_price: "599000", normal_price: "599000", cell_monthly_payment: null },
                 external_url: "https://abc.cl",
-                condition: "https://schema.org/NewCondition",
+                condition: solotodo.NEW_CONDITION_URL,
                 store: "https://api.com/stores/3/"
             }
         ]);
