@@ -80,7 +80,7 @@ class DealMonitor extends Monitor {
                     
                     // Find the CLP (Currency 1) price in the metadata
                     const prices = entry?.metadata?.prices_per_currency?.find(p => 
-                        p.currency === 'https://publicapi.solotodo.com/currencies/1/'
+                        p.currency === solotodo.SOLOTODO_CLP_CURRENCY_URL
                     );
 
                     if (!product || !prices) {
@@ -218,7 +218,7 @@ class DealMonitor extends Monitor {
                             const history = await solotodo.getProductHistory(productId);
                             for (const entity of history) {
                                 // Only backfill history from CLP (Currency 1) entities
-                                if (entity.entity?.currency !== 'https://publicapi.solotodo.com/currencies/1/') {
+                                if (entity.entity?.currency !== solotodo.SOLOTODO_CLP_CURRENCY_URL) {
                                     continue;
                                 }
 

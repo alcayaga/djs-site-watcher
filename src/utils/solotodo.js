@@ -41,6 +41,16 @@ const APPLE_PRODUCTS = [
 ];
 
 const SOLOTODO_BASE_URL = 'https://www.solotodo.cl';
+const SOLOTODO_API_URL = 'https://publicapi.solotodo.com';
+const SOLOTODO_CLP_CURRENCY_ID = '1';
+const SOLOTODO_USD_CURRENCY_ID = '4';
+const SOLOTODO_CLP_CURRENCY_URL = `${SOLOTODO_API_URL}/currencies/${SOLOTODO_CLP_CURRENCY_ID}/`;
+const SOLOTODO_USD_CURRENCY_URL = `${SOLOTODO_API_URL}/currencies/${SOLOTODO_USD_CURRENCY_ID}/`;
+const CHILE_COUNTRY_ID = '1';
+
+const REFURBISHED_CONDITION_URL = 'https://schema.org/RefurbishedCondition';
+const NEW_CONDITION_URL = 'https://schema.org/NewCondition';
+
 const MIN_DESCRIPTIVE_SLUG_LENGTH = 5;
 const MAX_SKU_LIKE_SLUG_LENGTH = 10;
 
@@ -74,7 +84,10 @@ function getSearchUrl(query) {
  * @returns {Promise<object|null>} The first product found or null.
  */
 async function searchSolotodo(query) {
-    const response = await got(`https://publicapi.solotodo.com/products?search=${encodeURIComponent(query)}`, {
+    const url = new URL(`${SOLOTODO_API_URL}/products/`);
+    url.searchParams.set('search', query);
+    const response = await got(url.toString(), {
+        ...getSafeGotOptions(),
         responseType: 'json'
     });
 
@@ -186,7 +199,10 @@ function extractQuery(content) {
  */
 async function searchByUrl(url) {
     try {
-        const response = await got(`https://publicapi.solotodo.com/entities/by_url/?url=${encodeURIComponent(url)}`, {
+        const apiUrl = new URL(`${SOLOTODO_API_URL}/entities/by_url/`);
+        apiUrl.searchParams.set('url', url);
+        const response = await got(apiUrl.toString(), {
+            ...getSafeGotOptions(),
             responseType: 'json'
         });
 
@@ -229,8 +245,8 @@ async function searchByUrl(url) {
  * @returns {Promise<Array>} List of entities.
  */
 async function getAvailableEntities(productId, excludeRefurbished = true) {
-    const url = new URL('https://publicapi.solotodo.com/products/available_entities/');
-    url.searchParams.set('countries', '1');
+    const url = new URL(`${SOLOTODO_API_URL}/products/available_entities/`);
+    url.searchParams.set('countries', CHILE_COUNTRY_ID);
     url.searchParams.set('ids', String(productId));
     if (excludeRefurbished) {
         url.searchParams.set('exclude_refurbished', 'true');
@@ -318,7 +334,8 @@ async function getStores() {
         return cachedStores;
     }
 
-    const response = await got('https://publicapi.solotodo.com/stores/', {
+    const response = await got(`${SOLOTODO_API_URL}/stores/`, {
+        ...getSafeGotOptions(),
         responseType: 'json'
     });
 
@@ -345,7 +362,7 @@ async function getProductHistory(productId) {
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     const timestampAfter = sixMonthsAgo.toISOString();
 
-    const url = new URL(`https://publicapi.solotodo.com/products/${productId}/pricing_history/`);
+    const url = new URL(`${SOLOTODO_API_URL}/products/${productId}/pricing_history/`);
     url.searchParams.set('timestamp_after', timestampAfter);
     url.searchParams.set('timestamp_before', timestampBefore);
     url.searchParams.set('exclude_refurbished', 'true');
@@ -357,8 +374,6 @@ async function getProductHistory(productId) {
 
     return response.body || [];
 }
-
-const REFURBISHED_CONDITION_URL = 'https://schema.org/RefurbishedCondition';
 
 /**
  * Finds the best entity from a list based on price and conditions.
@@ -388,6 +403,15 @@ function findBestEntity(entities, triggers = []) {
 }
 
 module.exports = {
+    SOLOTODO_BASE_URL,
+    SOLOTODO_API_URL,
+    SOLOTODO_CLP_CURRENCY_ID,
+    SOLOTODO_USD_CURRENCY_ID,
+    SOLOTODO_CLP_CURRENCY_URL,
+    SOLOTODO_USD_CURRENCY_URL,
+    CHILE_COUNTRY_ID,
+    REFURBISHED_CONDITION_URL,
+    NEW_CONDITION_URL,
     searchSolotodo,
     extractQuery,
     searchByUrl,
