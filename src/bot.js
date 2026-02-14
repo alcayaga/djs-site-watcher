@@ -1,3 +1,50 @@
+// Override console methods to add timestamps
+/**
+ * Gets the current date and time in a formatted string.
+ * @returns {string} The formatted timestamp [YYYY-MM-DD HH:mm:ss]
+ */
+function getTimestamp() {
+    return new Date().toISOString().replace('T', ' ').substring(0, 19);
+}
+
+/**
+ * Applies a patch to console methods to prepend a timestamp.
+ * @returns {void}
+ */
+function applyConsoleTimestampPatch() {
+    const methodsToPatch = ['log', 'warn', 'error', 'info', 'debug', 'trace'];
+
+    methodsToPatch.forEach(method => {
+        // Only patch existing methods to avoid errors
+        if (typeof console[method] === 'function') {
+            const originalMethod = console[method];
+            /**
+             * Overrides the console method to include a timestamp.
+             * @param {...any} args - The arguments to log.
+             * @returns {void}
+             */
+            console[method] = (...args) => {
+                const timestamp = `[${getTimestamp()}]`;
+                if (args.length > 0 && typeof args[0] === 'string') {
+                    // If the first argument is a string, prepend the timestamp to it
+                    // to preserve printf-like formatting (e.g., console.log('%s', val))
+                    args[0] = `${timestamp} ${args[0]}`;
+                    originalMethod(...args);
+                } else {
+                    // Otherwise, just prepend the timestamp as a separate argument
+                    originalMethod(timestamp, ...args);
+                }
+            };
+        }
+    });
+}
+
+// Only apply the patch when not in a test environment.
+// Jest and other test runners typically set NODE_ENV to 'test'.
+if (process.env.NODE_ENV !== 'test') {
+    applyConsoleTimestampPatch();
+}
+
 // Import required modules
 const { Client, GatewayIntentBits, Partials, Events } = require('discord.js');
 const client = new Client({
