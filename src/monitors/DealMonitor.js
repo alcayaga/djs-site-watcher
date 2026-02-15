@@ -124,7 +124,33 @@ class DealMonitor extends Monitor {
         const minPriceKey = `min${priceType}Price`;
         const minDateKey = `min${priceType}Date`;
         const lastPriceKey = `last${priceType}Price`;
+        const pendingExitKey = `pendingExit${priceType}`;
         const notificationType = priceType.toUpperCase();
+
+        // 1. Check for Pending Exit Confirmation
+        if (stored[pendingExitKey]) {
+            const pendingExitDate = stored[pendingExitKey].date;
+            delete stored[pendingExitKey]; // Delete upfront to avoid repetition
+
+            if (currentPrice > stored[minPriceKey]) {
+                // CONFIRMED EXIT
+                if (this.config.verboseLogging) {
+                    console.log(`[DealMonitor] Confirmed exit from historic low for ${product.name}. Updating minDate to ${pendingExitDate}`);
+                }
+                stored[minDateKey] = pendingExitDate; // Use the original exit date
+                stored[lastPriceKey] = currentPrice;
+                return 'CHANGED';
+            } else if (currentPrice === stored[minPriceKey]) {
+                // PHANTOM SPIKE (Back to Min)
+                if (this.config.verboseLogging) {
+                    console.log(`[DealMonitor] Phantom spike ignored for ${product.name}. Returning to historic low state.`);
+                }
+                stored[lastPriceKey] = currentPrice;
+                return 'PENDING';
+            }
+            // If currentPrice < stored[minPriceKey], we fall through to the new low logic below.
+            // The pending exit has been correctly cleared.
+        }
 
         if (currentPrice < stored[minPriceKey]) {
             if (this.config.verboseLogging) {
@@ -146,8 +172,16 @@ class DealMonitor extends Monitor {
 
             // Log ALL price changes to debug phantom spikes if verbose logging is enabled
             if (this.config.verboseLogging) {
-                console.log(`[DealMonitor] Price change for ${product.name} (ID: ${product.id}) [${priceType}]: ${formatCLP(stored[lastPriceKey])} -> ${formatCLP(currentPrice)} (Min: ${formatCLP(stored[minPriceKey])})`);
+                console.log(`[DealMonitor] Price change for ${product.name} (ID: ${product.id}) [${priceType}] (Min: ${formatCLP(stored[minPriceKey])}): ${formatCLP(stored[lastPriceKey])} -> ${formatCLP(currentPrice)}`);
             }
+
+            // Explicitly log the increase amount for debugging
+            if (isIncrease && this.config.verboseLogging) {
+                const diff = currentPrice - stored[lastPriceKey];
+                console.log(`[DealMonitor] Price INCREASE detected for ${product.name} (ID: ${product.id}) [${priceType}]: +${formatCLP(diff)}`);
+            }
+
+            stored[lastPriceKey] = currentPrice;
 
             if (isIncrease && wasAtMin) {
                 /**
