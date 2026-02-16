@@ -13,8 +13,10 @@ const DEFAULT_RETRY_LIMIT = 2;
 function isPrivateIP(ip) {
     // allow private IPs if explicitly requested via environment variable (e.g. for local testing)
     // but only in non-production environments for safety
-    if ((config.NODE_ENV === 'test' || config.NODE_ENV === 'development') && 
-        String(config.ALLOW_PRIVATE_IPS).toLowerCase() === 'true') {
+    const isDevOrTest = ['development', 'test'].includes(config.NODE_ENV);
+    const isBypassEnabled = String(config.ALLOW_PRIVATE_IPS).toLowerCase() === 'true';
+
+    if (isDevOrTest && isBypassEnabled) {
         return false;
     }
     try {
