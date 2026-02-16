@@ -222,7 +222,7 @@ describe('DealMonitor', () => {
         expect(monitor.state['1'].lastOfferPrice).toBe(10000);
     });
 
-    it('should update minDate when price INCREASES from historic low (Update on Exit)', async () => {
+    it('should set Pending Exit when price INCREASES from historic low, then confirm on next cycle', async () => {
         const oldDate = '2024-01-01T00:00:00.000Z';
         const newDate = new Date('2024-02-01T00:00:00.000Z');
         
@@ -238,18 +238,91 @@ describe('DealMonitor', () => {
             }
         };
 
-        // Price increases (Deal Ends)
-        got.mockResolvedValue({
+        // 1. First Increase (Deal Ends) -> Should enter PENDING state
+        got.mockResolvedValueOnce({
             body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 15000, normalPrice: 25000 }])
         });
 
         await monitor.check();
 
-        // 1. Verify MinDate Updated to EXACT new date
+        // Verify NO date update yet (Debounce)
+        expect(monitor.state['1'].minOfferDate).toBe(oldDate);
+        expect(monitor.state['1'].minNormalDate).toBe(oldDate);
+        
+        // Verify Pending State is set explicitly
+        expect(monitor.state['1'].pendingExitOffer).toEqual({ date: newDate.toISOString() });
+        expect(monitor.state['1'].pendingExitNormal).toEqual({ date: newDate.toISOString() });
+        
+        // Advance time by 1 hour for the next check
+        jest.advanceTimersByTime(1000 * 60 * 60);
+
+        // 2. Second Check (Confirmation) -> Should CONFIRM exit and update date
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 15000, normalPrice: 25000 }])
+        });
+
+        await monitor.check();
+
+        // Now the date SHOULD be updated to the time of the FIRST increase (newDate)
         expect(monitor.state['1'].minOfferDate).toBe(newDate.toISOString());
         expect(monitor.state['1'].minNormalDate).toBe(newDate.toISOString());
         
-        // 2. Verify No Notification (Just a state update)
+        // Verify Pending State is cleared
+        expect(monitor.state['1'].pendingExitOffer).toBeUndefined();
+        expect(monitor.state['1'].pendingExitNormal).toBeUndefined();
+
+        // Verify No Notification (Just a state update)
+        expect(mockChannel.send).not.toHaveBeenCalled();
+
+        jest.useRealTimers();
+    });
+
+    it('should ignore phantom spikes where price increases and then returns to minimum', async () => {
+        const oldDate = '2024-01-01T00:00:00.000Z';
+        const spikeDate = new Date('2024-02-01T00:00:00.000Z');
+        
+        jest.useFakeTimers().setSystemTime(spikeDate);
+
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 10000, minOfferDate: oldDate,
+                lastOfferPrice: 10000, // Was at low
+                minNormalPrice: 20000, minNormalDate: oldDate,
+                lastNormalPrice: 20000 // Was at low
+            }
+        };
+
+        // 1. Price increases -> Should enter PENDING state
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 15000, normalPrice: 25000 }])
+        });
+        await monitor.check();
+
+        // Verify minDate is not updated yet and pending state is set
+        expect(monitor.state['1'].minOfferDate).toBe(oldDate);
+        expect(monitor.state['1'].minNormalDate).toBe(oldDate);
+        expect(monitor.state['1'].pendingExitOffer).toEqual({ date: spikeDate.toISOString() });
+        expect(monitor.state['1'].pendingExitNormal).toEqual({ date: spikeDate.toISOString() });
+
+        // Advance time by 1 hour for the next check
+        jest.advanceTimersByTime(1000 * 60 * 60);
+
+        // 2. Price returns to low -> Should be treated as a phantom spike
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 10000, normalPrice: 20000 }])
+        });
+        await monitor.check();
+
+        // Verify minDate is STILL not updated, pending state is cleared, and lastPrice is back to the minimum
+        expect(monitor.state['1'].minOfferDate).toBe(oldDate);
+        expect(monitor.state['1'].minNormalDate).toBe(oldDate);
+        expect(monitor.state['1'].lastOfferPrice).toBe(10000);
+        expect(monitor.state['1'].lastNormalPrice).toBe(20000);
+        expect(monitor.state['1'].pendingExitOffer).toBeUndefined();
+        expect(monitor.state['1'].pendingExitNormal).toBeUndefined();
+        
+        // No notification should have been sent throughout this process
         expect(mockChannel.send).not.toHaveBeenCalled();
 
         jest.useRealTimers();
@@ -548,6 +621,9 @@ describe('DealMonitor', () => {
         afterEach(() => {
             consoleErrorSpy.mockRestore();
         });
+
+        // Increase timeout for all tests in this block to avoid CI flakiness
+        jest.setTimeout(10000);
 
         const mockGotStream = (chunks = ['fake-image-data'], headers = { 'content-type': 'image/jpeg' }) => {
             const stream = new (require('events').EventEmitter)();
