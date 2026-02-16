@@ -12,7 +12,9 @@ All notable changes to this project will be documented in this file.
 ### Bug Fixes
 
 - **network:** Add default timeout and retries for stability (6ac6473)
+- **network:** Fix SSRF protection by using correct 'lookup' option for 'got' v11
 - **lint:** Add missing JSDoc comments to fetch_reviews scripts (ef6bbb4)
+- **core:** Explicitly mark global timestamps as UTC (Z suffix)
 
 ### Refactoring
 

@@ -49,7 +49,7 @@ function getSafeGotOptions() {
          * @param {object} options The lookup options.
          * @param {function} callback The callback function.
          */
-        dnsLookup: (hostname, options, callback) => {
+        lookup: (hostname, options, callback) => {
             dns.lookup(hostname, options, (err, address, family) => {
                 if (err) return callback(err);
                 if (isPrivateIP(address)) {
