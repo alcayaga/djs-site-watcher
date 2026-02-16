@@ -65,9 +65,17 @@ function getSafeGotOptions() {
                     }
                 }
 
-                // got's dnsLookup callback expects a single address string.
-                // We provide the first validated public address.
-                callback(null, addresses[0].address, addresses[0].family);
+                if (addresses.length === 0) {
+                    return callback(new Error(`DNS Lookup failed for ${hostname}: No addresses found.`));
+                }
+
+                // If 'all' option was true, we must return the original array of objects.
+                // Otherwise, return the first address and family as strings/numbers.
+                if (options.all) {
+                    callback(null, address);
+                } else {
+                    callback(null, addresses[0].address, addresses[0].family);
+                }
             });
         }
     };

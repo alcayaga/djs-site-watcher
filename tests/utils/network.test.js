@@ -82,8 +82,23 @@ describe('Network Utils', () => {
                         cb(null, results);
                     });
 
+                    // options.all is not set, should return first address
                     const { address } = await promisifiedDnsLookup(options, 'public.com');
                     expect(address).toBe(results[0].address);
+                });
+
+                it('should return array if all option is true', async () => {
+                    const options = getSafeGotOptions();
+                    const results = [
+                        { address: '93.184.216.34', family: 4 },
+                        { address: '1.1.1.1', family: 4 }
+                    ];
+                    jest.spyOn(dns, 'lookup').mockImplementation((hostname, opts, cb) => {
+                        cb(null, results);
+                    });
+
+                    const { address } = await promisifiedDnsLookup(options, 'public.com', { all: true });
+                    expect(address).toEqual(results);
                 });
             });
         });
