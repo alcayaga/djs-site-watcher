@@ -56,7 +56,7 @@ const APPLE_PRODUCTS = [
     'Magic Keyboard', 'Magic Mouse', 'Magic Trackpad', 
     'Apple Pencil Pro', 'Apple Pencil',
     'Beats Pill', 'Beats'
-];
+].sort((a, b) => b.length - a.length);
 
 module.exports = {
     SOLOTODO_BASE_URL,
