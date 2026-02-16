@@ -3,6 +3,10 @@ const dns = require('dns');
 // Spy on dns.lookup (callback style)
 const lookupSpy = jest.spyOn(dns, 'lookup');
 
+jest.mock('../src/config', () => ({
+    ALLOW_PRIVATE_IPS: false
+}));
+
 jest.mock('got', () => {
     return jest.fn((url, options) => {
         if (options && options.dnsLookup) {

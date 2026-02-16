@@ -65,6 +65,10 @@ config.AP_RESPONSE_DELAY = parseEnvInt(config.AP_RESPONSE_DELAY, 5000);
 config.SOLOTODO_API_DELAY = parseEnvInt(config.SOLOTODO_API_DELAY, 5000);
 config.ALLOW_PRIVATE_IPS = String(config.ALLOW_PRIVATE_IPS).toLowerCase() === 'true';
 
+// Solotodo Configuration
+config.solotodoBaseUrl = process.env.SOLOTODO_BASE_URL || 'https://www.solotodo.cl';
+config.solotodoApiUrl = process.env.SOLOTODO_API_URL || 'https://publicapi.solotodo.com';
+
 if (config.ALLOW_PRIVATE_IPS) {
     console.warn('⚠️ SSRF Protection bypass is ACTIVE (ALLOW_PRIVATE_IPS=true). Private IPs will be allowed.');
 }

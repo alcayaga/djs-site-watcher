@@ -1,3 +1,10 @@
+jest.mock('../../src/config', () => ({
+    solotodoBaseUrl: 'https://www.solotodo.cl',
+    solotodoApiUrl: 'https://publicapi.solotodo.com',
+    ALLOW_PRIVATE_IPS: false,
+    monitors: []
+}));
+
 const { extractQuery, searchSolotodo, searchByUrl, getAvailableEntities, getStores, getProductHistory, getBestPictureUrl } = require('../../src/utils/solotodo');
 const got = require('got');
 
