@@ -64,6 +64,10 @@ const parseEnvInt = (value, defaultValue) => {
 config.AP_RESPONSE_DELAY = parseEnvInt(config.AP_RESPONSE_DELAY, 5000);
 config.SOLOTODO_API_DELAY = parseEnvInt(config.SOLOTODO_API_DELAY, 5000);
 
+if (String(config.ALLOW_PRIVATE_IPS).toLowerCase() === 'true') {
+    console.warn('⚠️ SSRF Protection bypass is ACTIVE (ALLOW_PRIVATE_IPS=true). Private IPs will be allowed.');
+}
+
 const defaultMonitors = require('./defaultMonitors.js');
 
 if (!config.monitors) {

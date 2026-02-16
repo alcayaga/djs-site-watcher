@@ -2,8 +2,6 @@ const dns = require('dns');
 const ipaddr = require('ipaddr.js');
 const config = require('../config');
 
-let bypassLogged = false;
-
 const DEFAULT_REQUEST_TIMEOUT = 10000;
 const DEFAULT_RETRY_LIMIT = 2;
 
@@ -17,10 +15,6 @@ function isPrivateIP(ip) {
     const isBypassEnabled = String(config.ALLOW_PRIVATE_IPS).toLowerCase() === 'true';
 
     if (isBypassEnabled) {
-        if (!bypassLogged) {
-            console.warn('⚠️ SSRF Protection bypass is ACTIVE (ALLOW_PRIVATE_IPS=true). Private IPs will be allowed.');
-            bypassLogged = true;
-        }
         return false;
     }
     try {

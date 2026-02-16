@@ -32,31 +32,20 @@ describe('Network Utils', () => {
     });
 
     describe('isPrivateIP', () => {
-        it('should return false for private IPs when bypass is active', () => {
-            jest.resetModules();
-            jest.doMock('../../src/config', () => ({
-                ALLOW_PRIVATE_IPS: 'true'
-            }));
-            const { isPrivateIP } = require('../../src/utils/network');
-            expect(isPrivateIP('127.0.0.1')).toBe(false);
-        });
-
-        it('should be case-insensitive for ALLOW_PRIVATE_IPS', () => {
-            jest.resetModules();
-            jest.doMock('../../src/config', () => ({
-                ALLOW_PRIVATE_IPS: 'TRUE'
-            }));
-            const { isPrivateIP } = require('../../src/utils/network');
-            expect(isPrivateIP('127.0.0.1')).toBe(false);
-        });
-
-        it('should return true for private IPs when bypass is NOT active', () => {
-            jest.resetModules();
-            jest.doMock('../../src/config', () => ({
-                ALLOW_PRIVATE_IPS: 'false'
-            }));
-            const { isPrivateIP } = require('../../src/utils/network');
-            expect(isPrivateIP('127.0.0.1')).toBe(true);
+        describe.each([
+            { label: 'active', value: 'true', expected: false },
+            { label: 'active (case-insensitive)', value: 'TRUE', expected: false },
+            { label: 'inactive', value: 'false', expected: true },
+            { label: 'undefined', value: undefined, expected: true }
+        ])('when bypass is $label', ({ value, expected }) => {
+            it(`should return ${expected} for private IPs`, () => {
+                jest.resetModules();
+                jest.doMock('../../src/config', () => ({
+                    ALLOW_PRIVATE_IPS: value
+                }));
+                const { isPrivateIP } = require('../../src/utils/network');
+                expect(isPrivateIP('127.0.0.1')).toBe(expected);
+            });
         });
 
         it('should return true for private IPv4 addresses', () => {
