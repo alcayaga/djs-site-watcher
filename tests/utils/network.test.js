@@ -6,7 +6,7 @@ describe('Network Utils', () => {
             const options = getSafeGotOptions();
             expect(options.timeout.request).toBe(10000);
             expect(options.retry.limit).toBe(2);
-            expect(typeof options.lookup).toBe('function');
+            expect(typeof options.dnsLookup).toBe('function');
             expect(options.hooks.beforeRequest).toHaveLength(1);
         });
 

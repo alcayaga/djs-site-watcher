@@ -54,7 +54,7 @@ function getSafeGotOptions() {
          * @param {object} options The lookup options.
          * @param {function} callback The callback function.
          */
-        lookup: (hostname, options, callback) => {
+        dnsLookup: (hostname, options, callback) => {
             dns.lookup(hostname, options, (err, address, family) => {
                 if (err) return callback(err);
 
