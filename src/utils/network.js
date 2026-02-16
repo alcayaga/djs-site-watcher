@@ -65,7 +65,9 @@ function getSafeGotOptions() {
                     }
                 }
 
-                callback(null, address, family);
+                // got's dnsLookup callback expects a single address string.
+                // We provide the first validated public address.
+                callback(null, addresses[0].address, addresses[0].family);
             });
         }
     };

@@ -83,7 +83,7 @@ describe('Network Utils', () => {
                     });
 
                     const { address } = await promisifiedDnsLookup(options, 'public.com');
-                    expect(address).toEqual(results);
+                    expect(address).toBe(results[0].address);
                 });
             });
         });
