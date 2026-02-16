@@ -185,21 +185,21 @@ class DealMonitor extends Monitor {
 
             if (isIncrease && wasAtMin) {
                 /**
-                 * "Update on Exit" Logic:
-                 * When the price INCREASES from the historic minimum (i.e., the deal ends),
-                 * we update the 'minDate' to "now".
+                 * "Update on Exit" Logic with Confirmation:
+                 * When the price INCREASES from the historic minimum, we don't update minDate immediately.
+                 * Instead, we mark it as "Pending Exit".
                  * 
                  * Why?
-                 * So that when the price eventually drops BACK to this low, the "Since [Date]" 
-                 * in the notification will reflect the LAST time the deal was active (the exit date),
-                 * rather than the original first-seen date.
+                 * To avoid "Phantom Spikes" where the price goes up for one cycle and immediately returns.
+                 * This prevents false "Back to Historic Low" alerts.
                  */
                 if (this.config.verboseLogging) {
-                    console.log(`[DealMonitor] ${product.name} (ID: ${product.id}) [${priceType}] exited historic low. Updating minDate to ${now}`);
+                    console.log(`[DealMonitor] Potential exit from historic low for ${product.name} (ID: ${product.id}) [${priceType}]. Waiting for confirmation...`);
                 }
-                stored[minDateKey] = now;
+                stored[pendingExitKey] = { date: now };
+                return 'PENDING';
             }
-            stored[lastPriceKey] = currentPrice;
+            
             return 'CHANGED';
         }
         return null;
