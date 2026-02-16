@@ -1,10 +1,10 @@
 // Override console methods to add timestamps
 /**
  * Gets the current date and time in a formatted string.
- * @returns {string} The formatted timestamp [YYYY-MM-DD HH:mm:ss]
+ * @returns {string} The formatted timestamp [YYYY-MM-DD HH:mm:ssZ]
  */
 function getTimestamp() {
-    return new Date().toISOString().replace('T', ' ').substring(0, 19);
+    return new Date().toISOString().replace('T', ' ').substring(0, 19) + 'Z';
 }
 
 /**

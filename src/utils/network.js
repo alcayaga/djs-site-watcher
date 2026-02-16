@@ -1,5 +1,6 @@
 const dns = require('dns');
 const ipaddr = require('ipaddr.js');
+const config = require('../config');
 
 const DEFAULT_REQUEST_TIMEOUT = 10000;
 const DEFAULT_RETRY_LIMIT = 2;
@@ -10,6 +11,10 @@ const DEFAULT_RETRY_LIMIT = 2;
  * @returns {boolean} True if private/reserved, false otherwise.
  */
 function isPrivateIP(ip) {
+    // allow private IPs if explicitly requested via environment variable (e.g. for local testing)
+    if (config.ALLOW_PRIVATE_IPS) {
+        return false;
+    }
     try {
         const addr = ipaddr.parse(ip);
         // The 'unicast' range is the only one considered public.
@@ -52,10 +57,25 @@ function getSafeGotOptions() {
         dnsLookup: (hostname, options, callback) => {
             dns.lookup(hostname, options, (err, address, family) => {
                 if (err) return callback(err);
-                if (isPrivateIP(address)) {
-                    return callback(new Error(`SSRF Prevention: Access to private IP ${address} is denied.`));
+
+                const addresses = Array.isArray(address) ? address : [{ address, family }];
+                for (const entry of addresses) {
+                    if (isPrivateIP(entry.address)) {
+                        return callback(new Error(`SSRF Prevention: Access to private IP ${entry.address} is denied.`));
+                    }
                 }
-                callback(null, address, family);
+
+                if (addresses.length === 0) {
+                    return callback(new Error(`DNS Lookup failed for ${hostname}: No addresses found.`));
+                }
+
+                // If 'all' option was true, we must return the original array of objects.
+                // Otherwise, return the first address and family as strings/numbers.
+                if (options.all) {
+                    callback(null, address);
+                } else {
+                    callback(null, addresses[0].address, addresses[0].family);
+                }
             });
         }
     };

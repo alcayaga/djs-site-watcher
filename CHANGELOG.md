@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.0] - 2026-02-16
+
+### Features
+
+- **monitor:** Enhance DealMonitor logging for price increases (0fbf0ce)
+- **core:** Add global timestamp to console logs (7e9504a)
+
+### Bug Fixes
+
+- **network:** Add default timeout and retries for stability (6ac6473)
+- **network:** Fix SSRF protection by restoring 'dnsLookup' for 'got' v11 compatibility and add an explicit 'ALLOW_PRIVATE_IPS' opt-in bypass for local system testing.
+- **lint:** Add missing JSDoc comments to fetch_reviews scripts (ef6bbb4)
+- **core:** Explicitly mark global timestamps as UTC (Z suffix)
+
+### Refactoring
+
+- **solotodo:** Extract hardcoded URLs and values into constants (5ac0a40)
+
 ## [3.1.1] - 2026-02-13
 
 ### Refactoring
