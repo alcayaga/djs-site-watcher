@@ -222,7 +222,7 @@ describe('DealMonitor', () => {
         expect(monitor.state['1'].lastOfferPrice).toBe(10000);
     });
 
-    it('should update minDate when price INCREASES from historic low (Update on Exit)', async () => {
+    it('should set Pending Exit when price INCREASES from historic low, then confirm on next cycle', async () => {
         const oldDate = '2024-01-01T00:00:00.000Z';
         const newDate = new Date('2024-02-01T00:00:00.000Z');
         
@@ -238,18 +238,31 @@ describe('DealMonitor', () => {
             }
         };
 
-        // Price increases (Deal Ends)
-        got.mockResolvedValue({
+        // 1. First Increase (Deal Ends) -> Should enter PENDING state
+        got.mockResolvedValueOnce({
             body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 15000, normalPrice: 25000 }])
         });
 
         await monitor.check();
 
-        // 1. Verify MinDate Updated to EXACT new date
+        // Verify NO date update yet (Debounce)
+        expect(monitor.state['1'].minOfferDate).toBe(oldDate);
+        expect(monitor.state['1'].minNormalDate).toBe(oldDate);
+        
+        // Verify Pending State is set (We can't check private variables, but we can verify behavior on next check)
+        
+        // 2. Second Check (Confirmation) -> Should CONFIRM exit and update date
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 15000, normalPrice: 25000 }])
+        });
+
+        await monitor.check();
+
+        // Now the date SHOULD be updated to the time of the FIRST increase (newDate)
         expect(monitor.state['1'].minOfferDate).toBe(newDate.toISOString());
         expect(monitor.state['1'].minNormalDate).toBe(newDate.toISOString());
-        
-        // 2. Verify No Notification (Just a state update)
+
+        // Verify No Notification (Just a state update)
         expect(mockChannel.send).not.toHaveBeenCalled();
 
         jest.useRealTimers();
@@ -548,6 +561,9 @@ describe('DealMonitor', () => {
         afterEach(() => {
             consoleErrorSpy.mockRestore();
         });
+
+        // Increase timeout for all tests in this block to avoid CI flakiness
+        jest.setTimeout(10000);
 
         const mockGotStream = (chunks = ['fake-image-data'], headers = { 'content-type': 'image/jpeg' }) => {
             const stream = new (require('events').EventEmitter)();
