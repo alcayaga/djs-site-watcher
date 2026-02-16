@@ -1,4 +1,5 @@
 const { isPrivateIP, getSafeGotOptions } = require('../../src/utils/network');
+const config = require('../../src/config');
 
 describe('Network Utils', () => {
     describe('getSafeGotOptions', () => {
@@ -27,39 +28,41 @@ describe('Network Utils', () => {
     });
 
     describe('isPrivateIP', () => {
-        const originalEnv = { ...process.env };
+        const originalNodeEnv = config.NODE_ENV;
+        const originalAllowPrivateIps = config.ALLOW_PRIVATE_IPS;
 
         afterEach(() => {
-            process.env = { ...originalEnv };
+            config.NODE_ENV = originalNodeEnv;
+            config.ALLOW_PRIVATE_IPS = originalAllowPrivateIps;
         });
 
         it('should return false for private IPs when bypass is active in development', () => {
-            process.env.NODE_ENV = 'development';
-            process.env.ALLOW_PRIVATE_IPS = 'true';
+            config.NODE_ENV = 'development';
+            config.ALLOW_PRIVATE_IPS = 'true';
             expect(isPrivateIP('127.0.0.1')).toBe(false);
         });
 
         it('should return false for private IPs when bypass is active in test', () => {
-            process.env.NODE_ENV = 'test';
-            process.env.ALLOW_PRIVATE_IPS = 'true';
+            config.NODE_ENV = 'test';
+            config.ALLOW_PRIVATE_IPS = 'true';
             expect(isPrivateIP('127.0.0.1')).toBe(false);
         });
 
         it('should be case-insensitive for ALLOW_PRIVATE_IPS', () => {
-            process.env.NODE_ENV = 'development';
-            process.env.ALLOW_PRIVATE_IPS = 'TRUE';
+            config.NODE_ENV = 'development';
+            config.ALLOW_PRIVATE_IPS = 'TRUE';
             expect(isPrivateIP('127.0.0.1')).toBe(false);
         });
 
         it('should return true for private IPs when bypass is NOT active', () => {
-            process.env.NODE_ENV = 'development';
-            process.env.ALLOW_PRIVATE_IPS = 'false';
+            config.NODE_ENV = 'development';
+            config.ALLOW_PRIVATE_IPS = 'false';
             expect(isPrivateIP('127.0.0.1')).toBe(true);
         });
 
         it('should return true for private IPs in production regardless of bypass', () => {
-            process.env.NODE_ENV = 'production';
-            process.env.ALLOW_PRIVATE_IPS = 'true';
+            config.NODE_ENV = 'production';
+            config.ALLOW_PRIVATE_IPS = 'true';
             expect(isPrivateIP('127.0.0.1')).toBe(true);
         });
 

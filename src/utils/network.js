@@ -1,5 +1,6 @@
 const dns = require('dns');
 const ipaddr = require('ipaddr.js');
+const config = require('../config');
 
 const DEFAULT_REQUEST_TIMEOUT = 10000;
 const DEFAULT_RETRY_LIMIT = 2;
@@ -12,8 +13,8 @@ const DEFAULT_RETRY_LIMIT = 2;
 function isPrivateIP(ip) {
     // allow private IPs if explicitly requested via environment variable (e.g. for local testing)
     // but only in non-production environments for safety
-    if ((process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development') && 
-        String(process.env.ALLOW_PRIVATE_IPS).toLowerCase() === 'true') {
+    if ((config.NODE_ENV === 'test' || config.NODE_ENV === 'development') && 
+        String(config.ALLOW_PRIVATE_IPS).toLowerCase() === 'true') {
         return false;
     }
     try {
