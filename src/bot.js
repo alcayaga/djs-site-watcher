@@ -4,7 +4,7 @@
  * @returns {string} The formatted timestamp [YYYY-MM-DD HH:mm:ssZ]
  */
 function getTimestamp() {
-    return new Date().toISOString().replace('T', ' ').replace(/\..+/, '') + 'Z';
+    return new Date().toISOString().slice(0, 19).replace('T', ' ') + 'Z';
 }
 
 /**
