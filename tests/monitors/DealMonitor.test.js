@@ -249,7 +249,9 @@ describe('DealMonitor', () => {
         expect(monitor.state['1'].minOfferDate).toBe(oldDate);
         expect(monitor.state['1'].minNormalDate).toBe(oldDate);
         
-        // Verify Pending State is set (We can't check private variables, but we can verify behavior on next check)
+        // Verify Pending State is set explicitly
+        expect(monitor.state['1'].pendingExitOffer).toEqual({ date: newDate.toISOString() });
+        expect(monitor.state['1'].pendingExitNormal).toEqual({ date: newDate.toISOString() });
         
         // 2. Second Check (Confirmation) -> Should CONFIRM exit and update date
         got.mockResolvedValueOnce({
@@ -261,6 +263,10 @@ describe('DealMonitor', () => {
         // Now the date SHOULD be updated to the time of the FIRST increase (newDate)
         expect(monitor.state['1'].minOfferDate).toBe(newDate.toISOString());
         expect(monitor.state['1'].minNormalDate).toBe(newDate.toISOString());
+        
+        // Verify Pending State is cleared
+        expect(monitor.state['1'].pendingExitOffer).toBeUndefined();
+        expect(monitor.state['1'].pendingExitNormal).toBeUndefined();
 
         // Verify No Notification (Just a state update)
         expect(mockChannel.send).not.toHaveBeenCalled();
@@ -290,9 +296,11 @@ describe('DealMonitor', () => {
         });
         await monitor.check();
 
-        // Verify minDate is not updated yet
+        // Verify minDate is not updated yet and pending state is set
         expect(monitor.state['1'].minOfferDate).toBe(oldDate);
         expect(monitor.state['1'].minNormalDate).toBe(oldDate);
+        expect(monitor.state['1'].pendingExitOffer).toEqual({ date: spikeDate.toISOString() });
+        expect(monitor.state['1'].pendingExitNormal).toEqual({ date: spikeDate.toISOString() });
 
         // 2. Price returns to low -> Should be treated as a phantom spike
         got.mockResolvedValueOnce({
@@ -300,11 +308,13 @@ describe('DealMonitor', () => {
         });
         await monitor.check();
 
-        // Verify minDate is STILL not updated, and lastPrice is back to the minimum
+        // Verify minDate is STILL not updated, pending state is cleared, and lastPrice is back to the minimum
         expect(monitor.state['1'].minOfferDate).toBe(oldDate);
         expect(monitor.state['1'].minNormalDate).toBe(oldDate);
         expect(monitor.state['1'].lastOfferPrice).toBe(10000);
         expect(monitor.state['1'].lastNormalPrice).toBe(20000);
+        expect(monitor.state['1'].pendingExitOffer).toBeUndefined();
+        expect(monitor.state['1'].pendingExitNormal).toBeUndefined();
         
         // No notification should have been sent throughout this process
         expect(mockChannel.send).not.toHaveBeenCalled();
