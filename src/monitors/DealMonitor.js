@@ -323,7 +323,7 @@ class DealMonitor extends Monitor {
                 let productChanged = !!(offerTrigger || normalTrigger);
 
                 if (offerTrigger || normalTrigger) {
-                    const triggers = [offerTrigger, normalTrigger].filter(t => t && t !== 'CHANGED');
+                    const triggers = [offerTrigger, normalTrigger].filter(t => t && t !== 'CHANGED' && t !== 'PENDING');
                     if (triggers.length > 0) {
                         await this.notify({ product, triggers, date: now, stored });
                     }
