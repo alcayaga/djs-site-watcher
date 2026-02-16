@@ -60,6 +60,7 @@ describe('Network Utils', () => {
         });
 
         it('should return true for private IPv4 addresses', () => {
+            jest.resetModules();
             const { isPrivateIP } = require('../../src/utils/network');
             expect(isPrivateIP('127.0.0.1')).toBe(true);
             expect(isPrivateIP('10.0.0.1')).toBe(true);
@@ -70,6 +71,7 @@ describe('Network Utils', () => {
         });
 
         it('should return true for private IPv6 addresses', () => {
+            jest.resetModules();
             const { isPrivateIP } = require('../../src/utils/network');
             expect(isPrivateIP('::1')).toBe(true);
             expect(isPrivateIP('fc00::1')).toBe(true);
@@ -78,6 +80,7 @@ describe('Network Utils', () => {
         });
 
         it('should return false for public IPv4 addresses', () => {
+            jest.resetModules();
             const { isPrivateIP } = require('../../src/utils/network');
             expect(isPrivateIP('8.8.8.8')).toBe(false);
             expect(isPrivateIP('1.1.1.1')).toBe(false);
@@ -85,6 +88,7 @@ describe('Network Utils', () => {
         });
         
         it('should return false for public IPv6 addresses', () => {
+            jest.resetModules();
             const { isPrivateIP } = require('../../src/utils/network');
             expect(isPrivateIP('2606:4700:4700::1111')).toBe(false); // Cloudflare
         });
