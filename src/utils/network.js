@@ -52,9 +52,15 @@ function getSafeGotOptions() {
         lookup: (hostname, options, callback) => {
             dns.lookup(hostname, options, (err, address, family) => {
                 if (err) return callback(err);
-                if (isPrivateIP(address)) {
-                    return callback(new Error(`SSRF Prevention: Access to private IP ${address} is denied.`));
+
+                const addresses = Array.isArray(address) ? address : [{ address, family }];
+
+                for (const addr of addresses) {
+                    if (isPrivateIP(addr.address)) {
+                        return callback(new Error(`SSRF Prevention: Access to private IP ${addr.address} is denied.`));
+                    }
                 }
+
                 callback(null, address, family);
             });
         }
