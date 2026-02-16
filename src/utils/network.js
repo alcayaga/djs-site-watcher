@@ -10,8 +10,8 @@ const DEFAULT_RETRY_LIMIT = 2;
  * @returns {boolean} True if private/reserved, false otherwise.
  */
 function isPrivateIP(ip) {
-    // In test environment, allow all IPs to support testing against local servers
-    if (process.env.NODE_ENV === 'test') {
+    // allow private IPs if explicitly requested via environment variable (e.g. for local testing)
+    if (process.env.ALLOW_PRIVATE_IPS === 'true') {
         return false;
     }
     try {

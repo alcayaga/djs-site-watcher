@@ -9,7 +9,7 @@
     "dev": "nodemon ./src/bot.js",
     "lint": "eslint .",
     "deploy": "node src/deploy-commands.js",
-    "preflight": "npm ci && npm run lint && npm run test && SINGLE_RUN=true npm run start"
+    "preflight": "npm ci && npm run lint && npm run test && ALLOW_PRIVATE_IPS=true SINGLE_RUN=true npm run start"
   },
   "keywords": [],
   "author": "",
