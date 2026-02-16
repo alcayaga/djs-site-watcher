@@ -27,6 +27,42 @@ describe('Network Utils', () => {
     });
 
     describe('isPrivateIP', () => {
+        const originalEnv = { ...process.env };
+
+        afterEach(() => {
+            process.env = { ...originalEnv };
+        });
+
+        it('should return false for private IPs when bypass is active in development', () => {
+            process.env.NODE_ENV = 'development';
+            process.env.ALLOW_PRIVATE_IPS = 'true';
+            expect(isPrivateIP('127.0.0.1')).toBe(false);
+        });
+
+        it('should return false for private IPs when bypass is active in test', () => {
+            process.env.NODE_ENV = 'test';
+            process.env.ALLOW_PRIVATE_IPS = 'true';
+            expect(isPrivateIP('127.0.0.1')).toBe(false);
+        });
+
+        it('should be case-insensitive for ALLOW_PRIVATE_IPS', () => {
+            process.env.NODE_ENV = 'development';
+            process.env.ALLOW_PRIVATE_IPS = 'TRUE';
+            expect(isPrivateIP('127.0.0.1')).toBe(false);
+        });
+
+        it('should return true for private IPs when bypass is NOT active', () => {
+            process.env.NODE_ENV = 'development';
+            process.env.ALLOW_PRIVATE_IPS = 'false';
+            expect(isPrivateIP('127.0.0.1')).toBe(true);
+        });
+
+        it('should return true for private IPs in production regardless of bypass', () => {
+            process.env.NODE_ENV = 'production';
+            process.env.ALLOW_PRIVATE_IPS = 'true';
+            expect(isPrivateIP('127.0.0.1')).toBe(true);
+        });
+
         it('should return true for private IPv4 addresses', () => {
             expect(isPrivateIP('127.0.0.1')).toBe(true);
             expect(isPrivateIP('10.0.0.1')).toBe(true);
