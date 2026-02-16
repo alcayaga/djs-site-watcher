@@ -146,7 +146,7 @@ class DealMonitor extends Monitor {
                     console.log(`[DealMonitor] Phantom spike ignored for ${product.name}. Returning to historic low state.`);
                 }
                 stored[lastPriceKey] = currentPrice;
-                return 'PENDING';
+                return 'CHANGED';
             }
             // If currentPrice < stored[minPriceKey], we fall through to the new low logic below.
             // The pending exit has been correctly cleared.
