@@ -29,6 +29,86 @@ describe('Network Utils', () => {
             expect(() => beforeRequest(mockOptions('google.com'))).not.toThrow();
             expect(() => beforeRequest(mockOptions('8.8.8.8'))).not.toThrow();
         });
+
+        describe('dnsLookup', () => {
+            const dns = require('dns');
+
+            it('should allow valid public addresses', async () => {
+                const options = getSafeGotOptions();
+                jest.spyOn(dns, 'lookup').mockImplementation((hostname, opts, cb) => {
+                    cb(null, '93.184.216.34', 4);
+                });
+
+                await new Promise((resolve, reject) => {
+                    options.dnsLookup('example.com', {}, (err, address, family) => {
+                        if (err) return reject(err);
+                        try {
+                            expect(address).toBe('93.184.216.34');
+                            expect(family).toBe(4);
+                            resolve();
+                        } catch (e) { reject(e); }
+                    });
+                });
+            });
+
+            it('should block private addresses', async () => {
+                const options = getSafeGotOptions();
+                jest.spyOn(dns, 'lookup').mockImplementation((hostname, opts, cb) => {
+                    cb(null, '127.0.0.1', 4);
+                });
+
+                await new Promise((resolve, reject) => {
+                    options.dnsLookup('localhost', {}, (err) => {
+                        try {
+                            expect(err).toBeInstanceOf(Error);
+                            expect(err.message).toContain('SSRF Prevention');
+                            resolve();
+                        } catch (e) { reject(e); }
+                    });
+                });
+            });
+
+            it('should block if any address in multi-IP result is private', async () => {
+                const options = getSafeGotOptions();
+                jest.spyOn(dns, 'lookup').mockImplementation((hostname, opts, cb) => {
+                    cb(null, [
+                        { address: '93.184.216.34', family: 4 },
+                        { address: '127.0.0.1', family: 4 }
+                    ]);
+                });
+
+                await new Promise((resolve, reject) => {
+                    options.dnsLookup('mixed.com', {}, (err) => {
+                        try {
+                            expect(err).toBeInstanceOf(Error);
+                            expect(err.message).toContain('SSRF Prevention');
+                            resolve();
+                        } catch (e) { reject(e); }
+                    });
+                });
+            });
+
+            it('should allow multi-IP result if all are public', async () => {
+                const options = getSafeGotOptions();
+                const results = [
+                    { address: '93.184.216.34', family: 4 },
+                    { address: '1.1.1.1', family: 4 }
+                ];
+                jest.spyOn(dns, 'lookup').mockImplementation((hostname, opts, cb) => {
+                    cb(null, results);
+                });
+
+                await new Promise((resolve, reject) => {
+                    options.dnsLookup('public.com', {}, (err, address, _family) => {
+                        if (err) return reject(err);
+                        try {
+                            expect(address).toEqual(results);
+                            resolve();
+                        } catch (e) { reject(e); }
+                    });
+                });
+            });
+        });
     });
 
     describe('isPrivateIP', () => {
@@ -81,95 +161,6 @@ describe('Network Utils', () => {
             
             it('should return false for public IPv6 addresses', () => {
                 expect(isPrivateIP('2606:4700:4700::1111')).toBe(false); // Cloudflare
-            });
-        });
-    });
-
-    describe('getSafeGotOptions dnsLookup', () => {
-        const dns = require('dns');
-        let getSafeGotOptions;
-
-        beforeEach(() => {
-            jest.resetModules();
-            jest.doMock('../../src/config', () => ({
-                ALLOW_PRIVATE_IPS: false
-            }));
-            getSafeGotOptions = require('../../src/utils/network').getSafeGotOptions;
-        });
-
-        it('should allow valid public addresses', async () => {
-            const options = getSafeGotOptions();
-            jest.spyOn(dns, 'lookup').mockImplementation((hostname, opts, cb) => {
-                cb(null, '93.184.216.34', 4);
-            });
-
-            await new Promise((resolve, reject) => {
-                options.dnsLookup('example.com', {}, (err, address, family) => {
-                    if (err) return reject(err);
-                    try {
-                        expect(address).toBe('93.184.216.34');
-                        expect(family).toBe(4);
-                        resolve();
-                    } catch (e) { reject(e); }
-                });
-            });
-        });
-
-        it('should block private addresses', async () => {
-            const options = getSafeGotOptions();
-            jest.spyOn(dns, 'lookup').mockImplementation((hostname, opts, cb) => {
-                cb(null, '127.0.0.1', 4);
-            });
-
-            await new Promise((resolve, reject) => {
-                options.dnsLookup('localhost', {}, (err) => {
-                    try {
-                        expect(err).toBeInstanceOf(Error);
-                        expect(err.message).toContain('SSRF Prevention');
-                        resolve();
-                    } catch (e) { reject(e); }
-                });
-            });
-        });
-
-        it('should block if any address in multi-IP result is private', async () => {
-            const options = getSafeGotOptions();
-            jest.spyOn(dns, 'lookup').mockImplementation((hostname, opts, cb) => {
-                cb(null, [
-                    { address: '93.184.216.34', family: 4 },
-                    { address: '127.0.0.1', family: 4 }
-                ]);
-            });
-
-            await new Promise((resolve, reject) => {
-                options.dnsLookup('mixed.com', {}, (err) => {
-                    try {
-                        expect(err).toBeInstanceOf(Error);
-                        expect(err.message).toContain('SSRF Prevention');
-                        resolve();
-                    } catch (e) { reject(e); }
-                });
-            });
-        });
-
-        it('should allow multi-IP result if all are public', async () => {
-            const options = getSafeGotOptions();
-            const results = [
-                { address: '93.184.216.34', family: 4 },
-                { address: '1.1.1.1', family: 4 }
-            ];
-            jest.spyOn(dns, 'lookup').mockImplementation((hostname, opts, cb) => {
-                cb(null, results);
-            });
-
-            await new Promise((resolve, reject) => {
-                options.dnsLookup('public.com', {}, (err, address, _family) => {
-                    if (err) return reject(err);
-                    try {
-                        expect(address).toEqual(results);
-                        resolve();
-                    } catch (e) { reject(e); }
-                });
             });
         });
     });
