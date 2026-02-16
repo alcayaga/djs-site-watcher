@@ -86,6 +86,21 @@ describe('Solotodo Utils - extractQuery', () => {
         expect(extractQuery('...')).toBeNull();
         expect(extractQuery('')).toBeNull();
     });
+
+    // SECURITY TESTS
+    it('should sanitize path traversal attempts with forward slashes in URL', () => {
+        // encoded ../../etc/passwd
+        const url = 'https://example.com/%2e%2e%2f%2e%2e%2fetc%2fpasswd';
+        const result = extractQuery(url);
+        expect(result).toBe('etc passwd');
+    });
+
+    it('should sanitize path traversal attempts with backslashes in URL', () => {
+        // encoded ..\..\etc\passwd
+        const url = 'https://example.com/..%5c..%5cetc%5cpasswd';
+        const result = extractQuery(url);
+        expect(result).toBe('etc passwd');
+    });
 });
 
 describe('Solotodo Utils - API functions', () => {
