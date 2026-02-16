@@ -5,12 +5,12 @@ const lookupSpy = jest.spyOn(dns, 'lookup');
 
 jest.mock('got', () => {
     return jest.fn((url, options) => {
-        if (options && options.dnsLookup) {
+        if (options && options.lookup) {
             // Simulate DNS lookup execution by got
             const { URL } = require('url');
             const hostname = new URL(url).hostname;
             return new Promise((resolve, reject) => {
-                options.dnsLookup(hostname, {}, (err, _address, _family) => {
+                options.lookup(hostname, {}, (err, _address, _family) => {
                     if (err) return reject(err);
                     resolve({ body: '<html></html>' });
                 });
