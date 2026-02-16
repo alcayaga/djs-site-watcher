@@ -32,53 +32,60 @@ describe('Network Utils', () => {
     });
 
     describe('isPrivateIP', () => {
-        describe.each([
-            { label: 'active', value: true, expected: false },
-            { label: 'inactive', value: false, expected: true },
-            { label: 'undefined', value: undefined, expected: true }
-        ])('when bypass is $label', ({ value, expected }) => {
-            it(`should return ${expected} for private IPs`, () => {
+        describe('with bypass active', () => {
+            let isPrivateIP;
+            beforeAll(() => {
                 jest.resetModules();
                 jest.doMock('../../src/config', () => ({
-                    ALLOW_PRIVATE_IPS: value
+                    ALLOW_PRIVATE_IPS: true
                 }));
-                const { isPrivateIP } = require('../../src/utils/network');
-                expect(isPrivateIP('127.0.0.1')).toBe(expected);
+                isPrivateIP = require('../../src/utils/network').isPrivateIP;
+            });
+
+            it('should return false for private IPs', () => {
+                expect(isPrivateIP('127.0.0.1')).toBe(false);
             });
         });
 
-        it('should return true for private IPv4 addresses', () => {
-            jest.resetModules();
-            const { isPrivateIP } = require('../../src/utils/network');
-            expect(isPrivateIP('127.0.0.1')).toBe(true);
-            expect(isPrivateIP('10.0.0.1')).toBe(true);
-            expect(isPrivateIP('192.168.1.1')).toBe(true);
-            expect(isPrivateIP('172.16.0.1')).toBe(true); // 172.16.x.x is private
-            expect(isPrivateIP('172.31.255.255')).toBe(true); // 172.31.x.x is private
-            expect(isPrivateIP('169.254.1.1')).toBe(true);
-        });
+        describe('with bypass inactive', () => {
+            let isPrivateIP;
+            beforeAll(() => {
+                jest.resetModules();
+                jest.doMock('../../src/config', () => ({
+                    ALLOW_PRIVATE_IPS: false
+                }));
+                isPrivateIP = require('../../src/utils/network').isPrivateIP;
+            });
 
-        it('should return true for private IPv6 addresses', () => {
-            jest.resetModules();
-            const { isPrivateIP } = require('../../src/utils/network');
-            expect(isPrivateIP('::1')).toBe(true);
-            expect(isPrivateIP('fc00::1')).toBe(true);
-            expect(isPrivateIP('fd00::1')).toBe(true);
-            expect(isPrivateIP('fe80::1')).toBe(true);
-        });
+            it('should return true for private IPs', () => {
+                expect(isPrivateIP('127.0.0.1')).toBe(true);
+            });
 
-        it('should return false for public IPv4 addresses', () => {
-            jest.resetModules();
-            const { isPrivateIP } = require('../../src/utils/network');
-            expect(isPrivateIP('8.8.8.8')).toBe(false);
-            expect(isPrivateIP('1.1.1.1')).toBe(false);
-            expect(isPrivateIP('172.32.0.1')).toBe(false); // Outside 172.16.0.0/12 range
-        });
-        
-        it('should return false for public IPv6 addresses', () => {
-            jest.resetModules();
-            const { isPrivateIP } = require('../../src/utils/network');
-            expect(isPrivateIP('2606:4700:4700::1111')).toBe(false); // Cloudflare
+            it('should return true for private IPv4 addresses', () => {
+                expect(isPrivateIP('127.0.0.1')).toBe(true);
+                expect(isPrivateIP('10.0.0.1')).toBe(true);
+                expect(isPrivateIP('192.168.1.1')).toBe(true);
+                expect(isPrivateIP('172.16.0.1')).toBe(true); // 172.16.x.x is private
+                expect(isPrivateIP('172.31.255.255')).toBe(true); // 172.31.x.x is private
+                expect(isPrivateIP('169.254.1.1')).toBe(true);
+            });
+
+            it('should return true for private IPv6 addresses', () => {
+                expect(isPrivateIP('::1')).toBe(true);
+                expect(isPrivateIP('fc00::1')).toBe(true);
+                expect(isPrivateIP('fd00::1')).toBe(true);
+                expect(isPrivateIP('fe80::1')).toBe(true);
+            });
+
+            it('should return false for public IPv4 addresses', () => {
+                expect(isPrivateIP('8.8.8.8')).toBe(false);
+                expect(isPrivateIP('1.1.1.1')).toBe(false);
+                expect(isPrivateIP('172.32.0.1')).toBe(false); // Outside 172.16.0.0/12 range
+            });
+            
+            it('should return false for public IPv6 addresses', () => {
+                expect(isPrivateIP('2606:4700:4700::1111')).toBe(false); // Cloudflare
+            });
         });
     });
 });
