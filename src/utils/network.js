@@ -58,8 +58,11 @@ function getSafeGotOptions() {
             dns.lookup(hostname, options, (err, address, family) => {
                 if (err) return callback(err);
 
-                if (isPrivateIP(address)) {
-                    return callback(new Error(`SSRF Prevention: Access to private IP ${address} is denied.`));
+                const addresses = Array.isArray(address) ? address : [{ address, family }];
+                for (const entry of addresses) {
+                    if (isPrivateIP(entry.address)) {
+                        return callback(new Error(`SSRF Prevention: Access to private IP ${entry.address} is denied.`));
+                    }
                 }
 
                 callback(null, address, family);
