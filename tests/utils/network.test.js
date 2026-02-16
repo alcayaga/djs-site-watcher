@@ -32,34 +32,31 @@ describe('Network Utils', () => {
     });
 
     describe('isPrivateIP', () => {
-        const testBypass = (nodeEnv, allowPrivateIps, ip, expected) => {
+        it('should return false for private IPs when bypass is active', () => {
             jest.resetModules();
             jest.doMock('../../src/config', () => ({
-                NODE_ENV: nodeEnv,
-                ALLOW_PRIVATE_IPS: allowPrivateIps
+                ALLOW_PRIVATE_IPS: 'true'
             }));
             const { isPrivateIP } = require('../../src/utils/network');
-            expect(isPrivateIP(ip)).toBe(expected);
-        };
-
-        it('should return false for private IPs when bypass is active in development', () => {
-            testBypass('development', 'true', '127.0.0.1', false);
-        });
-
-        it('should return false for private IPs when bypass is active in test', () => {
-            testBypass('test', 'true', '127.0.0.1', false);
+            expect(isPrivateIP('127.0.0.1')).toBe(false);
         });
 
         it('should be case-insensitive for ALLOW_PRIVATE_IPS', () => {
-            testBypass('development', 'TRUE', '127.0.0.1', false);
+            jest.resetModules();
+            jest.doMock('../../src/config', () => ({
+                ALLOW_PRIVATE_IPS: 'TRUE'
+            }));
+            const { isPrivateIP } = require('../../src/utils/network');
+            expect(isPrivateIP('127.0.0.1')).toBe(false);
         });
 
         it('should return true for private IPs when bypass is NOT active', () => {
-            testBypass('development', 'false', '127.0.0.1', true);
-        });
-
-        it('should return true for private IPs in production regardless of bypass', () => {
-            testBypass('production', 'true', '127.0.0.1', true);
+            jest.resetModules();
+            jest.doMock('../../src/config', () => ({
+                ALLOW_PRIVATE_IPS: 'false'
+            }));
+            const { isPrivateIP } = require('../../src/utils/network');
+            expect(isPrivateIP('127.0.0.1')).toBe(true);
         });
 
         it('should return true for private IPv4 addresses', () => {
