@@ -1,3 +1,5 @@
+const { SOLOTODO_API_URL } = require('./utils/constants');
+
 /**
  * Default monitor configurations.
  * @module defaultMonitors
@@ -41,9 +43,9 @@ const defaultMonitors = [
         name: 'Deal',
         enabled: true,
         url: [
-            'https://publicapi.solotodo.com/categories/50/browse/?brands=756403&brands=769114',
-            'https://publicapi.solotodo.com/categories/6/browse/?brands=149039',
-            'https://publicapi.solotodo.com/categories/25/browse/?brands=944507'
+            `${SOLOTODO_API_URL}/categories/50/browse/?brands=756403&brands=769114`,
+            `${SOLOTODO_API_URL}/categories/6/browse/?brands=149039`,
+            `${SOLOTODO_API_URL}/categories/25/browse/?brands=944507`
         ],
         file: './config/deals.json',
     },
