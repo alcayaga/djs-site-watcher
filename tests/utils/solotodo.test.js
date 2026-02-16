@@ -88,14 +88,18 @@ describe('Solotodo Utils - extractQuery', () => {
     });
 
     // SECURITY TESTS
-    it('should sanitize path traversal attempts in URL', () => {
+    it('should sanitize path traversal attempts with forward slashes in URL', () => {
         // encoded ../../etc/passwd
         const url = 'https://example.com/%2e%2e%2f%2e%2e%2fetc%2fpasswd';
         const result = extractQuery(url);
-        // We expect it NOT to return '../../etc/passwd'
-        // Ideally it should strip .. or return null or just "etc passwd" without slashes
-        expect(result).not.toContain('..');
-        expect(result).not.toContain('/');
+        expect(result).toBe('etc passwd');
+    });
+
+    it('should sanitize path traversal attempts with backslashes in URL', () => {
+        // encoded ..\..\etc\passwd
+        const url = 'https://example.com/..%5c..%5cetc%5cpasswd';
+        const result = extractQuery(url);
+        expect(result).toBe('etc passwd');
     });
 });
 
