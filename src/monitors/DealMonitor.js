@@ -132,18 +132,18 @@ class DealMonitor extends Monitor {
             const pendingExitDate = stored[pendingExitKey].date;
             delete stored[pendingExitKey]; // Delete upfront to avoid repetition
 
-            if (currentPrice > stored[minPriceKey]) {
-                // CONFIRMED EXIT
-                if (this.config.verboseLogging) {
-                    console.log(`[DealMonitor] Confirmed exit from historic low for ${product.name}. Updating minDate to ${pendingExitDate}`);
-                }
-                stored[minDateKey] = pendingExitDate; // Use the original exit date
-                stored[lastPriceKey] = currentPrice;
-                return 'CHANGED';
-            } else if (currentPrice === stored[minPriceKey]) {
-                // PHANTOM SPIKE (Back to Min)
-                if (this.config.verboseLogging) {
-                    console.log(`[DealMonitor] Phantom spike ignored for ${product.name}. Returning to historic low state.`);
+            if (currentPrice >= stored[minPriceKey]) {
+                if (currentPrice > stored[minPriceKey]) {
+                    // CONFIRMED EXIT
+                    if (this.config.verboseLogging) {
+                        console.log(`[DealMonitor] Confirmed exit from historic low for ${product.name}. Updating minDate to ${pendingExitDate}`);
+                    }
+                    stored[minDateKey] = pendingExitDate; // Use the original exit date
+                } else { // currentPrice === stored[minPriceKey]
+                    // PHANTOM SPIKE (Back to Min)
+                    if (this.config.verboseLogging) {
+                        console.log(`[DealMonitor] Phantom spike ignored for ${product.name}. Returning to historic low state.`);
+                    }
                 }
                 stored[lastPriceKey] = currentPrice;
                 return 'CHANGED';
