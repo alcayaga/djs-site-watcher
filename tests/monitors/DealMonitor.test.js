@@ -253,6 +253,9 @@ describe('DealMonitor', () => {
         expect(monitor.state['1'].pendingExitOffer).toEqual({ date: newDate.toISOString() });
         expect(monitor.state['1'].pendingExitNormal).toEqual({ date: newDate.toISOString() });
         
+        // Advance time by 1 hour for the next check
+        jest.advanceTimersByTime(1000 * 60 * 60);
+
         // 2. Second Check (Confirmation) -> Should CONFIRM exit and update date
         got.mockResolvedValueOnce({
             body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 15000, normalPrice: 25000 }])
@@ -301,6 +304,9 @@ describe('DealMonitor', () => {
         expect(monitor.state['1'].minNormalDate).toBe(oldDate);
         expect(monitor.state['1'].pendingExitOffer).toEqual({ date: spikeDate.toISOString() });
         expect(monitor.state['1'].pendingExitNormal).toEqual({ date: spikeDate.toISOString() });
+
+        // Advance time by 1 hour for the next check
+        jest.advanceTimersByTime(1000 * 60 * 60);
 
         // 2. Price returns to low -> Should be treated as a phantom spike
         got.mockResolvedValueOnce({
