@@ -28,8 +28,6 @@ storage.SENSITIVE_SETTINGS_KEYS.forEach(key => {
     }
 });
 
-config.NODE_ENV = process.env.NODE_ENV;
-
 const missingRequiredVars = storage.REQUIRED_ENV_VARS.filter(key => !config[key]);
 
 if (process.env.NODE_ENV !== 'test' && missingRequiredVars.length > 0) {

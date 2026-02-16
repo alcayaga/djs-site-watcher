@@ -1,8 +1,12 @@
-const { isPrivateIP, getSafeGotOptions } = require('../../src/utils/network');
-const config = require('../../src/config');
-
 describe('Network Utils', () => {
     describe('getSafeGotOptions', () => {
+        let getSafeGotOptions;
+
+        beforeEach(() => {
+            jest.resetModules();
+            getSafeGotOptions = require('../../src/utils/network').getSafeGotOptions;
+        });
+
         it('should return default timeout and retry options', () => {
             const options = getSafeGotOptions();
             expect(options.timeout.request).toBe(10000);
@@ -28,45 +32,38 @@ describe('Network Utils', () => {
     });
 
     describe('isPrivateIP', () => {
-        const originalNodeEnv = config.NODE_ENV;
-        const originalAllowPrivateIps = config.ALLOW_PRIVATE_IPS;
-
-        afterEach(() => {
-            config.NODE_ENV = originalNodeEnv;
-            config.ALLOW_PRIVATE_IPS = originalAllowPrivateIps;
-        });
+        const testBypass = (nodeEnv, allowPrivateIps, ip, expected) => {
+            jest.resetModules();
+            jest.doMock('../../src/config', () => ({
+                NODE_ENV: nodeEnv,
+                ALLOW_PRIVATE_IPS: allowPrivateIps
+            }));
+            const { isPrivateIP } = require('../../src/utils/network');
+            expect(isPrivateIP(ip)).toBe(expected);
+        };
 
         it('should return false for private IPs when bypass is active in development', () => {
-            config.NODE_ENV = 'development';
-            config.ALLOW_PRIVATE_IPS = 'true';
-            expect(isPrivateIP('127.0.0.1')).toBe(false);
+            testBypass('development', 'true', '127.0.0.1', false);
         });
 
         it('should return false for private IPs when bypass is active in test', () => {
-            config.NODE_ENV = 'test';
-            config.ALLOW_PRIVATE_IPS = 'true';
-            expect(isPrivateIP('127.0.0.1')).toBe(false);
+            testBypass('test', 'true', '127.0.0.1', false);
         });
 
         it('should be case-insensitive for ALLOW_PRIVATE_IPS', () => {
-            config.NODE_ENV = 'development';
-            config.ALLOW_PRIVATE_IPS = 'TRUE';
-            expect(isPrivateIP('127.0.0.1')).toBe(false);
+            testBypass('development', 'TRUE', '127.0.0.1', false);
         });
 
         it('should return true for private IPs when bypass is NOT active', () => {
-            config.NODE_ENV = 'development';
-            config.ALLOW_PRIVATE_IPS = 'false';
-            expect(isPrivateIP('127.0.0.1')).toBe(true);
+            testBypass('development', 'false', '127.0.0.1', true);
         });
 
         it('should return true for private IPs in production regardless of bypass', () => {
-            config.NODE_ENV = 'production';
-            config.ALLOW_PRIVATE_IPS = 'true';
-            expect(isPrivateIP('127.0.0.1')).toBe(true);
+            testBypass('production', 'true', '127.0.0.1', true);
         });
 
         it('should return true for private IPv4 addresses', () => {
+            const { isPrivateIP } = require('../../src/utils/network');
             expect(isPrivateIP('127.0.0.1')).toBe(true);
             expect(isPrivateIP('10.0.0.1')).toBe(true);
             expect(isPrivateIP('192.168.1.1')).toBe(true);
@@ -76,6 +73,7 @@ describe('Network Utils', () => {
         });
 
         it('should return true for private IPv6 addresses', () => {
+            const { isPrivateIP } = require('../../src/utils/network');
             expect(isPrivateIP('::1')).toBe(true);
             expect(isPrivateIP('fc00::1')).toBe(true);
             expect(isPrivateIP('fd00::1')).toBe(true);
@@ -83,12 +81,14 @@ describe('Network Utils', () => {
         });
 
         it('should return false for public IPv4 addresses', () => {
+            const { isPrivateIP } = require('../../src/utils/network');
             expect(isPrivateIP('8.8.8.8')).toBe(false);
             expect(isPrivateIP('1.1.1.1')).toBe(false);
             expect(isPrivateIP('172.32.0.1')).toBe(false); // Outside 172.16.0.0/12 range
         });
         
         it('should return false for public IPv6 addresses', () => {
+            const { isPrivateIP } = require('../../src/utils/network');
             expect(isPrivateIP('2606:4700:4700::1111')).toBe(false); // Cloudflare
         });
     });
