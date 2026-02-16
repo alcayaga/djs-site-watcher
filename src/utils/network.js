@@ -11,7 +11,8 @@ const DEFAULT_RETRY_LIMIT = 2;
  */
 function isPrivateIP(ip) {
     // allow private IPs if explicitly requested via environment variable (e.g. for local testing)
-    if (process.env.ALLOW_PRIVATE_IPS === 'true') {
+    // but only in non-production environments for safety
+    if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_PRIVATE_IPS === 'true') {
         return false;
     }
     try {
