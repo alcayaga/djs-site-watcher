@@ -1,4 +1,13 @@
 describe('Network Utils', () => {
+    const promisifiedDnsLookup = (options, hostname, lookupOpts = {}) => {
+        return new Promise((resolve, reject) => {
+            options.dnsLookup(hostname, lookupOpts, (err, address, family) => {
+                if (err) return reject(err);
+                resolve({ address, family });
+            });
+        });
+    };
+
     describe('getSafeGotOptions', () => {
         describe('with bypass inactive (default)', () => {
             let getSafeGotOptions;
@@ -35,16 +44,9 @@ describe('Network Utils', () => {
                         cb(null, '93.184.216.34', 4);
                     });
 
-                    await new Promise((resolve, reject) => {
-                        options.dnsLookup('example.com', {}, (err, address, family) => {
-                            if (err) return reject(err);
-                            try {
-                                expect(address).toBe('93.184.216.34');
-                                expect(family).toBe(4);
-                                resolve();
-                            } catch (e) { reject(e); }
-                        });
-                    });
+                    const { address, family } = await promisifiedDnsLookup(options, 'example.com');
+                    expect(address).toBe('93.184.216.34');
+                    expect(family).toBe(4);
                 });
 
                 it('should block private addresses', async () => {
@@ -53,15 +55,8 @@ describe('Network Utils', () => {
                         cb(null, '127.0.0.1', 4);
                     });
 
-                    await new Promise((resolve, reject) => {
-                        options.dnsLookup('localhost', {}, (err) => {
-                            try {
-                                expect(err).toBeInstanceOf(Error);
-                                expect(err.message).toContain('SSRF Prevention');
-                                resolve();
-                            } catch (e) { reject(e); }
-                        });
-                    });
+                    await expect(promisifiedDnsLookup(options, 'localhost'))
+                        .rejects.toThrow('SSRF Prevention');
                 });
 
                 it('should block if any address in multi-IP result is private', async () => {
@@ -73,15 +68,8 @@ describe('Network Utils', () => {
                         ]);
                     });
 
-                    await new Promise((resolve, reject) => {
-                        options.dnsLookup('mixed.com', {}, (err) => {
-                            try {
-                                expect(err).toBeInstanceOf(Error);
-                                expect(err.message).toContain('SSRF Prevention');
-                                resolve();
-                            } catch (e) { reject(e); }
-                        });
-                    });
+                    await expect(promisifiedDnsLookup(options, 'mixed.com'))
+                        .rejects.toThrow('SSRF Prevention');
                 });
 
                 it('should allow multi-IP result if all are public', async () => {
@@ -94,15 +82,8 @@ describe('Network Utils', () => {
                         cb(null, results);
                     });
 
-                    await new Promise((resolve, reject) => {
-                        options.dnsLookup('public.com', {}, (err, address) => {
-                            if (err) return reject(err);
-                            try {
-                                expect(address).toEqual(results);
-                                resolve();
-                            } catch (e) { reject(e); }
-                        });
-                    });
+                    const { address } = await promisifiedDnsLookup(options, 'public.com');
+                    expect(address).toEqual(results);
                 });
             });
         });
@@ -132,15 +113,8 @@ describe('Network Utils', () => {
                         cb(null, '127.0.0.1', 4);
                     });
 
-                    await new Promise((resolve, reject) => {
-                        options.dnsLookup('localhost', {}, (err, address) => {
-                            if (err) return reject(err);
-                            try {
-                                expect(address).toBe('127.0.0.1');
-                                resolve();
-                            } catch (e) { reject(e); }
-                        });
-                    });
+                    const { address } = await promisifiedDnsLookup(options, 'localhost');
+                    expect(address).toBe('127.0.0.1');
                 });
             });
         });
