@@ -55,22 +55,14 @@ function getSafeGotOptions() {
          * @param {function} callback The callback function.
          */
         lookup: (hostname, options, callback) => {
-            // Force `all: true` to ensure we check all resolved IP addresses for SSRF.
-            dns.lookup(hostname, { ...options, all: true }, (err, addresses) => {
-                if (err) {
-                    return callback(err);
+            dns.lookup(hostname, options, (err, address, family) => {
+                if (err) return callback(err);
+
+                if (isPrivateIP(address)) {
+                    return callback(new Error(`SSRF Prevention: Access to private IP ${address} is denied.`));
                 }
 
-                // dns.lookup with all: true returns an array of { address, family } objects
-                for (const addr of addresses) {
-                    if (isPrivateIP(addr.address)) {
-                        return callback(new Error(`SSRF Prevention: Access to private IP ${addr.address} is denied.`));
-                    }
-                }
-
-                // `got`'s lookup callback requires a single address string.
-                // After verifying all are safe, we provide the first one.
-                callback(null, addresses[0].address, addresses[0].family);
+                callback(null, address, family);
             });
         }
     };
