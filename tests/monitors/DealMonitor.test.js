@@ -267,6 +267,50 @@ describe('DealMonitor', () => {
 
         jest.useRealTimers();
     });
+
+    it('should ignore phantom spikes where price increases and then returns to minimum', async () => {
+        const oldDate = '2024-01-01T00:00:00.000Z';
+        const spikeDate = new Date('2024-02-01T00:00:00.000Z');
+        
+        jest.useFakeTimers().setSystemTime(spikeDate);
+
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 10000, minOfferDate: oldDate,
+                lastOfferPrice: 10000, // Was at low
+                minNormalPrice: 20000, minNormalDate: oldDate,
+                lastNormalPrice: 20000 // Was at low
+            }
+        };
+
+        // 1. Price increases -> Should enter PENDING state
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 15000, normalPrice: 25000 }])
+        });
+        await monitor.check();
+
+        // Verify minDate is not updated yet
+        expect(monitor.state['1'].minOfferDate).toBe(oldDate);
+        expect(monitor.state['1'].minNormalDate).toBe(oldDate);
+
+        // 2. Price returns to low -> Should be treated as a phantom spike
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 10000, normalPrice: 20000 }])
+        });
+        await monitor.check();
+
+        // Verify minDate is STILL not updated, and lastPrice is back to the minimum
+        expect(monitor.state['1'].minOfferDate).toBe(oldDate);
+        expect(monitor.state['1'].minNormalDate).toBe(oldDate);
+        expect(monitor.state['1'].lastOfferPrice).toBe(10000);
+        expect(monitor.state['1'].lastNormalPrice).toBe(20000);
+        
+        // No notification should have been sent throughout this process
+        expect(mockChannel.send).not.toHaveBeenCalled();
+
+        jest.useRealTimers();
+    });
     
     it('should use the exit date when returning to historic low', async () => {
         const exitDate = '2025-02-09T10:00:00.000Z'; // The date it went up
