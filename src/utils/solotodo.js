@@ -152,6 +152,9 @@ function extractQuery(content) {
                 console.error(`Failed to decode URL part "${part}":`, e);
             }
 
+            // Security: Sanitize potential path traversal characters
+            slug = slug.replace(/(\.\.|[/\\])/g, ' ');
+
             const trimmedSlug = slug.trim();
             if (!trimmedSlug) continue;
 
