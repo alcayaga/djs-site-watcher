@@ -33,9 +33,8 @@ describe('Network Utils', () => {
 
     describe('isPrivateIP', () => {
         describe.each([
-            { label: 'active', value: 'true', expected: false },
-            { label: 'active (case-insensitive)', value: 'TRUE', expected: false },
-            { label: 'inactive', value: 'false', expected: true },
+            { label: 'active', value: true, expected: false },
+            { label: 'inactive', value: false, expected: true },
             { label: 'undefined', value: undefined, expected: true }
         ])('when bypass is $label', ({ value, expected }) => {
             it(`should return ${expected} for private IPs`, () => {

@@ -12,9 +12,7 @@ const DEFAULT_RETRY_LIMIT = 2;
  */
 function isPrivateIP(ip) {
     // allow private IPs if explicitly requested via environment variable (e.g. for local testing)
-    const isBypassEnabled = String(config.ALLOW_PRIVATE_IPS).toLowerCase() === 'true';
-
-    if (isBypassEnabled) {
+    if (config.ALLOW_PRIVATE_IPS) {
         return false;
     }
     try {
