@@ -10,11 +10,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    name: Deploy to Staging
+  test:
+    name: Build & Test
     runs-on: ubuntu-latest
-    environment: staging
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
     - uses: actions/checkout@v4
@@ -37,20 +36,23 @@ jobs:
     - name: Unit Tests
       run: npm test
 
-    - name: System Test (Single Run)
-      env:
-        SINGLE_RUN: true
-        # Secrets mapped from Repository Secrets
-        DISCORDJS_BOT_TOKEN: ${{ secrets.DISCORDJS_BOT_TOKEN }}
-        DISCORDJS_TEXTCHANNEL_ID: ${{ secrets.DISCORDJS_TEXTCHANNEL_ID }}
-        DISCORDJS_ADMINCHANNEL_ID: ${{ secrets.DISCORDJS_ADMINCHANNEL_ID }}
-        DISCORDJS_APCHANNEL_ID: ${{ secrets.DISCORDJS_APCHANNEL_ID }}
-        DISCORDJS_CLIENT_ID: ${{ secrets.DISCORDJS_CLIENT_ID }}
-        DISCORDJS_DEALS_CHANNEL_ID: ${{ secrets.DISCORDJS_DEALS_CHANNEL_ID }}
-      run: npm start
+  deploy:
+    name: Deploy to Staging Server
+    runs-on: ubuntu-latest
+    needs: test
+    environment: staging
+    if: github.ref == 'refs/heads/staging'
 
-    - name: Mock Deployment
-      run: |
-        echo "Deploying to staging environment..."
-        # In a real scenario, this would use ssh or a deployment action
-        echo "Deployment complete!"
+    steps:
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: home.alcayaga.net
+        username: gemini-cli
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 22
+        script: |
+          cd /home/pi/staging/djs-site-watcher
+          git pull origin staging
+          npm ci --production
+          pm2 restart djs-site-watcher-staging || pm2 start src/bot.js --name djs-site-watcher-staging
