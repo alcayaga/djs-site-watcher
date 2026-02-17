@@ -1,7 +1,18 @@
 #!/bin/bash
 set -e
 
-echo "[Deploy] Starting deployment to staging..."
+# Use DEPLOY_PATH env var or default to current directory if not set
+TARGET_DIR="${DEPLOY_PATH:-$(pwd)}"
+
+echo "[Deploy] Starting deployment to ${TARGET_DIR}..."
+
+cd "${TARGET_DIR}"
+
+# Reset to match remote branch exactly (assuming we want to deploy 'staging' branch)
+# We use 'origin/staging' as the target.
+echo "[Deploy] Fetching latest changes..."
+git fetch origin staging
+git reset --hard origin/staging
 
 # Install dependencies (production only)
 echo "[Deploy] Installing dependencies..."
