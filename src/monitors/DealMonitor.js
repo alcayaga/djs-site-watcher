@@ -127,7 +127,7 @@ class DealMonitor extends Monitor {
         const lastPriceKey = `last${priceType}Price`;
         const pendingExitKey = `pendingExit${priceType}`;
         const notificationType = priceType.toUpperCase();
-        const tolerance = this.config.priceTolerance != null ? this.config.priceTolerance : DEFAULT_PRICE_TOLERANCE;
+        const tolerance = this.config.priceTolerance != null ? parseFloat(this.config.priceTolerance) : DEFAULT_PRICE_TOLERANCE;
 
         const isAtMin = currentPrice <= (stored[minPriceKey] + tolerance);
         const wasAtMin = stored[lastPriceKey] <= (stored[minPriceKey] + tolerance);
