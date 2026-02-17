@@ -237,7 +237,8 @@ class DealMonitor extends Monitor {
                 const productId = String(product.id);
                 if (productId === '__proto__' || productId === 'constructor' || productId === 'prototype') continue;
 
-                let stored = newState[productId];
+                // Create a shallow copy to ensure immutable updates
+                let stored = newState[productId] ? { ...newState[productId] } : null;
 
                 if (!stored) {
                     // First time seeing this product
@@ -334,7 +335,11 @@ class DealMonitor extends Monitor {
                     productChanged = true;
                 }
 
-                if (productChanged) hasChanges = true;
+                if (productChanged) {
+                    hasChanges = true;
+                    // Update the state with the modified copy
+                    newState[productId] = stored;
+                }
             }
 
             if (hasChanges) {
