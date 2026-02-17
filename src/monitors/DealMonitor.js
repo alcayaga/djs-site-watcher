@@ -185,6 +185,8 @@ class DealMonitor extends Monitor {
                 console.log(`[DealMonitor] Price INCREASE detected for ${product.name} (ID: ${product.id}) [${priceType}]: +${formatCLP(diff)}`);
             }
 
+            stored[lastPriceKey] = currentPrice;
+
             if (isIncrease && wasAtMin && !isAtMin) {
                 /**
                  * "Update on Exit" Logic with Confirmation:
@@ -199,11 +201,9 @@ class DealMonitor extends Monitor {
                     console.log(`[DealMonitor] Potential exit from historic low for ${product.name} (ID: ${product.id}) [${priceType}]. Waiting for confirmation...`);
                 }
                 stored[pendingExitKey] = { date: now };
-                stored[lastPriceKey] = currentPrice;
                 return 'PENDING';
             }
             
-            stored[lastPriceKey] = currentPrice;
             return 'CHANGED';
         }
         return null;
