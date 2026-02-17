@@ -28,29 +28,11 @@ jobs:
         port: 22
         envs: DEPLOY_PATH
         script: |
-          # Ensure the script is executable (it might be new)
-          # We need to find the script first. Since we haven't pulled yet in this session,
-          # we rely on the script being present in the target directory from previous deploys
-          # OR we need to bootstrap it.
-          
-          # Ideally, we cd to the path and pull.
-          # Since the script now handles the pull, we need to bootstrap the script execution.
-          # But we need to know WHERE to cd to.
-          
-          # If DEPLOY_PATH is not set in secrets yet, fail or fallback?
-          # The script uses DEPLOY_PATH.
-          
           TARGET="${DEPLOY_PATH:-/home/pi/staging/djs-site-watcher}"
           
           cd "$TARGET"
           
-          # We need to fetch the script first if it changed?
-          # Or we just run git fetch/reset manually one last time here to get the script, then run the script?
-          # Or just trust the script is there?
-          # If we reset hard, we get the script.
-          
-          git fetch origin staging
-          git reset --hard origin/staging
-          
+          # Execute the deployment script included in the repo
+          # The script is responsible for pulling the latest code and restarting the app
           chmod +x scripts/deploy.sh
           ./scripts/deploy.sh
