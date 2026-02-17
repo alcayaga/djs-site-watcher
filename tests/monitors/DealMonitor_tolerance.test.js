@@ -4,7 +4,36 @@ const solotodo = require('../../src/utils/solotodo');
 const Discord = require('discord.js');
 
 jest.mock('got');
-jest.mock('discord.js');
+jest.mock('discord.js', () => {
+    const mockChannelInstance = {
+        send: jest.fn().mockResolvedValue({ startThread: jest.fn().mockResolvedValue({}) })
+    };
+    const mockClientInstance = {
+        channels: {
+            cache: {
+                get: jest.fn(() => mockChannelInstance)
+            }
+        }
+    };
+    return {
+        Client: jest.fn(() => mockClientInstance),
+        EmbedBuilder: jest.fn().mockImplementation(() => {
+            const embed = {
+                data: {},
+                setTitle: jest.fn((t) => { embed.data.title = t; return embed; }),
+                setDescription: jest.fn((d) => { embed.data.description = d; return embed; }),
+                addFields: jest.fn((f) => { embed.data.fields = f; return embed; }),
+                setColor: jest.fn((c) => { embed.data.color = c; return embed; }),
+                setTimestamp: jest.fn(() => { embed.data.timestamp = new Date(); return embed; }),
+                setFooter: jest.fn((f) => { embed.data.footer = f; return embed; }),
+                setThumbnail: jest.fn((u) => { embed.data.thumbnail = { url: u }; return embed; })
+            };
+            return embed;
+        }),
+        AttachmentBuilder: jest.fn(),
+        ThreadAutoArchiveDuration: { OneWeek: 10080 }
+    };
+});
 jest.mock('../../src/storage');
 jest.mock('../../src/config');
 jest.mock('../../src/utils/solotodo', () => ({
