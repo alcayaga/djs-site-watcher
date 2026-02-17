@@ -13,6 +13,8 @@ const NEW_CONDITION_URL = 'https://schema.org/NewCondition';
 const MIN_DESCRIPTIVE_SLUG_LENGTH = 5;
 const MAX_SKU_LIKE_SLUG_LENGTH = 10;
 
+const DEFAULT_PRICE_TOLERANCE = 500; // 500 CLP tolerance for phantom price spikes
+
 // Domains that serve broken or non-standard images for Apple products.
 const BANNED_PICTURE_DOMAINS = [
     'tienda.travel.cl',
@@ -70,6 +72,7 @@ module.exports = {
     NEW_CONDITION_URL,
     MIN_DESCRIPTIVE_SLUG_LENGTH,
     MAX_SKU_LIKE_SLUG_LENGTH,
+    DEFAULT_PRICE_TOLERANCE,
     BANNED_PICTURE_DOMAINS,
     APPLE_PRODUCTS
 };

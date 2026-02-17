@@ -4,6 +4,7 @@ const config = require('../config');
 const got = require('got');
 const { formatCLP, sanitizeLinkText, formatDiscordTimestamp } = require('../utils/formatters');
 const solotodo = require('../utils/solotodo');
+const { DEFAULT_PRICE_TOLERANCE } = require('../utils/constants');
 const { sleep } = require('../utils/helpers');
 const { getSafeGotOptions } = require('../utils/network');
 const { downloadImage } = require('../utils/image');
@@ -126,6 +127,10 @@ class DealMonitor extends Monitor {
         const lastPriceKey = `last${priceType}Price`;
         const pendingExitKey = `pendingExit${priceType}`;
         const notificationType = priceType.toUpperCase();
+        const tolerance = this.config.priceTolerance != null ? this.config.priceTolerance : DEFAULT_PRICE_TOLERANCE;
+
+        const isAtMin = currentPrice <= (stored[minPriceKey] + tolerance);
+        const wasAtMin = stored[lastPriceKey] <= (stored[minPriceKey] + tolerance);
 
         // 1. Check for Pending Exit Confirmation
         if (stored[pendingExitKey]) {
@@ -133,14 +138,14 @@ class DealMonitor extends Monitor {
             delete stored[pendingExitKey]; // Delete upfront to avoid repetition
 
             if (currentPrice >= stored[minPriceKey]) {
-                if (currentPrice > stored[minPriceKey]) {
-                    // CONFIRMED EXIT
+                if (!isAtMin) {
+                    // CONFIRMED EXIT (Still significantly above min)
                     if (this.config.verboseLogging) {
                         console.log(`[DealMonitor] Confirmed exit from historic low for ${product.name}. Updating minDate to ${pendingExitDate}`);
                     }
                     stored[minDateKey] = pendingExitDate; // Use the original exit date
-                } else { // currentPrice === stored[minPriceKey]
-                    // PHANTOM SPIKE (Back to Min)
+                } else {
+                    // PHANTOM SPIKE (Returned to within tolerance of Min)
                     if (this.config.verboseLogging) {
                         console.log(`[DealMonitor] Phantom spike ignored for ${product.name}. Returning to historic low state.`);
                     }
@@ -160,7 +165,7 @@ class DealMonitor extends Monitor {
             stored[minDateKey] = now;
             stored[lastPriceKey] = currentPrice;
             return `NEW_LOW_${notificationType}`;
-        } else if (currentPrice === stored[minPriceKey] && stored[lastPriceKey] > stored[minPriceKey]) {
+        } else if (isAtMin && !wasAtMin) {
             if (this.config.verboseLogging) {
                 console.log(`[DealMonitor] ${product.name} (ID: ${product.id}) [${priceType}] BACK TO HISTORIC LOW: ${formatCLP(currentPrice)}`);
             }
@@ -168,7 +173,6 @@ class DealMonitor extends Monitor {
             return `BACK_TO_LOW_${notificationType}`;
         } else if (currentPrice !== stored[lastPriceKey]) {
             const isIncrease = currentPrice > stored[lastPriceKey];
-            const wasAtMin = stored[lastPriceKey] === stored[minPriceKey];
 
             // Log ALL price changes to debug phantom spikes if verbose logging is enabled
             if (this.config.verboseLogging) {
@@ -181,12 +185,10 @@ class DealMonitor extends Monitor {
                 console.log(`[DealMonitor] Price INCREASE detected for ${product.name} (ID: ${product.id}) [${priceType}]: +${formatCLP(diff)}`);
             }
 
-            stored[lastPriceKey] = currentPrice;
-
-            if (isIncrease && wasAtMin) {
+            if (isIncrease && wasAtMin && !isAtMin) {
                 /**
                  * "Update on Exit" Logic with Confirmation:
-                 * When the price INCREASES from the historic minimum, we don't update minDate immediately.
+                 * When the price INCREASES significantly from the historic minimum, we don't update minDate immediately.
                  * Instead, we mark it as "Pending Exit".
                  * 
                  * Why?
@@ -197,9 +199,11 @@ class DealMonitor extends Monitor {
                     console.log(`[DealMonitor] Potential exit from historic low for ${product.name} (ID: ${product.id}) [${priceType}]. Waiting for confirmation...`);
                 }
                 stored[pendingExitKey] = { date: now };
+                stored[lastPriceKey] = currentPrice;
                 return 'PENDING';
             }
             
+            stored[lastPriceKey] = currentPrice;
             return 'CHANGED';
         }
         return null;
