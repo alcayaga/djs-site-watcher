@@ -28,9 +28,12 @@ jobs:
         port: 22
         envs: DEPLOY_PATH
         script: |
-          TARGET="${DEPLOY_PATH:-/home/pi/staging/djs-site-watcher}"
+          if [ -z "$DEPLOY_PATH" ]; then
+            echo "Error: DEPLOY_PATH secret is not set."
+            exit 1
+          fi
           
-          cd "$TARGET"
+          cd "$DEPLOY_PATH"
           
           # Execute the deployment script included in the repo
           # The script is responsible for pulling the latest code and restarting the app
