@@ -60,6 +60,6 @@ jobs:
         # Ensure config directory exists
         mkdir -p config
         # Use custom CI sites configuration
-        cp config/sites_ci.json config/sites.json
+        cp tests/config/sites_ci.json config/sites.json
         # Run the bot
         npm start
