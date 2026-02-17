@@ -40,6 +40,21 @@ describe('DealMonitor Price Tolerance', () => {
         monitor.client = mockClient;
     });
 
+    const setupNotificationMocks = (offerPrice = 100000, normalPrice = 100000) => {
+        jest.spyOn(solotodo, 'getAvailableEntities').mockResolvedValue([
+            {
+                active_registry: {
+                    offer_price: String(offerPrice),
+                    normal_price: String(normalPrice),
+                    cell_monthly_payment: null
+                },
+                store: 'https://api.com/stores/1/',
+                external_url: 'https://store.com'
+            }
+        ]);
+        jest.spyOn(solotodo, 'getStores').mockResolvedValue(new Map([['https://api.com/stores/1/', 'Store 1']]));
+    };
+
     const mockApiResponse = (products) => {
         const results = products.map(p => ({
             product_entries: [{
@@ -110,11 +125,7 @@ describe('DealMonitor Price Tolerance', () => {
     });
 
     it('should still trigger BACK_TO_LOW if the previous price was ABOVE tolerance', async () => {
-        // Mock solotodo utilities for notify
-        jest.spyOn(solotodo, 'getAvailableEntities').mockResolvedValue([
-            { active_registry: { offer_price: "100000", normal_price: "100000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
-        ]);
-        jest.spyOn(solotodo, 'getStores').mockResolvedValue(new Map([["https://api.com/stores/1/", "Store 1"]]));
+        setupNotificationMocks(100000);
 
         monitor.state = {
             '1': { 
@@ -140,11 +151,7 @@ describe('DealMonitor Price Tolerance', () => {
     });
 
     it('should trigger BACK_TO_LOW if returning to a price within tolerance of the minimum (not exact minimum)', async () => {
-        // Mock solotodo utilities for notify
-        jest.spyOn(solotodo, 'getAvailableEntities').mockResolvedValue([
-            { active_registry: { offer_price: "100100", normal_price: "100000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
-        ]);
-        jest.spyOn(solotodo, 'getStores').mockResolvedValue(new Map([["https://api.com/stores/1/", "Store 1"]]));
+        setupNotificationMocks(100100, 100100);
 
         monitor.state = {
             '1': { 
