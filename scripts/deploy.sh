@@ -21,6 +21,6 @@ npm ci --production
 
 # Restart application via PM2
 echo "[Deploy] Restarting application..."
-pm2 startOrRestart ecosystem.config.js --only "${PM2_APP_NAME:-djs-site-watcher-staging}"
+pm2 reload "${PM2_APP_NAME:-djs-site-watcher-staging}" || pm2 start ecosystem.config.js --only "${PM2_APP_NAME:-djs-site-watcher-staging}"
 
 echo "[Deploy] Deployment successful!"
