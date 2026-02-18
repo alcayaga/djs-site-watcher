@@ -4,7 +4,7 @@ const config = require('../config');
 const got = require('got');
 const { formatCLP, sanitizeLinkText, formatDiscordTimestamp } = require('../utils/formatters');
 const solotodo = require('../utils/solotodo');
-const { DEFAULT_PRICE_TOLERANCE } = require('../utils/constants');
+const { DEFAULT_PRICE_TOLERANCE, DEFAULT_GRACE_PERIOD_HOURS } = require('../utils/constants');
 const { sleep } = require('../utils/helpers');
 const { getSafeGotOptions } = require('../utils/network');
 const { downloadImage } = require('../utils/image');
@@ -127,8 +127,12 @@ class DealMonitor extends Monitor {
         const lastPriceKey = `last${priceType}Price`;
         const pendingExitKey = `pendingExit${priceType}`;
         const notificationType = priceType.toUpperCase();
+        
         const parsedTolerance = parseInt(this.config.priceTolerance, 10);
         const tolerance = !Number.isNaN(parsedTolerance) ? parsedTolerance : DEFAULT_PRICE_TOLERANCE;
+        
+        const parsedGrace = parseInt(this.config.gracePeriodHours, 10);
+        const gracePeriodHours = !Number.isNaN(parsedGrace) ? parsedGrace : DEFAULT_GRACE_PERIOD_HOURS;
 
         const isAtMin = currentPrice <= (stored[minPriceKey] + tolerance);
         const wasAtMin = stored[lastPriceKey] <= (stored[minPriceKey] + tolerance);
@@ -136,26 +140,43 @@ class DealMonitor extends Monitor {
         // 1. Check for Pending Exit Confirmation
         if (stored[pendingExitKey]) {
             const pendingExitDate = stored[pendingExitKey].date;
-            delete stored[pendingExitKey]; // Delete upfront to avoid repetition
 
             if (currentPrice >= stored[minPriceKey]) {
-                if (!isAtMin) {
-                    // CONFIRMED EXIT (Still significantly above min)
+                if (isAtMin) {
+                    // PHANTOM SPIKE / SHORT TOGGLE (Returned to within tolerance of Min)
+                    delete stored[pendingExitKey];
                     if (this.config.verboseLogging) {
-                        console.log(`[DealMonitor] Confirmed exit from historic low for ${product.name}. Updating minDate to ${pendingExitDate}`);
+                        console.log(`[DealMonitor] Price returned to low for ${product.name} during grace period. Cancelling exit.`);
                     }
-                    stored[minDateKey] = pendingExitDate; // Use the original exit date
+                    stored[lastPriceKey] = currentPrice;
+                    return 'CHANGED';
                 } else {
-                    // PHANTOM SPIKE (Returned to within tolerance of Min)
-                    if (this.config.verboseLogging) {
-                        console.log(`[DealMonitor] Phantom spike ignored for ${product.name}. Returning to historic low state.`);
+                    // Price is still high. Check if grace period has passed.
+                    const exitTime = new Date(pendingExitDate).getTime();
+                    const nowTime = new Date(now).getTime();
+                    const hoursPassed = (nowTime - exitTime) / (1000 * 60 * 60);
+
+                    if (hoursPassed >= gracePeriodHours) {
+                        // GRACE PERIOD EXPIRED -> CONFIRM EXIT
+                        delete stored[pendingExitKey];
+                        if (this.config.verboseLogging) {
+                            console.log(`[DealMonitor] Grace period expired for ${product.name}. Confirming exit from historic low.`);
+                        }
+                        stored[minDateKey] = pendingExitDate; // Use the original exit date
+                        stored[lastPriceKey] = currentPrice;
+                        return 'CHANGED';
+                    } else {
+                        // STILL IN GRACE PERIOD
+                        if (this.config.verboseLogging) {
+                            console.log(`[DealMonitor] Still in grace period for ${product.name} (${Math.floor(hoursPassed)}h/${gracePeriodHours}h). Waiting...`);
+                        }
+                        stored[lastPriceKey] = currentPrice;
+                        return 'PENDING';
                     }
                 }
-                stored[lastPriceKey] = currentPrice;
-                return 'CHANGED';
             }
-            // If currentPrice < stored[minPriceKey], we fall through to the new low logic below.
-            // The pending exit has been correctly cleared.
+            // If currentPrice < stored[minPriceKey], clear pending exit and process as NEW_LOW below
+            delete stored[pendingExitKey];
         }
 
         if (currentPrice < stored[minPriceKey]) {
@@ -195,11 +216,11 @@ class DealMonitor extends Monitor {
                  * Instead, we mark it as "Pending Exit".
                  * 
                  * Why?
-                 * To avoid "Phantom Spikes" where the price goes up for one cycle and immediately returns.
+                 * To avoid "Phantom Spikes" or short-term toggles where the price goes up for a few hours and immediately returns.
                  * This prevents false "Back to Historic Low" alerts.
                  */
                 if (this.config.verboseLogging) {
-                    console.log(`[DealMonitor] Potential exit from historic low for ${product.name} (ID: ${product.id}) [${priceType}]. Waiting for confirmation...`);
+                    console.log(`[DealMonitor] Potential exit from historic low for ${product.name} (ID: ${product.id}) [${priceType}]. Waiting for grace period...`);
                 }
                 stored[pendingExitKey] = { date: now };
                 return 'PENDING';

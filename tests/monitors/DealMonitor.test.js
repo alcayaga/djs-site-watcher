@@ -253,8 +253,8 @@ describe('DealMonitor', () => {
         expect(monitor.state['1'].pendingExitOffer).toEqual({ date: newDate.toISOString() });
         expect(monitor.state['1'].pendingExitNormal).toEqual({ date: newDate.toISOString() });
         
-        // Advance time by 1 hour for the next check
-        jest.advanceTimersByTime(1000 * 60 * 60);
+        // Advance time by 13 hours for the next check (Default grace period is 12h)
+        jest.advanceTimersByTime(13 * 1000 * 60 * 60);
 
         // 2. Second Check (Confirmation) -> Should CONFIRM exit and update date
         got.mockResolvedValueOnce({
