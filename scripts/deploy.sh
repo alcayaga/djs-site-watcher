@@ -11,8 +11,8 @@ cd "${TARGET_DIR}"
 # Reset to match remote branch exactly (assuming we want to deploy 'staging' branch)
 # We use 'origin/staging' as the target.
 echo "[Deploy] Fetching latest changes..."
-git fetch origin staging
-git reset --hard origin/staging
+git fetch origin "${DEPLOY_BRANCH:-staging}"
+git reset --hard "origin/${DEPLOY_BRANCH:-staging}"
 git clean -fd
 
 # Install dependencies (production only)
@@ -21,6 +21,6 @@ npm ci --production
 
 # Restart application via PM2
 echo "[Deploy] Restarting application..."
-pm2 startOrRestart ecosystem.config.js --only djs-site-watcher-staging
+pm2 startOrRestart ecosystem.config.js --only "${PM2_APP_NAME:-djs-site-watcher-staging}"
 
 echo "[Deploy] Deployment successful!"
