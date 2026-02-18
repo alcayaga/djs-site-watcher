@@ -14,6 +14,7 @@ const MIN_DESCRIPTIVE_SLUG_LENGTH = 5;
 const MAX_SKU_LIKE_SLUG_LENGTH = 10;
 
 const DEFAULT_PRICE_TOLERANCE = 500; // 500 CLP tolerance for phantom price spikes
+const DEFAULT_GRACE_PERIOD_HOURS = 12;
 
 // Domains that serve broken or non-standard images for Apple products.
 const BANNED_PICTURE_DOMAINS = [
@@ -73,6 +74,7 @@ module.exports = {
     MIN_DESCRIPTIVE_SLUG_LENGTH,
     MAX_SKU_LIKE_SLUG_LENGTH,
     DEFAULT_PRICE_TOLERANCE,
+    DEFAULT_GRACE_PERIOD_HOURS,
     BANNED_PICTURE_DOMAINS,
     APPLE_PRODUCTS
 };
