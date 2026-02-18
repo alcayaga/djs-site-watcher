@@ -1,0 +1,43 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [ staging ]
+  workflow_dispatch:
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to Staging Server
+    runs-on: ubuntu-latest
+    environment: staging
+    if: github.ref == 'refs/heads/staging'
+    permissions:
+      contents: read
+
+    steps:
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      env:
+        DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+      with:
+        host: home.alcayaga.net
+        username: gemini-cli
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 22
+        envs: DEPLOY_PATH
+        script: |
+          if [ -z "$DEPLOY_PATH" ]; then
+            echo "Error: DEPLOY_PATH secret is not set."
+            exit 1
+          fi
+          
+          cd "$DEPLOY_PATH"
+          
+          # Execute the deployment script included in the repo
+          # The script is responsible for pulling the latest code and restarting the app
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh
