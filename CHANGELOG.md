@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.4.0] - 2026-02-18
+
+### Features
+
+- **monitor:** Implement grace period for historic low exits (10f787c)
+
+### Bug Fixes
+
+- **deploy:** Use pm2 reload for reliable code updates (47a409a)
+
 ## [3.3.0] - 2026-02-18
 
 ### Features
