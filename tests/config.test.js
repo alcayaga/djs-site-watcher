@@ -54,6 +54,8 @@ describe('config', () => {
         const storage = require('../src/storage');
         storage.loadSettings.mockReturnValue({});
         storage.SENSITIVE_SETTINGS_KEYS = ['ALLOW_PRIVATE_IPS'];
+        storage.REQUIRED_ENV_VARS = [];
+        storage.OPTIONAL_ENV_VARS = [];
         const config = require('../src/config');
         expect(config.ALLOW_PRIVATE_IPS).toBe(true);
     });
