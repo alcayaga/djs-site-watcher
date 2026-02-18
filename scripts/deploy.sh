@@ -13,7 +13,7 @@ cd "${TARGET_DIR}"
 echo "[Deploy] Fetching latest changes..."
 git fetch origin "${DEPLOY_BRANCH:-staging}"
 git reset --hard "origin/${DEPLOY_BRANCH:-staging}"
-git clean -fd
+git clean -fd -e config/
 
 # Install dependencies (production only)
 echo "[Deploy] Installing dependencies..."
