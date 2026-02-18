@@ -47,6 +47,18 @@ describe('config', () => {
     });
 
     /**
+     * Test case for ALLOW_PRIVATE_IPS.
+     */
+    it('should load ALLOW_PRIVATE_IPS from env', () => {
+        process.env.ALLOW_PRIVATE_IPS = 'true';
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({});
+        storage.SENSITIVE_SETTINGS_KEYS = ['ALLOW_PRIVATE_IPS'];
+        const config = require('../src/config');
+        expect(config.ALLOW_PRIVATE_IPS).toBe(true);
+    });
+
+    /**
      * Test case ensuring loaded monitors are not overwritten.
      */
     it('should prioritize loaded monitors over defaults', () => {

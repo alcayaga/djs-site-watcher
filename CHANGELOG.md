@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.3.0] - 2026-02-18
+
+### Features
+
+- **core:** Bump to version 3.3.0
+
+### Bug Fixes
+
+- **config:** Remove optional environment variable warning for ALLOW_PRIVATE_IPS (0fbf0ce)
+- **deploy:** Default branch to master in deploy script (4384a36)
+- **monitor:** Implement price tolerance to avoid phantom spikes (5fa9c8c)
+- **security:** Sanitize path traversal in solotodo.js (3cef7e6)
+
+### Refactoring
+
+- **security:** Extract Solotodo constants and verify SSRF protection (93ebaa1)
+
+### CI/CD
+
+- **ci:** Add staging deployment workflow (ffc3a6a)
+- **chore:** Trigger staging deployment on master branch (4e0f928)
+
 ## [3.2.0] - 2026-02-16
 
 ### Features
