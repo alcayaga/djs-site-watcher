@@ -8,11 +8,11 @@ echo "[Deploy] Starting deployment to ${TARGET_DIR}..."
 
 cd "${TARGET_DIR}"
 
-# Reset to match remote branch exactly (assuming we want to deploy 'staging' branch)
-# We use 'origin/staging' as the target.
+# Reset to match remote branch exactly (assuming we want to deploy 'master' branch)
+# We use 'origin/master' as the target.
 echo "[Deploy] Fetching latest changes..."
-git fetch origin "${DEPLOY_BRANCH:-staging}"
-git reset --hard "origin/${DEPLOY_BRANCH:-staging}"
+git fetch origin "${DEPLOY_BRANCH:-master}"
+git reset --hard "origin/${DEPLOY_BRANCH:-master}"
 git clean -fd -e config/
 
 # Install dependencies (production only)
