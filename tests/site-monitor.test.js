@@ -33,6 +33,8 @@ describe('SiteMonitor', () => {
         client = new Discord.Client();
         // Access the shared mock channel instance from the client
         mockChannel = client.channels.cache.get('mockChannelId');
+        mockChannel.name = 'mock-channel';
+        mockChannel.id = 'mockChannelId';
         
         // Reset specific mock implementations if needed by tests
         storage.read.mockClear();
@@ -168,7 +170,7 @@ describe('SiteMonitor', () => {
             const loadedState = await siteMonitor.loadState();
             expect(storage.read).toHaveBeenCalledWith('sites.json');
             expect(loadedState).toEqual([]);
-            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Could not load state for site-monitor'));
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Could not load state for %s'), 'site-monitor', 'sites.json');
         });
 
         it('should return an empty array if storage.read returns non-array', async () => {
@@ -265,7 +267,7 @@ describe('SiteMonitor', () => {
 
             siteMonitor.notify(mockChange);
 
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for site-monitor.'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for %s.'), 'site-monitor');
             expect(mockChannel.send).not.toHaveBeenCalled();
         });
 
@@ -307,8 +309,8 @@ describe('SiteMonitor', () => {
             await siteMonitor.notify(mockChange);
 
             expect(mockChannel.send).toHaveBeenCalledTimes(2);
-            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Missing permissions to send embed'));
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("CRITICAL: Missing 'Send Messages' permission"), error);
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Missing permissions to send embed'), expect.anything(), expect.anything());
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("CRITICAL: Missing 'Send Messages' permission"), expect.anything(), expect.anything(), error);
         });
     });
 

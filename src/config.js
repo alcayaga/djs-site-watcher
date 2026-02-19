@@ -107,7 +107,7 @@ config.monitors.forEach(monitor => {
     if (!monitor.channelId || isPlaceholder(monitor.channelId)) {
         const fallbackId = defaults.channelId ?? config.defaultChannelId;
         if (!fallbackId || isPlaceholder(fallbackId)) {
-            logger.warn(`⚠️ Monitor '${monitor.name}' is missing a valid 'channelId'. Notifications for this monitor will fail.`);
+            logger.warn('⚠️ Monitor \'%s\' is missing a valid \'channelId\'. Notifications for this monitor will fail.', monitor.name);
         }
         monitor.channelId = fallbackId;
     }
@@ -146,9 +146,9 @@ if (!config.channels) {
             const fallbackId = mappedId ?? config.defaultChannelId;
             
             if (!fallbackId || isPlaceholder(fallbackId)) {
-                logger.warn(`⚠️ Channel handler '${channel.name}' is missing a valid 'channelId'. This handler may not function correctly.`);
+                logger.warn('⚠️ Channel handler \'%s\' is missing a valid \'channelId\'. This handler may not function correctly.', channel.name);
             } else if (!mappedId || isPlaceholder(mappedId)) {
-                logger.warn(`⚠️ Channel handler '${channel.name}' is missing 'channelId'. Falling back to default channel ID.`);
+                logger.warn('⚠️ Channel handler \'%s\' is missing \'channelId\'. Falling back to default channel ID.', channel.name);
             }
             
             channel.channelId = fallbackId;

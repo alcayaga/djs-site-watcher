@@ -90,7 +90,7 @@ describe('MonitorManager', () => {
         it('should log an error for enabled monitors that are not found', async () => {
             // Provide no monitor classes (or a different one), so NotFoundMonitor won't be found
             await monitorManager.initialize(client, [MockTestMonitorClass]); 
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('NotFoundMonitor'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Monitor "%s" is enabled'), 'NotFoundMonitor');
         });
     });
 

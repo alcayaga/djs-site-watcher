@@ -149,7 +149,7 @@ describe('Monitor', () => {
 
             await testMonitor.check(client);
 
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Error checking TestMonitor:'), expect.any(Error));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Error checking %s:'), 'TestMonitor', expect.any(Error));
         });
     });
 
@@ -165,7 +165,7 @@ describe('Monitor', () => {
 
             testMonitor.notify({});
 
-            expect(logger.info).toHaveBeenCalledWith('Changes detected for TestMonitor:', {});
+            expect(logger.info).toHaveBeenCalledWith('Changes detected for %s:', 'TestMonitor', {});
         });
     });
 
@@ -191,7 +191,7 @@ describe('Monitor', () => {
             storage.read.mockRejectedValueOnce(new Error('Read error'));
             const state = await testMonitor.loadState();
             expect(state).toEqual({});
-            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Could not load state for TestMonitor'));
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Could not load state for %s'), 'TestMonitor', 'test.json');
         });
     });
 

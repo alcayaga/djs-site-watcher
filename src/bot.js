@@ -101,7 +101,7 @@ client.on(Events.ClientReady, async () => {
     // Start the cron jobs
     monitorManager.startAll();
 
-    logger.info(`[${client.user.tag}] Ready...\n[${client.user.tag}] Running an interval of ${config.interval} minute(s).`);
+    logger.info('[%s] Ready...\n[%s] Running an interval of %d minute(s).', client.user.tag, client.user.tag, config.interval);
 });
 
 // Handle interactions (Slash Commands, Autocomplete)

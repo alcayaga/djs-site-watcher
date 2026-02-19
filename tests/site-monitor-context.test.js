@@ -139,7 +139,7 @@ describe('SiteMonitor Context & Clean Features', () => {
         
         expect(storage.write).toHaveBeenCalled();
         expect(notifySpy).not.toHaveBeenCalled();
-        expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[Migration] Updated'));
+        expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[Migration] Updated %s'), 'http://test-site.com');
     });
 
     it('should format diffs with limited context and emoji spacing', () => {

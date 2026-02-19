@@ -70,7 +70,7 @@ class Monitor {
      * Orchestrates fetching, parsing, comparing, and notifying.
      */
     async check() {
-        logger.info(`Checking for ${this.name} updates...`);
+        logger.info('Checking for %s updates...', this.name);
         try {
             const data = await this.fetch();
             const newData = this.parse(data);
@@ -82,7 +82,7 @@ class Monitor {
                 this.state = newData;
             }
         } catch (error) {
-            logger.error(`Error checking ${this.name}:`, error);
+            logger.error('Error checking %s:', this.name, error);
         }
     }
 
@@ -145,7 +145,7 @@ class Monitor {
      * @returns {Promise<void>}
      */
     async notify(changes) {
-        logger.info(`Changes detected for ${this.name}:`, changes);
+        logger.info('Changes detected for %s:', this.name, changes);
         const channel = this.getNotificationChannel();
         if (channel) {
             await channel.send(`Detected changes for ${this.name}!`);
@@ -159,7 +159,7 @@ class Monitor {
     async initialize(client) {
         this.client = client;
         this.state = await this.loadState();
-        logger.info(`Initialized monitor: ${this.name}`);
+        logger.info('Initialized monitor: %s', this.name);
     }
 
     /**
@@ -170,7 +170,7 @@ class Monitor {
         try {
             return await storage.read(this.config.file);
         } catch {
-            logger.info(`Could not load state for ${this.name} from ${this.config.file}. Starting fresh.`);
+            logger.info('Could not load state for %s from %s. Starting fresh.', this.name, this.config.file);
             return {};
         }
     }

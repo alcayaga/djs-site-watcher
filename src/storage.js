@@ -58,10 +58,10 @@ function ensureConfigFiles() {
         const example = target.replace(/\.json$/, '_example.json');
         if (!fs.existsSync(target)) {
             if (fs.existsSync(example)) {
-                logger.info(`[Setup] Creating ${target} from ${example}`);
+                logger.info('[Setup] Creating %s from %s', target, example);
                 fs.copySync(example, target);
             } else {
-                logger.warn(`[Setup] Warning: Could not create ${target} because ${example} is missing.`);
+                logger.warn('[Setup] Warning: Could not create %s because %s is missing.', target, example);
             }
         }
     });
@@ -90,10 +90,10 @@ function migrateLegacyData() {
         const newPath = path.join(NEW_DIR, file);
 
         if (fs.existsSync(oldPath) && !fs.existsSync(newPath)) {
-            logger.info(`[Migration] Moving ${file} to ${NEW_DIR}`);
+            logger.info('[Migration] Moving %s to %s', file, NEW_DIR);
             fs.moveSync(oldPath, newPath);
         } else if (fs.existsSync(oldPath) && fs.existsSync(newPath)) {
-            logger.info(`[Migration] Skipping moving ${file}, as it already exists in ${NEW_DIR}. Please check manually if you have conflicting data.`);
+            logger.info('[Migration] Skipping moving %s, as it already exists in %s. Please check manually if you have conflicting data.', file, NEW_DIR);
         }
     });
 
@@ -128,7 +128,7 @@ function loadSites() {
     }
     return [];
   } catch {
-    logger.info(`Could not read ${SITES_FILE}, creating a new one.`);
+    logger.info('Could not read %s, creating a new one.', SITES_FILE);
     return [];
   }
 }
@@ -150,7 +150,7 @@ function loadSettings() {
   try {
     return fs.readJSONSync(SETTINGS_FILE);
   } catch {
-    logger.info(`Could not read ${SETTINGS_FILE}.`);
+    logger.info('Could not read %s.', SETTINGS_FILE);
     return { interval: 5 };
   }
 }
@@ -176,7 +176,7 @@ function loadResponses() {
     try {
         return fs.readJSONSync(RESPONSES_FILE);
     } catch {
-        logger.info(`Could not read ${RESPONSES_FILE}.`);
+        logger.info('Could not read %s.', RESPONSES_FILE);
         return [];
     }
 }
@@ -190,7 +190,7 @@ async function read(file) {
     try {
         return await fs.readJSON(file);
     } catch {
-        logger.info(`Could not read ${file}.`);
+        logger.info('Could not read %s.', file);
         return {};
     }
 }

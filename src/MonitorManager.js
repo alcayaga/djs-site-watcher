@@ -32,10 +32,10 @@ class MonitorManager {
                         await monitorInstance.initialize(client);
                         this.monitors.push(monitorInstance);
                     } catch (e) {
-                        logger.error(`Error loading monitor ${monitorName}:`, e);
+                        logger.error('Error loading monitor %s:', monitorName, e);
                     }
                 } else {
-                    logger.error(`Monitor "${monitorName}" is enabled in config, but no matching monitor class was provided.`);
+                    logger.error('Monitor "%s" is enabled in config, but no matching monitor class was provided.', monitorName);
                 }
             }
         }

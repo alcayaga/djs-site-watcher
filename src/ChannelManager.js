@@ -62,15 +62,15 @@ class ChannelManager {
                             }
                             this.handlers.get(channelId).push(handlerInstance);
                         } else {
-                            logger.warn(`Channel handler ${channelConfig.name} is enabled but missing 'channelId'. It will not receive messages.`);
+                            logger.warn('Channel handler %s is enabled but missing \'channelId\'. It will not receive messages.', channelConfig.name);
                         }
                         
-                        logger.info(`Initialized channel handler: ${channelConfig.name}`);
+                        logger.info('Initialized channel handler: %s', channelConfig.name);
                     } catch (e) {
-                        logger.error(`Error initializing channel handler ${channelConfig.name}:`, e);
+                        logger.error('Error initializing channel handler %s:', channelConfig.name, e);
                     }
                 } else {
-                    logger.error(`Channel handler "${channelConfig.handler}" is enabled in config, but no matching class was found for key "${handlerKey}".`);
+                    logger.error('Channel handler "%s" is enabled in config, but no matching class was found for key "%s".', channelConfig.handler, handlerKey);
                 }
             }
         }

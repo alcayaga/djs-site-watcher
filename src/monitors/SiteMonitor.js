@@ -41,7 +41,7 @@ class SiteMonitor extends Monitor {
      * Overrides the base check method to handle an array of sites.
      */
     async check() {
-        logger.info(`Checking for ${this.name} updates...`);
+        logger.info('Checking for %s updates...', this.name);
         let sitesArray = Array.isArray(this.state) ? this.state : [];
 
         const checkPromises = sitesArray.map(async (site) => {
@@ -51,7 +51,7 @@ class SiteMonitor extends Monitor {
 
                 const title = dom.window.document.title;
                 if (title && title.trim().length > 0 && site.id !== title) {
-                    logger.info(`[Migration] Updating ID for ${site.url} from '${site.id}' to '${title}'`);
+                    logger.info('[Migration] Updating ID for %s from \'%s\' to \'%s\'', site.url, site.id, title);
                     site.id = title;
                     hasChanged = true;
                 }
@@ -71,19 +71,19 @@ class SiteMonitor extends Monitor {
                     } else {
                         // Silent update (Migration to clean content)
                         hasChanged = true; 
-                        logger.info(`[Migration] Updated ${site.url} to clean content format without notification.`);
+                        logger.info('[Migration] Updated %s to clean content format without notification.', site.url);
                     }
                 } else {
                     if (site.lastContent === undefined) {
                         site.lastContent = content;
                         hasChanged = true;
-                        logger.info(`[Migration] Backfilled lastContent for ${site.url} without notification.`);
+                        logger.info('[Migration] Backfilled lastContent for %s without notification.', site.url);
                     }
                     site.lastChecked = new Date().toISOString();
                 }
                 return { site, hasChanged };
             } catch (err) {
-                logger.error(`${site.url} :`, err);
+                logger.error('%s :', site.url, err);
                 return { site, hasChanged: false };
             }
         });
@@ -176,7 +176,7 @@ class SiteMonitor extends Monitor {
             if (!force) {
                 throw error;
             }
-            logger.warn(`Forcing add for ${url} despite error: ${error.message}`);
+            logger.warn('Forcing add for %s despite error: %s', url, error.message);
         }
 
         const warning = (css && fetchSuccess) ? !selectorFound : false;
@@ -228,33 +228,32 @@ class SiteMonitor extends Monitor {
             if (Array.isArray(data)) {
                 return data;
             } else if (data && Array.isArray(data.sites)) {
-                return data.sites;
-            }
-            return [];
-        } catch {
-            logger.info(`Could not load state for ${this.name} from ${this.config.file}. Starting fresh.`);
-            return [];
-        }
-    }
-
-    /**
-     * Sends a notification for a changed site.
-     * @param {object} change The change object containing site, old/new content, and dom.
-     * @returns {Promise<void>}
-     */
-    async notify(change) {
-        const { site, oldContent, newContent, dom } = change;
-        const channel = this.getNotificationChannel();
-        if (!channel) {
-            logger.error(`Notification channel not found for ${this.name}.`);
-            return;
-        }
-
-        logger.info(`Change detected! ${site.url}`);
-        
-        let title = dom.window.document.title || site.id;
-
-        const changes = diff.diffLines(oldContent, newContent);
+                            return data.sites;
+                        }
+                        return [];
+                    } catch {
+                        logger.info('Could not load state for %s from %s. Starting fresh.', this.name, this.config.file);
+                        return [];
+                    }
+                }
+                
+                /**
+                 * Sends a notification for a changed site.
+                 * @param {object} change The change object containing site, old/new content, and dom.
+                 * @returns {Promise<void>}
+                 */
+                async notify(change) {
+                    const { site, oldContent, newContent, dom } = change;
+                    const channel = this.getNotificationChannel();
+                    if (!channel) {
+                        logger.error('Notification channel not found for %s.', this.name);
+                        return;
+                    }
+                
+                    logger.info('Change detected! %s', site.url);
+                    
+                    let title = dom.window.document.title || site.id;
+                        const changes = diff.diffLines(oldContent, newContent);
         const allLines = [];
         changes.forEach((part) => {
             const type = part.added ? 'added' : part.removed ? 'removed' : 'context';
@@ -308,14 +307,14 @@ class SiteMonitor extends Monitor {
             await channel.send({ embeds: [embed] });
         } catch (error) {
             if (error.code === Discord.RESTJSONErrorCodes.MissingPermissions) { // Missing Permissions
-                logger.warn(`[SiteMonitor] Missing permissions to send embed in ${channel.name} (${channel.id}). Trying fallback message.`);
+                logger.warn('[SiteMonitor] Missing permissions to send embed in %s (%s). Trying fallback message.', channel.name, channel.id);
                 try {
                     await channel.send(`¡Cambio detectado en ${sanitizeMarkdown(title)}! 🐸\n${sanitizeMarkdown(site.url)}\n(No tengo permisos para enviar embeds en este canal)`);
                 } catch (fallbackError) {
                     if (fallbackError.code === Discord.RESTJSONErrorCodes.MissingPermissions) {
-                        logger.error(`[SiteMonitor] CRITICAL: Missing 'Send Messages' permission in ${channel.name} (${channel.id}). Cannot send ANY notification.`, fallbackError);
+                        logger.error('[SiteMonitor] CRITICAL: Missing \'Send Messages\' permission in %s (%s). Cannot send ANY notification.', channel.name, channel.id, fallbackError);
                     } else {
-                        logger.error(`[SiteMonitor] Failed to send fallback message in ${channel.name} (${channel.id}):`, fallbackError);
+                        logger.error('[SiteMonitor] Failed to send fallback message in %s (%s):', channel.name, channel.id, fallbackError);
                     }
                 }
             } else {
