@@ -26,7 +26,17 @@ const logger = winston.createLogger({
     winston.format.errors({ stack: true }),
     winston.format.timestamp(),
     useJsonFormat
-      ? winston.format.combine(winston.format.splat(), winston.format.json())
+      ? winston.format.combine(
+          winston.format.splat(),
+          winston.format.json({
+            replacer: (key, value) => {
+              if (value instanceof Error) {
+                return { message: value.message, stack: value.stack };
+              }
+              return value;
+            }
+          })
+        )
       : winston.format.combine(
           winston.format.colorize(),
           winston.format.printf((info) => {
