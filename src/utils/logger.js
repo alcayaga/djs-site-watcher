@@ -11,12 +11,18 @@ const logger = winston.createLogger({
     winston.format.splat(),
     useJsonFormat ? winston.format.json() : winston.format.combine(
       winston.format.colorize(),
-      winston.format.printf((info) => {
-        const { timestamp, level, message, stack } = info;
-        const splat = info[Symbol.for('splat')] || [];
-        const metaString = splat.length > 0 ? ' ' + splat.map(val => util.inspect(val, { colors: true, depth: 5 })).join(' ') : '';
-        const sanitizedMessage = typeof message === 'string' ? message.replace(/\n/g, ' ') : message;
-        return `${timestamp} [${level}]: ${sanitizedMessage}${metaString}${stack ? `\n${stack}` : ''}`;
+      winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
+        // If a stack is present, it includes the message and is the most complete representation.
+        const logMessage = stack || message;
+
+        // Also inspect any additional metadata that isn't the error itself.
+        const splat = meta[Symbol.for('splat')] || [];
+        const metaString = splat
+          .filter(item => !(item instanceof Error))
+          .map(item => util.inspect(item, { depth: 5 }))
+          .join(' ');
+
+        return `${timestamp} [${level}]: ${logMessage}${metaString ? ` ${metaString}` : ''}`;
       })
     )
   ),
