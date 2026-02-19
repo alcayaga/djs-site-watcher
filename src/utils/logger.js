@@ -18,7 +18,7 @@ const useJsonFormat = process.env.LOG_FORMAT_JSON === 'true';
  * @type {RegExp[]}
  */
 const SENSITIVE_PATTERNS = [
-    /M[A-Za-z0-9._-]{23}\.[A-Za-z0-9._-]{6}\.[A-Za-z0-9._-]{27}/g // Discord User Tokens
+    /[MNOR][A-Za-z\d]{23,25}\.[\w-]{6}\.[\w-]{27,39}/g // Discord User Tokens
 ];
 
 /**
@@ -72,10 +72,25 @@ const logger = winston.createLogger({
                  * @param {Object} info - Winston log information object.
                  * @returns {string} The formatted log string.
                  */
-                winston.format.printf(({ timestamp, level, message, stack }) => {
+                winston.format.printf((info) => {
+                    const { timestamp, level, message, stack, ...meta } = info;
+                    let logMessage = stack ? `${message}\n${stack}` : message;
+
                     // winston.format.splat() already interpolated placeholders into 'message'.
-                    // If a stack trace is present, we append it.
-                    const logMessage = stack ? `${message}\n${stack}` : message;
+                    // We handle cases where an object was passed as the only argument or metadata was provided.
+                    if (typeof logMessage !== 'string') {
+                        logMessage = JSON.stringify(logMessage || meta);
+                    } else if (Object.keys(meta).length > 0) {
+                        // Avoid appending internal winston symbols
+                        const cleanMeta = {};
+                        for (const key of Object.keys(meta)) {
+                            if (typeof key === 'string') cleanMeta[key] = meta[key];
+                        }
+                        if (Object.keys(cleanMeta).length > 0) {
+                            logMessage += ` ${JSON.stringify(cleanMeta)}`;
+                        }
+                    }
+
                     return `${timestamp} [${level}]: ${maskSensitive(logMessage)}`;
                 })
             )
