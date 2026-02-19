@@ -14,7 +14,7 @@ cd "${TARGET_DIR}"
 
 # Reset to match remote branch exactly
 echo "[Deploy] Fetching latest changes from branch: ${DEPLOY_BRANCH}..."
-git fetch origin "${DEPLOY_BRANCH}"
+git fetch origin "${DEPLOY_BRANCH}" --prune
 git reset --hard "origin/${DEPLOY_BRANCH}"
 git clean -fd -e config/
 

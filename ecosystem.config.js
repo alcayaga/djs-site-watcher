@@ -23,10 +23,10 @@ module.exports = {
       },
       // Environment-specific overrides
       env_production: {
-        NODE_ENV: 'production',
+        // Add production-specific vars here
       },
       env_staging: {
-        NODE_ENV: 'production',
+        // Add staging-specific vars here
       },
     },
   ],
