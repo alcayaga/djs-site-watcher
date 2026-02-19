@@ -21,14 +21,13 @@ module.exports = {
       script: 'src/bot.js',
       // Common environment variables
       env: {
+        NODE_ENV: 'production',
       },
       // Environment-specific overrides
       env_production: {
-        NODE_ENV: 'production',
         // Add production-specific vars here
       },
       env_staging: {
-        NODE_ENV: 'production',
         // Add staging-specific vars here
       },
     },
