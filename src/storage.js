@@ -1,5 +1,6 @@
 const fs = require('fs-extra');
 const path = require('path');
+const logger = require('./utils/logger');
 const {
     ENV_DISCORDJS_BOT_TOKEN,
     ENV_DISCORDJS_CLIENT_ID,
@@ -57,10 +58,10 @@ function ensureConfigFiles() {
         const example = target.replace(/\.json$/, '_example.json');
         if (!fs.existsSync(target)) {
             if (fs.existsSync(example)) {
-                console.log(`[Setup] Creating ${target} from ${example}`);
+                logger.info(`[Setup] Creating ${target} from ${example}`);
                 fs.copySync(example, target);
             } else {
-                console.warn(`[Setup] Warning: Could not create ${target} because ${example} is missing.`);
+                logger.warn(`[Setup] Warning: Could not create ${target} because ${example} is missing.`);
             }
         }
     });
@@ -89,10 +90,10 @@ function migrateLegacyData() {
         const newPath = path.join(NEW_DIR, file);
 
         if (fs.existsSync(oldPath) && !fs.existsSync(newPath)) {
-            console.log(`[Migration] Moving ${file} to ${NEW_DIR}`);
+            logger.info(`[Migration] Moving ${file} to ${NEW_DIR}`);
             fs.moveSync(oldPath, newPath);
         } else if (fs.existsSync(oldPath) && fs.existsSync(newPath)) {
-            console.log(`[Migration] Skipping moving ${file}, as it already exists in ${NEW_DIR}. Please check manually if you have conflicting data.`);
+            logger.info(`[Migration] Skipping moving ${file}, as it already exists in ${NEW_DIR}. Please check manually if you have conflicting data.`);
         }
     });
 
@@ -102,12 +103,12 @@ function migrateLegacyData() {
         try {
             let content = fs.readFileSync(settingsPath, 'utf8');
             if (content.includes('./src/')) {
-                console.log('[Migration] Patching paths in settings.json');
+                logger.info('[Migration] Patching paths in settings.json');
                 content = content.replace(/\.\/src\//g, './config/');
                 fs.writeFileSync(settingsPath, content, 'utf8');
             }
         } catch (err) {
-            console.error('[Migration] Failed to patch settings.json. Halting execution.', err);
+            logger.error('[Migration] Failed to patch settings.json. Halting execution.', err);
             process.exit(1);
         }
     }
@@ -127,7 +128,7 @@ function loadSites() {
     }
     return [];
   } catch {
-    console.log(`Could not read ${SITES_FILE}, creating a new one.`);
+    logger.info(`Could not read ${SITES_FILE}, creating a new one.`);
     return [];
   }
 }
@@ -149,7 +150,7 @@ function loadSettings() {
   try {
     return fs.readJSONSync(SETTINGS_FILE);
   } catch {
-    console.log(`Could not read ${SETTINGS_FILE}.`);
+    logger.info(`Could not read ${SETTINGS_FILE}.`);
     return { interval: 5 };
   }
 }
@@ -175,7 +176,7 @@ function loadResponses() {
     try {
         return fs.readJSONSync(RESPONSES_FILE);
     } catch {
-        console.log(`Could not read ${RESPONSES_FILE}.`);
+        logger.info(`Could not read ${RESPONSES_FILE}.`);
         return [];
     }
 }
@@ -189,7 +190,7 @@ async function read(file) {
     try {
         return await fs.readJSON(file);
     } catch {
-        console.log(`Could not read ${file}.`);
+        logger.info(`Could not read ${file}.`);
         return {};
     }
 }

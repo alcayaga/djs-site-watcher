@@ -2,6 +2,7 @@ const { ThreadAutoArchiveDuration, EmbedBuilder, RESTJSONErrorCodes } = require(
 const ChannelHandler = require('../ChannelHandler');
 const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl, getAvailableEntities, getStores } = require('../utils/solotodo');
 const { sanitizeLinkText, formatCLP, sanitizeMarkdown } = require('../utils/formatters');
+const logger = require('../utils/logger');
 
 /**
  * Handler for Deals channel moderation.
@@ -31,7 +32,7 @@ class DealsChannel extends ChannelHandler {
                 }
             } catch (e) {
                 hasValidLink = false;
-                console.warn(`Failed to parse URL "${urlMatch[0]}":`, e.message);
+                logger.warn(`Failed to parse URL "${urlMatch[0]}": ${e.message}`);
             }
         }
 
@@ -46,7 +47,7 @@ class DealsChannel extends ChannelHandler {
                     autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
                 });
             } catch (error) {
-                console.error('Error creating thread in DealsChannel handler:', error);
+                logger.error('Error creating thread in DealsChannel handler:', error);
                 // If thread creation fails, we return early to trigger deletion and notification.
                 return true;
             }
@@ -113,7 +114,7 @@ class DealsChannel extends ChannelHandler {
                             embed.addFields({ name: '💰 Mejores precios actuales', value: priceList });
                         }
                     } catch (priceError) {
-                        console.error('Error fetching entities or stores in DealsChannel:', priceError);
+                        logger.error('Error fetching entities or stores in DealsChannel:', priceError);
                     }
 
                     await thread.send({ embeds: [embed] });
@@ -129,7 +130,7 @@ class DealsChannel extends ChannelHandler {
                     await thread.send({ embeds: [fallbackEmbed] });
                 }
             } catch (error) {
-                console.error('Error in Solotodo logic:', error);
+                logger.error('Error in Solotodo logic:', error);
             }
 
             return false;
@@ -139,13 +140,13 @@ class DealsChannel extends ChannelHandler {
         try {
             await message.delete();
         } catch (deleteError) {
-            console.error('Error deleting message in DealsChannel handler:', deleteError);
+            logger.error('Error deleting message in DealsChannel handler:', deleteError);
             // If deletion fails, notify the channel about missing permissions
             if (deleteError.code === RESTJSONErrorCodes.MissingPermissions) { // Missing Permissions
                 try {
                     await message.reply('⚠️ No tengo permisos para moderar este canal. Por favor, asegúrate de que tenga el permiso "Gestionar mensajes".');
                 } catch (replyError) {
-                    console.error('Could not send permission warning to channel:', replyError);
+                    logger.error('Could not send permission warning to channel:', replyError);
                 }
             }
             return true;
@@ -171,7 +172,7 @@ class DealsChannel extends ChannelHandler {
         try {
             await message.author.send({ embeds: [notificationEmbed] });
         } catch (sendError) {
-            console.error('Could not send DM to user:', sendError);
+            logger.error('Could not send DM to user:', sendError);
         }
 
         return true;

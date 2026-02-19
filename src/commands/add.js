@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { sanitizeMarkdown } = require('../utils/formatters');
+const logger = require('../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -108,7 +109,7 @@ module.exports = {
             
             await interaction.editReply({ embeds: [embed] });
         } catch (error) {
-            console.error('Error adding site:', error);
+            logger.error('Error adding site:', error);
             await interaction.editReply({ content: `Error al agregar el sitio: ${error.message}` });
         }
     }

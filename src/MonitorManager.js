@@ -1,4 +1,5 @@
 const config = require('./config');
+const logger = require('./utils/logger');
 
 /**
  * Manages the loading, initialization, and control of various monitor instances.
@@ -31,10 +32,10 @@ class MonitorManager {
                         await monitorInstance.initialize(client);
                         this.monitors.push(monitorInstance);
                     } catch (e) {
-                        console.error(`Error loading monitor ${monitorName}:`, e);
+                        logger.error(`Error loading monitor ${monitorName}:`, e);
                     }
                 } else {
-                    console.error(`Monitor "${monitorName}" is enabled in config, but no matching monitor class was provided.`);
+                    logger.error(`Monitor "${monitorName}" is enabled in config, but no matching monitor class was provided.`);
                 }
             }
         }

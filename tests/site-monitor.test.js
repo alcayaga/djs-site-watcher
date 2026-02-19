@@ -4,6 +4,7 @@ const got = require('got');
 const storage = require('../src/storage');
 const crypto = require('crypto');
 const diff = require('diff');
+const logger = require('../src/utils/logger');
 
 // Use manual mocks from __mocks__ and src/__mocks__
 jest.mock('discord.js');
@@ -13,6 +14,11 @@ jest.mock('crypto');
 jest.mock('diff');
 jest.mock('../src/storage');
 jest.mock('../src/config');
+jest.mock('../src/utils/logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+}));
 
 describe('SiteMonitor', () => {
     let client;
@@ -158,24 +164,20 @@ describe('SiteMonitor', () => {
 
         it('should return an empty array if storage.read fails', async () => {
             storage.read.mockRejectedValueOnce(new Error('Read error'));
-            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
             const loadedState = await siteMonitor.loadState();
             expect(storage.read).toHaveBeenCalledWith('sites.json');
             expect(loadedState).toEqual([]);
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Could not load state for site-monitor'));
-            consoleLogSpy.mockRestore();
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Could not load state for site-monitor'));
         });
 
         it('should return an empty array if storage.read returns non-array', async () => {
             storage.read.mockResolvedValueOnce({}); // non-array value
-            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
             const loadedState = await siteMonitor.loadState();
             expect(storage.read).toHaveBeenCalledWith('sites.json');
             expect(loadedState).toEqual([]);
-            expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('Could not load state')); 
-            consoleLogSpy.mockRestore();
+            expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('Could not load state')); 
         });
     });
 
@@ -260,13 +262,11 @@ describe('SiteMonitor', () => {
         it('should log an error if notification channel not found', () => {
             // Mock get returning undefined
             jest.spyOn(client.channels.cache, 'get').mockReturnValueOnce(undefined);
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
             siteMonitor.notify(mockChange);
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for site-monitor.'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for site-monitor.'));
             expect(mockChannel.send).not.toHaveBeenCalled();
-            consoleErrorSpy.mockRestore();
         });
 
         it('should use site.id as title if dom.window.document.title is not available', () => {
@@ -304,17 +304,11 @@ describe('SiteMonitor', () => {
                 .mockRejectedValueOnce(error) // Embed fails
                 .mockRejectedValueOnce(error); // Fallback fails
 
-            const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
             await siteMonitor.notify(mockChange);
 
             expect(mockChannel.send).toHaveBeenCalledTimes(2);
-            expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('Missing permissions to send embed'));
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("CRITICAL: Missing 'Send Messages' permission"), error);
-
-            consoleWarnSpy.mockRestore();
-            consoleErrorSpy.mockRestore();
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Missing permissions to send embed'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("CRITICAL: Missing 'Send Messages' permission"), error);
         });
     });
 

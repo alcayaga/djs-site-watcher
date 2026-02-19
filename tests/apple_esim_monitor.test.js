@@ -1,6 +1,7 @@
 const AppleEsimMonitor = require('../src/monitors/AppleEsimMonitor');
 const Discord = require('discord.js');
 const got = require('got');
+const logger = require('../src/utils/logger');
 
 // Mock external modules
 jest.mock('jsdom');
@@ -8,6 +9,11 @@ jest.mock('discord.js');
 jest.mock('got');
 jest.mock('../src/storage');
 jest.mock('../src/config');
+jest.mock('../src/utils/logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+}));
 
 describe('AppleEsimMonitor', () => {
     let client;
@@ -66,13 +72,11 @@ describe('AppleEsimMonitor', () => {
         it('should return old state if country heading is not found', () => {
             appleEsimMonitor.state = { Chile: [{ name: 'Old Carrier', link: 'old.com', capability: 'General' }] };
             const html = `<html><body><h2>Not Chile</h2></body></html>`;
-            const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
             const parsedData = appleEsimMonitor.parse(html);
             expect(parsedData).toEqual(appleEsimMonitor.state); // Should return the old state
-            expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('Could not find section for Chile'));
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Could not find section for Chile'));
             expect(jest.requireMock('jsdom').JSDOM).toHaveBeenCalledWith(html);
-            consoleWarnSpy.mockRestore();
         });
 
         it('should handle empty carrier list for the country', () => {
@@ -194,14 +198,12 @@ describe('AppleEsimMonitor', () => {
 
         it('should log an error if notification channel not found', () => {
             client.channels.cache.get.mockReturnValueOnce(undefined);
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             const changes = { added: [{ name: 'New', link: 'new.com', capability: 'Gen' }], removed: [] };
 
             appleEsimMonitor.notify(changes);
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for AppleEsim.'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for AppleEsim.'));
             expect(mockChannel.send).not.toHaveBeenCalled();
-            consoleErrorSpy.mockRestore();
         });
     });
 });

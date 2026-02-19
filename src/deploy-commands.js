@@ -1,6 +1,7 @@
 const { REST, Routes } = require('discord.js');
 const config = require('./config');
 const { loadCommands } = require('./utils/commandLoader');
+const logger = require('./utils/logger');
 
 const commands = loadCommands();
 const commandData = commands.map(command => command.data.toJSON());
@@ -9,7 +10,7 @@ const rest = new REST({ version: '10' }).setToken(config.DISCORDJS_BOT_TOKEN);
 
 (async () => {
 	try {
-		console.log(`Started refreshing ${commandData.length} application (/) commands.`);
+		logger.info(`Started refreshing ${commandData.length} application (/) commands.`);
 
         // The put method is used to fully refresh all commands in the guild with the current set
         // If we want global commands, we use Routes.applicationCommands(clientId)
@@ -25,8 +26,8 @@ const rest = new REST({ version: '10' }).setToken(config.DISCORDJS_BOT_TOKEN);
 			{ body: commandData },
 		);
 
-		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+		logger.info(`Successfully reloaded ${data.length} application (/) commands.`);
 	} catch (error) {
-		console.error(error);
+		logger.error(error);
 	}
 })();

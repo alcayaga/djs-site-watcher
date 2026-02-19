@@ -1,5 +1,6 @@
 const { MessageFlags } = require('discord.js');
 const { loadCommands } = require('../utils/commandLoader');
+const logger = require('../utils/logger');
 
 // Load commands once
 const commands = loadCommands();
@@ -10,7 +11,7 @@ const commands = loadCommands();
  * @param {Error} error 
  */
 async function handleInteractionError(interaction, error) {
-    console.error(`Error handling interaction (${interaction.customId || interaction.commandName}):`, error);
+    logger.error(`Error handling interaction (${interaction.customId || interaction.commandName}):`, error);
     const errorMessage = { content: 'Hubo un error al procesar esta interacción.', flags: [MessageFlags.Ephemeral] };
     
     if (interaction.deferred) {
@@ -73,7 +74,7 @@ async function handleInteraction(interaction, client, state, config, monitorMana
         try {
             await command.autocomplete(interaction, monitorManager);
         } catch (error) {
-            console.error(error);
+            logger.error(error);
         }
     }
 }

@@ -1,50 +1,3 @@
-// Override console methods to add timestamps
-/**
- * Gets the current date and time in a formatted string.
- * @returns {string} The formatted timestamp [YYYY-MM-DD HH:mm:ssZ]
- */
-function getTimestamp() {
-    return new Date().toISOString().replace('T', ' ').substring(0, 19) + 'Z';
-}
-
-/**
- * Applies a patch to console methods to prepend a timestamp.
- * @returns {void}
- */
-function applyConsoleTimestampPatch() {
-    const methodsToPatch = ['log', 'warn', 'error', 'info', 'debug', 'trace'];
-
-    methodsToPatch.forEach(method => {
-        // Only patch existing methods to avoid errors
-        if (typeof console[method] === 'function') {
-            const originalMethod = console[method];
-            /**
-             * Overrides the console method to include a timestamp.
-             * @param {...any} args - The arguments to log.
-             * @returns {void}
-             */
-            console[method] = (...args) => {
-                const timestamp = `[${getTimestamp()}]`;
-                if (args.length > 0 && typeof args[0] === 'string') {
-                    // If the first argument is a string, prepend the timestamp to it
-                    // to preserve printf-like formatting (e.g., console.log('%s', val))
-                    args[0] = `${timestamp} ${args[0]}`;
-                    originalMethod(...args);
-                } else {
-                    // Otherwise, just prepend the timestamp as a separate argument
-                    originalMethod(timestamp, ...args);
-                }
-            };
-        }
-    });
-}
-
-// Only apply the patch when not in a test environment.
-// Jest and other test runners typically set NODE_ENV to 'test'.
-if (process.env.NODE_ENV !== 'test') {
-    applyConsoleTimestampPatch();
-}
-
 // Import required modules
 const { Client, GatewayIntentBits, Partials, Events } = require('discord.js');
 const client = new Client({
@@ -62,6 +15,7 @@ const channelManager = require('./ChannelManager');
 const monitorManager = require('./MonitorManager');
 const fs = require('fs');
 const path = require('path');
+const logger = require('./utils/logger');
 
 // Load configuration and state
 const storage = require('./storage');
@@ -90,11 +44,11 @@ client.on(Events.ClientReady, async () => {
     const { loadCommands } = require('./utils/commandLoader');
     const commands = loadCommands();
     try {
-        console.log(`[${client.user.tag}] Started refreshing application (/) commands.`);
+        logger.info(`[${client.user.tag}] Started refreshing application (/) commands.`);
         await client.application.commands.set(commands.map(c => c.data.toJSON()));
-        console.log(`[${client.user.tag}] Successfully reloaded application (/) commands.`);
+        logger.info(`[${client.user.tag}] Successfully reloaded application (/) commands.`);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
     }
     */
 
@@ -112,9 +66,9 @@ client.on(Events.ClientReady, async () => {
             .filter(file => file.endsWith('.js'));
     } catch (error) {
         if (error.code === 'ENOENT') {
-            console.warn(`Monitors directory not found at ${monitorPath}. No monitors will be loaded.`);
+            logger.warn(`Monitors directory not found at ${monitorPath}. No monitors will be loaded.`);
         } else {
-            console.error(`Error reading monitors directory at ${monitorPath}:`, error);
+            logger.error(`Error reading monitors directory at ${monitorPath}:`, error);
         }
     }
 
@@ -128,7 +82,7 @@ client.on(Events.ClientReady, async () => {
 
     // If SINGLE_RUN is true, run the monitors once and then exit
     if (String(config.SINGLE_RUN).toLowerCase() === 'true') {
-        console.log('DEBUG / SINGLE RUN MODE ENABLED');
+        logger.info('DEBUG / SINGLE RUN MODE ENABLED');
         await monitorManager.checkAll();
         if (process.env.NODE_ENV !== 'test') {
             process.exit();
@@ -147,7 +101,7 @@ client.on(Events.ClientReady, async () => {
     // Start the cron jobs
     monitorManager.startAll();
 
-    console.log(`[${client.user.tag}] Ready...\n[${client.user.tag}] Running an interval of ${config.interval} minute(s).`);
+    logger.info(`[${client.user.tag}] Ready...\n[${client.user.tag}] Running an interval of ${config.interval} minute(s).`);
 });
 
 // Handle interactions (Slash Commands, Autocomplete)

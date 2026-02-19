@@ -19,8 +19,14 @@ const got = require('got');
 const storage = require('../src/storage');
 const crypto = require('crypto');
 const diff = require('diff');
+const logger = require('../src/utils/logger');
 
 jest.mock('got');
+jest.mock('../src/utils/logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+}));
 jest.mock('jsdom', () => {
     return {
         JSDOM: jest.fn((html) => {
@@ -128,13 +134,12 @@ describe('SiteMonitor Context & Clean Features', () => {
         }));
 
         const notifySpy = jest.spyOn(siteMonitor, 'notify');
-        const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
         await siteMonitor.check(client);
         
         expect(storage.write).toHaveBeenCalled();
         expect(notifySpy).not.toHaveBeenCalled();
-        expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('[Migration] Updated'));
+        expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[Migration] Updated'));
     });
 
     it('should format diffs with limited context and emoji spacing', () => {

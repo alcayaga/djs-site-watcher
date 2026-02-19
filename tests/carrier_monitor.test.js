@@ -10,6 +10,13 @@ jest.mock('discord.js');
 jest.mock('got');
 jest.mock('../src/storage');
 jest.mock('../src/config');
+jest.mock('../src/utils/logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+}));
+
+const logger = require('../src/utils/logger');
 
 describe('CarrierMonitor', () => {
     let client;
@@ -205,14 +212,12 @@ describe('CarrierMonitor', () => {
 
         it('should log an error if notification channel not found', () => {
             client.channels.cache.get.mockReturnValueOnce(undefined);
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             const changes = { updated: [{ id: 'Verizon_US', version: '48.0', build: '48.0.0', url: 'http://v.com/48', lastUpdated: 'now' }] };
 
             carrierMonitor.notify(changes);
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for Carrier.'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for Carrier.'));
             expect(mockChannel.send).not.toHaveBeenCalled();
-            consoleErrorSpy.mockRestore();
         });
     });
 });

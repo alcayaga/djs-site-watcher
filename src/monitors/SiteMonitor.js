@@ -7,6 +7,7 @@ const got = require('got');
 const storage = require('../storage');
 const { URL } = require('url');
 const { getSafeGotOptions } = require('../utils/network');
+const logger = require('../utils/logger');
 
 /**
  * Cleans the text by trimming lines and removing empty ones.
@@ -40,7 +41,7 @@ class SiteMonitor extends Monitor {
      * Overrides the base check method to handle an array of sites.
      */
     async check() {
-        console.log(`Checking for ${this.name} updates...`);
+        logger.info(`Checking for ${this.name} updates...`);
         let sitesArray = Array.isArray(this.state) ? this.state : [];
 
         const checkPromises = sitesArray.map(async (site) => {
@@ -50,7 +51,7 @@ class SiteMonitor extends Monitor {
 
                 const title = dom.window.document.title;
                 if (title && title.trim().length > 0 && site.id !== title) {
-                    console.log(`[Migration] Updating ID for ${site.url} from '${site.id}' to '${title}'`);
+                    logger.info(`[Migration] Updating ID for ${site.url} from '${site.id}' to '${title}'`);
                     site.id = title;
                     hasChanged = true;
                 }
@@ -70,19 +71,19 @@ class SiteMonitor extends Monitor {
                     } else {
                         // Silent update (Migration to clean content)
                         hasChanged = true; 
-                        console.log(`[Migration] Updated ${site.url} to clean content format without notification.`);
+                        logger.info(`[Migration] Updated ${site.url} to clean content format without notification.`);
                     }
                 } else {
                     if (site.lastContent === undefined) {
                         site.lastContent = content;
                         hasChanged = true;
-                        console.log(`[Migration] Backfilled lastContent for ${site.url} without notification.`);
+                        logger.info(`[Migration] Backfilled lastContent for ${site.url} without notification.`);
                     }
                     site.lastChecked = new Date().toISOString();
                 }
                 return { site, hasChanged };
             } catch (err) {
-                console.log(`${site.url} : ${err}`);
+                logger.error(`${site.url} : ${err}`);
                 return { site, hasChanged: false };
             }
         });
@@ -175,7 +176,7 @@ class SiteMonitor extends Monitor {
             if (!force) {
                 throw error;
             }
-            console.warn(`Forcing add for ${url} despite error: ${error.message}`);
+            logger.warn(`Forcing add for ${url} despite error: ${error.message}`);
         }
 
         const warning = (css && fetchSuccess) ? !selectorFound : false;
@@ -231,7 +232,7 @@ class SiteMonitor extends Monitor {
             }
             return [];
         } catch {
-            console.log(`Could not load state for ${this.name} from ${this.config.file}. Starting fresh.`);
+            logger.info(`Could not load state for ${this.name} from ${this.config.file}. Starting fresh.`);
             return [];
         }
     }
@@ -245,11 +246,11 @@ class SiteMonitor extends Monitor {
         const { site, oldContent, newContent, dom } = change;
         const channel = this.getNotificationChannel();
         if (!channel) {
-            console.error(`Notification channel not found for ${this.name}.`);
+            logger.error(`Notification channel not found for ${this.name}.`);
             return;
         }
 
-        console.log(`Change detected! ${site.url}`);
+        logger.info(`Change detected! ${site.url}`);
         
         let title = dom.window.document.title || site.id;
 
@@ -307,14 +308,14 @@ class SiteMonitor extends Monitor {
             await channel.send({ embeds: [embed] });
         } catch (error) {
             if (error.code === Discord.RESTJSONErrorCodes.MissingPermissions) { // Missing Permissions
-                console.warn(`[SiteMonitor] Missing permissions to send embed in ${channel.name} (${channel.id}). Trying fallback message.`);
+                logger.warn(`[SiteMonitor] Missing permissions to send embed in ${channel.name} (${channel.id}). Trying fallback message.`);
                 try {
                     await channel.send(`¡Cambio detectado en ${sanitizeMarkdown(title)}! 🐸\n${sanitizeMarkdown(site.url)}\n(No tengo permisos para enviar embeds en este canal)`);
                 } catch (fallbackError) {
                     if (fallbackError.code === Discord.RESTJSONErrorCodes.MissingPermissions) {
-                        console.error(`[SiteMonitor] CRITICAL: Missing 'Send Messages' permission in ${channel.name} (${channel.id}). Cannot send ANY notification.`, fallbackError);
+                        logger.error(`[SiteMonitor] CRITICAL: Missing 'Send Messages' permission in ${channel.name} (${channel.id}). Cannot send ANY notification.`, fallbackError);
                     } else {
-                        console.error(`[SiteMonitor] Failed to send fallback message in ${channel.name} (${channel.id}):`, fallbackError);
+                        logger.error(`[SiteMonitor] Failed to send fallback message in ${channel.name} (${channel.id}):`, fallbackError);
                     }
                 }
             } else {

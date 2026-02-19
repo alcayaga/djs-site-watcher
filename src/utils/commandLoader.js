@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Collection } = require('discord.js');
+const logger = require('./logger');
 
 /**
  * Loads commands from the commands directory.
@@ -22,7 +23,7 @@ function loadCommands() {
         if ('data' in command && 'execute' in command) {
             commands.set(command.data.name, command);
         } else {
-            console.warn(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+            logger.warn(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
         }
     }
 

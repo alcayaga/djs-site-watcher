@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const config = require('./config');
+const logger = require('./utils/logger');
 
 /**
  * Manages the loading and execution of channel-specific message handlers.
@@ -27,7 +28,7 @@ class ChannelManager {
             if (error.code === 'ENOENT') {
                 return;
             }
-            console.error(`Error reading channel handlers directory '${channelsPath}':`, error);
+            logger.error(`Error reading channel handlers directory '${channelsPath}':`, error);
             return;
         }
 
@@ -40,7 +41,7 @@ class ChannelManager {
                 const handlerName = file.replace('.js', '').toLowerCase();
                 handlerClassMap.set(handlerName, HandlerClass);
             } catch (error) {
-                console.error(`Error loading channel handler file ${file}:`, error);
+                logger.error(`Error loading channel handler file ${file}:`, error);
             }
         }
 
@@ -61,15 +62,15 @@ class ChannelManager {
                             }
                             this.handlers.get(channelId).push(handlerInstance);
                         } else {
-                            console.warn(`Channel handler ${channelConfig.name} is enabled but missing 'channelId'. It will not receive messages.`);
+                            logger.warn(`Channel handler ${channelConfig.name} is enabled but missing 'channelId'. It will not receive messages.`);
                         }
                         
-                        console.log(`Initialized channel handler: ${channelConfig.name}`);
+                        logger.info(`Initialized channel handler: ${channelConfig.name}`);
                     } catch (e) {
-                        console.error(`Error initializing channel handler ${channelConfig.name}:`, e);
+                        logger.error(`Error initializing channel handler ${channelConfig.name}:`, e);
                     }
                 } else {
-                    console.error(`Channel handler "${channelConfig.handler}" is enabled in config, but no matching class was found for key "${handlerKey}".`);
+                    logger.error(`Channel handler "${channelConfig.handler}" is enabled in config, but no matching class was found for key "${handlerKey}".`);
                 }
             }
         }

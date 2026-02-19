@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, EmbedBuilder } = require('discord.js');
+const logger = require('../utils/logger');
 
 const COLORS = {
     DEFAULT: 0x6058f3,
@@ -107,7 +108,7 @@ module.exports = {
                 const failures = results.filter(r => r.status === 'rejected');
                 const replyEmbed = new EmbedBuilder();
                 if (failures.length > 0) {
-                    console.error(`${failures.length} monitor check(s) failed during manual trigger:`, failures);
+                    logger.error(`${failures.length} monitor check(s) failed during manual trigger:`, failures);
                     replyEmbed
                         .setTitle('⚠️ Fallo en la Revisión')
                         .setDescription(`Falló la revisión de **${failures.length}** monitor(es). Revisa los logs del bot para más detalles.`)

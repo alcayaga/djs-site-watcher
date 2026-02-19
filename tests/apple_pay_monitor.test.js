@@ -4,11 +4,17 @@ jest.mock('got');
 jest.mock('../src/storage');
 jest.mock('../src/config');
 jest.mock('diff');
+jest.mock('../src/utils/logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+}));
 
 const ApplePayMonitor = require('../src/monitors/ApplePayMonitor');
 const Discord = require('discord.js');
 const got = require('got');
 const diff = require('diff');
+const logger = require('../src/utils/logger');
 
 describe('ApplePayMonitor', () => {
     let client;
@@ -97,13 +103,11 @@ describe('ApplePayMonitor', () => {
                 }
                 return Promise.resolve({ body: {} });
             });
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
             const fetchedData = await applePayMonitor.fetch();
             expect(fetchedData.config).toBeNull();
             // Fix 1: Include expect.any(Error)
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Error fetching Apple Pay main config'), expect.any(Error));
-            consoleErrorSpy.mockRestore();
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Error fetching Apple Pay main config'), expect.any(Error));
         });
 
         it('should handle errors when fetching alt config', async () => {
@@ -113,13 +117,11 @@ describe('ApplePayMonitor', () => {
                 }
                 return Promise.resolve({ body: {} });
             });
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
             const fetchedData = await applePayMonitor.fetch();
             expect(fetchedData.configAlt).toBeNull();
             // Fix 1: Include expect.any(Error)
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Error fetching Apple Pay alt config'), expect.any(Error));
-            consoleErrorSpy.mockRestore();
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Error fetching Apple Pay alt config'), expect.any(Error));
         });
     });
 
@@ -328,14 +330,12 @@ describe('ApplePayMonitor', () => {
 
         it('should log an error if notification channel not found', () => {
             client.channels.cache.get.mockReturnValueOnce(undefined);
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             const changes = { changes: [{ type: 'regionDiff', configName: 'main config', diff: 'diff content', url: 'http://config.com' }] };
 
             applePayMonitor.notify(changes);
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for ApplePay.'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for ApplePay.'));
             expect(mockChannel.send).not.toHaveBeenCalled();
-            consoleErrorSpy.mockRestore();
         });
     });
 
@@ -355,8 +355,6 @@ describe('ApplePayMonitor', () => {
             const fetchError = new Error('ETIMEDOUT');
             got.mockImplementation(() => Promise.reject(fetchError));
 
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
             // Execute fetch
             const fetchedData = await applePayMonitor.fetch();
             
@@ -368,8 +366,6 @@ describe('ApplePayMonitor', () => {
 
             // Expect NO changes (null) because missing keys are patched with old state
             expect(changes).toBeNull();
-            
-            consoleErrorSpy.mockRestore();
         });
 
         it('should preserve old state for failed source when other source changes', async () => {
@@ -384,8 +380,6 @@ describe('ApplePayMonitor', () => {
                 }
                 return Promise.resolve({ body: {} });
             });
-
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
             // Execute fetch & parse
             const fetchedData = await applePayMonitor.fetch();
@@ -411,8 +405,6 @@ describe('ApplePayMonitor', () => {
 
             // Expect parsedData (new state) to have preserved OLD main config
             expect(parsedData.configRegion).toBe('{"main":"old"}');
-
-            consoleErrorSpy.mockRestore();
         });
     });
 });
