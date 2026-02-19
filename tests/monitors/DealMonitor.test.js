@@ -361,6 +361,31 @@ describe('DealMonitor', () => {
         expect(monitor.state['1'].minOfferDate).toBe(exitDate);
     });
 
+    it('should not mutate the original state objects during check (immutability)', async () => {
+        const originalProductState = { 
+            id: 1, name: 'iPhone', 
+            minOfferPrice: 500000, minOfferDate: '2025-01-01T00:00:00.000Z',
+            lastOfferPrice: 500000, 
+            minNormalPrice: 600000, minNormalDate: '2025-01-01T00:00:00.000Z',
+            lastNormalPrice: 600000 
+        };
+        monitor.state = { '1': originalProductState };
+
+        // New low price detected
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 400000, normalPrice: 500000 }])
+        });
+
+        await monitor.check();
+
+        // The monitor.state should be updated to a NEW object
+        expect(monitor.state['1']).not.toBe(originalProductState);
+        expect(monitor.state['1'].minOfferPrice).toBe(400000);
+        
+        // The original object should remain UNCHANGED
+        expect(originalProductState.minOfferPrice).toBe(500000);
+    });
+
     it('should NOT alert if price stays at historic low', async () => {
         monitor.state = {
             '1': { id: 1, name: 'iPhone', minOfferPrice: 100, lastOfferPrice: 100, minNormalPrice: 200, lastNormalPrice: 200 }
