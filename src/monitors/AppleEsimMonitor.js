@@ -24,7 +24,7 @@ class AppleEsimMonitor extends Monitor {
             .find(heading => heading.textContent.trim() === countryToMonitor);
 
         if (!countryHeading) {
-            logger.warn(`Could not find section for ${countryToMonitor} on the eSIM page.`);
+            logger.warn('Could not find section for %s on the eSIM page.', countryToMonitor);
             return this.state; // Return old state if section not found
         }
 
@@ -94,7 +94,7 @@ class AppleEsimMonitor extends Monitor {
     async notify(changes) {
         const channel = this.getNotificationChannel();
         if (!channel) {
-            logger.error(`Notification channel not found for ${this.name}.`);
+            logger.error('Notification channel not found for %s.', this.name);
             return;
         }
         const country = this.config.country || 'Chile';
@@ -105,7 +105,7 @@ class AppleEsimMonitor extends Monitor {
 
         const notificationPromises = notificationConfigs.flatMap(config =>
             (changes[config.key] || []).map(carrier => {
-                logger.info(`Apple eSIM carrier change in ${country}: ${carrier.name} was ${config.action}.`);
+                logger.info('Apple eSIM carrier change in %s: %s was %s.', country, carrier.name, config.action);
                 const sanitizedName = sanitizeLinkText(carrier.name);
                 const sanitizedLink = encodeURI(carrier.link);
                 const embed = new Discord.EmbedBuilder()

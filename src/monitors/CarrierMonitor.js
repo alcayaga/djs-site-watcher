@@ -91,7 +91,7 @@ class CarrierMonitor extends Monitor {
     async notify(changes) {
         const channel = this.getNotificationChannel();
         if (!channel) {
-            logger.error(`Notification channel not found for ${this.name}.`);
+            logger.error('Notification channel not found for %s.', this.name);
             return;
         }
 

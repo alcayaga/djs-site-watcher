@@ -10,8 +10,9 @@ const logger = winston.createLogger({
     winston.format.splat(),
     isProduction ? winston.format.json() : winston.format.combine(
       winston.format.colorize(),
-      winston.format.printf(({ timestamp, level, message, ...meta }) => {
-        return `${timestamp} [${level}]: ${message} ${Object.keys(meta).length ? JSON.stringify(meta) : ''}`;
+      winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
+        const metaString = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
+        return `${timestamp} [${level}]: ${message}${metaString}${stack ? `\n${stack}` : ''}`;
       })
     )
   ),

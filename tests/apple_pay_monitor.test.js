@@ -107,7 +107,7 @@ describe('ApplePayMonitor', () => {
             const fetchedData = await applePayMonitor.fetch();
             expect(fetchedData.config).toBeNull();
             // Fix 1: Include expect.any(Error)
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Error fetching Apple Pay main config'), expect.any(Error));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Error fetching Apple Pay main config (%s):'), applePayMonitor.CONFIG_URL, expect.any(Error));
         });
 
         it('should handle errors when fetching alt config', async () => {
@@ -121,7 +121,7 @@ describe('ApplePayMonitor', () => {
             const fetchedData = await applePayMonitor.fetch();
             expect(fetchedData.configAlt).toBeNull();
             // Fix 1: Include expect.any(Error)
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Error fetching Apple Pay alt config'), expect.any(Error));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Error fetching Apple Pay alt config (%s):'), applePayMonitor.CONFIG_ALT_URL, expect.any(Error));
         });
     });
 
@@ -334,7 +334,7 @@ describe('ApplePayMonitor', () => {
 
             applePayMonitor.notify(changes);
 
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for ApplePay.'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for %s.'), 'ApplePay');
             expect(mockChannel.send).not.toHaveBeenCalled();
         });
     });

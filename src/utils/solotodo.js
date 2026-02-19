@@ -106,7 +106,7 @@ function extractQuery(content) {
             try {
                 slug = decodeURIComponent(slug);
             } catch (e) {
-                logger.error(`Failed to decode URL part "${part}":`, e);
+                logger.error('Failed to decode URL part "%s":', part, e);
             }
 
             // Security: Sanitize potential path traversal characters
@@ -246,7 +246,7 @@ async function getBestPictureUrl(product, entities = null) {
                 return true;
             }
         } catch (e) {
-            logger.warn(`[Solotodo] URL parsing failed for "${url}": ${e.message}`);
+            logger.warn('[Solotodo] URL parsing failed for "%s": %s', url, e.message);
             return true;
         }
 
@@ -254,11 +254,11 @@ async function getBestPictureUrl(product, entities = null) {
     };
 
     if (!isInvalid(currentUrl)) {
-        logger.info(`[Solotodo] Picture selected for product ${product.id}: ${currentUrl}`);
+        logger.info('[Solotodo] Picture selected for product %s: %s', product.id, currentUrl);
         return currentUrl;
     }
 
-    logger.info(`[Solotodo] Invalid picture URL for product ${product.id}: ${currentUrl}`);
+    logger.info('[Solotodo] Invalid picture URL for product %s: %s', product.id, currentUrl);
 
     try {
         // Try to find an image from available entities
@@ -267,16 +267,16 @@ async function getBestPictureUrl(product, entities = null) {
             if (entity.picture_urls && Array.isArray(entity.picture_urls) && entity.picture_urls.length > 0) {
                 const entityUrl = entity.picture_urls[0];
                 if (!isInvalid(entityUrl)) {
-                    logger.info(`[Solotodo] Alternative picture selected for product ${product.id}: ${entityUrl}`);
+                    logger.info('[Solotodo] Alternative picture selected for product %s: %s', product.id, entityUrl);
                     return entityUrl;
                 }
             }
         }
     } catch (e) {
-        logger.error(`Error fetching alternative picture for product ${product.id}:`, e);
+        logger.error('Error fetching alternative picture for product %s:', product.id, e);
     }
 
-    logger.info(`[Solotodo] No alternative picture found for product ${product.id}`);
+    logger.info('[Solotodo] No alternative picture found for product %s', product.id);
     return null;
 }
 

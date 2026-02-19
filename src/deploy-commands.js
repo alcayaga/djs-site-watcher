@@ -10,7 +10,7 @@ const rest = new REST({ version: '10' }).setToken(config.DISCORDJS_BOT_TOKEN);
 
 (async () => {
 	try {
-		logger.info(`Started refreshing ${commandData.length} application (/) commands.`);
+		logger.info('Started refreshing %d application (/) commands.', commandData.length);
 
         // The put method is used to fully refresh all commands in the guild with the current set
         // If we want global commands, we use Routes.applicationCommands(clientId)

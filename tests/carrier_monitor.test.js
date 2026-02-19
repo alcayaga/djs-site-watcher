@@ -216,7 +216,7 @@ describe('CarrierMonitor', () => {
 
             carrierMonitor.notify(changes);
 
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for Carrier.'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for %s.'), 'Carrier');
             expect(mockChannel.send).not.toHaveBeenCalled();
         });
     });

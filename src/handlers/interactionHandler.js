@@ -11,7 +11,7 @@ const commands = loadCommands();
  * @param {Error} error 
  */
 async function handleInteractionError(interaction, error) {
-    logger.error(`Error handling interaction (${interaction.customId || interaction.commandName}):`, error);
+    logger.error('Error handling interaction (%s):', interaction.customId || interaction.commandName, error);
     const errorMessage = { content: 'Hubo un error al procesar esta interacción.', flags: [MessageFlags.Ephemeral] };
     
     if (interaction.deferred) {

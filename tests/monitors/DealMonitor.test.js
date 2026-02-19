@@ -832,7 +832,7 @@ describe('DealMonitor', () => {
         
             await monitor.check();
         
-            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)'));
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for %s%s: %s -> %s'), 'iPhone', '', '$150.000', '$120.000', '$100.000');
             
             // Ensure exactly one price drop was logged
             const priceDropLogCalls = logger.info.mock.calls.filter(
@@ -847,7 +847,7 @@ describe('DealMonitor', () => {
         
             await monitor.check();
         
-            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $120.000 (Historic Low: $100.000)'));
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for %s%s: %s -> %s'), 'iPhone', ' (Normal)', '$150.000', '$120.000', '$100.000');
             
             // Ensure exactly one price drop was logged
             const priceDropLogCalls = logger.info.mock.calls.filter(
@@ -874,8 +874,8 @@ describe('DealMonitor', () => {
         
             await monitor.check();
         
-            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)'));
-            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $130.000 (Historic Low: $100.000)'));
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for %s%s: %s -> %s'), 'iPhone', '', '$150.000', '$120.000', '$100.000');
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for %s%s: %s -> %s'), 'iPhone', ' (Normal)', '$150.000', '$130.000', '$100.000');
             
             // Ensure both price drops were logged
             const priceDropLogCalls = logger.info.mock.calls.filter(

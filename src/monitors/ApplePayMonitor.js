@@ -46,7 +46,7 @@ class ApplePayMonitor extends Monitor {
                 fetchedData.configMarketGeos = marketGeosResponse.body;
             }
         } catch (err) {
-            logger.error(`Error fetching Apple Pay main config (${this.CONFIG_URL}):`, err);
+            logger.error('Error fetching Apple Pay main config (%s):', this.CONFIG_URL, err);
             fetchedData.config = null;
         }
 
@@ -60,7 +60,7 @@ class ApplePayMonitor extends Monitor {
                 fetchedData.configAltMarketGeos = marketGeosAltResponse.body;
             }
         } catch (err) {
-            logger.error(`Error fetching Apple Pay alt config (${this.CONFIG_ALT_URL}):`, err);
+            logger.error('Error fetching Apple Pay alt config (%s):', this.CONFIG_ALT_URL, err);
             fetchedData.configAlt = null;
         }
         
@@ -209,7 +209,7 @@ class ApplePayMonitor extends Monitor {
     async notify(detectedChanges) {
         const channel = this.getNotificationChannel();
         if (!channel) {
-            logger.error(`Notification channel not found for ${this.name}.`);
+            logger.error('Notification channel not found for %s.', this.name);
             return;
         }
 

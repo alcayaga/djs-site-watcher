@@ -75,7 +75,7 @@ describe('AppleEsimMonitor', () => {
 
             const parsedData = appleEsimMonitor.parse(html);
             expect(parsedData).toEqual(appleEsimMonitor.state); // Should return the old state
-            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Could not find section for Chile'));
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Could not find section for %s'), 'Chile');
             expect(jest.requireMock('jsdom').JSDOM).toHaveBeenCalledWith(html);
         });
 
@@ -202,7 +202,7 @@ describe('AppleEsimMonitor', () => {
 
             appleEsimMonitor.notify(changes);
 
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for AppleEsim.'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for %s.'), 'AppleEsim');
             expect(mockChannel.send).not.toHaveBeenCalled();
         });
     });

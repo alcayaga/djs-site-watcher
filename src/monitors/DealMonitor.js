@@ -54,7 +54,7 @@ class DealMonitor extends Monitor {
                     allResults.push(...body.results);
                 }
             } catch (e) {
-                logger.error(`Error fetching from Solotodo URL ${baseUrl}:`, e);
+                logger.error('Error fetching from Solotodo URL %s:', baseUrl, e);
             }
 
             // Wait configured delay between requests, but not after the last one
@@ -147,7 +147,7 @@ class DealMonitor extends Monitor {
                     // PHANTOM SPIKE / SHORT TOGGLE (Returned to within tolerance of Min)
                     delete stored[pendingExitKey];
                     if (this.config.verboseLogging) {
-                        logger.info(`[DealMonitor] Price returned to low for ${product.name} during grace period. Cancelling exit.`);
+                        logger.info('[DealMonitor] Price returned to low for %s during grace period. Cancelling exit.', product.name);
                     }
                     stored[lastPriceKey] = currentPrice;
                     return 'CHANGED';
@@ -161,7 +161,7 @@ class DealMonitor extends Monitor {
                         // GRACE PERIOD EXPIRED -> CONFIRM EXIT
                         delete stored[pendingExitKey];
                         if (this.config.verboseLogging) {
-                            logger.info(`[DealMonitor] Grace period expired for ${product.name}. Confirming exit from historic low.`);
+                            logger.info('[DealMonitor] Grace period expired for %s. Confirming exit from historic low.', product.name);
                         }
                         stored[minDateKey] = pendingExitDate; // Use the original exit date
                         stored[lastPriceKey] = currentPrice;
@@ -169,7 +169,7 @@ class DealMonitor extends Monitor {
                     } else {
                         // STILL IN GRACE PERIOD
                         if (this.config.verboseLogging) {
-                            logger.info(`[DealMonitor] Still in grace period for ${product.name} (${Math.floor(hoursPassed)}h/${gracePeriodHours}h). Waiting...`);
+                            logger.info('[DealMonitor] Still in grace period for %s (%dh/%dh). Waiting...', product.name, Math.floor(hoursPassed), gracePeriodHours);
                         }
                         stored[lastPriceKey] = currentPrice;
                         return 'PENDING';
@@ -182,7 +182,7 @@ class DealMonitor extends Monitor {
 
         if (currentPrice < stored[minPriceKey]) {
             if (this.config.verboseLogging) {
-                logger.info(`[DealMonitor] ${product.name} (ID: ${product.id}) [${priceType}] NEW HISTORIC LOW: ${formatCLP(stored[minPriceKey])} -> ${formatCLP(currentPrice)}`);
+                logger.info('[DealMonitor] %s (ID: %s) [%s] NEW HISTORIC LOW: %s -> %s', product.name, product.id, priceType, formatCLP(stored[minPriceKey]), formatCLP(currentPrice));
             }
             stored[minPriceKey] = currentPrice;
             stored[minDateKey] = now;
@@ -190,7 +190,7 @@ class DealMonitor extends Monitor {
             return `NEW_LOW_${notificationType}`;
         } else if (isAtMin && !wasAtMin) {
             if (this.config.verboseLogging) {
-                logger.info(`[DealMonitor] ${product.name} (ID: ${product.id}) [${priceType}] BACK TO HISTORIC LOW: ${formatCLP(currentPrice)}`);
+                logger.info('[DealMonitor] %s (ID: %s) [%s] BACK TO HISTORIC LOW: %s', product.name, product.id, priceType, formatCLP(currentPrice));
             }
             stored[lastPriceKey] = currentPrice;
             return `BACK_TO_LOW_${notificationType}`;
@@ -199,13 +199,13 @@ class DealMonitor extends Monitor {
 
             // Log ALL price changes to debug phantom spikes if verbose logging is enabled
             if (this.config.verboseLogging) {
-                logger.info(`[DealMonitor] Price change for ${product.name} (ID: ${product.id}) [${priceType}] (Min: ${formatCLP(stored[minPriceKey])}): ${formatCLP(stored[lastPriceKey])} -> ${formatCLP(currentPrice)}`);
+                logger.info('[DealMonitor] Price change for %s (ID: %s) [%s] (Min: %s): %s -> %s', product.name, product.id, priceType, formatCLP(stored[minPriceKey]), formatCLP(stored[lastPriceKey]), formatCLP(currentPrice));
             }
 
             // Explicitly log the increase amount for debugging
             if (isIncrease && this.config.verboseLogging) {
                 const diff = currentPrice - stored[lastPriceKey];
-                logger.info(`[DealMonitor] Price INCREASE detected for ${product.name} (ID: ${product.id}) [${priceType}]: +${formatCLP(diff)}`);
+                logger.info('[DealMonitor] Price INCREASE detected for %s (ID: %s) [%s]: +%s', product.name, product.id, priceType, formatCLP(diff));
             }
 
             stored[lastPriceKey] = currentPrice;
@@ -221,7 +221,7 @@ class DealMonitor extends Monitor {
                  * This prevents false "Back to Historic Low" alerts.
                  */
                 if (this.config.verboseLogging) {
-                    logger.info(`[DealMonitor] Potential exit from historic low for ${product.name} (ID: ${product.id}) [${priceType}]. Waiting for grace period...`);
+                    logger.info('[DealMonitor] Potential exit from historic low for %s (ID: %s) [%s]. Waiting for grace period...', product.name, product.id, priceType);
                 }
                 stored[pendingExitKey] = { date: now };
                 return 'PENDING';
@@ -243,14 +243,14 @@ class DealMonitor extends Monitor {
      */
     _logPriceDrop(productName, priceType, previousPrice, currentPrice, minPrice) {
         const typeLabel = priceType === 'Normal' ? ' (Normal)' : '';
-        logger.info(`[DealMonitor] Price drop for ${productName}${typeLabel}: ${formatCLP(previousPrice)} -> ${formatCLP(currentPrice)} (Historic Low: ${formatCLP(minPrice)})`);
+        logger.info('[DealMonitor] Price drop for %s%s: %s -> %s (Historic Low: %s)', productName, typeLabel, formatCLP(previousPrice), formatCLP(currentPrice), formatCLP(minPrice));
     }
 
     /**
      * Overrides the base check method to handle list of products and state merging.
      */
     async check() {
-        logger.info(`Checking for ${this.name} updates...`);
+        logger.info('Checking for %s updates...', this.name);
         try {
             const data = await this.fetch();
             const products = this.parse(data);
@@ -275,7 +275,7 @@ class DealMonitor extends Monitor {
                     let minNormalDate = new Date().toISOString();
 
                     if (!isSingleRun) {
-                        logger.info(`New product detected: ${product.name} (ID: ${productId}). Backfilling history...`);
+                        logger.info('New product detected: %s (ID: %s). Backfilling history...', product.name, productId);
                         try {
                             const history = await solotodo.getProductHistory(productId);
                             for (const entity of history) {
@@ -301,12 +301,12 @@ class DealMonitor extends Monitor {
                                 }
                             }
                             if (this.config.verboseLogging) {
-                                logger.info(`[DealMonitor] Backfill for ${product.name} (ID: ${productId}) complete. Min Offer: ${formatCLP(minOffer)} (${minOfferDate}), Min Normal: ${formatCLP(minNormal)} (${minNormalDate})`);
+                                logger.info('[DealMonitor] Backfill for %s (ID: %s) complete. Min Offer: %s (%s), Min Normal: %s (%s)', product.name, productId, formatCLP(minOffer), minOfferDate, formatCLP(minNormal), minNormalDate);
                             }
                             // Delay to avoid bursting API
                             await sleep(this.config.apiDelay);
                         } catch (historyError) {
-                            logger.error(`Error backfilling history for product ${productId}:`, historyError);
+                            logger.error('Error backfilling history for product %s:', productId, historyError);
                         }
                     }
 
@@ -513,7 +513,7 @@ class DealMonitor extends Monitor {
         if (this.config.verboseLogging) {
             const minOffer = stored?.minOfferPrice != null ? formatCLP(stored.minOfferPrice) : 'N/A';
             const minNormal = stored?.minNormalPrice != null ? formatCLP(stored.minNormalPrice) : 'N/A';
-            logger.info(`[DealMonitor] Raising Discord alert for ${product.name} (ID: ${product.id}). Triggers: ${triggers.join(', ')}. Current: ${formatCLP(product.offerPrice)}/${formatCLP(product.normalPrice)}. Min: ${minOffer}/${minNormal}`);
+            logger.info('[DealMonitor] Raising Discord alert for %s (ID: %s). Triggers: %s. Current: %s/%s. Min: %s/%s', product.name, product.id, triggers.join(', '), formatCLP(product.offerPrice), formatCLP(product.normalPrice), minOffer, minNormal);
         }
 
         const messageOptions = { embeds: [embed] };
@@ -536,7 +536,7 @@ class DealMonitor extends Monitor {
                     autoArchiveDuration: Discord.ThreadAutoArchiveDuration.OneWeek,
                 });
             } catch (threadError) {
-                logger.error(`Error creating thread for deal ${product.id}:`, threadError);
+                logger.error('Error creating thread for deal %s:', product.id, threadError);
             }
         }
     }

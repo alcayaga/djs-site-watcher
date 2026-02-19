@@ -109,7 +109,7 @@ class AppleFeatureMonitor extends Monitor {
     async notify(changes) {
         const channel = this.getNotificationChannel();
         if (!channel) {
-            logger.error(`Notification channel not found for ${this.name}.`);
+            logger.error('Notification channel not found for %s.', this.name);
             return;
         }
         
@@ -121,7 +121,7 @@ class AppleFeatureMonitor extends Monitor {
 
         const notificationPromises = notificationConfigs.flatMap(config =>
             (changes[config.key] || []).map(item => {
-                logger.info(`Apple feature ${config.logSuffix}: ${item.featureName} in ${item.region}`);
+                logger.info('Apple feature %s: %s in %s', config.logSuffix, item.featureName, item.region);
                 const embed = new Discord.EmbedBuilder()
                     .setTitle(config.title)
                     .addFields([

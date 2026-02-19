@@ -227,7 +227,7 @@ describe('AppleFeatureMonitor', () => {
 
             appleFeatureMonitor.notify(changes);
 
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for AppleFeature.'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for %s.'), 'AppleFeature');
             expect(mockChannel.send).not.toHaveBeenCalled();
         });
     });
