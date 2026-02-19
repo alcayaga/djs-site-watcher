@@ -92,17 +92,20 @@ const logger = winston.createLogger({
                         value instanceof Error ? { message: value.message, stack: value.stack } : value;
 
                     // winston.format.splat() already interpolated placeholders into 'message'.
-                    // We handle cases where an object was passed as the only argument or metadata was provided.
-                    if (typeof logMessage !== 'string') {
-                        logMessage = JSON.stringify(logMessage, errorReplacer);
-                    }
-
-                    const splat = info[Symbol.for('splat')] || [];
-                    if (Object.keys(meta).length > 0 || splat.length > 0) {
-                        const extra = { ...meta };
-                        if (splat.length > 0) extra.splat = splat;
-
-                        logMessage += ` ${JSON.stringify(extra, errorReplacer)}`;
+                    // If the primary argument is an object, winston merges its properties into the info object (meta).
+                    // We handle both cases to avoid double logging.
+                    if (typeof message !== 'string') {
+                        // If it's an object, we use the merged meta as the primary representation.
+                        logMessage = JSON.stringify(meta, errorReplacer);
+                    } else {
+                        // If message is a string, we append stack or any extra metadata.
+                        logMessage = stack ? `${message}\n${stack}` : message;
+                        const splat = info[Symbol.for('splat')] || [];
+                        if (Object.keys(meta).length > 0 || splat.length > 0) {
+                            const extra = { ...meta };
+                            if (splat.length > 0) extra.splat = splat;
+                            logMessage += ` ${JSON.stringify(extra, errorReplacer)}`;
+                        }
                     }
 
                     return `${timestamp} [${level}]: ${maskSensitive(logMessage)}`;

@@ -4,9 +4,7 @@
  */
 try {
     const { loadEnvFile } = require('node:process');
-    if (typeof loadEnvFile === 'function') {
-        loadEnvFile();
-    }
+    loadEnvFile();
 } catch (err) {
     if (err.code === 'ENOENT') {
         console.warn('⚠️ No .env file found. Proceeding with process.env variables.');
