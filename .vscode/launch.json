@@ -11,7 +11,8 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/src/bot.js"
+            "program": "${workspaceFolder}/src/bot.js",
+            "outputCapture": "std"
         },
         {
             "type": "node",
@@ -21,6 +22,7 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/src/bot.js",
+            "outputCapture": "std",
             "env": {
                 "SINGLE_RUN": "true"
             }

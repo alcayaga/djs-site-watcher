@@ -3,11 +3,17 @@ const storage = require('../../src/storage');
 const got = require('got');
 const solotodo = require('../../src/utils/solotodo');
 const Discord = require('discord.js');
+const logger = require('../../src/utils/logger');
 
 jest.mock('got');
 jest.mock('discord.js');
 jest.mock('../../src/storage');
 jest.mock('../../src/config');
+jest.mock('../../src/utils/logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+}));
 jest.mock('../../src/utils/solotodo', () => ({
     ...jest.requireActual('../../src/utils/solotodo'),
     getProductHistory: jest.fn().mockResolvedValue([]),
@@ -633,18 +639,15 @@ describe('DealMonitor', () => {
     });
 
     describe('image handling', () => {
-        let consoleErrorSpy;
-
         beforeEach(() => {
             // Mock getAvailableEntities to ensure bestEntity is found (requires active_registry)
             solotodo.getAvailableEntities.mockResolvedValue([
                 { active_registry: { offer_price: "100", normal_price: "200", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
             ]);
-            consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
         });
 
         afterEach(() => {
-            consoleErrorSpy.mockRestore();
+            // jest.clearAllMocks() is handled by beforeEach's jest.clearAllMocks()
         });
 
         // Increase timeout for all tests in this block to avoid CI flakiness
@@ -749,7 +752,7 @@ describe('DealMonitor', () => {
 
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Image too large'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), 1, 'http://banned.com/big.jpg', expect.any(Error));
         });
 
         it('should download and attach image when content-type is octet-stream by sniffing buffer', async () => {
@@ -777,7 +780,7 @@ describe('DealMonitor', () => {
 
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource content is not a supported image type'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), 1, 'http://banned.com/malicious.sh', expect.any(Error));
             expect(Discord.AttachmentBuilder).not.toHaveBeenCalled();
         });
 
@@ -790,7 +793,7 @@ describe('DealMonitor', () => {
 
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource is definitely not an image'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), 1, 'http://banned.com/page.html', expect.any(Error));
         });
 
         it('should reject if Content-Type is missing but content is not an image', async () => {
@@ -802,15 +805,12 @@ describe('DealMonitor', () => {
 
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource content is not a supported image type'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), 1, 'http://banned.com/pic', expect.any(Error));
         });
     });
 
     describe('price drop logging', () => {
-        let consoleSpy;
-
         beforeEach(() => {
-            consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
             monitor.state = {
                 '1': { 
                     id: 1, name: 'iPhone', 
@@ -823,7 +823,7 @@ describe('DealMonitor', () => {
         });
 
         afterEach(() => {
-            consoleSpy.mockRestore();
+            // jest.clearAllMocks() is handled by beforeEach's jest.clearAllMocks()
         });
 
         it('should log to console when offer price drops but is not a historic low', async () => {
@@ -832,10 +832,10 @@ describe('DealMonitor', () => {
         
             await monitor.check();
         
-            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)'));
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for %s%s: %s -> %s'), 'iPhone', '', '$150.000', '$120.000', '$100.000');
             
             // Ensure exactly one price drop was logged
-            const priceDropLogCalls = consoleSpy.mock.calls.filter(
+            const priceDropLogCalls = logger.info.mock.calls.filter(
                 (call) => typeof call[0] === 'string' && call[0].startsWith('[DealMonitor] Price drop for')
             );
             expect(priceDropLogCalls).toHaveLength(1);
@@ -847,10 +847,10 @@ describe('DealMonitor', () => {
         
             await monitor.check();
         
-            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $120.000 (Historic Low: $100.000)'));
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for %s%s: %s -> %s'), 'iPhone', ' (Normal)', '$150.000', '$120.000', '$100.000');
             
             // Ensure exactly one price drop was logged
-            const priceDropLogCalls = consoleSpy.mock.calls.filter(
+            const priceDropLogCalls = logger.info.mock.calls.filter(
                 (call) => typeof call[0] === 'string' && call[0].startsWith('[DealMonitor] Price drop for')
             );
             expect(priceDropLogCalls).toHaveLength(1);
@@ -862,7 +862,7 @@ describe('DealMonitor', () => {
         
             await monitor.check();
         
-            const priceDropLogCalls = consoleSpy.mock.calls.filter(
+            const priceDropLogCalls = logger.info.mock.calls.filter(
                 (call) => typeof call[0] === 'string' && call[0].startsWith('[DealMonitor] Price drop for')
             );
             expect(priceDropLogCalls).toHaveLength(0);
@@ -874,11 +874,11 @@ describe('DealMonitor', () => {
         
             await monitor.check();
         
-            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone: $150.000 -> $120.000 (Historic Low: $100.000)'));
-            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for iPhone (Normal): $150.000 -> $130.000 (Historic Low: $100.000)'));
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for %s%s: %s -> %s'), 'iPhone', '', '$150.000', '$120.000', '$100.000');
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[DealMonitor] Price drop for %s%s: %s -> %s'), 'iPhone', ' (Normal)', '$150.000', '$130.000', '$100.000');
             
             // Ensure both price drops were logged
-            const priceDropLogCalls = consoleSpy.mock.calls.filter(
+            const priceDropLogCalls = logger.info.mock.calls.filter(
                 (call) => typeof call[0] === 'string' && call[0].startsWith('[DealMonitor] Price drop for')
             );
             expect(priceDropLogCalls).toHaveLength(2);

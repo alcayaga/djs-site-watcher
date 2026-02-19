@@ -9,6 +9,13 @@ jest.mock('discord.js');
 jest.mock('got');
 jest.mock('../src/storage');
 jest.mock('../src/config');
+jest.mock('../src/utils/logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+}));
+
+const logger = require('../src/utils/logger');
 
 describe('AppleFeatureMonitor', () => {
     let client;
@@ -216,14 +223,12 @@ describe('AppleFeatureMonitor', () => {
 
         it('should log an error if notification channel not found', () => {
             client.channels.cache.get.mockReturnValueOnce(undefined);
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             const changes = { added: [{ featureName: "Test", region: "Test", id: "test" }] };
 
             appleFeatureMonitor.notify(changes);
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for AppleFeature.'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for %s.'), 'AppleFeature');
             expect(mockChannel.send).not.toHaveBeenCalled();
-            consoleErrorSpy.mockRestore();
         });
     });
 });

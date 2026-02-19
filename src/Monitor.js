@@ -3,6 +3,7 @@ const got = require('got');
 const storage = require('./storage');
 const config = require('./config');
 const { getSafeGotOptions } = require('./utils/network');
+const logger = require('./utils/logger');
 
 /**
  * Abstract base class for all monitors.
@@ -69,7 +70,7 @@ class Monitor {
      * Orchestrates fetching, parsing, comparing, and notifying.
      */
     async check() {
-        console.log(`Checking for ${this.name} updates...`);
+        logger.info('Checking for %s updates...', this.name);
         try {
             const data = await this.fetch();
             const newData = this.parse(data);
@@ -81,7 +82,7 @@ class Monitor {
                 this.state = newData;
             }
         } catch (error) {
-            console.error(`Error checking ${this.name}:`, error);
+            logger.error('Error checking %s:', this.name, error);
         }
     }
 
@@ -94,18 +95,18 @@ class Monitor {
         if (String(config.SINGLE_RUN).toLowerCase() === 'true') {
             return {
                 /**
-                 * Mocks the Discord channel send method by logging to console.
+                 * Mocks the Discord channel send method by logging to the logger.
                  * @param {string|object} content The message content or embed object.
                  * @returns {Promise<void>}
                  */
                 send: async (content) => {
                     if (content && typeof content === 'object' && content.title) {
-                        console.log(`[SINGLE_RUN] [EMBED] ${content.title}`);
+                        logger.info(`[SINGLE_RUN] [EMBED] ${content.title}`);
                         if (content.fields) {
-                            content.fields.forEach(f => console.log(`  ${f.name}: ${f.value}`));
+                            content.fields.forEach(f => logger.info(`  ${f.name}: ${f.value}`));
                         }
                     } else {
-                        console.log(`[SINGLE_RUN] [TEXT] ${content}`);
+                        logger.info(`[SINGLE_RUN] [TEXT] ${content}`);
                     }
                 }
             };
@@ -144,7 +145,7 @@ class Monitor {
      * @returns {Promise<void>}
      */
     async notify(changes) {
-        console.log(`Changes detected for ${this.name}:`, changes);
+        logger.info('Changes detected for %s:', this.name, changes);
         const channel = this.getNotificationChannel();
         if (channel) {
             await channel.send(`Detected changes for ${this.name}!`);
@@ -158,7 +159,7 @@ class Monitor {
     async initialize(client) {
         this.client = client;
         this.state = await this.loadState();
-        console.log(`Initialized monitor: ${this.name}`);
+        logger.info('Initialized monitor: %s', this.name);
     }
 
     /**
@@ -169,7 +170,7 @@ class Monitor {
         try {
             return await storage.read(this.config.file);
         } catch {
-            console.log(`Could not load state for ${this.name} from ${this.config.file}. Starting fresh.`);
+            logger.info('Could not load state for %s from %s. Starting fresh.', this.name, this.config.file);
             return {};
         }
     }

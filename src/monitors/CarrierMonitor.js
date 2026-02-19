@@ -2,6 +2,7 @@ const plist = require('plist');
 const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
+const logger = require('../utils/logger');
 
 /**
  * Monitor for Apple Carrier Bundle updates.
@@ -90,12 +91,12 @@ class CarrierMonitor extends Monitor {
     async notify(changes) {
         const channel = this.getNotificationChannel();
         if (!channel) {
-            console.error(`Notification channel not found for ${this.name}.`);
+            logger.error('Notification channel not found for %s.', this.name);
             return;
         }
 
         const notificationPromises = changes.updated.map(carrier => {
-            console.log('New carrier bundle version found:', carrier);
+            logger.info('New carrier bundle version found:', carrier);
             const embed = new Discord.EmbedBuilder()
                 .setTitle(`📲 ¡Nuevo Carrier Bundle para ${sanitizeMarkdown(carrier.id)}! 🐸`)
                 .addFields([

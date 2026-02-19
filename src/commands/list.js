@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, RESTJSONErrorCodes } = require('discord.js');
 const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
+const logger = require('../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -123,7 +124,7 @@ module.exports = {
                 // It's expected that this may fail if the message is deleted or the interaction expires.
                 // We can ignore 'Unknown Message' (10008) and 'Unknown Interaction' (10062) errors.
                 if (error.code !== RESTJSONErrorCodes.UnknownMessage && error.code !== RESTJSONErrorCodes.UnknownInteraction) {
-                    console.error('Failed to disable pagination buttons on collector end:', error);
+                    logger.error('Failed to disable pagination buttons on collector end:', error);
                 }
             }
         });

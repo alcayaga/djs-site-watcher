@@ -3,7 +3,8 @@
  * @module config
  */
 try {
-    process.loadEnvFile();
+    const { loadEnvFile } = require('node:process');
+    loadEnvFile();
 } catch (err) {
     if (err.code === 'ENOENT') {
         console.warn('⚠️ No .env file found. Proceeding with process.env variables.');
@@ -12,6 +13,7 @@ try {
     }
 }
 
+const logger = require('./utils/logger');
 const storage = require('./storage.js');
 const {
     ENV_DISCORDJS_TEXTCHANNEL_ID,
@@ -43,7 +45,7 @@ if (process.env.NODE_ENV !== 'test' && missingRequiredVars.length > 0) {
 
 const missingOptionalVars = storage.OPTIONAL_ENV_VARS.filter(key => !config[key]);
 if (process.env.NODE_ENV !== 'test' && missingOptionalVars.length > 0) {
-    console.warn(`⚠️  Missing optional environment variables: ${missingOptionalVars.join(', ')}. Some features may not work as expected.`);
+    logger.warn('⚠️ Missing optional environment variables: %s. Some features may not work as expected.', missingOptionalVars.join(', '));
 }
 
 // Map Global Default
@@ -77,7 +79,7 @@ config.solotodoBaseUrl = process.env[ENV_SOLOTODO_BASE_URL] || 'https://www.solo
 config.solotodoApiUrl = process.env[ENV_SOLOTODO_API_URL] || 'https://publicapi.solotodo.com';
 
 if (config.ALLOW_PRIVATE_IPS) {
-    console.warn('⚠️ SSRF Protection bypass is ACTIVE (ALLOW_PRIVATE_IPS=true). Private IPs will be allowed.');
+    logger.warn('⚠️ SSRF Protection bypass is ACTIVE (ALLOW_PRIVATE_IPS=true). Private IPs will be allowed.');
 }
 
 const defaultMonitors = require('./defaultMonitors.js');
@@ -106,7 +108,7 @@ config.monitors.forEach(monitor => {
     if (!monitor.channelId || isPlaceholder(monitor.channelId)) {
         const fallbackId = defaults.channelId ?? config.defaultChannelId;
         if (!fallbackId || isPlaceholder(fallbackId)) {
-            console.warn(`⚠️ Monitor '${monitor.name}' is missing a valid 'channelId'. Notifications for this monitor will fail.`);
+            logger.warn('⚠️ Monitor \'%s\' is missing a valid \'channelId\'. Notifications for this monitor will fail.', monitor.name);
         }
         monitor.channelId = fallbackId;
     }
@@ -145,9 +147,9 @@ if (!config.channels) {
             const fallbackId = mappedId ?? config.defaultChannelId;
             
             if (!fallbackId || isPlaceholder(fallbackId)) {
-                console.warn(`⚠️ Channel handler '${channel.name}' is missing a valid 'channelId'. This handler may not function correctly.`);
+                logger.warn('⚠️ Channel handler "%s" is missing a valid "channelId". This handler may not function correctly.', channel.name);
             } else if (!mappedId || isPlaceholder(mappedId)) {
-                console.warn(`⚠️ Channel handler '${channel.name}' is missing 'channelId'. Falling back to default channel ID.`);
+                logger.warn('⚠️ Channel handler "%s" is missing "channelId". Falling back to default channel ID.', channel.name);
             }
             
             channel.channelId = fallbackId;

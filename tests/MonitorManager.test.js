@@ -1,5 +1,11 @@
 const Discord = require('discord.js');
 
+jest.mock('../src/utils/logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+}));
+
 // Mock config for MonitorManager
 jest.mock('../src/config', () => ({
     monitors: [
@@ -40,23 +46,17 @@ const createMockMonitorClass = (className) => {
     return MockMonitor;
 };
 
-// Mock config for MonitorManager
-jest.mock('../src/config', () => ({
-    monitors: [
-        { name: 'TestMonitor', enabled: true, file: 'test.json' },
-        { name: 'DisabledMonitor', enabled: false },
-        { name: 'NotFoundMonitor', enabled: true },
-    ],
-}));
-
 describe('MonitorManager', () => {
     let monitorManager;
     let client;
     let MockTestMonitorClass;
+    let logger;
 
     beforeEach(() => {
         jest.resetModules();
         jest.clearAllMocks();
+
+        logger = require('../src/utils/logger');
 
         // Create a specific mock class for TestMonitorMonitor
         MockTestMonitorClass = createMockMonitorClass('TestMonitorMonitor');
@@ -88,11 +88,9 @@ describe('MonitorManager', () => {
         });
 
         it('should log an error for enabled monitors that are not found', async () => {
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
             // Provide no monitor classes (or a different one), so NotFoundMonitor won't be found
             await monitorManager.initialize(client, [MockTestMonitorClass]); 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('NotFoundMonitor'));
-            consoleErrorSpy.mockRestore();
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Monitor "%s" is enabled'), 'NotFoundMonitor');
         });
     });
 

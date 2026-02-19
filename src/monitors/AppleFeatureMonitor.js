@@ -2,6 +2,7 @@ const { JSDOM } = require('jsdom');
 const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const { sanitizeMarkdown } = require('../utils/formatters');
+const logger = require('../utils/logger');
 
 /**
  * Monitor for Apple Feature availability in various regions.
@@ -108,7 +109,7 @@ class AppleFeatureMonitor extends Monitor {
     async notify(changes) {
         const channel = this.getNotificationChannel();
         if (!channel) {
-            console.error(`Notification channel not found for ${this.name}.`);
+            logger.error('Notification channel not found for %s.', this.name);
             return;
         }
         
@@ -120,7 +121,7 @@ class AppleFeatureMonitor extends Monitor {
 
         const notificationPromises = notificationConfigs.flatMap(config =>
             (changes[config.key] || []).map(item => {
-                console.log(`Apple feature ${config.logSuffix}: ${item.featureName} in ${item.region}`);
+                logger.info('Apple feature %s: %s in %s', config.logSuffix, item.featureName, item.region);
                 const embed = new Discord.EmbedBuilder()
                     .setTitle(config.title)
                     .addFields([

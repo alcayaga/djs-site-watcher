@@ -4,12 +4,19 @@ const got = require('got');
 const storage = require('../src/storage');
 const Discord = require('discord.js');
 const config = require('../src/config');
+const logger = require('../src/utils/logger');
 
 jest.mock('cron');
 jest.mock('got');
 jest.mock('../src/storage');
 jest.mock('discord.js');
 jest.mock('../src/config');
+jest.mock('../src/utils/logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+}));
 
 // A concrete implementation of the abstract Monitor class for testing
 class TestMonitor extends Monitor {
@@ -139,12 +146,10 @@ describe('Monitor', () => {
 
         it('should log an error if fetching fails', async () => {
             got.mockRejectedValueOnce(new Error('Network error'));
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
             await testMonitor.check(client);
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Error checking TestMonitor:'), expect.any(Error));
-            consoleErrorSpy.mockRestore();
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Error checking %s:'), 'TestMonitor', expect.any(Error));
         });
     });
 
@@ -157,12 +162,10 @@ describe('Monitor', () => {
 
         it('should log an error if notification channel not found', () => {
             client.channels.cache.get.mockReturnValueOnce(undefined); // Simulate channel not found
-            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
             testMonitor.notify({});
 
-            expect(consoleLogSpy).toHaveBeenCalledWith('Changes detected for TestMonitor:', {});
-            consoleLogSpy.mockRestore();
+            expect(logger.info).toHaveBeenCalledWith('Changes detected for %s:', 'TestMonitor', {});
         });
     });
 
@@ -186,11 +189,9 @@ describe('Monitor', () => {
 
         it('should return empty object if storage read fails', async () => {
             storage.read.mockRejectedValueOnce(new Error('Read error'));
-            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
             const state = await testMonitor.loadState();
             expect(state).toEqual({});
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Could not load state for TestMonitor'));
-            consoleLogSpy.mockRestore();
+            expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Could not load state for %s'), 'TestMonitor', 'test.json');
         });
     });
 
@@ -214,7 +215,6 @@ describe('Monitor', () => {
 
         it('should return a mock channel when SINGLE_RUN is true', () => {
             config.SINGLE_RUN = 'true';
-            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
             const channel = testMonitor.getNotificationChannel();
             
             expect(channel).toBeDefined();
@@ -222,18 +222,17 @@ describe('Monitor', () => {
             
             // Test text notification
             channel.send('test text');
-            expect(consoleLogSpy).toHaveBeenCalledWith('[SINGLE_RUN] [TEXT] test text');
+            expect(logger.info).toHaveBeenCalledWith('[SINGLE_RUN] [TEXT] test text');
 
             // Test null notification
             channel.send(null);
-            expect(consoleLogSpy).toHaveBeenCalledWith('[SINGLE_RUN] [TEXT] null');
+            expect(logger.info).toHaveBeenCalledWith('[SINGLE_RUN] [TEXT] null');
 
             // Test embed notification
             channel.send({ title: 'test embed', fields: [{ name: 'f1', value: 'v1' }] });
-            expect(consoleLogSpy).toHaveBeenCalledWith('[SINGLE_RUN] [EMBED] test embed');
-            expect(consoleLogSpy).toHaveBeenCalledWith('  f1: v1');
+            expect(logger.info).toHaveBeenCalledWith('[SINGLE_RUN] [EMBED] test embed');
+            expect(logger.info).toHaveBeenCalledWith('  f1: v1');
 
-            consoleLogSpy.mockRestore();
             config.SINGLE_RUN = 'false'; // Reset for other tests
         });
     });
