@@ -11,10 +11,12 @@ const logger = winston.createLogger({
     winston.format.splat(),
     useJsonFormat ? winston.format.json() : winston.format.combine(
       winston.format.colorize(),
-      winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
-        const splat = meta[Symbol.for('splat')] || [];
-        const metaString = splat.length > 0 ? ' ' + splat.map(val => util.inspect(val, { colors: true, depth: null })).join(' ') : '';
-        return `${timestamp} [${level}]: ${message}${metaString}${stack ? `\n${stack}` : ''}`;
+      winston.format.printf((info) => {
+        const { timestamp, level, message, stack } = info;
+        const splat = info[Symbol.for('splat')] || [];
+        const metaString = splat.length > 0 ? ' ' + splat.map(val => util.inspect(val, { colors: true, depth: 5 })).join(' ') : '';
+        const sanitizedMessage = typeof message === 'string' ? message.replace(/\n/g, ' ') : message;
+        return `${timestamp} [${level}]: ${sanitizedMessage}${metaString}${stack ? `\n${stack}` : ''}`;
       })
     )
   ),
