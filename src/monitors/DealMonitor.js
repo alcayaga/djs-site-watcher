@@ -374,7 +374,7 @@ class DealMonitor extends Monitor {
                 this.state = newState;
             }
         } catch (error) {
-            logger.error(`Error checking ${this.name}:`, error);
+            logger.error('Error checking %s:', this.name, error);
         }
     }
 
@@ -447,7 +447,7 @@ class DealMonitor extends Monitor {
                 const fileName = `product_${product.id}.${extension}`;
                 return new Discord.AttachmentBuilder(buffer, { name: fileName });
             } catch (error) {
-                logger.error(`[DealMonitor] Failed to download fallback image for product ${product.id} from ${url}:`, error.message);
+                logger.error('[DealMonitor] Failed to download fallback image for product %s from %s:', product.id, url, error);
             }
         }
         return null;

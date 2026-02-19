@@ -752,7 +752,7 @@ describe('DealMonitor', () => {
 
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Image too large'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), 1, 'http://banned.com/big.jpg', expect.any(Error));
         });
 
         it('should download and attach image when content-type is octet-stream by sniffing buffer', async () => {
@@ -780,7 +780,7 @@ describe('DealMonitor', () => {
 
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource content is not a supported image type'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), 1, 'http://banned.com/malicious.sh', expect.any(Error));
             expect(Discord.AttachmentBuilder).not.toHaveBeenCalled();
         });
 
@@ -793,7 +793,7 @@ describe('DealMonitor', () => {
 
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource is definitely not an image'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), 1, 'http://banned.com/page.html', expect.any(Error));
         });
 
         it('should reject if Content-Type is missing but content is not an image', async () => {
@@ -805,7 +805,7 @@ describe('DealMonitor', () => {
 
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
 
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), expect.stringContaining('Resource content is not a supported image type'));
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to download fallback image'), 1, 'http://banned.com/pic', expect.any(Error));
         });
     });
 
