@@ -1,30 +1,41 @@
+/**
+ * @module logger
+ * @description Centralized logging utility using Winston for structured logging.
+ * Supports environment-specific formatting (JSON for production, colorized text for development).
+ */
+
 const winston = require('winston');
 const util = require('util');
 
+/**
+ * Flag indicating whether logs should be formatted as JSON.
+ * Configured via LOG_FORMAT_JSON environment variable.
+ * @type {boolean}
+ */
 const useJsonFormat = process.env.LOG_FORMAT_JSON === 'true';
 
+/**
+ * Winston logger instance configured with custom formats and transports.
+ * In development, uses a custom printf format with util.format for robustness.
+ * In production, uses standard JSON formatting.
+ * @type {winston.Logger}
+ */
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(
     winston.format.errors({ stack: true }),
     winston.format.timestamp(),
-    winston.format.splat(),
-    useJsonFormat ? winston.format.json() : winston.format.combine(
-      winston.format.colorize(),
-      winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
-        // If a stack is present, it includes the message and is the most complete representation.
-        const logMessage = stack || message;
-
-        // Also inspect any additional metadata that isn't the error itself.
-        const splat = meta[Symbol.for('splat')] || [];
-        const metaString = splat
-          .filter(item => !(item instanceof Error))
-          .map(item => util.inspect(item, { depth: 5 }))
-          .join(' ');
-
-        return `${timestamp} [${level}]: ${logMessage}${metaString ? ` ${metaString}` : ''}`;
-      })
-    )
+    useJsonFormat
+      ? winston.format.combine(winston.format.splat(), winston.format.json())
+      : winston.format.combine(
+          winston.format.colorize(),
+          winston.format.printf((info) => {
+            const { timestamp, level, message, stack, [Symbol.for('splat')]: splat = [] } = info;
+            // The stack property from winston.format.errors() already contains the message.
+            const base = stack || message;
+            return `${timestamp} [${level}]: ${util.format(base, ...splat)}`;
+          })
+        )
   ),
   transports: [
     new winston.transports.Console()
