@@ -2,6 +2,17 @@
  * Configuration module that loads environment variables and settings from storage.
  * @module config
  */
+try {
+    const { loadEnvFile } = require('node:process');
+    if (typeof loadEnvFile === 'function') {
+        loadEnvFile();
+    }
+} catch (err) {
+    if (err.code !== 'ENOENT') {
+        console.warn('⚠️ Error loading .env file:', err);
+    }
+}
+
 const storage = require('./storage.js');
 const logger = require('./utils/logger');
 const {

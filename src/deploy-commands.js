@@ -1,15 +1,3 @@
-// Load environment variables from .env file as early as possible
-try {
-    const { loadEnvFile } = require('node:process');
-    if (typeof loadEnvFile === 'function') {
-        loadEnvFile();
-    }
-} catch (err) {
-    if (err.code !== 'ENOENT') {
-        console.warn('⚠️ Error loading .env file:', err);
-    }
-}
-
 const { REST, Routes } = require('discord.js');
 const config = require('./config');
 const { loadCommands } = require('./utils/commandLoader');

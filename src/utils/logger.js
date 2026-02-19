@@ -29,6 +29,12 @@ const logger = winston.createLogger({
             ? winston.format.combine(
                 winston.format.splat(), // Universal splat for JSON to ensure interpolation in message field
                 winston.format.json({
+                    /**
+                     * Custom JSON replacer to correctly serialize Error objects.
+                     * @param {string} key - The key being stringified.
+                     * @param {*} value - The value being stringified.
+                     * @returns {*} The serialized value.
+                     */
                     replacer: (key, value) => {
                         if (value instanceof Error) {
                             return { message: value.message, stack: value.stack };
