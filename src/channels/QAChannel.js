@@ -38,6 +38,23 @@ class QAChannel extends ChannelHandler {
                     await message.reply(responsePayload);
                 }
 
+                // Add reactions if specified in the response or reply
+                const reactions = [];
+                if (response.reactions) {
+                    reactions.push(...(Array.isArray(response.reactions) ? response.reactions : [response.reactions]));
+                }
+                if (reply.reactions) {
+                    reactions.push(...(Array.isArray(reply.reactions) ? reply.reactions : [reply.reactions]));
+                }
+
+                for (const emoji of reactions) {
+                    try {
+                        await message.react(emoji);
+                    } catch (error) {
+                        console.error(`[QAChannel] Failed to react with ${emoji}:`, error);
+                    }
+                }
+
                 return true;
             }
         }

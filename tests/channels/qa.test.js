@@ -23,6 +23,7 @@ describe('QAChannel', () => {
             },
             content: 'hola',
             reply: jest.fn().mockResolvedValue({}),
+            react: jest.fn().mockResolvedValue({}),
         };
         mockState = {
             responses: [
@@ -41,6 +42,21 @@ describe('QAChannel', () => {
         const handled = await handler.handle(mockMessage, mockState);
         expect(handled).toBe(true);
         expect(mockMessage.reply).toHaveBeenCalledWith({ content: 'mundo' });
+    });
+
+    it('should handle reactions', async () => {
+        mockState.responses[0].replies[0].reactions = ['👍', '✅'];
+        const handled = await handler.handle(mockMessage, mockState);
+        expect(handled).toBe(true);
+        expect(mockMessage.react).toHaveBeenCalledWith('👍');
+        expect(mockMessage.react).toHaveBeenCalledWith('✅');
+    });
+
+    it('should handle reactions at response level', async () => {
+        mockState.responses[0].reactions = ['🔥'];
+        const handled = await handler.handle(mockMessage, mockState);
+        expect(handled).toBe(true);
+        expect(mockMessage.react).toHaveBeenCalledWith('🔥');
     });
 
     it('should handle image responses', async () => {

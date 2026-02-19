@@ -5,7 +5,17 @@
     [
       {
         "text_response": "<:hello:1098441756908978210>",
-        "img_response": ""
+        "img_response": "",
+        "reactions": ["👋"]
+      }
+    ]
+  },
+  {
+    "trigger": "TEST_REACTION",
+    "reactions": ["🔥"],
+    "replies": [
+      {
+        "text_response": "This trigger also has a response-level reaction!"
       }
     ]
   }
