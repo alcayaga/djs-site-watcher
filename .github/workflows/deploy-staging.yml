@@ -43,4 +43,4 @@ jobs:
           # Execute the deployment script included in the repo
           # The script is responsible for pulling the latest code and restarting the app
           chmod +x scripts/deploy.sh
-          ./scripts/deploy.sh
+          TARGET_ENV=staging ./scripts/deploy.sh
