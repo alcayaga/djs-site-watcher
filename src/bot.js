@@ -1,3 +1,15 @@
+// Load environment variables from .env file as early as possible
+try {
+    const { loadEnvFile } = require('node:process');
+    if (typeof loadEnvFile === 'function') {
+        loadEnvFile();
+    }
+} catch (err) {
+    if (err.code !== 'ENOENT') {
+        console.warn('⚠️ Error loading .env file:', err);
+    }
+}
+
 // Import required modules
 const { Client, GatewayIntentBits, Partials, Events } = require('discord.js');
 const client = new Client({

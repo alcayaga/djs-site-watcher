@@ -2,18 +2,8 @@
  * Configuration module that loads environment variables and settings from storage.
  * @module config
  */
-const logger = require('./utils/logger');
-try {
-    process.loadEnvFile();
-} catch (err) {
-    if (err.code === 'ENOENT') {
-        logger.warn('⚠️ No .env file found. Proceeding with process.env variables.');
-    } else {
-        throw err;
-    }
-}
-
 const storage = require('./storage.js');
+const logger = require('./utils/logger');
 const {
     ENV_DISCORDJS_TEXTCHANNEL_ID,
     ENV_DISCORDJS_APCHANNEL_ID,
