@@ -20,7 +20,8 @@ const useJsonFormat = process.env.LOG_FORMAT_JSON === 'true';
  */
 const SENSITIVE_PATTERNS = [
     /\d{17,19}/g, // Discord IDs
-    /M[A-Za-z0-9._-]{23}\.[A-Za-z0-9._-]{6}\.[A-Za-z0-9._-]{27}/g // Discord Bot Tokens (basic)
+    /M[A-Za-z0-9._-]{23}\.[A-Za-z0-9._-]{6}\.[A-Za-z0-9._-]{27}/g, // Discord User Tokens
+    /[A-Za-z0-9._-]{59,95}/g // Discord Bot Tokens (heuristic)
 ];
 
 /**
@@ -65,14 +66,32 @@ const logger = winston.createLogger({
             )
             : winston.format.combine(
                 winston.format.colorize(),
+                /**
+                 * Custom printf formatter for development logging.
+                 * @param {Object} info - Winston log information object.
+                 * @returns {string} The formatted log string.
+                 */
                 winston.format.printf((info) => {
-                    const { timestamp, level, message, stack, [Symbol.for('splat')]: splat = [] } = info;
-                    // The stack property from winston.format.errors() already contains the message.
-                    // We use util.format here to handle both printf-style placeholders and extra arguments
-                    // (metadata, errors) without duplication or data loss.
-                    const base = stack || message;
-                    const formatted = util.format(base, ...splat);
-                    return `${timestamp} [${level}]: ${maskSensitive(formatted)}`;
+                    const { timestamp, level, message, stack } = info;
+                    const splat = info[Symbol.for('splat')] || [];
+
+                    if (stack) {
+                        // The error was the primary argument, stack is already there.
+                        // We can format any other splat args into it.
+                        const formatted = util.format(stack, ...splat.filter(arg => !(arg instanceof Error)));
+                        return `${timestamp} [${level}]: ${maskSensitive(formatted)}`;
+                    }
+
+                    // The error might be in the splat, or there's no error.
+                    const errorInSplat = splat.find(arg => arg instanceof Error);
+                    const otherSplatArgs = splat.filter(arg => !(arg instanceof Error));
+                    let logMessage = util.format(message, ...otherSplatArgs);
+
+                    if (errorInSplat) {
+                        logMessage += `\n${errorInSplat.stack}`;
+                    }
+
+                    return `${timestamp} [${level}]: ${maskSensitive(logMessage)}`;
                 })
             )
     ),
