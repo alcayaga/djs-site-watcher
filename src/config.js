@@ -13,6 +13,13 @@ try {
 }
 
 const storage = require('./storage.js');
+const {
+    ENV_DISCORDJS_TEXTCHANNEL_ID,
+    ENV_DISCORDJS_APCHANNEL_ID,
+    ENV_DISCORDJS_DEALS_CHANNEL_ID,
+    ENV_SOLOTODO_BASE_URL,
+    ENV_SOLOTODO_API_URL,
+} = require('./utils/constants.js');
 
 const config = storage.loadSettings();
 
@@ -40,7 +47,7 @@ if (process.env.NODE_ENV !== 'test' && missingOptionalVars.length > 0) {
 }
 
 // Map Global Default
-config.defaultChannelId = config.defaultChannelId ?? process.env.DISCORDJS_TEXTCHANNEL_ID;
+config.defaultChannelId = config.defaultChannelId ?? process.env[ENV_DISCORDJS_TEXTCHANNEL_ID];
 
 /**
  * Checks if a value is a placeholder string (e.g., starting with 'YOUR_').
@@ -66,8 +73,8 @@ config.SOLOTODO_API_DELAY = parseEnvInt(config.SOLOTODO_API_DELAY, 5000);
 config.ALLOW_PRIVATE_IPS = String(config.ALLOW_PRIVATE_IPS).toLowerCase() === 'true';
 
 // Solotodo Configuration
-config.solotodoBaseUrl = process.env.SOLOTODO_BASE_URL || 'https://www.solotodo.cl';
-config.solotodoApiUrl = process.env.SOLOTODO_API_URL || 'https://publicapi.solotodo.com';
+config.solotodoBaseUrl = process.env[ENV_SOLOTODO_BASE_URL] || 'https://www.solotodo.cl';
+config.solotodoApiUrl = process.env[ENV_SOLOTODO_API_URL] || 'https://publicapi.solotodo.com';
 
 if (config.ALLOW_PRIVATE_IPS) {
     console.warn('⚠️ SSRF Protection bypass is ACTIVE (ALLOW_PRIVATE_IPS=true). Private IPs will be allowed.');
@@ -88,7 +95,7 @@ if (!config.monitors) {
 // Initialize specific monitor settings if missing
 const monitorDefaults = {
     'Deal': {
-        channelId: process.env.DISCORDJS_DEALS_CHANNEL_ID,
+        channelId: process.env[ENV_DISCORDJS_DEALS_CHANNEL_ID],
         apiDelay: config.SOLOTODO_API_DELAY
     }
 };
@@ -110,8 +117,8 @@ config.monitors.forEach(monitor => {
 });
 
 const defaultHandlerMappings = [
-    { name: 'QA', handler: 'QAChannel', envId: 'DISCORDJS_APCHANNEL_ID', defaults: { responseDelay: config.AP_RESPONSE_DELAY } },
-    { name: 'Deals', handler: 'DealsChannel', envId: 'DISCORDJS_DEALS_CHANNEL_ID' }
+    { name: 'QA', handler: 'QAChannel', envId: ENV_DISCORDJS_APCHANNEL_ID, defaults: { responseDelay: config.AP_RESPONSE_DELAY } },
+    { name: 'Deals', handler: 'DealsChannel', envId: ENV_DISCORDJS_DEALS_CHANNEL_ID }
 ];
 
 if (!config.channels) {
