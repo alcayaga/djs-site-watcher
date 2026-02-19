@@ -2,7 +2,8 @@
 set -e
 
 # Configuration
-export TARGET_ENV=$(echo "${TARGET_ENV:-production}" | tr '[:upper:]' '[:lower:]')
+export TARGET_ENV="${TARGET_ENV:-production}"
+TARGET_ENV="${TARGET_ENV,,}"
 readonly TARGET_ENV
 
 # Security: Validate TARGET_ENV (allow alphanumeric, -, _)
@@ -20,8 +21,8 @@ echo "[Deploy] Starting deployment for environment: ${TARGET_ENV}"
 echo "[Deploy] Target Directory: ${TARGET_DIR}"
 
 # Security: Validate DEPLOY_BRANCH (allow alphanumeric, /, -, _, .)
-if [[ ! "${DEPLOY_BRANCH}" =~ ^[a-zA-Z0-9/._-]+$ ]]; then
-    echo "Error: Invalid characters in DEPLOY_BRANCH."
+if [[ ! "${DEPLOY_BRANCH}" =~ ^[a-zA-Z0-9/._-]+$ || "${DEPLOY_BRANCH}" == -* ]]; then
+    echo "Error: Invalid characters or format in DEPLOY_BRANCH."
     exit 1
 fi
 

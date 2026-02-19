@@ -28,6 +28,7 @@ module.exports = {
       // Common environment variables
       env: {
         NODE_ENV: 'production',
+        APP_ENV: targetEnv,
       },
       // Environment-specific overrides
       env_production: {
