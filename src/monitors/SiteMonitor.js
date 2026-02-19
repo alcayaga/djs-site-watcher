@@ -83,7 +83,7 @@ class SiteMonitor extends Monitor {
                 }
                 return { site, hasChanged };
             } catch (err) {
-                logger.error(`${site.url} : ${err}`);
+                logger.error(`${site.url} :`, err);
                 return { site, hasChanged: false };
             }
         });
