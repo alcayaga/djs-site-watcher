@@ -82,14 +82,27 @@ const logger = winston.createLogger({
                     const { timestamp, level, message, stack, ...meta } = info;
                     let logMessage = stack ? `${message}\n${stack}` : message;
 
+                    /**
+                     * Custom JSON replacer to correctly serialize Error objects.
+                     * @param {string} key - The key being stringified.
+                     * @param {*} value - The value being stringified.
+                     * @returns {*} The serialized value.
+                     */
+                    const errorReplacer = (key, value) =>
+                        value instanceof Error ? { message: value.message, stack: value.stack } : value;
+
                     // winston.format.splat() already interpolated placeholders into 'message'.
                     // We handle cases where an object was passed as the only argument or metadata was provided.
                     if (typeof logMessage !== 'string') {
-                        logMessage = JSON.stringify(logMessage);
+                        logMessage = JSON.stringify(logMessage, errorReplacer);
                     }
 
-                    if (Object.keys(meta).length > 0) {
-                        logMessage += ` ${JSON.stringify(meta)}`;
+                    const splat = info[Symbol.for('splat')] || [];
+                    if (Object.keys(meta).length > 0 || splat.length > 0) {
+                        const extra = { ...meta };
+                        if (splat.length > 0) extra.splat = splat;
+
+                        logMessage += ` ${JSON.stringify(extra, errorReplacer)}`;
                     }
 
                     return `${timestamp} [${level}]: ${maskSensitive(logMessage)}`;
