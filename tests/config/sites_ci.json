@@ -1,7 +1,7 @@
 [
     {
         "id": "example-com",
-        "url": "http://example.com",
+        "url": "https://example.com",
         "css": "h1",
         "lastChecked": "",
         "lastUpdated": "",
