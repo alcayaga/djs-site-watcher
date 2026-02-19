@@ -79,16 +79,11 @@ const logger = winston.createLogger({
                     // winston.format.splat() already interpolated placeholders into 'message'.
                     // We handle cases where an object was passed as the only argument or metadata was provided.
                     if (typeof logMessage !== 'string') {
-                        logMessage = JSON.stringify(logMessage || meta);
-                    } else if (Object.keys(meta).length > 0) {
-                        // Avoid appending internal winston symbols
-                        const cleanMeta = {};
-                        for (const key of Object.getOwnPropertyNames(meta)) {
-                            cleanMeta[key] = meta[key];
-                        }
-                        if (Object.keys(cleanMeta).length > 0) {
-                            logMessage += ` ${JSON.stringify(cleanMeta)}`;
-                        }
+                        logMessage = JSON.stringify(logMessage);
+                    }
+
+                    if (Object.keys(meta).length > 0) {
+                        logMessage += ` ${JSON.stringify(meta)}`;
                     }
 
                     return `${timestamp} [${level}]: ${maskSensitive(logMessage)}`;
