@@ -30,7 +30,13 @@ function maskSensitive(str) {
     if (typeof str !== 'string') return str;
     let masked = str;
     SENSITIVE_PATTERNS.forEach(pattern => {
-        masked = masked.replace(pattern, (match) => '*'.repeat(match.length));
+        masked = masked.replace(pattern, (match) => {
+            if (match.includes('.')) {
+                const parts = match.split('.');
+                return parts.map(p => '*'.repeat(p.length)).join('.');
+            }
+            return '*'.repeat(match.length);
+        });
     });
     return masked;
 }
