@@ -74,7 +74,7 @@ async function handleInteraction(interaction, client, state, config, monitorMana
         try {
             await command.autocomplete(interaction, monitorManager);
         } catch (error) {
-            logger.error(error);
+            logger.error('Error handling autocomplete:', error);
         }
     }
 }

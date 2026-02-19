@@ -218,8 +218,8 @@ class SiteMonitor extends Monitor {
         await this.saveState(this.state);
         return removedSite;
     }
-    
-    /**     * Overrides the base loadState to load from the `sites.json` file.
+    /**
+     * Overrides the base loadState to load from the `sites.json` file.
      * @returns {Promise<Array>} The loaded state.
      */
     async loadState() {
@@ -228,32 +228,33 @@ class SiteMonitor extends Monitor {
             if (Array.isArray(data)) {
                 return data;
             } else if (data && Array.isArray(data.sites)) {
-                            return data.sites;
-                        }
-                        return [];
-                    } catch {
-                        logger.info('Could not load state for %s from %s. Starting fresh.', this.name, this.config.file);
-                        return [];
-                    }
-                }
-                
-                /**
-                 * Sends a notification for a changed site.
-                 * @param {object} change The change object containing site, old/new content, and dom.
-                 * @returns {Promise<void>}
-                 */
-                async notify(change) {
-                    const { site, oldContent, newContent, dom } = change;
-                    const channel = this.getNotificationChannel();
-                    if (!channel) {
-                        logger.error('Notification channel not found for %s.', this.name);
-                        return;
-                    }
-                
-                    logger.info('Change detected! %s', site.url);
-                    
-                    let title = dom.window.document.title || site.id;
-                        const changes = diff.diffLines(oldContent, newContent);
+                return data.sites;
+            }
+            return [];
+        } catch {
+            logger.info('Could not load state for %s from %s. Starting fresh.', this.name, this.config.file);
+            return [];
+        }
+    }
+
+    /**
+     * Sends a notification for a changed site.
+     * @param {object} change The change object containing site, old/new content, and dom.
+     * @returns {Promise<void>}
+     */
+    async notify(change) {
+        const { site, oldContent, newContent, dom } = change;
+        const channel = this.getNotificationChannel();
+        if (!channel) {
+            logger.error('Notification channel not found for %s.', this.name);
+            return;
+        }
+
+        logger.info('Change detected! %s', site.url);
+        
+        let title = dom.window.document.title || site.id;
+
+        const changes = diff.diffLines(oldContent, newContent);
         const allLines = [];
         changes.forEach((part) => {
             const type = part.added ? 'added' : part.removed ? 'removed' : 'context';

@@ -26,8 +26,8 @@ const rest = new REST({ version: '10' }).setToken(config.DISCORDJS_BOT_TOKEN);
 			{ body: commandData },
 		);
 
-		logger.info(`Successfully reloaded ${data.length} application (/) commands.`);
+		logger.info('Successfully reloaded %d application (/) commands.', data.length);
 	} catch (error) {
-		logger.error(error);
+		logger.error('Failed to refresh application commands:', error);
 	}
 })();

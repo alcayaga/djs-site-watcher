@@ -44,11 +44,11 @@ client.on(Events.ClientReady, async () => {
     const { loadCommands } = require('./utils/commandLoader');
     const commands = loadCommands();
     try {
-        logger.info(`[${client.user.tag}] Started refreshing application (/) commands.`);
+        logger.info('[%s] Started refreshing application (/) commands.', client.user.tag);
         await client.application.commands.set(commands.map(c => c.data.toJSON()));
-        logger.info(`[${client.user.tag}] Successfully reloaded application (/) commands.`);
+        logger.info('[%s] Successfully reloaded application (/) commands.', client.user.tag);
     } catch (error) {
-        logger.error(error);
+        logger.error('Error refreshing application commands:', error);
     }
     */
 
