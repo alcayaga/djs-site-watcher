@@ -18,9 +18,7 @@ const useJsonFormat = process.env.LOG_FORMAT_JSON === 'true';
  * @type {RegExp[]}
  */
 const SENSITIVE_PATTERNS = [
-    /\d{17,19}/g, // Discord IDs
-    /M[A-Za-z0-9._-]{23}\.[A-Za-z0-9._-]{6}\.[A-Za-z0-9._-]{27}/g, // Discord User Tokens
-    /[A-Za-z0-9._-]{59,95}/g // Discord Bot Tokens (heuristic)
+    /M[A-Za-z0-9._-]{23}\.[A-Za-z0-9._-]{6}\.[A-Za-z0-9._-]{27}/g // Discord User Tokens
 ];
 
 /**
