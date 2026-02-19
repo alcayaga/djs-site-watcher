@@ -5,6 +5,12 @@ set -e
 export TARGET_ENV="${TARGET_ENV:-production}"
 readonly TARGET_ENV
 
+# Security: Validate TARGET_ENV (allow alphanumeric, -, _)
+if [[ ! "${TARGET_ENV}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo "Error: Invalid characters in TARGET_ENV."
+    exit 1
+fi
+
 readonly DEPLOY_BRANCH="${DEPLOY_BRANCH:-master}"
 
 # Use DEPLOY_PATH env var or default to current directory if not set
@@ -44,6 +50,6 @@ npm ci --production
 
 # Restart application via PM2 using the ecosystem file and specified environment
 echo "[Deploy] Reloading application with PM2 (env: ${TARGET_ENV})..."
-pm2 reload ecosystem.config.js --env "${TARGET_ENV}" || pm2 start ecosystem.config.js --env "${TARGET_ENV}"
+pm2 startOrReload ecosystem.config.js --env "${TARGET_ENV}"
 
 echo "[Deploy] Deployment successful!"

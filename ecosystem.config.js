@@ -9,7 +9,9 @@
  * @see https://pm2.keymetrics.io/docs/usage/application-declaration/
  */
 
-const targetEnv = process.env.TARGET_ENV || 'production';
+const rawEnv = process.env.TARGET_ENV || 'production';
+// Sanitize to allow only alphanumeric characters and hyphens, preventing path traversal.
+const targetEnv = rawEnv.replace(/[^a-zA-Z0-9-]/g, '');
 const isProduction = targetEnv === 'production';
 
 module.exports = {
