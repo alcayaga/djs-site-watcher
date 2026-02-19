@@ -3,14 +3,34 @@ set -e
 
 # Configuration
 export TARGET_ENV="${TARGET_ENV:-production}"
-DEPLOY_BRANCH="${DEPLOY_BRANCH:-master}"
+readonly TARGET_ENV
+
+readonly DEPLOY_BRANCH="${DEPLOY_BRANCH:-master}"
+
 # Use DEPLOY_PATH env var or default to current directory if not set
-TARGET_DIR="${DEPLOY_PATH:-$(pwd)}"
+readonly TARGET_DIR="${DEPLOY_PATH:-$(pwd)}"
 
 echo "[Deploy] Starting deployment for environment: ${TARGET_ENV}"
 echo "[Deploy] Target Directory: ${TARGET_DIR}"
 
+# Security: Validate DEPLOY_BRANCH (allow alphanumeric, /, -, _, .)
+if [[ ! "${DEPLOY_BRANCH}" =~ ^[a-zA-Z0-9/._-]+$ ]]; then
+    echo "Error: Invalid characters in DEPLOY_BRANCH."
+    exit 1
+fi
+
+if [ ! -d "${TARGET_DIR}" ]; then
+    echo "Error: Target directory does not exist: ${TARGET_DIR}"
+    exit 1
+fi
+
 cd "${TARGET_DIR}"
+
+# Security: Sanity check to ensure we are in a valid project directory before running destructive git commands
+if [ ! -f "package.json" ]; then
+    echo "Error: package.json not found in ${TARGET_DIR}. Aborting to prevent accidental data loss."
+    exit 1
+fi
 
 # Reset to match remote branch exactly
 echo "[Deploy] Fetching latest changes from branch: ${DEPLOY_BRANCH}..."
