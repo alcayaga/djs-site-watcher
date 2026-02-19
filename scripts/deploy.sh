@@ -2,7 +2,7 @@
 set -e
 
 # Configuration
-export TARGET_ENV="${TARGET_ENV:-production}"
+export TARGET_ENV=$(echo "${TARGET_ENV:-production}" | tr '[:upper:]' '[:lower:]')
 readonly TARGET_ENV
 
 # Security: Validate TARGET_ENV (allow alphanumeric, -, _)

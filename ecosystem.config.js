@@ -11,7 +11,8 @@
 
 const rawEnv = process.env.TARGET_ENV || 'production';
 // Sanitize to allow only alphanumeric characters, hyphens, and underscores, preventing path traversal.
-const targetEnv = rawEnv.replace(/[^a-zA-Z0-9_-]/g, '');
+// Normalize to lowercase for consistency (e.g., 'Staging' -> 'staging').
+const targetEnv = rawEnv.toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
 if (!targetEnv) {
   throw new Error(`Invalid TARGET_ENV: '${rawEnv}' results in an empty environment name.`);
