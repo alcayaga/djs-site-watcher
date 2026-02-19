@@ -309,8 +309,8 @@ describe('SiteMonitor', () => {
             await siteMonitor.notify(mockChange);
 
             expect(mockChannel.send).toHaveBeenCalledTimes(2);
-            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Missing permissions to send embed'), expect.anything(), expect.anything());
-            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("CRITICAL: Missing 'Send Messages' permission"), expect.anything(), expect.anything(), error);
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Missing permissions to send embed'), 'mock-channel', 'mockChannelId');
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("CRITICAL: Missing 'Send Messages' permission"), 'mock-channel', 'mockChannelId', error);
         });
     });
 
