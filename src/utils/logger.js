@@ -5,7 +5,6 @@
  */
 
 const winston = require('winston');
-const util = require('util');
 
 /**
  * Flag indicating whether logs should be formatted as JSON.
@@ -40,7 +39,7 @@ function maskSensitive(str) {
 
 /**
  * Winston logger instance configured with custom formats and transports.
- * In development, uses a custom printf format with util.format for robustness.
+ * In development, uses a colorized text format.
  * In production, uses standard JSON formatting.
  * @type {winston.Logger}
  */
@@ -49,21 +48,25 @@ const logger = winston.createLogger({
     format: winston.format.combine(
         winston.format.errors({ stack: true }),
         winston.format.timestamp(),
+        winston.format.splat(), // Applied universally to ensure consistent interpolation
         useJsonFormat
-            ? winston.format.combine(
-                winston.format.splat(), // Universal splat for JSON to ensure interpolation in message field
-                winston.format.json({
-                    replacer: (key, value) => {
-                        if (value instanceof Error) {
-                            return { message: value.message, stack: value.stack };
-                        }
-                        if (typeof value === 'string') {
-                            return maskSensitive(value);
-                        }
-                        return value;
+            ? winston.format.json({
+                /**
+                 * Custom JSON replacer to correctly serialize Error objects and mask sensitive data.
+                 * @param {string} key - The key being stringified.
+                 * @param {*} value - The value being stringified.
+                 * @returns {*} The serialized value.
+                 */
+                replacer: (key, value) => {
+                    if (value instanceof Error) {
+                        return { message: value.message, stack: value.stack };
                     }
-                })
-            )
+                    if (typeof value === 'string') {
+                        return maskSensitive(value);
+                    }
+                    return value;
+                }
+            })
             : winston.format.combine(
                 winston.format.colorize(),
                 /**
@@ -71,26 +74,10 @@ const logger = winston.createLogger({
                  * @param {Object} info - Winston log information object.
                  * @returns {string} The formatted log string.
                  */
-                winston.format.printf((info) => {
-                    const { timestamp, level, message, stack } = info;
-                    const splat = info[Symbol.for('splat')] || [];
-
-                    if (stack) {
-                        // The error was the primary argument, stack is already there.
-                        // We can format any other splat args into it.
-                        const formatted = util.format(stack, ...splat.filter(arg => !(arg instanceof Error)));
-                        return `${timestamp} [${level}]: ${maskSensitive(formatted)}`;
-                    }
-
-                    // The error might be in the splat, or there's no error.
-                    const errorInSplat = splat.find(arg => arg instanceof Error);
-                    const otherSplatArgs = splat.filter(arg => !(arg instanceof Error));
-                    let logMessage = util.format(message, ...otherSplatArgs);
-
-                    if (errorInSplat) {
-                        logMessage += `\n${errorInSplat.stack}`;
-                    }
-
+                winston.format.printf(({ timestamp, level, message, stack }) => {
+                    // winston.format.splat() already interpolated placeholders into 'message'.
+                    // If a stack trace is present, we append it.
+                    const logMessage = stack ? `${message}\n${stack}` : message;
                     return `${timestamp} [${level}]: ${maskSensitive(logMessage)}`;
                 })
             )
