@@ -83,8 +83,8 @@ const logger = winston.createLogger({
                     } else if (Object.keys(meta).length > 0) {
                         // Avoid appending internal winston symbols
                         const cleanMeta = {};
-                        for (const key of Object.keys(meta)) {
-                            if (typeof key === 'string') cleanMeta[key] = meta[key];
+                        for (const key of Object.getOwnPropertyNames(meta)) {
+                            cleanMeta[key] = meta[key];
                         }
                         if (Object.keys(cleanMeta).length > 0) {
                             logMessage += ` ${JSON.stringify(cleanMeta)}`;
