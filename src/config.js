@@ -11,7 +11,7 @@ try {
     if (err.code === 'ENOENT') {
         console.warn('⚠️ No .env file found. Proceeding with process.env variables.');
     } else {
-        console.error('⚠️ Error loading .env file:', err);
+        throw err;
     }
 }
 
