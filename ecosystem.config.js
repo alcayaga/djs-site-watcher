@@ -10,8 +10,8 @@
  */
 
 const rawEnv = process.env.TARGET_ENV || 'production';
-// Sanitize to allow only alphanumeric characters and hyphens, preventing path traversal.
-const targetEnv = rawEnv.replace(/[^a-zA-Z0-9-]/g, '');
+// Sanitize to allow only alphanumeric characters, hyphens, and underscores, preventing path traversal.
+const targetEnv = rawEnv.replace(/[^a-zA-Z0-9_-]/g, '');
 const isProduction = targetEnv === 'production';
 
 module.exports = {
