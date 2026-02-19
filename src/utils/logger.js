@@ -15,6 +15,29 @@ const util = require('util');
 const useJsonFormat = process.env.LOG_FORMAT_JSON === 'true';
 
 /**
+ * Patterns that should be masked in logs.
+ * @type {RegExp[]}
+ */
+const SENSITIVE_PATTERNS = [
+    /\d{17,19}/g, // Discord IDs
+    /M[A-Za-z0-9._-]{23}\.[A-Za-z0-9._-]{6}\.[A-Za-z0-9._-]{27}/g // Discord Bot Tokens (basic)
+];
+
+/**
+ * Masks sensitive information in a string.
+ * @param {string} str - The string to mask.
+ * @returns {string} The masked string.
+ */
+function maskSensitive(str) {
+    if (typeof str !== 'string') return str;
+    let masked = str;
+    SENSITIVE_PATTERNS.forEach(pattern => {
+        masked = masked.replace(pattern, (match) => '*'.repeat(match.length));
+    });
+    return masked;
+}
+
+/**
  * Winston logger instance configured with custom formats and transports.
  * In development, uses a custom printf format with util.format for robustness.
  * In production, uses standard JSON formatting.
@@ -29,15 +52,12 @@ const logger = winston.createLogger({
             ? winston.format.combine(
                 winston.format.splat(), // Universal splat for JSON to ensure interpolation in message field
                 winston.format.json({
-                    /**
-                     * Custom JSON replacer to correctly serialize Error objects.
-                     * @param {string} key - The key being stringified.
-                     * @param {*} value - The value being stringified.
-                     * @returns {*} The serialized value.
-                     */
                     replacer: (key, value) => {
                         if (value instanceof Error) {
                             return { message: value.message, stack: value.stack };
+                        }
+                        if (typeof value === 'string') {
+                            return maskSensitive(value);
                         }
                         return value;
                     }
@@ -51,7 +71,8 @@ const logger = winston.createLogger({
                     // We use util.format here to handle both printf-style placeholders and extra arguments
                     // (metadata, errors) without duplication or data loss.
                     const base = stack || message;
-                    return `${timestamp} [${level}]: ${util.format(base, ...splat)}`;
+                    const formatted = util.format(base, ...splat);
+                    return `${timestamp} [${level}]: ${maskSensitive(formatted)}`;
                 })
             )
     ),
