@@ -46,7 +46,7 @@ if (process.env.NODE_ENV !== 'test' && missingRequiredVars.length > 0) {
 
 const missingOptionalVars = storage.OPTIONAL_ENV_VARS.filter(key => !config[key]);
 if (process.env.NODE_ENV !== 'test' && missingOptionalVars.length > 0) {
-    logger.warn(`⚠️  Missing optional environment variables: ${missingOptionalVars.join(', ')}. Some features may not work as expected.`);
+    logger.warn('⚠️ Missing optional environment variables: %s. Some features may not work as expected.', missingOptionalVars.join(', '));
 }
 
 // Map Global Default
@@ -148,9 +148,9 @@ if (!config.channels) {
             const fallbackId = mappedId ?? config.defaultChannelId;
             
             if (!fallbackId || isPlaceholder(fallbackId)) {
-                logger.warn('⚠️ Channel handler \'%s\' is missing a valid \'channelId\'. This handler may not function correctly.', channel.name);
+                logger.warn('⚠️ Channel handler "%s" is missing a valid "channelId". This handler may not function correctly.', channel.name);
             } else if (!mappedId || isPlaceholder(mappedId)) {
-                logger.warn('⚠️ Channel handler \'%s\' is missing \'channelId\'. Falling back to default channel ID.', channel.name);
+                logger.warn('⚠️ Channel handler "%s" is missing "channelId". Falling back to default channel ID.', channel.name);
             }
             
             channel.channelId = fallbackId;

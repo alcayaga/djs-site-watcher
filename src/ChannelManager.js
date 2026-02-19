@@ -28,7 +28,7 @@ class ChannelManager {
             if (error.code === 'ENOENT') {
                 return;
             }
-            logger.error(`Error reading channel handlers directory '${channelsPath}':`, error);
+            logger.error('Error reading channel handlers directory "%s":', channelsPath, error);
             return;
         }
 
@@ -41,7 +41,7 @@ class ChannelManager {
                 const handlerName = file.replace('.js', '').toLowerCase();
                 handlerClassMap.set(handlerName, HandlerClass);
             } catch (error) {
-                logger.error(`Error loading channel handler file ${file}:`, error);
+                logger.error('Error loading channel handler file %s:', file, error);
             }
         }
 

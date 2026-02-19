@@ -68,9 +68,9 @@ client.on(Events.ClientReady, async () => {
             .filter(file => file.endsWith('.js'));
     } catch (error) {
         if (error.code === 'ENOENT') {
-            logger.warn(`Monitors directory not found at ${monitorPath}. No monitors will be loaded.`);
+            logger.warn('Monitors directory not found at "%s". No monitors will be loaded.', monitorPath);
         } else {
-            logger.error(`Error reading monitors directory at ${monitorPath}:`, error);
+            logger.error('Error reading monitors directory at "%s":', monitorPath, error);
         }
     }
 
