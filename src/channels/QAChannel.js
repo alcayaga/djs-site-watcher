@@ -39,13 +39,7 @@ class QAChannel extends ChannelHandler {
                 }
 
                 // Add reactions if specified in the response or reply
-                const reactions = [];
-                if (response.reactions) {
-                    reactions.push(...(Array.isArray(response.reactions) ? response.reactions : [response.reactions]));
-                }
-                if (reply.reactions) {
-                    reactions.push(...(Array.isArray(reply.reactions) ? reply.reactions : [reply.reactions]));
-                }
+                const reactions = [...new Set([response.reactions, reply.reactions].flat().filter(Boolean))];
 
                 for (const emoji of reactions) {
                     try {

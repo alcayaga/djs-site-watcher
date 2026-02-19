@@ -59,6 +59,16 @@ describe('QAChannel', () => {
         expect(mockMessage.react).toHaveBeenCalledWith('🔥');
     });
 
+    it('should handle duplicate reactions gracefully', async () => {
+        mockState.responses[0].reactions = ['👍'];
+        mockState.responses[0].replies[0].reactions = ['👍', '✅'];
+        const handled = await handler.handle(mockMessage, mockState);
+        expect(handled).toBe(true);
+        expect(mockMessage.react).toHaveBeenCalledTimes(2);
+        expect(mockMessage.react).toHaveBeenCalledWith('👍');
+        expect(mockMessage.react).toHaveBeenCalledWith('✅');
+    });
+
     it('should handle image responses', async () => {
         mockState.responses[0].replies[0] = { text_response: '', img_response: 'image.png' };
         const handled = await handler.handle(mockMessage, mockState);
