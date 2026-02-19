@@ -5,13 +5,14 @@
  */
 
 const winston = require('winston');
+const { ENV_LOG_FORMAT_JSON, ENV_LOG_LEVEL } = require('./constants');
 
 /**
  * Flag indicating whether logs should be formatted as JSON.
  * Configured via LOG_FORMAT_JSON environment variable.
  * @type {boolean}
  */
-const useJsonFormat = process.env.LOG_FORMAT_JSON === 'true';
+const useJsonFormat = process.env[ENV_LOG_FORMAT_JSON] === 'true';
 
 /**
  * Patterns that should be masked in logs.
@@ -48,7 +49,7 @@ function maskSensitive(str) {
  * @type {winston.Logger}
  */
 const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || 'info',
+    level: process.env[ENV_LOG_LEVEL] || 'info',
     format: winston.format.combine(
         winston.format.errors({ stack: true }),
         winston.format.timestamp(),
@@ -80,7 +81,6 @@ const logger = winston.createLogger({
                  */
                 winston.format.printf((info) => {
                     const { timestamp, level, message, stack, ...meta } = info;
-                    let logMessage = stack ? `${message}\n${stack}` : message;
 
                     /**
                      * Custom JSON replacer to correctly serialize Error objects.
@@ -92,20 +92,12 @@ const logger = winston.createLogger({
                         value instanceof Error ? { message: value.message, stack: value.stack } : value;
 
                     // winston.format.splat() already interpolated placeholders into 'message'.
-                    // If the primary argument is an object, winston merges its properties into the info object (meta).
-                    // We handle both cases to avoid double logging.
-                    if (typeof message !== 'string') {
-                        // If it's an object, we use the merged meta as the primary representation.
-                        logMessage = JSON.stringify(meta, errorReplacer);
-                    } else {
-                        // If message is a string, we append stack or any extra metadata.
-                        logMessage = stack ? `${message}\n${stack}` : message;
-                        const splat = info[Symbol.for('splat')] || [];
-                        if (Object.keys(meta).length > 0 || splat.length > 0) {
-                            const extra = { ...meta };
-                            if (splat.length > 0) extra.splat = splat;
-                            logMessage += ` ${JSON.stringify(extra, errorReplacer)}`;
-                        }
+                    // We handle both string and object messages correctly.
+                    let logMessage = typeof message === 'string' ? message : JSON.stringify(message, errorReplacer);
+                    if (stack) logMessage += `\n${stack}`;
+
+                    if (Object.keys(meta).length > 0) {
+                        logMessage += ` ${JSON.stringify(meta, errorReplacer)}`;
                     }
 
                     return `${timestamp} [${level}]: ${maskSensitive(logMessage)}`;
