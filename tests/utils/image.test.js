@@ -11,6 +11,13 @@ jest.mock('../../src/utils/network', () => ({
     getSafeGotOptions: jest.fn().mockReturnValue({})
 }));
 
+jest.mock('../../src/utils/logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+}));
+
 // Mock the wrapper to avoid ESM issues
 jest.mock('../../src/utils/fileTypeWrapper', () => {
     return {

@@ -1,5 +1,6 @@
 const got = require('got');
 const { getSafeGotOptions } = require('./network');
+const logger = require('./logger');
 
 const MIME_TYPE_MAP = {
     'image/jpeg': 'jpg',
@@ -27,14 +28,14 @@ async function sniffImageExtension(buffer) {
         if (!type) return null;
         
         // We only care about specific image types
-        const supportedExtensions = ['jpg', 'png', 'gif', 'webp'];
+        const supportedExtensions = Object.values(MIME_TYPE_MAP);
         if (supportedExtensions.includes(type.ext)) {
             return type.ext;
         }
         
         return null;
     } catch (error) {
-        console.error('Error sniffing image extension:', error);
+        logger.error('Error sniffing image extension:', error);
         return null;
     }
 }
