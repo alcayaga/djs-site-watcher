@@ -33,18 +33,22 @@ class QAChannel extends ChannelHandler {
 
                 if (hasContent) {
                     message.channel.sendTyping();
-                }
 
-                // Wait for the configured delay before sending the response
-                await new Promise(resolve => setTimeout(resolve, this.config.responseDelay));
+                    // Wait for the configured delay before sending the response
+                    await new Promise(resolve => setTimeout(resolve, this.config.responseDelay));
 
-                if (hasContent) {
                     await message.reply(responsePayload);
                 }
 
                 // Pick random reactions if specified
                 const finalReactions = new Set();
-                const getReaction = (val) => Array.isArray(val) ? val[Math.floor(Math.random() * val.length)] : val;
+                const getReaction = (val) => {
+                    const selected = Array.isArray(val) ? val[Math.floor(Math.random() * val.length)] : val;
+                    if (typeof selected !== 'string') return selected;
+                    // Extract ID for custom emojis <:name:id> or a:name:id
+                    const match = selected.match(/<?(?:a:)?\w+:(\d+)>?/);
+                    return match ? match[1] : selected;
+                };
 
                 [response.reactions, reply.reactions].forEach(r => {
                     const emoji = getReaction(r);

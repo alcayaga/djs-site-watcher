@@ -101,6 +101,13 @@ describe('QAChannel', () => {
         }
     });
 
+    it('should handle custom Discord emojis by extracting ID', async () => {
+        mockState.responses[0].replies[0] = { reactions: '<:custom:1234567890>' };
+        const handled = await handler.handle(mockMessage, mockState);
+        expect(handled).toBe(true);
+        expect(mockMessage.react).toHaveBeenCalledWith('1234567890');
+    });
+
     it('should handle image responses', async () => {
         mockState.responses[0].replies[0] = { text_response: '', img_response: 'image.png' };
         const handled = await handler.handle(mockMessage, mockState);
