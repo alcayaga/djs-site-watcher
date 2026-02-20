@@ -84,14 +84,13 @@ describe('config', () => {
         const storage = require('../src/storage');
         storage.loadSettings.mockReturnValue({});
         storage.SENSITIVE_SETTINGS_KEYS = [];
-        jest.resetModules();
+        
         const config = require('../src/config');
         expect(config.requestTimeout).toBe(5000);
         expect(config.retryLimit).toBe(5);
     });
 
     it('should load requestTimeout and retryLimit from config file', () => {
-        jest.resetModules();
         delete process.env[ENV_REQUEST_TIMEOUT];
         delete process.env[ENV_RETRY_LIMIT];
         

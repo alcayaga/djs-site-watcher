@@ -77,11 +77,8 @@ config.SOLOTODO_API_DELAY = parseEnvInt(config.SOLOTODO_API_DELAY, 5000);
 config.ALLOW_PRIVATE_IPS = String(config.ALLOW_PRIVATE_IPS).toLowerCase() === 'true';
 
 // Network Configuration
-config.requestTimeout = process.env[ENV_REQUEST_TIMEOUT] || config.requestTimeout;
-config.retryLimit = process.env[ENV_RETRY_LIMIT] || config.retryLimit;
-
-config.requestTimeout = parseEnvInt(config.requestTimeout, 10000);
-config.retryLimit = parseEnvInt(config.retryLimit, 2);
+config.requestTimeout = parseEnvInt(process.env[ENV_REQUEST_TIMEOUT] || config.requestTimeout, 10000);
+config.retryLimit = parseEnvInt(process.env[ENV_RETRY_LIMIT] || config.retryLimit, 2);
 
 // Solotodo Configuration
 config.solotodoBaseUrl = process.env[ENV_SOLOTODO_BASE_URL] || 'https://www.solotodo.cl';
