@@ -13,7 +13,11 @@ describe('Network Utils', () => {
             let getSafeGotOptions;
             beforeAll(() => {
                 jest.resetModules();
-                jest.doMock('../../src/config', () => ({ ALLOW_PRIVATE_IPS: false }));
+                jest.doMock('../../src/config', () => ({ 
+                    ALLOW_PRIVATE_IPS: false,
+                    requestTimeout: 10000,
+                    retryLimit: 2
+                }));
                 getSafeGotOptions = require('../../src/utils/network').getSafeGotOptions;
             });
 
@@ -100,6 +104,25 @@ describe('Network Utils', () => {
                     const { address } = await promisifiedDnsLookup(options, 'public.com', { all: true });
                     expect(address).toEqual(results);
                 });
+            });
+        });
+
+        describe('with custom configuration', () => {
+            let getSafeGotOptions;
+            beforeAll(() => {
+                jest.resetModules();
+                jest.doMock('../../src/config', () => ({ 
+                    ALLOW_PRIVATE_IPS: false,
+                    requestTimeout: 5000,
+                    retryLimit: 5
+                }));
+                getSafeGotOptions = require('../../src/utils/network').getSafeGotOptions;
+            });
+
+            it('should return configured timeout and retry options', () => {
+                const options = getSafeGotOptions();
+                expect(options.timeout.request).toBe(5000);
+                expect(options.retry.limit).toBe(5);
             });
         });
 
