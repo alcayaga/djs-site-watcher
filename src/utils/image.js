@@ -24,21 +24,16 @@ const { getFileTypeFromBuffer } = require('./fileTypeWrapper');
 async function sniffImageExtension(buffer) {
     if (!buffer || buffer.length === 0) return null;
     
-    try {
-        const type = await getFileTypeFromBuffer(buffer);
-        
-        if (!type) return null;
-        
-        // We only care about specific image types
-        if (SUPPORTED_EXTENSIONS.includes(type.ext)) {
-            return type.ext;
-        }
-        
-        return null;
-    } catch (error) {
-        logger.error('Error sniffing image extension:', error);
-        return null;
+    const type = await getFileTypeFromBuffer(buffer);
+    
+    if (!type) return null;
+    
+    // We only care about specific image types
+    if (SUPPORTED_EXTENSIONS.includes(type.ext)) {
+        return type.ext;
     }
+    
+    return null;
 }
 
 /**
