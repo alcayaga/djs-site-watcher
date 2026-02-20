@@ -15,7 +15,7 @@
     "reactions": ["🔥", "✨"],
     "replies": [
       {
-        "text_response": "This trigger also has a response-level reaction!"
+        "text_response": "¡Este trigger también tiene una reacción a nivel de respuesta!"
       },
       {
         "reactions": "👋"

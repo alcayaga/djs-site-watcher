@@ -40,33 +40,59 @@ class QAChannel extends ChannelHandler {
                     await message.reply(responsePayload);
                 }
 
-                // Pick random reactions if specified
-                const finalReactions = new Set();
-                const getReaction = (val) => {
-                    const selected = Array.isArray(val) ? val[Math.floor(Math.random() * val.length)] : val;
-                    if (typeof selected !== 'string') return selected;
-                    // Extract ID for custom emojis <:name:id> or a:name:id
-                    const match = selected.match(/<?(?:a:)?\w+:(?<id>\d+)>?/);
-                    return match ? match.groups.id : selected;
-                };
-
-                for (const r of [response.reactions, reply.reactions]) {
-                    const emoji = getReaction(r);
-                    if (emoji) finalReactions.add(emoji);
-                }
-
-                for (const emoji of finalReactions) {
-                    try {
-                        await message.react(emoji);
-                    } catch (error) {
-                        console.error(`[QAChannel] Failed to react with ${emoji} on message ${message.id} in channel ${message.channel.id}:`, error);
-                    }
-                }
+                await this._applyReactions(message, response, reply);
 
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Selects a single reaction from a pool and formats it for use.
+     * @param {string|string[]} reactionPool The reaction(s) to choose from.
+     * @returns {string|null} A single emoji or custom emoji ID, or null.
+     * @private
+     */
+    _getSingleReaction(reactionPool) {
+        if (!reactionPool) return null;
+
+        const selected = Array.isArray(reactionPool)
+            ? reactionPool[Math.floor(Math.random() * reactionPool.length)]
+            : reactionPool;
+
+        if (typeof selected !== 'string' || !selected) return null;
+
+        // Extract ID for custom emojis <:name:id> or a:name:id
+        const match = selected.match(/<?(?:a:)?\w+:(?<id>\d+)>?/);
+        return match ? match.groups.id : selected;
+    }
+
+    /**
+     * Applies reactions to a message based on response and reply configurations.
+     * @param {Discord.Message} message The message to react to.
+     * @param {object} response The top-level response object.
+     * @param {object} reply The selected reply object.
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _applyReactions(message, response, reply) {
+        const finalReactions = new Set();
+
+        for (const reactionPool of [response.reactions, reply.reactions]) {
+            const emoji = this._getSingleReaction(reactionPool);
+            if (emoji) {
+                finalReactions.add(emoji);
+            }
+        }
+
+        for (const emoji of finalReactions) {
+            try {
+                await message.react(emoji);
+            } catch (error) {
+                console.error(`[QAChannel] Failed to react with ${emoji} on message ${message.id} in channel ${message.channel.id}:`, error);
+            }
+        }
     }
 }
 
