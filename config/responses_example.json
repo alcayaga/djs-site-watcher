@@ -12,10 +12,13 @@
   },
   {
     "trigger": "TEST_REACTION",
-    "reactions": ["🔥"],
+    "reactions": ["🔥", "✨"],
     "replies": [
       {
         "text_response": "This trigger also has a response-level reaction!"
+      },
+      {
+        "reactions": "👋"
       }
     ]
   }

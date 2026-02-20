@@ -1,0 +1,659 @@
+[
+  {
+    "trigger": "Hoy no (hay|habr[aá]|hubo) (Apple|) Pay,? mañana s[ií]",
+    "replies": [
+      {
+        "img_response": "https://c.tenor.com/Uzk66CWNxAAAAAAd/dorime-patrick-star.gif"
+      }
+    ]
+  },
+  {
+    "trigger": "Qu(e|é) le decimos(.*)a (Apple|) Pay(.*)\\?",
+    "replies": [
+      {
+        "img_response": "https://c.tenor.com/i2y1ZXZVcPsAAAAC/not-today-game-of-thrones.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/433QqmSqiO0AAAAC/waynes-world-schwing.gif"
+      }
+    ]
+  },
+  {
+    "trigger": "((maldito|bad|te odio|ql|puto|c[aá]llate|culiao) (bot|sapo)|(bot|sapo) (maldito|malo|bad|te odio|ql|puto|c[aá]llate|culiao))",
+    "replies": [
+      {
+        "text_response": "Hago lo que puedo 🥲"
+      },
+      {
+        "text_response": "¿Qué sucede?"
+      },
+      {
+        "img_response": "https://c.tenor.com/CjjEmywWf4EAAAAd/slippy-sad.gif"
+      },
+      {
+        "text_response": "💔"
+      },
+      {
+        "text_response": "<:timdecepcion:1107797227658817587>"
+      },
+      {
+        "text_response": "<:timserio:1098439677180137626>"
+      },
+      {
+        "img_response": "https://media.tenor.com/AkHWGrjnGekAAAAC/riely-slippi.gif"
+      }
+    ]
+  },
+  {
+    "trigger": "(buen|good|te quiero|gra[cs]ias|grande|crack).*(bot|@Apple Pay)",
+    "replies": [
+      {
+        "text_response": "Gracias a ti 🐸"
+      },
+      {
+        "img_response": "https://c.tenor.com/spSgkqK707kAAAAd/ok-all.gif"
+      },
+      {
+        "text_response": "💚"
+      },
+      {
+        "text_response": "No hay de queso, no más de papa"
+      },
+      {
+        "img_response": "https://i.giphy.com/media/osjgQPWRx3cac/giphy.gif"
+      },
+      {
+        "text_response": "<:timpaz:1098439781542789190>"
+      },
+      {
+        "text_response": "<:craigcontento:1107798548361248838>"
+      },
+      {
+        "img_response": "https://media.tenor.com/-qBvHf37JNoAAAAC/kitten-kiss.gif"
+      }
+    ]
+  },
+  {
+    "trigger": "infarto|miedo|nervios",
+    "replies": [
+      {
+        "text_response": "Me pasa cuando estoy a punto de abrir una página 😱"
+      },
+      {
+        "img_response": "https://c.tenor.com/vzUkPX-41RUAAAAC/31minutos-tengo-miedo.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/pGopKd9Rr6UAAAAC/spy-x-family-anya.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/-HgUfe8e9s8AAAAC/scared-afraid.gif"
+      },
+      {
+        "text_response": "<:Sadmac:1098441849418567720>"
+      }
+    ]
+  },
+  {
+    "trigger": "(el|año) (3[0-9]{3}|2[1-9][0-9]{2})",
+    "replies": [
+      {
+        "img_response": "https://i.imgur.com/Vth6CBz.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/xIJSHMIdkQIAAAAM/back-to-the-future-great-scott.gif"
+      }
+    ]
+  },
+  {
+    "trigger": "https://tenor\\.com/view/dorime-patrick-star-praying-hand-together-spongebob-gif-16212519",
+    "replies": [
+      {
+        "text_response": "🙏"
+      },
+      {
+        "img_response": "https://c.tenor.com/aZaBI_yXoXUAAAAd/dorime-rat-dancing.gif"
+      },
+      {
+        "text_response": "Amenó!"
+      },
+      {
+        "text_response": "<:craigrezando:1107802474473066587>"
+      },
+      {
+        "text_response": "<:steverezando:1098439915877961728>"
+      }
+    ]
+  },
+  {
+    "trigger": "APPLE_PAY_WITH_HOPE",
+    "replies": [
+      {
+        "text_response": "Hoy no hay Apple Pay, mañana sí!"
+      },
+      {
+        "text_response": "¿Te imaginas a Chile con Apple Pay?",
+        "img_response": "https://64.media.tumblr.com/tumblr_mb3jv9aubV1rwl09fo1_500.gif"
+      },
+      {
+        "text_response": "Se vienen cositas ✨✨✨✨✨✨✨✨"
+      },
+      {
+        "img_response": "https://c.tenor.com/FG8_Hwzk5-0AAAAd/ted-lasso-afc-richmond.gif"
+      },
+      {
+        "text_response": "¡Se viene!",
+        "img_response": "https://i.imgur.com/r1JPwyp.jpeg"
+      },
+      {
+        "text_response": "Necesito Apple Payyyyyyyyyyyyyyyyyy",
+        "img_response": "https://c.tenor.com/bHGUqVIKzhoAAAAC/let-me-in-eric-andre.gif"
+      },
+      {
+        "text_response": " Felices los pacientes, porque recibirán Apple Pay en Chile pronto 🙏",
+        "img_response": "https://i.imgur.com/wKWStlx.png"
+      },
+      {
+        "img_response": "https://i.imgur.com/NqkT2oQ.png"
+      },
+      {
+        "text_response": "Necesito Apple Pay",
+        "img_response": "https://i.imgur.com/fSG4BVb.jpg"
+      },
+      {
+        "text_response": "También quiero vivir ese sueño de Apple Pay, Don Cook. Pagar con QR no es tan sexy como cree",
+        "img_response": "https://media.tenor.com/jOPgS6IVg58AAAAC/pool-boy-dopinder.gif"
+      },
+      {
+        "img_response": "https://i.imgur.com/IJDznXW.png"
+      },
+      {
+        "img_response": "https://i.imgur.com/tyLRSpB.png"
+      },
+      {
+        "img_response": "https://i.imgur.com/2GBfeEs.jpg"
+      },
+      {
+        "text_response": "Kyon-kun denwa",
+        "img_response": "https://media.tenor.com/30l6AMAUbE4AAAAd/haruhi-suzumiya-endless-eight.gif"
+      },
+      {
+        "img_response": "https://media.tenor.com/2cj5umkSaswAAAAd/ted-lasso-tedlassogifs.gif"
+      },
+      {
+        "img_response": "https://media.tenor.com/ZUy4EaSVYvgAAAAC/ted-lasso-jason-sudeikis.gif"
+      },
+      {
+        "img_response": "https://media.tenor.com/8f-K_NLMQ5YAAAAC/ted-lasso-potential.gif"
+      },
+      {
+        "img_response": "https://i.giphy.com/media/2pVNVd922Igak/giphy.gif"
+      },
+      {
+        "img_response": "https://media.tenor.com/PdzM7Ik7JQwAAAAC/ted-lasso.gif"
+      },
+      {
+        "img_response": "https://media.tenor.com/CCiP_z843YUAAAAC/kronk-its-all-coming-together.gif"
+      },
+      {
+        "img_response": "https://media.tenor.com/cJpORAtJ1YQAAAAC/its-happening-friday.gif"
+      },
+      {
+        "img_response": "https://i.imgur.com/EN2P86U.gif"
+      },
+      {
+        "text_response": "¡Estoy contando los días con los dedos de las manos!"
+      },
+      {
+        "text_response": "¡Pronto!",
+        "img_response": "https://media.tenor.com/_UtWOpmkPq0AAAAC/sushichaeng-cartoon.gif"
+      },
+      {
+        "img_response": "https://media.tenor.com/lFeS_xSNSeIAAAAC/wwe-see-you-next-tuesday.gif"
+      },
+      {
+        "img_response": "https://media.tenor.com/54SU1FECtdAAAAAd/noah-xenoblade-noah.gif"
+      },
+      {
+        "img_response": "https://media.tenor.com/b0OSOxhSpT4AAAAC/nia-xenoblade-chronicles2.gif"
+      }
+    ]
+  },
+  {
+    "trigger": "APPLE_PAY_NO_HOPE",
+    "replies": [
+      {
+        "text_response": "Hoy no hay Apple Pay, mañana sí!"
+      },
+      {
+        "img_response": "https://i.imgur.com/QG9suk1.jpg"
+      },
+      {
+        "text_response": "6 Horas, 1 minuto, ascensión derecha, 14 grados, declinación 23 minutos... no hay Apple Pay",
+        "img_response": "https://i.imgur.com/btkVZpD.png"
+      },
+      {
+        "img_response": "https://c.tenor.com/-P-xeHYEY9QAAAAd/sad-pablo-lonely.gif"
+      },
+      {
+        "text_response": "Cambió la página del Banc... ah, no, es una mosca en la pantalla"
+      },
+      {
+        "text_response": "Mis últimos cálculos dicen que debería salir antes que AirPower!"
+      },
+      {
+        "img_response": "https://c.tenor.com/LuQB8CqXw7MAAAAC/no-craig-federighi.gif"
+      },
+      {
+        "text_response": "Hoy no va a salir",
+        "img_response": "https://c.tenor.com/_IlemRjlr9QAAAAC/dealwithit-steve.gif"
+      },
+      {
+        "text_response": "Nada, aquí esperando alguna noticia...",
+        "img_response": "https://c.tenor.com/OJ6mOqCWQV4AAAAC/waiting-spongebob.gif"
+      },
+      {
+        "text_response": "Usted no aprende, ¿verdad?",
+        "img_response": "https://i.imgflip.com/4j7ax8.png"
+      },
+      {
+        "text_response": "¿Vienes por Apple Pay?",
+        "img_response": "https://i.imgur.com/Bs6gHBs.jpg"
+      },
+      {
+        "text_response": "Te voy a decir la cifra exacta: llega en cuatro mil trescientos cuarenta y cuatro mil quinientos millones coma cinco segundos, esa es la fecha"
+      },
+      {
+        "text_response": "Ya sabes la respuesta, así que te mando un Piolín para mejorar tu día",
+        "img_response": "https://c.tenor.com/7hCEki37bpsAAAAC/excellent-day.gif"
+      },
+      {
+        "text_response": "¿Te imaginas a Chile con Apple Pay?",
+        "img_response": "https://64.media.tumblr.com/tumblr_mb3jv9aubV1rwl09fo1_500.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/u_xYVEzVi4IAAAAC/eye-roll-robert-downey-jr.gif"
+      },
+      {
+        "text_response": "Dame un segundo, estoy hablando con Tim Cook...",
+        "img_response": "https://c.tenor.com/ivzpj8yeacUAAAAd/que-como-que-no-que.gif"
+      },
+      {
+        "text_response": "Hoy no hay Apple Pay",
+        "img_response": "https://c.tenor.com/RTYaIF25dDMAAAAd/mi-trabajo-aqui-ha-terminado-my-work-here-is-over.gif"
+      },
+      {
+        "text_response": "Hoy no hay Apple Pay",
+        "img_response": "https://c.tenor.com/pagVxAkHfWAAAAAC/my-job-here-is-done-bye.gif"
+      },
+      {
+        "text_response": "Le pregunté a Siri, pero todavía está pensando"
+      },
+      {
+        "text_response": "Se vienen cositas ✨... próximamente"
+      },
+      {
+        "text_response": "Sigo intentando agregar mi abcvisa...",
+        "img_response": "https://c.tenor.com/p1cEBjtEhccAAAAC/milk-mocha.gif"
+      },
+      {
+        "text_response": "Parece que Redelcom sigue teniendo problemas probando ese servicio llamado Apple Pay",
+        "img_response": "https://i.imgur.com/SxSeBRv.jpg"
+      },
+      {
+        "text_response": "Apple Pay viene próximamente",
+        "img_response": "https://c.tenor.com/Se0Ew_l8HCAAAAAd/violent-extremists.gif"
+      },
+      {
+        "text_response": "Proximamente!",
+        "img_response": "https://c.tenor.com/mSl-6FcyX5IAAAAC/leonardo-leonardo-dicaprio.gif"
+      },
+      {
+        "text_response": "Próximamente...",
+        "img_response": "https://c.tenor.com/VNj0eJnLplgAAAAC/elmo-shrug.gif"
+      },
+      {
+        "text_response": "Próximamente",
+        "img_response": "https://c.tenor.com/Kx6Jx03-TNUAAAAC/omg-hell.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/FKn-8Ac5M7oAAAAC/no-bugs-bunny.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/FG8_Hwzk5-0AAAAd/ted-lasso-afc-richmond.gif"
+      },
+      {
+        "text_response": "Próximamente!",
+        "img_response": "https://c.tenor.com/tXA0w7T6COEAAAAC/agness-wandavison.gif"
+      },
+      {
+        "text_response": "Próximamente",
+        "img_response": "https://c.tenor.com/M3XBV7ignaYAAAAC/spongebobwindow-seum.gif"
+      },
+      {
+        "img_response": "https://i.imgur.com/gm3U3q2.jpg"
+      },
+      {
+        "img_response": "https://i.imgur.com/D3DrIdx.jpg"
+      },
+      {
+        "text_response": "Todavía no llega la Appleseñal",
+        "img_response": "https://i.imgur.com/jP9utPM.png"
+      },
+      {
+        "text_response": "Cabros, esto no prendió"
+      },
+      {
+        "text_response": "Para qué quieres saber eso jajaja saludos"
+      },
+      {
+        "img_response": "https://i.imgur.com/BgM8uqW.jpg"
+      },
+      {
+        "img_response": "https://i.imgur.com/0c15hba.jpg"
+      },
+      {
+        "img_response": "https://i.imgur.com/FmDVMik.jpg"
+      },
+      {
+        "img_response": "https://i.imgur.com/r1JPwyp.jpeg"
+      },
+      {
+        "img_response": "https://i.imgur.com/id2pKXU.jpeg"
+      },
+      {
+        "img_response": "https://i.imgur.com/vi2qSeN.png"
+      },
+      {
+        "img_response": "https://i.imgur.com/7x3unKV.jpg"
+      },
+      {
+        "text_response": "Necesito Apple Payyyyyyyyyyyyyyyyyy",
+        "img_response": "https://c.tenor.com/bHGUqVIKzhoAAAAC/let-me-in-eric-andre.gif"
+      },
+      {
+        "text_response": "A esperar no más",
+        "img_response": "https://media.tenor.com/xV2rJIbve3MAAAAC/living-room-fireplace.gif"
+      },
+      {
+        "img_response": "https://i.imgur.com/O6KxAww.jpg"
+      },
+      {
+        "text_response": "A esperar con los cabros no más",
+        "img_response": "https://i.imgur.com/ifqveE9.gif"
+      },
+      {
+        "img_response": "https://i.imgur.com/eyZ7e2E.jpg"
+      },
+      {
+        "img_response": "https://i.imgur.com/Qh7skxt.png"
+      },
+      {
+        "img_response": "https://i.imgur.com/OvXdVIL.png"
+      },
+      {
+        "text_response": " Felices los pacientes, porque recibirán Apple Pay en Chile 🙏",
+        "img_response": "https://i.imgur.com/wKWStlx.png"
+      },
+      {
+        "img_response": "https://i.imgur.com/NqkT2oQ.png"
+      },
+      {
+        "text_response": "Ahora sí va a ser una sorpresa el nuevo QR",
+        "img_response": "https://i.imgur.com/KheRClt.png"
+      },
+      {
+        "img_response": "https://i.imgur.com/rGm2J5j.jpg"
+      },
+      {
+        "text_response": "No",
+        "img_response": "https://i.imgur.com/jzl5hjl.jpg"
+      },
+      {
+        "img_response": "https://i.imgur.com/AJ2jBJn.jpg"
+      },
+      {
+        "img_response": "https://i.imgur.com/ELQXvty.jpg"
+      },
+      {
+        "img_response": "https://i.imgur.com/vDw7Vb4.jpg"
+      },
+      {
+        "text_response": "Necesito Apple Pay",
+        "img_response": "https://i.imgur.com/fSG4BVb.jpg"
+      },
+      {
+        "img_response": "https://i.imgur.com/N31Jr72.jpg"
+      },
+      {
+        "text_response": "También quiero vivir ese sueño de Apple Pay, Don Cook. Pagar con QR no es tan sexy como cree",
+        "img_response": "https://media.tenor.com/jOPgS6IVg58AAAAC/pool-boy-dopinder.gif"
+      },
+      {
+        "img_response": "https://i.imgur.com/daagTVa.jpg"
+      },
+      {
+        "img_response": "https://i.imgur.com/InHS5r3.jpg"
+      },
+      {
+        "img_response": "https://i.imgur.com/5kvDqjD.jpg"
+      },
+      {
+        "img_response": "https://i.imgur.com/6r6TzkI.png"
+      },
+      {
+        "img_response": "https://i.imgur.com/IJDznXW.png"
+      },
+      {
+        "img_response": "https://i.imgur.com/ngi4qFX.jpeg"
+      },
+      {
+        "img_response": "https://i.imgur.com/zmL320l.jpeg"
+      },
+      {
+        "img_response": "https://i.imgur.com/BD8ROFJ.png"
+      },
+      {
+        "img_response": "https://i.imgur.com/tyLRSpB.png"
+      },
+      {
+        "img_response": "https://i.imgur.com/2GBfeEs.jpg"
+      },
+      {
+        "text_response": "Mira esto, Pedro, podemos ver justo el cuadro de cuando se entera que Apple Pay no llega esta semana",
+        "img_response": "https://media.tenor.com/Z2uSGENnzMkAAAAd/los-simpsons-los-simpson.gif"
+      },
+      {
+        "text_response": "Nada",
+        "img_response": "https://media.tenor.com/38BA-tJFgh4AAAAC/scott-woz.gif"
+      }
+    ]
+  },
+  {
+    "trigger": "APPLE_PAY_WITH_HOPE_(Cu[aá]ndo(.*)(Apple|) Pay(.*))|((Alguna?|Alg[uú]n|Se sabe)(.*)(noticia|novedad|algo|cahu[ií]n|filtraci[oó]n|papita)(.*)\\?)|(llegar[aá](.*)pronto(.*) ?\\?)|((no|ni|ya|yo) (hay|habr[aá]|quiero|fue)( mi)? (Apple|) Pay)|(para qu[eé] fecha lo activen)|(creen que salga mañana)|(nada a[uú]n ?\\?)|((hay|habr[aá]|lleg[oó]|llegar[aá]|saldr[aá]|sale|tendremos|cu[aá]ndo|mañana (lanzan)?) (Apple|) Pay.*\\?)|((bot|@Apple Pay) (d[ií]|haga|haz|has) lo (tuyo|suyo))|((d[íi]|haga|haz|has) lo (tuyo|suyo) (bot|@Apple Pay))|(ya (fue|era)(.*) ?\\?)|ya po (bot|@Apple Pay)|bot\\?|<@953274682541502475>|(Apple|) Pay (pa cuando)",
+    "replies": [
+      {
+        "text_response": "Hoy hay Apple Pay y mañana también!"
+      },
+      {
+        "img_response": "https://i.imgur.com/7K3GGKN.jpeg"
+      },
+      {
+        "text_response": "Tu reacción cuando te enteras que ahora hay Apple Pay",
+        "img_response": "https://c.tenor.com/j5uPfkaOQ98AAAAS/steve-carell-wow.gif"
+      },
+      {
+        "text_response": "Ya llegó!",
+        "img_response": "https://c.tenor.com/e5ZGtQ33UGcAAAAC/tim-cook-cheers.gif"
+      },
+      {
+        "text_response": "Partiste a comprar un café con Apple Pay",
+        "img_response": "https://c.tenor.com/kKMTEkfgSxsAAAAC/craig-federighi-federighi.gif"
+      },
+      {
+        "text_response": "Ya llegó gracias a Tim Apple",
+        "img_response": "https://i.giphy.com/media/cnj3ktZH0YY7mm7W2K/giphy.gif"
+      },
+      {
+        "text_response": "Ya llegó!",
+        "img_response": "https://c.tenor.com/ihqN6a3iiYEAAAAd/pikachu-shocked-face-stunned.gif"
+      },
+      {
+        "img_response": "https://i.imgur.com/ZCB6iSJ.gif"
+      },
+      {
+        "text_response": "Apple Pay ya llegó, old sport",
+        "img_response": "https://c.tenor.com/IErQHBRt6GIAAAAd/leonardo-dicaprio.gif"
+      },
+      {
+        "text_response": "Llegó!",
+        "img_response": "https://c.tenor.com/OQHo23d6yacAAAAC/chris-pratt-andy-dwyer.gif"
+      },
+      {
+        "text_response": "Llegó!",
+        "img_response": "https://i.imgur.com/OXxffVt.jpg"
+      },
+      {
+        "img_response": "https://media.tenor.com/v0cBeb_yBgUAAAAC/its-been84years-titanic.gif"
+      },
+      {
+        "img_response": "https://media.tenor.com/fdunSpDGkxoAAAAC/pokemon-floette.gif"
+      },
+      {
+        "text_response": "Llegó!",
+        "img_response": "https://media.tenor.com/c_c_1Pxg8UgAAAAC/scott-wozniak-scott-the-woz.gif"
+      },
+      {
+        "img_response": "https://media.tenor.com/gXL1TFPuaWIAAAAd/ted-lasso-coach-beard.gif"
+      },
+      {
+        "img_response": "https://i.imgur.com/EN2P86U.gif"
+      }
+    ]
+  },
+  {
+    "trigger": "alg[uú]n resumen\\?",
+    "replies": [
+      {
+        "text_response": "Hay un resumen de lo último que ha pasado en los post pinneados!"
+      }
+    ]
+  },
+  {
+    "trigger": "(San) Pedr(o|ito)",
+    "replies": [
+      {
+        "img_response": "https://i.imgur.com/wKWStlx.png"
+      }
+    ]
+  },
+  {
+    "trigger": "vigilia",
+    "replies": [
+      {
+        "img_response": "https://c.tenor.com/Dtg0Uu_7qcsAAAAC/the-simpsons-homer-simpson.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/PiVnFrktPgIAAAAC/austin-powers-dr-evil.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/gbh6xCHP0q0AAAAC/come-on-come-at-me.gif"
+      },
+      {
+        "text_response": "Ligiv eht nioj!",
+        "img_response": "https://c.tenor.com/j5Iua5h6JLEAAAAC/yvan-eht-nioj-join-the-navy.gif"
+      }
+    ]
+  },
+  {
+    "trigger": "(hola|holi|que ondi|hello)(\\W)*$",
+    "replies": [
+      {
+        "text_response": "Holi!"
+      },
+      {
+        "text_response": "¿Qué ondi, microondi?"
+      },
+      {
+        "text_response": "Sup, homie?"
+      },
+      {
+        "img_response": "https://c.tenor.com/F2Yu8YbVV_MAAAAC/hello-cat.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/4CCxKD6EPo0AAAAC/good-morning-deltarune.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/vje7Bbd41DMAAAAd/elmo-door.gif"
+      },
+      {
+        "text_response": "<:hello:1098441756908978210>"
+      }
+    ]
+  },
+  {
+    "trigger": "^(Big )?(efe|f|🇫)( |$)| (efe|f|🇫)$",
+    "replies": [
+      {
+        "text_response": "F"
+      },
+      {
+        "text_response": "efe"
+      },
+      {
+        "text_response": "🇫"
+      },
+      {
+        "text_response": "Big F"
+      },
+      {
+        "text_response": "FFFFFF"
+      },
+      {
+        "text_response": "Press **F** to pay respects"
+      },
+      {
+        "text_response": "Empresa de Ferrocarriles del Estado"
+      },
+      {
+        "img_response": "https://c.tenor.com/9f1lboKKmBUAAAAC/keyboard-hyperx.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/BZ4V-B05un8AAAAd/pay-respects-press-f.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/rM7NiYZvkSwAAAAC/press-f-pay-respect.gif"
+      },
+      {
+        "img_response": "https://media.tenor.com/7lRHB7fNXgEAAAAC/super-f-fail.gif"
+      },
+      {
+        "img_response": "https://media.tenor.com/2K0GiQEFq9wAAAAC/f-is-for-fuck-spongebob.gif"
+      }
+    ]
+  },
+  {
+    "trigger": "a mimir",
+    "replies": [
+      {
+        "img_response": "https://c.tenor.com/Eb-2uC40D-wAAAAC/a-mimir-goodnight.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/0YhOclJGAzQAAAAC/turtle-sleep.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/PcuJyXHnYbgAAAAd/noches-buenas.gif"
+      },
+      {
+        "img_response": "https://c.tenor.com/75G5ePcnW-kAAAAd/a-mimir.gif"
+      }
+    ]
+  },
+  {
+    "trigger": "TEST_APPLE_BOT",
+    "replies": [
+      {
+        "text_response": "<:hello:1098441756908978210>"
+      }
+    ]
+  }
+]

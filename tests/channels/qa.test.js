@@ -44,19 +44,41 @@ describe('QAChannel', () => {
         expect(mockMessage.reply).toHaveBeenCalledWith({ content: 'mundo' });
     });
 
-    it('should handle reactions', async () => {
+    it('should handle reactions and pick only one random if array', async () => {
         mockState.responses[0].replies[0].reactions = ['👍', '✅'];
         const handled = await handler.handle(mockMessage, mockState);
         expect(handled).toBe(true);
-        expect(mockMessage.react).toHaveBeenCalledWith('👍');
-        expect(mockMessage.react).toHaveBeenCalledWith('✅');
+        // Should only react once per level
+        expect(mockMessage.react).toHaveBeenCalledTimes(1);
+        const calledEmoji = mockMessage.react.mock.calls[0][0];
+        expect(['👍', '✅']).toContain(calledEmoji);
     });
 
-    it('should handle reactions at response level', async () => {
-        mockState.responses[0].reactions = ['🔥'];
+    it('should handle reactions at response level and pick only one', async () => {
+        mockState.responses[0].reactions = ['🔥', '✨'];
         const handled = await handler.handle(mockMessage, mockState);
         expect(handled).toBe(true);
-        expect(mockMessage.react).toHaveBeenCalledWith('🔥');
+        expect(mockMessage.react).toHaveBeenCalledTimes(1);
+        const calledEmoji = mockMessage.react.mock.calls[0][0];
+        expect(['🔥', '✨']).toContain(calledEmoji);
+    });
+
+    it('should not call sendTyping if there is no text or image response', async () => {
+        mockState.responses[0].replies[0] = { reactions: '👋' };
+        const handled = await handler.handle(mockMessage, mockState);
+        expect(handled).toBe(true);
+        expect(mockMessage.channel.sendTyping).not.toHaveBeenCalled();
+        expect(mockMessage.reply).not.toHaveBeenCalled();
+        expect(mockMessage.react).toHaveBeenCalledWith('👋');
+    });
+
+    it('should call sendTyping if there is text response', async () => {
+        mockState.responses[0].replies[0] = { text_response: 'hola', reactions: '👋' };
+        const handled = await handler.handle(mockMessage, mockState);
+        expect(handled).toBe(true);
+        expect(mockMessage.channel.sendTyping).toHaveBeenCalled();
+        expect(mockMessage.reply).toHaveBeenCalled();
+        expect(mockMessage.react).toHaveBeenCalledWith('👋');
     });
 
     it('should handle duplicate reactions gracefully', async () => {

@@ -17,11 +17,6 @@ class QAChannel extends ChannelHandler {
         for (const response of state.responses) {
             const ap_match = response.trigger_regex.exec(ap_message);
             if (ap_match !== null) {
-                message.channel.sendTyping();
-
-                // Wait for the configured delay before sending the response
-                await new Promise(resolve => setTimeout(resolve, this.config.responseDelay));
-
                 const reply_id = Math.floor(Math.random() * response.replies.length);
                 const reply = response.replies[reply_id];
 
@@ -34,14 +29,35 @@ class QAChannel extends ChannelHandler {
                     responsePayload.content = reply.text_response;
                 }
 
-                if (Object.keys(responsePayload).length > 0) {
+                const hasContent = Object.keys(responsePayload).length > 0;
+
+                if (hasContent) {
+                    message.channel.sendTyping();
+                }
+
+                // Wait for the configured delay before sending the response
+                await new Promise(resolve => setTimeout(resolve, this.config.responseDelay));
+
+                if (hasContent) {
                     await message.reply(responsePayload);
                 }
 
-                // Add reactions if specified in the response or reply
-                const reactions = [...new Set([response.reactions, reply.reactions].flat().filter(Boolean))];
+                // Pick random reactions if specified
+                const finalReactions = new Set();
+                const pickRandom = (val) => {
+                    if (Array.isArray(val)) {
+                        return val[Math.floor(Math.random() * val.length)];
+                    }
+                    return val;
+                };
 
-                for (const emoji of reactions) {
+                const respReaction = pickRandom(response.reactions);
+                if (respReaction) finalReactions.add(respReaction);
+
+                const replyReaction = pickRandom(reply.reactions);
+                if (replyReaction) finalReactions.add(replyReaction);
+
+                for (const emoji of finalReactions) {
                     try {
                         await message.react(emoji);
                     } catch (error) {
