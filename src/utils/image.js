@@ -1,6 +1,5 @@
 const got = require('got');
 const { getSafeGotOptions } = require('./network');
-const logger = require('./logger');
 
 const MIME_TYPE_MAP = {
     'image/jpeg': 'jpg',
@@ -13,7 +12,15 @@ const SUPPORTED_EXTENSIONS = Object.values(MIME_TYPE_MAP);
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
-const { getFileTypeFromBuffer } = require('./fileTypeWrapper');
+let { getFileTypeFromBuffer } = require('./fileTypeWrapper');
+
+/**
+ * Overrides the fileTypeWrapper implementation for testing purposes.
+ * @param {Function} mockFunction The mock function.
+ */
+function setFileTypeWrapper(mockFunction) {
+    getFileTypeFromBuffer = mockFunction;
+}
 
 /**
  * Sniffs the image extension from a buffer's magic numbers using file-type.
@@ -104,6 +111,7 @@ async function downloadImage(url) {
 module.exports = {
     sniffImageExtension,
     downloadImage,
+    setFileTypeWrapper,
     MIME_TYPE_MAP,
     MAX_IMAGE_SIZE
 };

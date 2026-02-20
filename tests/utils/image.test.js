@@ -1,4 +1,4 @@
-const { downloadImage, sniffImageExtension, MAX_IMAGE_SIZE } = require('../../src/utils/image');
+const { downloadImage, sniffImageExtension, setFileTypeWrapper, MAX_IMAGE_SIZE } = require('../../src/utils/image');
 const got = require('got');
 
 jest.mock('got', () => {
@@ -18,10 +18,10 @@ jest.mock('../../src/utils/logger', () => ({
     debug: jest.fn(),
 }));
 
-// Mock the wrapper to avoid ESM issues
-jest.mock('../../src/utils/fileTypeWrapper', () => {
-    return {
-        getFileTypeFromBuffer: jest.fn(async (buffer) => {
+describe('Image Utility', () => {
+    beforeAll(() => {
+        // Inject mock implementation
+        setFileTypeWrapper(async (buffer) => {
             if (!buffer || buffer.length < 4) return undefined;
             // Simple mock logic matching the test cases
             if (buffer[0] === 0xFF && buffer[1] === 0xD8) return { ext: 'jpg', mime: 'image/jpeg' };
@@ -30,11 +30,9 @@ jest.mock('../../src/utils/fileTypeWrapper', () => {
             // WebP check: R I F F ... W E B P
             if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) return { ext: 'webp', mime: 'image/webp' };
             return undefined;
-        })
-    };
-});
+        });
+    });
 
-describe('Image Utility', () => {
     describe('sniffImageExtension', () => {
         it('should detect JPEG', async () => {
             const buffer = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
