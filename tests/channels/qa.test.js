@@ -161,4 +161,12 @@ describe('QAChannel', () => {
         const handled = await handler.handle(mockMessage, mockState);
         expect(handled).toBe(true);
     });
+
+    it('should propagate error if reaction fails', async () => {
+        mockState.responses[0].replies[0] = { reactions: '\u{1F44B}' }; // 👋
+        const error = new Error('Discord API Error');
+        mockMessage.react.mockRejectedValueOnce(error);
+        
+        await expect(handler.handle(mockMessage, mockState)).rejects.toThrow('Discord API Error');
+    });
 });

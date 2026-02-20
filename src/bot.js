@@ -157,7 +157,9 @@ client.on(Events.InteractionCreate, async interaction => {
 
 // When a message is sent, run this code (Auto-responses only)
 client.on(Events.MessageCreate, message => {
-    messageHandler.handleMessage(message, state);
+    messageHandler.handleMessage(message, state).catch(error => {
+        console.error(`Error handling message ${message.id} in channel ${message.channel.id}:`, error);
+    });
 });
 
 // Login to Discord with your client's token

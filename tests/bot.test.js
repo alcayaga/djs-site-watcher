@@ -16,7 +16,7 @@ jest.mock('../src/handlers/interactionHandler', () => ({
     handleInteraction: jest.fn(),
 }));
 jest.mock('../src/handlers/messageHandler', () => ({
-    handleMessage: jest.fn(),
+    handleMessage: jest.fn().mockResolvedValue(),
 }));
 
 // Mock MonitorManager

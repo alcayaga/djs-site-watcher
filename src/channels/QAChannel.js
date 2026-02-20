@@ -86,13 +86,8 @@ class QAChannel extends ChannelHandler {
             }
         }
 
-        const reactionPromises = [...finalReactions].map(emoji =>
-            message.react(emoji)
-        );
-        try {
-            await Promise.all(reactionPromises);
-        } catch (error) {
-            console.error(`[QAChannel] Failed to apply one or more reactions on message ${message.id} in channel ${message.channel.id}:`, error);
+        for (const emoji of finalReactions) {
+            await message.react(emoji);
         }
     }
 }
