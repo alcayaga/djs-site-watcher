@@ -15,8 +15,8 @@ async function getFileTypeFromBuffer(buffer) {
         return await fileTypeFromBuffer(buffer);
     } catch (error) {
         logger.error('Failed to get file type from buffer in wrapper:', error);
-        // Fallback or error handling if needed, though usually this shouldn't fail in prod
-        return undefined;
+        // Re-throw to allow callers to handle the specific error, instead of suppressing it.
+        throw error;
     }
 }
 
