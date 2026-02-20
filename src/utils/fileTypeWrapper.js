@@ -1,4 +1,4 @@
-let fileTypeModule;
+let fileTypePromise;
 const logger = require('./logger');
 
 /**
@@ -8,10 +8,11 @@ const logger = require('./logger');
  */
 async function getFileTypeFromBuffer(buffer) {
     try {
-        if (!fileTypeModule) {
-            fileTypeModule = await import('file-type');
+        if (!fileTypePromise) {
+            fileTypePromise = import('file-type');
         }
-        return await fileTypeModule.fileTypeFromBuffer(buffer);
+        const { fileTypeFromBuffer } = await fileTypePromise;
+        return await fileTypeFromBuffer(buffer);
     } catch (error) {
         logger.error('Failed to get file type from buffer in wrapper:', error);
         // Fallback or error handling if needed, though usually this shouldn't fail in prod

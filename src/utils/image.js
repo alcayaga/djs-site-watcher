@@ -8,19 +8,9 @@ const MIME_TYPE_MAP = {
     'image/gif': 'gif'
 };
 
-const SUPPORTED_EXTENSIONS = Object.values(MIME_TYPE_MAP);
-
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
-let { getFileTypeFromBuffer } = require('./fileTypeWrapper');
-
-/**
- * Overrides the fileTypeWrapper implementation for testing purposes.
- * @param {Function} mockFunction The mock function.
- */
-function setFileTypeWrapper(mockFunction) {
-    getFileTypeFromBuffer = mockFunction;
-}
+const fileTypeWrapper = require('./fileTypeWrapper');
 
 /**
  * Sniffs the image extension from a buffer's magic numbers using file-type.
@@ -31,12 +21,10 @@ function setFileTypeWrapper(mockFunction) {
 async function sniffImageExtension(buffer) {
     if (!buffer || buffer.length === 0) return null;
     
-    const type = await getFileTypeFromBuffer(buffer);
+    const type = await fileTypeWrapper.getFileTypeFromBuffer(buffer);
     
-    if (!type) return null;
-    
-    // We only care about specific image types
-    if (SUPPORTED_EXTENSIONS.includes(type.ext)) {
+    // Robust check: ensure the detected MIME type is in our allowed map
+    if (type && MIME_TYPE_MAP[type.mime]) {
         return type.ext;
     }
     
@@ -111,7 +99,6 @@ async function downloadImage(url) {
 module.exports = {
     sniffImageExtension,
     downloadImage,
-    setFileTypeWrapper,
     MIME_TYPE_MAP,
     MAX_IMAGE_SIZE
 };

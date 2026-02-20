@@ -23,30 +23,19 @@ jest.mock('../../src/utils/solotodo', () => ({
     ]),
     getStores: jest.fn().mockResolvedValue(new Map([["https://api.com/stores/1/", "Store 1"]]))
 }));
-const { setFileTypeWrapper } = require('../../src/utils/image');
 
 jest.mock('../../src/utils/helpers', () => ({
     sleep: jest.fn().mockResolvedValue()
 }));
+
+// Mock fileTypeWrapper using manual mock in __mocks__
+jest.mock('../../src/utils/fileTypeWrapper');
 
 describe('DealMonitor', () => {
     let monitor;
     let mockChannel;
     let mockClient;
     let mockMessage;
-
-    beforeAll(() => {
-        // Inject mock implementation for fileTypeWrapper
-        setFileTypeWrapper(async (buffer) => {
-            if (!buffer || buffer.length < 4) return undefined;
-            // Simple mock logic matching the test cases
-            if (buffer[0] === 0xFF && buffer[1] === 0xD8) return { ext: 'jpg', mime: 'image/jpeg' };
-            if (buffer[0] === 0x89 && buffer[1] === 0x50) return { ext: 'png', mime: 'image/png' };
-            if (buffer[0] === 0x47 && buffer[1] === 0x49) return { ext: 'gif', mime: 'image/gif' };
-            if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) return { ext: 'webp', mime: 'image/webp' };
-            return undefined;
-        });
-    });
 
     beforeEach(() => {
         jest.clearAllMocks();
