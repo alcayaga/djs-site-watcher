@@ -15,6 +15,7 @@ describe('QAChannel', () => {
         };
         handler = new QAChannel('QA', handlerConfig);
         mockMessage = {
+            id: 'message_123',
             author: { bot: false },
             channel: { 
                 id: '123',
@@ -36,6 +37,11 @@ describe('QAChannel', () => {
                 }
             ]
         };
+        jest.spyOn(Math, 'random').mockReturnValue(0);
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
     });
 
     it('should handle matching message in correct channel (text only)', async () => {
@@ -46,21 +52,21 @@ describe('QAChannel', () => {
 
     it('should handle reactions and pick only one random if array', async () => {
         mockState.responses[0].replies[0].reactions = ['\u{1F44D}', '\u{2705}']; // 👍, ✅
+        // random 0 picks index 0 (\u{1F44D})
         const handled = await handler.handle(mockMessage, mockState);
         expect(handled).toBe(true);
         // Should only react once per level
         expect(mockMessage.react).toHaveBeenCalledTimes(1);
-        const calledEmoji = mockMessage.react.mock.calls[0][0];
-        expect(['\u{1F44D}', '\u{2705}']).toContain(calledEmoji);
+        expect(mockMessage.react).toHaveBeenCalledWith('\u{1F44D}');
     });
 
     it('should handle reactions at response level and pick only one', async () => {
         mockState.responses[0].reactions = ['\u{1F525}', '\u{2728}']; // 🔥, ✨
+        // random 0 picks index 0 (\u{1F525})
         const handled = await handler.handle(mockMessage, mockState);
         expect(handled).toBe(true);
         expect(mockMessage.react).toHaveBeenCalledTimes(1);
-        const calledEmoji = mockMessage.react.mock.calls[0][0];
-        expect(['\u{1F525}', '\u{2728}']).toContain(calledEmoji);
+        expect(mockMessage.react).toHaveBeenCalledWith('\u{1F525}');
     });
 
     it('should not call sendTyping if there is no text or image response', async () => {
@@ -84,21 +90,23 @@ describe('QAChannel', () => {
     it('should handle duplicate reactions gracefully', async () => {
         mockState.responses[0].reactions = ['\u{1F44D}']; // 👍
         mockState.responses[0].replies[0].reactions = ['\u{1F44D}', '\u{2705}']; // 👍, ✅
+        // Math.random 0 picks '👍' from reply, which is duplicate
         const handled = await handler.handle(mockMessage, mockState);
         expect(handled).toBe(true);
-        // We pick ONE from response (👍) and ONE from reply (either 👍 or ✅)
-        // If it picks 👍 from reply, total is 1. If it picks ✅, total is 2.
-        // The test was failing because of randomness!
-        const callCount = mockMessage.react.mock.calls.length;
-        expect([1, 2]).toContain(callCount);
-        
-        const calledEmojis = mockMessage.react.mock.calls.map(c => c[0]);
-        if (callCount === 1) {
-            expect(calledEmojis).toEqual(['\u{1F44D}']);
-        } else {
-            expect(calledEmojis).toContain('\u{1F44D}');
-            expect(calledEmojis).toContain('\u{2705}');
-        }
+        expect(mockMessage.react).toHaveBeenCalledTimes(1);
+        expect(mockMessage.react).toHaveBeenCalledWith('\u{1F44D}');
+    });
+
+    it('should handle non-duplicate reactions when random picks differently', async () => {
+        mockState.responses[0].reactions = ['\u{1F44D}']; // 👍
+        mockState.responses[0].replies[0].reactions = ['\u{1F44D}', '\u{2705}']; // 👍, ✅
+        // mock random to pick the second one (0.9 picks index 1)
+        Math.random.mockReturnValue(0.9);
+        const handled = await handler.handle(mockMessage, mockState);
+        expect(handled).toBe(true);
+        expect(mockMessage.react).toHaveBeenCalledTimes(2);
+        expect(mockMessage.react).toHaveBeenCalledWith('\u{1F44D}');
+        expect(mockMessage.react).toHaveBeenCalledWith('\u{2705}');
     });
 
     it('should handle custom Discord emojis by extracting ID', async () => {
