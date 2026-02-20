@@ -44,18 +44,12 @@ class QAChannel extends ChannelHandler {
 
                 // Pick random reactions if specified
                 const finalReactions = new Set();
-                const pickRandom = (val) => {
-                    if (Array.isArray(val)) {
-                        return val[Math.floor(Math.random() * val.length)];
-                    }
-                    return val;
-                };
+                const getReaction = (val) => Array.isArray(val) ? val[Math.floor(Math.random() * val.length)] : val;
 
-                const respReaction = pickRandom(response.reactions);
-                if (respReaction) finalReactions.add(respReaction);
-
-                const replyReaction = pickRandom(reply.reactions);
-                if (replyReaction) finalReactions.add(replyReaction);
+                [response.reactions, reply.reactions].forEach(r => {
+                    const emoji = getReaction(r);
+                    if (emoji) finalReactions.add(emoji);
+                });
 
                 for (const emoji of finalReactions) {
                     try {
