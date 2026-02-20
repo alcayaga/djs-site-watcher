@@ -12,7 +12,7 @@ async function getFileTypeFromBuffer(buffer) {
             fileTypePromise = import('file-type');
         }
         const { fileTypeFromBuffer } = await fileTypePromise;
-        return await fileTypeFromBuffer(buffer);
+        return fileTypeFromBuffer(buffer);
     } catch (error) {
         logger.error('Failed to get file type from buffer in wrapper:', error);
         // Re-throw to allow callers to handle the specific error, instead of suppressing it.
