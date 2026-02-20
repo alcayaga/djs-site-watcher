@@ -11,41 +11,62 @@ jest.mock('../../src/utils/network', () => ({
     getSafeGotOptions: jest.fn().mockReturnValue({})
 }));
 
+// Mock the wrapper to avoid ESM issues
+jest.mock('../../src/utils/fileTypeWrapper', () => {
+    return {
+        getFileTypeFromBuffer: jest.fn(async (buffer) => {
+            if (!buffer || buffer.length < 4) return undefined;
+            // Simple mock logic matching the test cases
+            if (buffer[0] === 0xFF && buffer[1] === 0xD8) return { ext: 'jpg', mime: 'image/jpeg' };
+            if (buffer[0] === 0x89 && buffer[1] === 0x50) return { ext: 'png', mime: 'image/png' };
+            if (buffer[0] === 0x47 && buffer[1] === 0x49) return { ext: 'gif', mime: 'image/gif' };
+            // WebP check: R I F F ... W E B P
+            if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) return { ext: 'webp', mime: 'image/webp' };
+            return undefined;
+        })
+    };
+});
+
 describe('Image Utility', () => {
     describe('sniffImageExtension', () => {
-        it('should detect JPEG', () => {
-            const buffer = Buffer.from([0xFF, 0xD8, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
-            expect(sniffImageExtension(buffer)).toBe('jpg');
+        it('should detect JPEG', async () => {
+            const buffer = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+            expect(await sniffImageExtension(buffer)).toBe('jpg');
         });
 
-        it('should detect PNG', () => {
-            const buffer = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
-            expect(sniffImageExtension(buffer)).toBe('png');
+        it('should detect PNG', async () => {
+            const buffer = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x00]);
+            expect(await sniffImageExtension(buffer)).toBe('png');
         });
 
-        it('should detect GIF', () => {
-            const buffer = Buffer.from([0x47, 0x49, 0x46, 0x38, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
-            expect(sniffImageExtension(buffer)).toBe('gif');
+        it('should detect GIF', async () => {
+            // GIF89a
+            const buffer = Buffer.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+            expect(await sniffImageExtension(buffer)).toBe('gif');
         });
 
-        it('should detect WebP', () => {
-            const buffer = Buffer.from('RIFFxxxxWEBP');
-            expect(sniffImageExtension(buffer)).toBe('webp');
+        it('should detect WebP', async () => {
+            const buffer = Buffer.from([
+                0x52, 0x49, 0x46, 0x46, // RIFF
+                0x00, 0x00, 0x00, 0x00, 
+                0x57, 0x45, 0x42, 0x50  // WEBP
+            ]);
+            expect(await sniffImageExtension(buffer)).toBe('webp');
         });
 
-        it('should return null for unknown types', () => {
+        it('should return null for unknown types', async () => {
             const buffer = Buffer.from('UNKNOWNDATA');
-            expect(sniffImageExtension(buffer)).toBeNull();
+            expect(await sniffImageExtension(buffer)).toBeNull();
         });
 
-        it('should return null for short buffers', () => {
+        it('should return null for short buffers', async () => {
             const buffer = Buffer.from('SHORT');
-            expect(sniffImageExtension(buffer)).toBeNull();
+            expect(await sniffImageExtension(buffer)).toBeNull();
         });
 
-        it('should return null for null/undefined buffer', () => {
-            expect(sniffImageExtension(null)).toBeNull();
-            expect(sniffImageExtension(undefined)).toBeNull();
+        it('should return null for null/undefined buffer', async () => {
+            expect(await sniffImageExtension(null)).toBeNull();
+            expect(await sniffImageExtension(undefined)).toBeNull();
         });
     });
 
