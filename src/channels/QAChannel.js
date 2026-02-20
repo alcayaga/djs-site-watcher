@@ -17,11 +17,6 @@ class QAChannel extends ChannelHandler {
         for (const response of state.responses) {
             const ap_match = response.trigger_regex.exec(ap_message);
             if (ap_match !== null) {
-                message.channel.sendTyping();
-
-                // Wait for the configured delay before sending the response
-                await new Promise(resolve => setTimeout(resolve, this.config.responseDelay));
-
                 const reply_id = Math.floor(Math.random() * response.replies.length);
                 const reply = response.replies[reply_id];
 
@@ -34,14 +29,66 @@ class QAChannel extends ChannelHandler {
                     responsePayload.content = reply.text_response;
                 }
 
-                if (Object.keys(responsePayload).length > 0) {
+                const hasContent = Object.keys(responsePayload).length > 0;
+
+                if (hasContent) {
+                    message.channel.sendTyping();
+
+                    // Wait for the configured delay before sending the response
+                    await new Promise(resolve => setTimeout(resolve, this.config.responseDelay));
+
                     await message.reply(responsePayload);
                 }
+
+                await this._applyReactions(message, response, reply);
 
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Selects a single reaction from a pool and formats it for use.
+     * @param {string|string[]} reactionPool The reaction(s) to choose from.
+     * @returns {string|null} A single emoji or custom emoji ID, or null.
+     * @private
+     */
+    _getSingleReaction(reactionPool) {
+        if (!reactionPool) return null;
+
+        const selected = Array.isArray(reactionPool)
+            ? reactionPool[Math.floor(Math.random() * reactionPool.length)]
+            : reactionPool;
+
+        if (typeof selected !== 'string' || !selected) return null;
+
+        // Extract ID for custom emojis <:name:id> or a:name:id
+        const match = selected.match(/<?(?:a:)?\w+:(?<id>\d+)>?/);
+        return match ? match.groups.id : selected;
+    }
+
+    /**
+     * Applies reactions to a message based on response and reply configurations.
+     * @param {Discord.Message} message The message to react to.
+     * @param {object} response The top-level response object.
+     * @param {object} reply The selected reply object.
+     * @returns {Promise<void>}
+     * @private
+     */
+    async _applyReactions(message, response, reply) {
+        const finalReactions = new Set();
+
+        for (const reactionPool of [response.reactions, reply.reactions]) {
+            const emoji = this._getSingleReaction(reactionPool);
+            if (emoji) {
+                finalReactions.add(emoji);
+            }
+        }
+
+        for (const emoji of finalReactions) {
+            await message.react(emoji);
+        }
     }
 }
 
