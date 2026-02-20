@@ -1,8 +1,11 @@
 jest.mock('../src/storage');
+
 const {
     ENV_DISCORDJS_BOT_TOKEN,
     ENV_DISCORDJS_APCHANNEL_ID,
-    ENV_ALLOW_PRIVATE_IPS
+    ENV_ALLOW_PRIVATE_IPS,
+    ENV_REQUEST_TIMEOUT,
+    ENV_RETRY_LIMIT
 } = require('../src/utils/constants');
 
 /**
@@ -73,5 +76,33 @@ describe('config', () => {
         storage.SENSITIVE_SETTINGS_KEYS = [];
         const config = require('../src/config');
         expect(config.monitors).toEqual(customMonitors);
+    });
+
+    it('should load REQUEST_TIMEOUT and RETRY_LIMIT from env', () => {
+        process.env[ENV_REQUEST_TIMEOUT] = '5000';
+        process.env[ENV_RETRY_LIMIT] = '5';
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({});
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+        
+        const config = require('../src/config');
+        expect(config.requestTimeout).toBe(5000);
+        expect(config.retryLimit).toBe(5);
+    });
+
+    it('should load requestTimeout and retryLimit from config file', () => {
+        delete process.env[ENV_REQUEST_TIMEOUT];
+        delete process.env[ENV_RETRY_LIMIT];
+        
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({
+            requestTimeout: 8000,
+            retryLimit: 3
+        });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+        
+        const config = require('../src/config');
+        expect(config.requestTimeout).toBe(8000);
+        expect(config.retryLimit).toBe(3);
     });
 });
