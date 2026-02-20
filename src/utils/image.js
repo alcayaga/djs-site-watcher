@@ -25,7 +25,7 @@ async function sniffImageExtension(buffer) {
     
     // Robust check: ensure the detected MIME type is in our allowed map
     if (type && MIME_TYPE_MAP[type.mime]) {
-        return type.ext;
+        return MIME_TYPE_MAP[type.mime];
     }
     
     return null;
