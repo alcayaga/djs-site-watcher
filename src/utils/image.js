@@ -10,26 +10,23 @@ const MIME_TYPE_MAP = {
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
+const fileTypeWrapper = require('./fileTypeWrapper');
+
 /**
- * Sniffs the image extension from a buffer's magic numbers.
- * Supports JPEG, PNG, GIF and WebP.
+ * Sniffs the image extension from a buffer's magic numbers using file-type.
+ * Supports standard image formats.
  * @param {Buffer} buffer The image buffer.
- * @returns {string|null} The extension or null if not recognized.
+ * @returns {Promise<string|null>} The extension or null if not recognized.
  */
-function sniffImageExtension(buffer) {
-    if (!buffer || buffer.length < 12) return null;
+async function sniffImageExtension(buffer) {
+    if (!buffer || buffer.length === 0) return null;
     
-    // JPEG: FF D8 FF
-    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) return 'jpg';
+    const type = await fileTypeWrapper.getFileTypeFromBuffer(buffer);
     
-    // PNG: 89 50 4E 47
-    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) return 'png';
-    
-    // GIF: 47 49 46 38 ("GIF8")
-    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) return 'gif';
-    
-    // WebP: RIFF .... WEBP
-    if (buffer.slice(0, 4).toString() === 'RIFF' && buffer.slice(8, 12).toString() === 'WEBP') return 'webp';
+    // Robust check: ensure the detected MIME type is in our allowed map
+    if (type && MIME_TYPE_MAP[type.mime]) {
+        return MIME_TYPE_MAP[type.mime];
+    }
     
     return null;
 }
@@ -88,7 +85,7 @@ async function downloadImage(url) {
 
     // If not found by Content-Type (e.g. octet-stream), try sniffing the buffer
     if (!extension) {
-        extension = sniffImageExtension(buffer);
+        extension = await sniffImageExtension(buffer);
     }
 
     // Final security check

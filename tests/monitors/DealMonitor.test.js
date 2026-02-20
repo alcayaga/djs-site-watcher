@@ -23,9 +23,13 @@ jest.mock('../../src/utils/solotodo', () => ({
     ]),
     getStores: jest.fn().mockResolvedValue(new Map([["https://api.com/stores/1/", "Store 1"]]))
 }));
+
 jest.mock('../../src/utils/helpers', () => ({
     sleep: jest.fn().mockResolvedValue()
 }));
+
+// Mock fileTypeWrapper using manual mock in __mocks__
+jest.mock('../../src/utils/fileTypeWrapper');
 
 describe('DealMonitor', () => {
     let monitor;
