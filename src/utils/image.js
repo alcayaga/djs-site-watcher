@@ -9,6 +9,8 @@ const MIME_TYPE_MAP = {
     'image/gif': 'gif'
 };
 
+const SUPPORTED_EXTENSIONS = Object.values(MIME_TYPE_MAP);
+
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const { getFileTypeFromBuffer } = require('./fileTypeWrapper');
@@ -28,8 +30,7 @@ async function sniffImageExtension(buffer) {
         if (!type) return null;
         
         // We only care about specific image types
-        const supportedExtensions = Object.values(MIME_TYPE_MAP);
-        if (supportedExtensions.includes(type.ext)) {
+        if (SUPPORTED_EXTENSIONS.includes(type.ext)) {
             return type.ext;
         }
         
