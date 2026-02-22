@@ -487,7 +487,7 @@ class DealMonitor extends Monitor {
         
         // Find the minimum price for that key among the valid entities
         const prices = validEntities.map(e => parseFloat(e.active_registry?.[priceKey] || 0));
-        const minPrice = Math.min(...prices);
+        const minPrice = Math.min(...prices.filter(p => p >= MIN_SANITY_PRICE));
         
         // Filter entities that are at that minimum price
         const bestEntities = validEntities.filter(e => parseFloat(e.active_registry?.[priceKey]) === minPrice);
@@ -511,19 +511,29 @@ class DealMonitor extends Monitor {
             .setFooter({ text: 'powered by Solotodo'});
 
         if (bestEntities.length > 0) {
-            const fieldLines = bestEntities.map(entity => {
+            const formatStoreLink = (entity) => {
                 const storeName = sanitizeMarkdown(storeMap.get(entity.store) || 'Tienda');
-                const safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29');
-                return `• **${storeName}**: [Ir a la tienda ↗](${safeUrl})`;
-            });
+                let safeUrl = '#';
+                try {
+                    const urlObj = new URL(entity.external_url);
+                    if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
+                        safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29');
+                    }
+                } catch (e) {
+                    logger.warn('[DealMonitor] Invalid external URL for entity %s: %s', entity.id, entity.external_url);
+                }
+                return { storeName, safeUrl };
+            };
 
             if (bestEntities.length === 1) {
-                const entity = bestEntities[0];
-                const storeName = sanitizeMarkdown(storeMap.get(entity.store) || 'Tienda');
-                const safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29');
+                const { storeName, safeUrl } = formatStoreLink(bestEntities[0]);
                 embed.addFields([{ name: `🛒 Vendido por ${storeName}`, value: `[Ir a la tienda ↗](${safeUrl})`, inline: false }]);
             } else {
-                 embed.addFields([{ name: '🛒 Disponible en:', value: fieldLines.join('\n'), inline: false }]);
+                const fieldLines = bestEntities.map(entity => {
+                    const { storeName, safeUrl } = formatStoreLink(entity);
+                    return `• **${storeName}**: [Ir a la tienda ↗](${safeUrl})`;
+                });
+                embed.addFields([{ name: '🛒 Disponible en:', value: fieldLines.join('\n'), inline: false }]);
             }
         }
 
