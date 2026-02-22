@@ -888,4 +888,77 @@ describe('DealMonitor', () => {
             expect(priceDropLogCalls).toHaveLength(2);
         });
     });
+
+    describe('multiple stores handling', () => {
+        beforeEach(() => {
+             solotodo.getStores.mockResolvedValue(new Map([
+                ["https://api.com/stores/1/", "Store A"],
+                ["https://api.com/stores/2/", "Store B"],
+                ["https://api.com/stores/3/", "Store C"]
+            ]));
+        });
+
+        it('should list all stores selling at the minimum price', async () => {
+            const product = { id: 1, name: 'iPhone', offerPrice: 100000, normalPrice: 110000 };
+            const entities = [
+                {
+                    active_registry: { offer_price: "100000", normal_price: "110000", cell_monthly_payment: null },
+                    store: "https://api.com/stores/1/",
+                    external_url: "https://store-a.com/prod"
+                },
+                {
+                    active_registry: { offer_price: "100000", normal_price: "110000", cell_monthly_payment: null },
+                    store: "https://api.com/stores/2/",
+                    external_url: "https://store-b.com/prod"
+                },
+                {
+                    active_registry: { offer_price: "105000", normal_price: "115000", cell_monthly_payment: null }, // More expensive
+                    store: "https://api.com/stores/3/",
+                    external_url: "https://store-c.com/prod"
+                }
+            ];
+
+            solotodo.getAvailableEntities.mockResolvedValue(entities);
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(mockChannel.send).toHaveBeenCalled();
+            const sendCall = mockChannel.send.mock.calls[0][0];
+            const embed = sendCall.embeds[0];
+            
+            const vendorField = embed.data.fields.find(f => f.name.includes('Vendido por') || f.name.includes('Disponible en'));
+            expect(vendorField).toBeDefined();
+            expect(vendorField.value).toContain('Store A');
+            expect(vendorField.value).toContain('Store B');
+            expect(vendorField.value).not.toContain('Store C');
+            expect(vendorField.value).toContain('store-a.com');
+            expect(vendorField.value).toContain('store-b.com');
+        });
+
+        it('should fallback to single store format or handle single store correctly', async () => {
+            const product = { id: 1, name: 'iPhone', offerPrice: 100000, normalPrice: 110000 };
+            const entities = [
+                {
+                    active_registry: { offer_price: "100000", normal_price: "110000", cell_monthly_payment: null },
+                    store: "https://api.com/stores/1/",
+                    external_url: "https://store-a.com/prod"
+                }
+            ];
+
+            solotodo.getAvailableEntities.mockResolvedValue(entities);
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(mockChannel.send).toHaveBeenCalled();
+            const sendCall = mockChannel.send.mock.calls[0][0];
+            const embed = sendCall.embeds[0];
+            
+            const vendorField = embed.data.fields.find(f => f.name.includes('Vendido por') || f.name.includes('Disponible en'));
+            expect(vendorField).toBeDefined();
+            // Check either name or value for the store name (Single store puts it in name, Multi store in value)
+            const content = (vendorField.name + vendorField.value);
+            expect(content).toContain('Store A');
+            expect(content).toContain('store-a.com');
+        });
+    });
 });
