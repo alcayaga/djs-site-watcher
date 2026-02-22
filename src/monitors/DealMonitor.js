@@ -512,14 +512,14 @@ class DealMonitor extends Monitor {
 
         if (bestEntities.length > 0) {
             const fieldLines = bestEntities.map(entity => {
-                const storeName = storeMap.get(entity.store) || 'Tienda';
+                const storeName = sanitizeLinkText(storeMap.get(entity.store) || 'Tienda');
                 const safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29');
                 return `• **${storeName}**: [Ir a la tienda ↗](${safeUrl})`;
             });
 
             if (bestEntities.length === 1) {
                 const entity = bestEntities[0];
-                const storeName = storeMap.get(entity.store) || 'Tienda';
+                const storeName = sanitizeLinkText(storeMap.get(entity.store) || 'Tienda');
                 const safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29');
                 embed.addFields([{ name: `🛒 Vendido por ${storeName}`, value: `[Ir a la tienda ↗](${safeUrl})`, inline: false }]);
             } else {
