@@ -486,7 +486,7 @@ class DealMonitor extends Monitor {
         const priceKey = triggers.some(t => t.includes('OFFER')) ? 'offer_price' : 'normal_price';
         
         // Find the minimum price for that key among the valid entities
-        const prices = validEntities.map(e => parseFloat(e.active_registry?.[priceKey] || Infinity));
+        const prices = validEntities.map(e => parseFloat(e.active_registry?.[priceKey] || 0));
         const minPrice = Math.min(...prices);
         
         // Filter entities that are at that minimum price
