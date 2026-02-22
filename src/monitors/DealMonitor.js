@@ -2,7 +2,7 @@ const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const config = require('../config');
 const got = require('got');
-const { formatCLP, sanitizeLinkText, formatDiscordTimestamp } = require('../utils/formatters');
+const { formatCLP, sanitizeLinkText, formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
 const solotodo = require('../utils/solotodo');
 const { DEFAULT_PRICE_TOLERANCE, DEFAULT_GRACE_PERIOD_HOURS } = require('../utils/constants');
 const { sleep } = require('../utils/helpers');
@@ -471,10 +471,28 @@ class DealMonitor extends Monitor {
         const entities = await solotodo.getAvailableEntities(product.id);
         const storeMap = await solotodo.getStores();
         const pictureUrl = await solotodo.getBestPictureUrl(product, entities);
-        const bestEntity = solotodo.findBestEntity(entities, triggers);
+        
+        // Filter valid entities (exclude plans and refurbished)
+        const validEntities = entities.filter(entity => {
+            const isPlan = entity.active_registry?.cell_monthly_payment != null;
+            const isRefurbished = entity.condition === solotodo.REFURBISHED_CONDITION_URL;
+            return !isPlan && !isRefurbished;
+        });
 
         // 2. Validate
-        if (!bestEntity) return;
+        if (validEntities.length === 0) return;
+
+        // Determine target price based on triggers
+        const priceKey = triggers.some(t => t.includes('OFFER')) ? 'offer_price' : 'normal_price';
+        
+        // Find the minimum price for that key among the valid entities
+        const prices = validEntities.map(e => parseFloat(e.active_registry?.[priceKey] || Infinity));
+        const minPrice = Math.min(...prices);
+        
+        // Filter entities that are at that minimum price
+        const bestEntities = validEntities.filter(e => parseFloat(e.active_registry?.[priceKey]) === minPrice);
+
+        if (bestEntities.length === 0) return;
 
         // 3. Prepare Metadata
         const sanitizedName = sanitizeLinkText(product.name);
@@ -492,10 +510,21 @@ class DealMonitor extends Monitor {
             .setTimestamp()
             .setFooter({ text: 'powered by Solotodo'});
 
-        if (bestEntity.external_url) {
-            const storeName = storeMap.get(bestEntity.store) || 'Tienda';
-            const safeUrl = encodeURI(bestEntity.external_url).replace(/\)/g, '%29');
-            embed.addFields([{ name: `🛒 Vendido por ${storeName}`, value: `[Ir a la tienda ↗](${safeUrl})`, inline: false }]);
+        if (bestEntities.length > 0) {
+            const fieldLines = bestEntities.map(entity => {
+                const storeName = sanitizeMarkdown(storeMap.get(entity.store) || 'Tienda');
+                const safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29');
+                return `• **${storeName}**: [Ir a la tienda ↗](${safeUrl})`;
+            });
+
+            if (bestEntities.length === 1) {
+                const entity = bestEntities[0];
+                const storeName = sanitizeMarkdown(storeMap.get(entity.store) || 'Tienda');
+                const safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29');
+                embed.addFields([{ name: `🛒 Vendido por ${storeName}`, value: `[Ir a la tienda ↗](${safeUrl})`, inline: false }]);
+            } else {
+                 embed.addFields([{ name: '🛒 Disponible en:', value: fieldLines.join('\n'), inline: false }]);
+            }
         }
 
         // 5. Handle Image / Attachment
