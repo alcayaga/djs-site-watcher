@@ -467,7 +467,7 @@ class DealMonitor extends Monitor {
         try {
             const urlObj = new URL(entity.external_url);
             if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
-                safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29');
+                safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29').replace(/\(/g, '%28');
             }
         } catch (e) {
             logger.warn('[DealMonitor] Invalid external URL for product %s (store: %s): %s', product.id, entity.store, String(entity.external_url).replace(/[\n\r]/g, ' '));

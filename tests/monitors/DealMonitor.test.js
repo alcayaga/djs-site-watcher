@@ -19,6 +19,7 @@ jest.mock('../../src/utils/solotodo', () => ({
     getProductHistory: jest.fn().mockResolvedValue([]),
     getBestPictureUrl: jest.fn().mockImplementation(p => Promise.resolve(p.pictureUrl || p.picture_url)),
     getAvailableEntities: jest.fn().mockResolvedValue([
+        // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
         { active_registry: { offer_price: "10000", normal_price: "10000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
     ]),
     getStores: jest.fn().mockResolvedValue(new Map([["https://api.com/stores/1/", "Store 1"]]))
@@ -645,6 +646,7 @@ describe('DealMonitor', () => {
     describe('image handling', () => {
         beforeEach(() => {
             // Mock getAvailableEntities to ensure bestEntity is found (requires active_registry)
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
             solotodo.getAvailableEntities.mockResolvedValue([
                 { active_registry: { offer_price: "10000", normal_price: "20000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
             ]);
