@@ -473,17 +473,13 @@ class DealMonitor extends Monitor {
         const pictureUrl = await solotodo.getBestPictureUrl(product, entities);
         
         // Filter valid entities (exclude plans and refurbished)
-        const validEntities = entities.filter(entity => {
-            const isPlan = entity.active_registry?.cell_monthly_payment != null;
-            const isRefurbished = entity.condition === solotodo.REFURBISHED_CONDITION_URL;
-            return !isPlan && !isRefurbished;
-        });
+        const validEntities = solotodo.filterValidEntities(entities);
 
         // 2. Validate
         if (validEntities.length === 0) return;
 
         // Determine target price based on triggers
-        const priceKey = triggers.some(t => t.includes('OFFER')) ? 'offer_price' : 'normal_price';
+        const priceKey = solotodo.determinePriceKey(triggers);
         
         // Find the minimum price for that key among the valid entities
         const prices = validEntities.map(e => parseFloat(e.active_registry?.[priceKey] || 0));
@@ -529,10 +525,20 @@ class DealMonitor extends Monitor {
                 const { storeName, safeUrl } = formatStoreLink(bestEntities[0]);
                 embed.addFields([{ name: `🛒 Vendido por ${storeName}`, value: `[Ir a la tienda ↗](${safeUrl})`, inline: false }]);
             } else {
-                const fieldLines = bestEntities.map(entity => {
+                let fieldLines = [];
+                let currentLength = 0;
+                const MAX_LENGTH = 1000; // slightly less than 1024 to be safe
+
+                for (const entity of bestEntities) {
                     const { storeName, safeUrl } = formatStoreLink(entity);
-                    return `• **${storeName}**: [Ir a la tienda ↗](${safeUrl})`;
-                });
+                    const line = `• **${storeName}**: [Ir a la tienda ↗](${safeUrl})`;
+                    if (currentLength + line.length + 1 > MAX_LENGTH) {
+                        fieldLines.push(`• ... y ${bestEntities.length - fieldLines.length} más`);
+                        break;
+                    }
+                    fieldLines.push(line);
+                    currentLength += line.length + 1; // +1 for newline
+                }
                 embed.addFields([{ name: '🛒 Disponible en:', value: fieldLines.join('\n'), inline: false }]);
             }
         }
