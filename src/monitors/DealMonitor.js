@@ -481,18 +481,27 @@ class DealMonitor extends Monitor {
         // Determine target price based on triggers
         const priceKey = solotodo.determinePriceKey(triggers);
         
-        // Find the minimum price for that key among the valid entities
-        const prices = validEntities
-            .map(e => parseFloat(e.active_registry?.[priceKey]))
-            .filter(p => !isNaN(p) && p >= MIN_SANITY_PRICE);
-        
-        const minPrice = prices.length > 0 ? Math.min(...prices) : Infinity;
-        
-        // Filter entities that are at that minimum price and also meet the sanity price (redundant but safe)
-        const bestEntities = validEntities.filter(e => {
-            const p = parseFloat(e.active_registry?.[priceKey]);
-            return p === minPrice && p >= MIN_SANITY_PRICE;
-        });
+        // Find the minimum price and all entities matching it in a single pass
+        const { bestEntities } = validEntities.reduce((acc, entity) => {
+            const p = parseFloat(entity.active_registry?.[priceKey]);
+
+            // Ignore invalid or unsanitary prices
+            if (isNaN(p) || p < MIN_SANITY_PRICE) {
+                return acc;
+            }
+
+            // If we found a new minimum, reset the list
+            if (p < acc.minPrice) {
+                return { minPrice: p, bestEntities: [entity] };
+            }
+            
+            // If it's the same minimum, add to the list
+            if (p === acc.minPrice) {
+                acc.bestEntities.push(entity);
+            }
+
+            return acc;
+        }, { minPrice: Infinity, bestEntities: [] });
 
         if (bestEntities.length === 0) return;
 
