@@ -30,24 +30,18 @@ function sanitizeMarkdown(text) {
         .replace(/\]/g, '\\]')
         .replace(/</g, '\\<') // Escape less than
         .replace(/>/g, '\\>') // Escape greater than
-        .replace(/@everyone/g, '@\u200beveryone') // Add zero-width space
-        .replace(/@here/g, '@\u200bhere');
+        .replace(/@everyone/gi, '@\u200beveryone') // Add zero-width space
+        .replace(/@here/gi, '@\u200bhere');
 }
 
 /**
  * Sanitizes text for use inside Discord masked links [text](url).
- * Only escapes ']' to prevent breaking the link structure and defangs mentions.
+ * Escapes all markdown characters to prevent unintended formatting and defangs mentions.
  * @param {string} text The text to sanitize.
  * @returns {string} The sanitized link text.
  */
 function sanitizeLinkText(text) {
-    if (!text) return '';
-    return text
-        .replace(/\]/g, '\\]')
-        .replace(/</g, '\\<') // Escape less than
-        .replace(/>/g, '\\>') // Escape greater than
-        .replace(/@everyone/g, '@\u200beveryone')
-        .replace(/@here/g, '@\u200bhere');
+    return sanitizeMarkdown(text);
 }
 
 /**

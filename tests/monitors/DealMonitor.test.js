@@ -19,6 +19,7 @@ jest.mock('../../src/utils/solotodo', () => ({
     getProductHistory: jest.fn().mockResolvedValue([]),
     getBestPictureUrl: jest.fn().mockImplementation(p => Promise.resolve(p.pictureUrl || p.picture_url)),
     getAvailableEntities: jest.fn().mockResolvedValue([
+        // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
         { active_registry: { offer_price: "10000", normal_price: "10000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
     ]),
     getStores: jest.fn().mockResolvedValue(new Map([["https://api.com/stores/1/", "Store 1"]]))
@@ -645,8 +646,9 @@ describe('DealMonitor', () => {
     describe('image handling', () => {
         beforeEach(() => {
             // Mock getAvailableEntities to ensure bestEntity is found (requires active_registry)
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
             solotodo.getAvailableEntities.mockResolvedValue([
-                { active_registry: { offer_price: "100", normal_price: "200", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
+                { active_registry: { offer_price: "10000", normal_price: "20000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
             ]);
         });
 
@@ -686,7 +688,8 @@ describe('DealMonitor', () => {
         };
 
         it('should download and attach image when no valid external picture URL is found', async () => {
-            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic.jpg', offerPrice: 100, normalPrice: 200 };
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic.jpg', offerPrice: 10000, normalPrice: 20000 };
             
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
             
@@ -704,11 +707,12 @@ describe('DealMonitor', () => {
         });
 
         it('should try entity pictures if product picture fails to download', async () => {
-            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic.jpg', offerPrice: 100, normalPrice: 200 };
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic.jpg', offerPrice: 10000, normalPrice: 20000 };
             const entities = [
                 { 
                     picture_urls: ['http://entity.com/pic.png'],
-                    active_registry: { offer_price: "100", normal_price: "200", cell_monthly_payment: null },
+                    active_registry: { offer_price: "10000", normal_price: "20000", cell_monthly_payment: null },
                     store: "https://api.com/stores/1/", 
                     external_url: "https://store.com"
                 }
@@ -730,7 +734,8 @@ describe('DealMonitor', () => {
         });
         
         it('should abort download if image is too large', async () => {
-            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/big.jpg', offerPrice: 100, normalPrice: 200 };
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/big.jpg', offerPrice: 10000, normalPrice: 20000 };
             
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
             
@@ -760,7 +765,8 @@ describe('DealMonitor', () => {
         });
 
         it('should download and attach image when content-type is octet-stream by sniffing buffer', async () => {
-            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://ambiguous.com/image', offerPrice: 100, normalPrice: 200 };
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://ambiguous.com/image', offerPrice: 10000, normalPrice: 20000 };
             
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
             
@@ -775,7 +781,8 @@ describe('DealMonitor', () => {
         });
 
         it('should reject non-image resources even if potentially allowed by header', async () => {
-            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/malicious.sh', offerPrice: 100, normalPrice: 200 };
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/malicious.sh', offerPrice: 10000, normalPrice: 20000 };
             
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
             
@@ -789,7 +796,8 @@ describe('DealMonitor', () => {
         });
 
         it('should reject if Content-Type is explicitly not an image', async () => {
-            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/page.html', offerPrice: 100, normalPrice: 200 };
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/page.html', offerPrice: 10000, normalPrice: 20000 };
             
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
             
@@ -801,7 +809,8 @@ describe('DealMonitor', () => {
         });
 
         it('should reject if Content-Type is missing but content is not an image', async () => {
-            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic', offerPrice: 100, normalPrice: 200 };
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
+            const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic', offerPrice: 10000, normalPrice: 20000 };
             
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
             
@@ -886,6 +895,109 @@ describe('DealMonitor', () => {
                 (call) => typeof call[0] === 'string' && call[0].startsWith('[DealMonitor] Price drop for')
             );
             expect(priceDropLogCalls).toHaveLength(2);
+        });
+    });
+
+    describe('multiple stores handling', () => {
+        beforeEach(() => {
+             solotodo.getStores.mockResolvedValue(new Map([
+                ["https://api.com/stores/1/", "Store A"],
+                ["https://api.com/stores/2/", "Store B"],
+                ["https://api.com/stores/3/", "Store C"]
+            ]));
+        });
+
+        it('should list all stores selling at the minimum price', async () => {
+            const product = { id: 1, name: 'iPhone', offerPrice: 100000, normalPrice: 110000 };
+            const entities = [
+                {
+                    active_registry: { offer_price: "100000", normal_price: "110000", cell_monthly_payment: null },
+                    store: "https://api.com/stores/1/",
+                    external_url: "https://store-a.com/prod"
+                },
+                {
+                    active_registry: { offer_price: "100000", normal_price: "110000", cell_monthly_payment: null },
+                    store: "https://api.com/stores/2/",
+                    external_url: "https://store-b.com/prod"
+                },
+                {
+                    active_registry: { offer_price: "105000", normal_price: "115000", cell_monthly_payment: null }, // More expensive
+                    store: "https://api.com/stores/3/",
+                    external_url: "https://store-c.com/prod"
+                }
+            ];
+
+            solotodo.getAvailableEntities.mockResolvedValue(entities);
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(mockChannel.send).toHaveBeenCalled();
+            const sendCall = mockChannel.send.mock.calls[0][0];
+            const embed = sendCall.embeds[0];
+            
+            const vendorField = embed.data.fields.find(f => f.name.includes('Vendido por') || f.name.includes('Disponible en'));
+            expect(vendorField).toBeDefined();
+            expect(vendorField.value).toContain('Store A');
+            expect(vendorField.value).toContain('Store B');
+            expect(vendorField.value).not.toContain('Store C');
+            expect(vendorField.value).toContain('store-a.com');
+            expect(vendorField.value).toContain('store-b.com');
+        });
+
+        it('should fallback to single store format or handle single store correctly', async () => {
+            const product = { id: 1, name: 'iPhone', offerPrice: 100000, normalPrice: 110000 };
+            const entities = [
+                {
+                    active_registry: { offer_price: "100000", normal_price: "110000", cell_monthly_payment: null },
+                    store: "https://api.com/stores/1/",
+                    external_url: "https://store-a.com/prod"
+                }
+            ];
+
+            solotodo.getAvailableEntities.mockResolvedValue(entities);
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(mockChannel.send).toHaveBeenCalled();
+            const sendCall = mockChannel.send.mock.calls[0][0];
+            const embed = sendCall.embeds[0];
+            
+            const vendorField = embed.data.fields.find(f => f.name.includes('Vendido por') || f.name.includes('Disponible en'));
+            expect(vendorField).toBeDefined();
+            // Check either name or value for the store name (Single store puts it in name, Multi store in value)
+            const content = (vendorField.name + vendorField.value);
+            expect(content).toContain('Store A');
+            expect(content).toContain('store-a.com');
+        });
+
+        it('should truncate list of stores if it exceeds limit', async () => {
+            solotodo.getStores.mockResolvedValue(new Map([
+                ["https://api.com/stores/1/", "Store A"],
+            ]));
+
+            const product = { id: 1, name: 'iPhone', offerPrice: 100000, normalPrice: 110000 };
+            // Create enough entities to exceed 1000 chars
+            const entities = Array.from({ length: 20 }, (_, i) => ({
+                active_registry: { offer_price: "100000", normal_price: "110000", cell_monthly_payment: null },
+                store: "https://api.com/stores/1/",
+                external_url: `https://store-a.com/prod/${i}`
+            }));
+
+            solotodo.getAvailableEntities.mockResolvedValue(entities);
+
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+
+            expect(mockChannel.send).toHaveBeenCalled();
+            const sendCall = mockChannel.send.mock.calls[0][0];
+            const embed = sendCall.embeds[0];
+            
+            const vendorField = embed.data.fields.find(f => f.name.includes('Disponible en'));
+            expect(vendorField).toBeDefined();
+            
+            // Check if value length is within safe limit
+            expect(vendorField.value.length).toBeLessThanOrEqual(1024);
+            // Check for truncation indicator
+            expect(vendorField.value).toContain('... y');
         });
     });
 });

@@ -336,30 +336,59 @@ async function getProductHistory(productId) {
 }
 
 /**
- * Finds the best entity from a list based on price and conditions.
+ * Filters valid entities from a list (excludes plans and refurbished).
  * @param {Array} entities List of entities.
- * @param {Array<string>} triggers List of triggers (e.g. ['NEW_LOW_OFFER']).
- * @returns {object|null} The best entity or null.
+ * @returns {Array} List of valid entities.
  */
-function findBestEntity(entities, triggers = []) {
-    if (!entities || entities.length === 0) return null;
-
-    const priceKey = triggers.some(t => t.includes('OFFER')) ? 'offer_price' : 'normal_price';
-    let bestEntity = null;
-    let minPrice = Infinity;
-
-    for (const entity of entities) {
-        const price = parseFloat(entity.active_registry?.[priceKey]);
+function filterValidEntities(entities) {
+    if (!entities || !Array.isArray(entities)) return [];
+    return entities.filter(entity => {
         const isPlan = entity.active_registry?.cell_monthly_payment != null;
         const isRefurbished = entity.condition === REFURBISHED_CONDITION_URL;
-        
-        if (!isPlan && !isRefurbished && !isNaN(price) && price < minPrice) {
-            minPrice = price;
-            bestEntity = entity;
-        }
-    }
+        return !isPlan && !isRefurbished;
+    });
+}
 
-    return bestEntity;
+/**
+ * Determines the price key to use based on triggers.
+ * @param {Array<string>} triggers List of triggers.
+ * @returns {string} The price key ('offer_price' or 'normal_price').
+ */
+function determinePriceKey(triggers = []) {
+    const safeTriggers = Array.isArray(triggers) ? triggers : [];
+    return safeTriggers.some(t => t.includes('OFFER')) ? 'offer_price' : 'normal_price';
+}
+
+/**
+ * Finds the minimum price and all entities matching it in a single pass.
+ * @param {Array} entities List of valid entities.
+ * @param {string} priceKey The price key to check.
+ * @param {number} minSanityPrice The minimum price to consider valid.
+ * @returns {{minPrice: number, bestEntities: Array}} The minimum price and the matching entities.
+ */
+function findBestEntities(entities, priceKey, minSanityPrice) {
+    if (!entities || !Array.isArray(entities)) return { minPrice: Infinity, bestEntities: [] };
+    
+    return entities.reduce((acc, entity) => {
+        const p = parseFloat(entity.active_registry?.[priceKey]);
+
+        // Ignore invalid or unsanitary prices
+        if (isNaN(p) || p < minSanityPrice) {
+            return acc;
+        }
+
+        // If we found a new minimum, reset the list
+        if (p < acc.minPrice) {
+            return { minPrice: p, bestEntities: [entity] };
+        }
+        
+        // If it's the same minimum, add to the list
+        if (p === acc.minPrice) {
+            acc.bestEntities.push(entity);
+        }
+
+        return acc;
+    }, { minPrice: Infinity, bestEntities: [] });
 }
 
 module.exports = {
@@ -381,5 +410,7 @@ module.exports = {
     getStores,
     getProductHistory,
     getBestPictureUrl,
-    findBestEntity
+    filterValidEntities,
+    determinePriceKey,
+    findBestEntities
 };

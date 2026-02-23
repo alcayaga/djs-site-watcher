@@ -31,15 +31,15 @@ describe('Formatters Utils', () => {
     });
 
     describe('sanitizeLinkText', () => {
-        it('should escape closing square bracket', () => {
+        it('should escape square brackets', () => {
             const input = 'Click [here]';
-            const expected = 'Click [here\\]'; // Only closing bracket needs escaping in link text to prevent breaking format
+            const expected = 'Click \\[here\\]';
             expect(sanitizeLinkText(input)).toBe(expected);
         });
 
-        it('should defang @everyone and @here', () => {
-            const input = 'Click @everyone';
-            const expected = 'Click @\u200beveryone';
+        it('should defang @everyone and @here case-insensitively', () => {
+            const input = 'Click @EVERYONE and @hErE';
+            const expected = 'Click @\u200beveryone and @\u200bhere';
             expect(sanitizeLinkText(input)).toBe(expected);
         });
 

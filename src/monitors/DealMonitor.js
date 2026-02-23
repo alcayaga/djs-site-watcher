@@ -454,6 +454,28 @@ class DealMonitor extends Monitor {
     }
 
     /**
+     * Formats a store entity into a displayable name and a safe URL.
+     * @private
+     * @param {object} product The product object.
+     * @param {object} entity The Solotodo entity.
+     * @param {Map<string, string>} storeMap Map of store URLs to names.
+     * @returns {{storeName: string, safeUrl: string}} The sanitized store name and URL.
+     */
+    _formatStoreLink(product, entity, storeMap) {
+        const storeName = sanitizeLinkText(storeMap.get(entity.store) || 'Tienda');
+        let safeUrl = '#';
+        try {
+            const urlObj = new URL(entity.external_url);
+            if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
+                safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29').replace(/\(/g, '%28').replace(/\[/g, '%5B').replace(/\]/g, '%5D');
+            }
+        } catch (e) {
+            logger.warn('[DealMonitor] Invalid external URL for product %s (store: %s): %s', product.id, entity.store, String(entity.external_url).replace(/[\n\r]/g, ' '));
+        }
+        return { storeName, safeUrl };
+    }
+
+    /**
      * Sends a notification about a deal.
      * @param {object} change The change details.
      */
@@ -471,10 +493,20 @@ class DealMonitor extends Monitor {
         const entities = await solotodo.getAvailableEntities(product.id);
         const storeMap = await solotodo.getStores();
         const pictureUrl = await solotodo.getBestPictureUrl(product, entities);
-        const bestEntity = solotodo.findBestEntity(entities, triggers);
+        
+        // Filter valid entities (exclude plans and refurbished)
+        const validEntities = solotodo.filterValidEntities(entities);
 
         // 2. Validate
-        if (!bestEntity) return;
+        if (validEntities.length === 0) return;
+
+        // Determine target price based on triggers
+        const priceKey = solotodo.determinePriceKey(triggers);
+        
+        // Find the minimum price and all entities matching it in a single pass
+        const { bestEntities } = solotodo.findBestEntities(validEntities, priceKey, MIN_SANITY_PRICE);
+
+        if (bestEntities.length === 0) return;
 
         // 3. Prepare Metadata
         const sanitizedName = sanitizeLinkText(product.name);
@@ -492,10 +524,40 @@ class DealMonitor extends Monitor {
             .setTimestamp()
             .setFooter({ text: 'powered by Solotodo'});
 
-        if (bestEntity.external_url) {
-            const storeName = storeMap.get(bestEntity.store) || 'Tienda';
-            const safeUrl = encodeURI(bestEntity.external_url).replace(/\)/g, '%29');
-            embed.addFields([{ name: `🛒 Vendido por ${storeName}`, value: `[Ir a la tienda ↗](${safeUrl})`, inline: false }]);
+        if (bestEntities.length > 0) {
+            if (bestEntities.length === 1) {
+                const { storeName, safeUrl } = this._formatStoreLink(product, bestEntities[0], storeMap);
+                const fieldName = `🛒 Vendido por ${storeName}`;
+                let fieldValue = `[Ir a la tienda ↗](${safeUrl})`;
+
+                if (fieldValue.length > 1024) {
+                    fieldValue = 'El link de la tienda es demasiado largo para mostrar.';
+                    logger.warn('[DealMonitor] Store URL for product %s is too long to display in Discord embed.', product.id);
+                }
+
+                embed.addFields([{ name: fieldName.substring(0, 256), value: fieldValue, inline: false }]);
+            } else {
+                let fieldLines = [];
+                let currentLength = 0;
+                
+                // Discord embed field value limit is 1024 characters.
+                // We use a buffer of 24 characters to account for the truncation message ("• ... y X más").
+                const MAX_VALUE_LENGTH = 1024;
+                const TRUNCATION_BUFFER = 24;
+                const SAFE_MAX_LENGTH = MAX_VALUE_LENGTH - TRUNCATION_BUFFER;
+
+                for (const entity of bestEntities) {
+                    const { storeName, safeUrl } = this._formatStoreLink(product, entity, storeMap);
+                    const line = `• **${storeName}**: [Ir a la tienda ↗](${safeUrl})`;
+                    if (currentLength + line.length + 1 > SAFE_MAX_LENGTH) {
+                        fieldLines.push(`• ... y ${bestEntities.length - fieldLines.length} más`);
+                        break;
+                    }
+                    fieldLines.push(line);
+                    currentLength += line.length + 1; // +1 for newline
+                }
+                embed.addFields([{ name: '🛒 Disponible en:', value: fieldLines.join('\n'), inline: false }]);
+            }
         }
 
         // 5. Handle Image / Attachment
