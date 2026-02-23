@@ -359,6 +359,38 @@ function determinePriceKey(triggers = []) {
     return triggers.some(t => t.includes('OFFER')) ? 'offer_price' : 'normal_price';
 }
 
+/**
+ * Finds the minimum price and all entities matching it in a single pass.
+ * @param {Array} entities List of valid entities.
+ * @param {string} priceKey The price key to check.
+ * @param {number} minSanityPrice The minimum price to consider valid.
+ * @returns {{minPrice: number, bestEntities: Array}} The minimum price and the matching entities.
+ */
+function findBestEntities(entities, priceKey, minSanityPrice) {
+    if (!entities || !Array.isArray(entities)) return { minPrice: Infinity, bestEntities: [] };
+    
+    return entities.reduce((acc, entity) => {
+        const p = parseFloat(entity.active_registry?.[priceKey]);
+
+        // Ignore invalid or unsanitary prices
+        if (isNaN(p) || p < minSanityPrice) {
+            return acc;
+        }
+
+        // If we found a new minimum, reset the list
+        if (p < acc.minPrice) {
+            return { minPrice: p, bestEntities: [entity] };
+        }
+        
+        // If it's the same minimum, add to the list
+        if (p === acc.minPrice) {
+            acc.bestEntities.push(entity);
+        }
+
+        return acc;
+    }, { minPrice: Infinity, bestEntities: [] });
+}
+
 module.exports = {
     SOLOTODO_BASE_URL,
     SOLOTODO_API_URL,
@@ -379,5 +411,6 @@ module.exports = {
     getProductHistory,
     getBestPictureUrl,
     filterValidEntities,
-    determinePriceKey
+    determinePriceKey,
+    findBestEntities
 };

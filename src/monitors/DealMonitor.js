@@ -454,6 +454,28 @@ class DealMonitor extends Monitor {
     }
 
     /**
+     * Formats a store entity into a displayable name and a safe URL.
+     * @private
+     * @param {object} product The product object.
+     * @param {object} entity The Solotodo entity.
+     * @param {Map<string, string>} storeMap Map of store URLs to names.
+     * @returns {{storeName: string, safeUrl: string}} The sanitized store name and URL.
+     */
+    _formatStoreLink(product, entity, storeMap) {
+        const storeName = sanitizeLinkText(storeMap.get(entity.store) || 'Tienda');
+        let safeUrl = '#';
+        try {
+            const urlObj = new URL(entity.external_url);
+            if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
+                safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29');
+            }
+        } catch (e) {
+            logger.warn('[DealMonitor] Invalid external URL for product %s (store: %s): %s', product.id, entity.store, String(entity.external_url).replace(/[\n\r]/g, ' '));
+        }
+        return { storeName, safeUrl };
+    }
+
+    /**
      * Sends a notification about a deal.
      * @param {object} change The change details.
      */
@@ -482,26 +504,7 @@ class DealMonitor extends Monitor {
         const priceKey = solotodo.determinePriceKey(triggers);
         
         // Find the minimum price and all entities matching it in a single pass
-        const { bestEntities } = validEntities.reduce((acc, entity) => {
-            const p = parseFloat(entity.active_registry?.[priceKey]);
-
-            // Ignore invalid or unsanitary prices
-            if (isNaN(p) || p < MIN_SANITY_PRICE) {
-                return acc;
-            }
-
-            // If we found a new minimum, reset the list
-            if (p < acc.minPrice) {
-                return { minPrice: p, bestEntities: [entity] };
-            }
-            
-            // If it's the same minimum, add to the list
-            if (p === acc.minPrice) {
-                acc.bestEntities.push(entity);
-            }
-
-            return acc;
-        }, { minPrice: Infinity, bestEntities: [] });
+        const { bestEntities } = solotodo.findBestEntities(validEntities, priceKey, MIN_SANITY_PRICE);
 
         if (bestEntities.length === 0) return;
 
@@ -522,38 +525,23 @@ class DealMonitor extends Monitor {
             .setFooter({ text: 'powered by Solotodo'});
 
         if (bestEntities.length > 0) {
-            /**
-             * Formats a store entity into a displayable name and a safe URL.
-             * @param {object} entity The Solotodo entity.
-             * @returns {{storeName: string, safeUrl: string}} The sanitized store name and URL.
-             */
-            const formatStoreLink = (entity) => {
-                const storeName = sanitizeLinkText(storeMap.get(entity.store) || 'Tienda');
-                let safeUrl = '#';
-                try {
-                    const urlObj = new URL(entity.external_url);
-                    if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
-                        safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29');
-                    }
-                } catch (e) {
-                    logger.warn('[DealMonitor] Invalid external URL for product %s (store: %s): %s', product.id, entity.store, String(entity.external_url).replace(/[\n\r]/g, ' '));
-                }
-                return { storeName, safeUrl };
-            };
-
             if (bestEntities.length === 1) {
-                const { storeName, safeUrl } = formatStoreLink(bestEntities[0]);
+                const { storeName, safeUrl } = this._formatStoreLink(product, bestEntities[0], storeMap);
                 embed.addFields([{ name: `🛒 Vendido por ${storeName}`, value: `[Ir a la tienda ↗](${safeUrl})`, inline: false }]);
             } else {
                 let fieldLines = [];
                 let currentLength = 0;
+                
                 // Discord embed field value limit is 1024 characters.
-                const MAX_LENGTH = 1024 - 24; // Buffer for truncation text
+                // We use a buffer of 24 characters to account for the truncation message ("• ... y X más").
+                const MAX_VALUE_LENGTH = 1024;
+                const TRUNCATION_BUFFER = 24;
+                const SAFE_MAX_LENGTH = MAX_VALUE_LENGTH - TRUNCATION_BUFFER;
 
                 for (const entity of bestEntities) {
-                    const { storeName, safeUrl } = formatStoreLink(entity);
+                    const { storeName, safeUrl } = this._formatStoreLink(product, entity, storeMap);
                     const line = `• **${storeName}**: [Ir a la tienda ↗](${safeUrl})`;
-                    if (currentLength + line.length + 1 > MAX_LENGTH) {
+                    if (currentLength + line.length + 1 > SAFE_MAX_LENGTH) {
                         fieldLines.push(`• ... y ${bestEntities.length - fieldLines.length} más`);
                         break;
                     }
