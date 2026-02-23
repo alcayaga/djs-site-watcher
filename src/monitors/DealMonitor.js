@@ -527,7 +527,15 @@ class DealMonitor extends Monitor {
         if (bestEntities.length > 0) {
             if (bestEntities.length === 1) {
                 const { storeName, safeUrl } = this._formatStoreLink(product, bestEntities[0], storeMap);
-                embed.addFields([{ name: `🛒 Vendido por ${storeName}`, value: `[Ir a la tienda ↗](${safeUrl})`, inline: false }]);
+                const fieldName = `🛒 Vendido por ${storeName}`;
+                let fieldValue = `[Ir a la tienda ↗](${safeUrl})`;
+
+                if (fieldValue.length > 1024) {
+                    fieldValue = 'El link de la tienda es demasiado largo para mostrar.';
+                    logger.warn('[DealMonitor] Store URL for product %s is too long to display in Discord embed.', product.id);
+                }
+
+                embed.addFields([{ name: fieldName.substring(0, 256), value: fieldValue, inline: false }]);
             } else {
                 let fieldLines = [];
                 let currentLength = 0;
