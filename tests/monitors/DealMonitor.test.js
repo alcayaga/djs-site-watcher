@@ -688,6 +688,7 @@ describe('DealMonitor', () => {
         };
 
         it('should download and attach image when no valid external picture URL is found', async () => {
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
             const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic.jpg', offerPrice: 10000, normalPrice: 20000 };
             
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
@@ -706,6 +707,7 @@ describe('DealMonitor', () => {
         });
 
         it('should try entity pictures if product picture fails to download', async () => {
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
             const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic.jpg', offerPrice: 10000, normalPrice: 20000 };
             const entities = [
                 { 
@@ -732,6 +734,7 @@ describe('DealMonitor', () => {
         });
         
         it('should abort download if image is too large', async () => {
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
             const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/big.jpg', offerPrice: 10000, normalPrice: 20000 };
             
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
@@ -762,6 +765,7 @@ describe('DealMonitor', () => {
         });
 
         it('should download and attach image when content-type is octet-stream by sniffing buffer', async () => {
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
             const product = { id: 1, name: 'iPhone', pictureUrl: 'http://ambiguous.com/image', offerPrice: 10000, normalPrice: 20000 };
             
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
@@ -777,6 +781,7 @@ describe('DealMonitor', () => {
         });
 
         it('should reject non-image resources even if potentially allowed by header', async () => {
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
             const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/malicious.sh', offerPrice: 10000, normalPrice: 20000 };
             
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
@@ -791,6 +796,7 @@ describe('DealMonitor', () => {
         });
 
         it('should reject if Content-Type is explicitly not an image', async () => {
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
             const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/page.html', offerPrice: 10000, normalPrice: 20000 };
             
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
@@ -803,6 +809,7 @@ describe('DealMonitor', () => {
         });
 
         it('should reject if Content-Type is missing but content is not an image', async () => {
+            // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
             const product = { id: 1, name: 'iPhone', pictureUrl: 'http://banned.com/pic', offerPrice: 10000, normalPrice: 20000 };
             
             solotodo.getBestPictureUrl.mockResolvedValueOnce(null);
