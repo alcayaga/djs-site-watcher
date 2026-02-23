@@ -355,7 +355,7 @@ function filterValidEntities(entities) {
  * @returns {string} The price key ('offer_price' or 'normal_price').
  */
 function determinePriceKey(triggers = []) {
-    if (!triggers) triggers = [];
+    if (triggers == null || !Array.isArray(triggers)) triggers = [];
     return triggers.some(t => t.includes('OFFER')) ? 'offer_price' : 'normal_price';
 }
 

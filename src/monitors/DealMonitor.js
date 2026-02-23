@@ -2,7 +2,7 @@ const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const config = require('../config');
 const got = require('got');
-const { formatCLP, sanitizeLinkText, formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
+const { formatCLP, sanitizeLinkText, formatDiscordTimestamp } = require('../utils/formatters');
 const solotodo = require('../utils/solotodo');
 const { DEFAULT_PRICE_TOLERANCE, DEFAULT_GRACE_PERIOD_HOURS } = require('../utils/constants');
 const { sleep } = require('../utils/helpers');
@@ -485,8 +485,11 @@ class DealMonitor extends Monitor {
         const prices = validEntities.map(e => parseFloat(e.active_registry?.[priceKey] || 0));
         const minPrice = Math.min(...prices.filter(p => p >= MIN_SANITY_PRICE));
         
-        // Filter entities that are at that minimum price
-        const bestEntities = validEntities.filter(e => parseFloat(e.active_registry?.[priceKey]) === minPrice);
+        // Filter entities that are at that minimum price and also meet the sanity price (redundant but safe)
+        const bestEntities = validEntities.filter(e => {
+            const p = parseFloat(e.active_registry?.[priceKey]);
+            return p === minPrice && p >= MIN_SANITY_PRICE;
+        });
 
         if (bestEntities.length === 0) return;
 
@@ -513,7 +516,7 @@ class DealMonitor extends Monitor {
              * @returns {{storeName: string, safeUrl: string}} The sanitized store name and URL.
              */
             const formatStoreLink = (entity) => {
-                const storeName = sanitizeMarkdown(storeMap.get(entity.store) || 'Tienda');
+                const storeName = sanitizeLinkText(storeMap.get(entity.store) || 'Tienda');
                 let safeUrl = '#';
                 try {
                     const urlObj = new URL(entity.external_url);
@@ -521,7 +524,7 @@ class DealMonitor extends Monitor {
                         safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29');
                     }
                 } catch (e) {
-                    logger.warn('[DealMonitor] Invalid external URL for entity %s: %s', entity.id, entity.external_url);
+                    logger.warn('[DealMonitor] Invalid external URL for entity %s: %s', entity.id, String(entity.external_url).replace(/[\n\r]/g, ' '));
                 }
                 return { storeName, safeUrl };
             };
@@ -532,7 +535,8 @@ class DealMonitor extends Monitor {
             } else {
                 let fieldLines = [];
                 let currentLength = 0;
-                const MAX_LENGTH = 1000; // slightly less than 1024 to be safe
+                // Discord embed field value limit is 1024 characters.
+                const MAX_LENGTH = 1024 - 24; // Buffer for truncation text
 
                 for (const entity of bestEntities) {
                     const { storeName, safeUrl } = formatStoreLink(entity);
