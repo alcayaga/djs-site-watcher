@@ -507,6 +507,11 @@ class DealMonitor extends Monitor {
             .setFooter({ text: 'powered by Solotodo'});
 
         if (bestEntities.length > 0) {
+            /**
+             * Formats a store entity into a displayable name and a safe URL.
+             * @param {object} entity The Solotodo entity.
+             * @returns {{storeName: string, safeUrl: string}} The sanitized store name and URL.
+             */
             const formatStoreLink = (entity) => {
                 const storeName = sanitizeMarkdown(storeMap.get(entity.store) || 'Tienda');
                 let safeUrl = '#';

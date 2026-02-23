@@ -30,8 +30,8 @@ function sanitizeMarkdown(text) {
         .replace(/\]/g, '\\]')
         .replace(/</g, '\\<') // Escape less than
         .replace(/>/g, '\\>') // Escape greater than
-        .replace(/@everyone/g, '@\u200beveryone') // Add zero-width space
-        .replace(/@here/g, '@\u200bhere');
+        .replace(/@everyone/gi, '@\u200beveryone') // Add zero-width space
+        .replace(/@here/gi, '@\u200bhere');
 }
 
 /**
@@ -46,8 +46,8 @@ function sanitizeLinkText(text) {
         .replace(/\]/g, '\\]')
         .replace(/</g, '\\<') // Escape less than
         .replace(/>/g, '\\>') // Escape greater than
-        .replace(/@everyone/g, '@\u200beveryone')
-        .replace(/@here/g, '@\u200bhere');
+        .replace(/@everyone/gi, '@\u200beveryone')
+        .replace(/@here/gi, '@\u200bhere');
 }
 
 /**
