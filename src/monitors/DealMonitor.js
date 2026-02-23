@@ -482,8 +482,11 @@ class DealMonitor extends Monitor {
         const priceKey = solotodo.determinePriceKey(triggers);
         
         // Find the minimum price for that key among the valid entities
-        const prices = validEntities.map(e => parseFloat(e.active_registry?.[priceKey] || 0));
-        const minPrice = Math.min(...prices.filter(p => p >= MIN_SANITY_PRICE));
+        const prices = validEntities
+            .map(e => parseFloat(e.active_registry?.[priceKey]))
+            .filter(p => !isNaN(p) && p >= MIN_SANITY_PRICE);
+        
+        const minPrice = prices.length > 0 ? Math.min(...prices) : Infinity;
         
         // Filter entities that are at that minimum price and also meet the sanity price (redundant but safe)
         const bestEntities = validEntities.filter(e => {
@@ -524,7 +527,7 @@ class DealMonitor extends Monitor {
                         safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29');
                     }
                 } catch (e) {
-                    logger.warn('[DealMonitor] Invalid external URL for entity %s: %s', entity.id, String(entity.external_url).replace(/[\n\r]/g, ' '));
+                    logger.warn('[DealMonitor] Invalid external URL for product %s (store: %s): %s', product.id, entity.store, String(entity.external_url).replace(/[\n\r]/g, ' '));
                 }
                 return { storeName, safeUrl };
             };
