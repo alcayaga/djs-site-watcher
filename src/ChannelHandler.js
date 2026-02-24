@@ -29,8 +29,8 @@ class ChannelHandler {
 
     /**
      * Entry point for message handling. Performs common checks before calling process().
-     * This method is part of a "Chain of Responsibility" pattern.
-     * 
+     * Entry point for message handling. Performs common checks before calling process().
+     * This method is part of a "Chain of Responsibility" pattern, serving as the entry point for message processing.
      * @param {import('discord.js').Message} message 
      * @param {object} state 
      * @returns {Promise<boolean>} A boolean indicating if the message processing chain should continue.
