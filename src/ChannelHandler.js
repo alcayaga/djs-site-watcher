@@ -51,7 +51,7 @@ class ChannelHandler {
      * @abstract
      * @param {import('discord.js').Message} _message 
      * @param {object} _state 
-     * @returns {Promise<boolean>} Should return `true` to stop the chain (e.g., if the message was consumed), or `false` to allow other handlers to run.
+     * @returns {Promise<boolean>} `true` if the message was fully handled, stopping the chain; `false` to allow subsequent handlers to process it.
      */
     // eslint-disable-next-line no-unused-vars
     async process(_message, _state) {
