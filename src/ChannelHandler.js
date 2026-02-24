@@ -29,9 +29,13 @@ class ChannelHandler {
 
     /**
      * Entry point for message handling. Performs common checks before calling process().
+     * Entry point for message handling. Performs common checks before calling process().
+     * This method is part of a "Chain of Responsibility" pattern, serving as the entry point for message processing.
      * @param {import('discord.js').Message} message 
      * @param {object} state 
-     * @returns {Promise<boolean>}
+     * @returns {Promise<boolean>} A boolean indicating if the message processing chain should continue.
+     *                             - `true`: The message was fully handled or consumed (e.g., deleted or replied to). Stops the chain.
+     *                             - `false`: The message was ignored or processed in a way that allows other handlers to act on it. Continues the chain.
      */
     async handle(message, state) {
         // Common checks: ignore bots (unless configured otherwise)
@@ -47,7 +51,7 @@ class ChannelHandler {
      * @abstract
      * @param {import('discord.js').Message} _message 
      * @param {object} _state 
-     * @returns {Promise<boolean>}
+     * @returns {Promise<boolean>} `true` if the message was fully handled, stopping the chain; `false` to allow subsequent handlers to process it.
      */
     // eslint-disable-next-line no-unused-vars
     async process(_message, _state) {
