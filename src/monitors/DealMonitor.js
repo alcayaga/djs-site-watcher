@@ -513,13 +513,16 @@ class DealMonitor extends Monitor {
         const { description, color } = this._getNotificationMetadata(triggers, stored);
 
         // 4. Build Embed
-        const offerPriceValue = previousOfferPrice && previousOfferPrice > product.offerPrice
-            ? `~~${formatCLP(previousOfferPrice)}~~\n**${formatCLP(product.offerPrice)}**`
-            : `${formatCLP(product.offerPrice)}`;
+        const formatPriceValue = (current, previous) => {
+            const formattedCurrent = formatCLP(current);
+            if (previous && previous > current) {
+                return `~~${formatCLP(previous)}~~\n**${formattedCurrent}**`;
+            }
+            return formattedCurrent;
+        };
 
-        const normalPriceValue = previousNormalPrice && previousNormalPrice > product.normalPrice
-            ? `~~${formatCLP(previousNormalPrice)}~~\n**${formatCLP(product.normalPrice)}**`
-            : `${formatCLP(product.normalPrice)}`;
+        const offerPriceValue = formatPriceValue(product.offerPrice, previousOfferPrice);
+        const normalPriceValue = formatPriceValue(product.normalPrice, previousNormalPrice);
 
         const embed = new Discord.EmbedBuilder()
             .setTitle(sanitizedName)
