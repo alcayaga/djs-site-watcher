@@ -353,7 +353,7 @@ class DealMonitor extends Monitor {
                 if (offerTrigger || normalTrigger) {
                     const triggers = [offerTrigger, normalTrigger].filter(t => t && t !== 'CHANGED' && t !== 'PENDING');
                     if (triggers.length > 0) {
-                        await this.notify({ product, triggers, date: now, stored });
+                        await this.notify({ product, triggers, date: now, stored, previousOfferPrice, previousNormalPrice });
                     }
                 }
 
@@ -480,7 +480,7 @@ class DealMonitor extends Monitor {
      * @param {object} change The change details.
      */
     async notify(change) {
-        let { product, triggers, stored, type } = change;
+        let { product, triggers, stored, type, previousOfferPrice, previousNormalPrice } = change;
         
         // Backward compatibility
         if (!triggers && type) triggers = [type];
@@ -513,12 +513,20 @@ class DealMonitor extends Monitor {
         const { description, color } = this._getNotificationMetadata(triggers, stored);
 
         // 4. Build Embed
+        const offerPriceValue = previousOfferPrice && previousOfferPrice > product.offerPrice
+            ? `~~${formatCLP(previousOfferPrice)}~~\n**${formatCLP(product.offerPrice)}**`
+            : `${formatCLP(product.offerPrice)}`;
+
+        const normalPriceValue = previousNormalPrice && previousNormalPrice > product.normalPrice
+            ? `~~${formatCLP(previousNormalPrice)}~~\n**${formatCLP(product.normalPrice)}**`
+            : `${formatCLP(product.normalPrice)}`;
+
         const embed = new Discord.EmbedBuilder()
             .setTitle(sanitizedName)
             .setDescription(description)
             .addFields([
-                { name: '💳 Precio Tarjeta', value: `${formatCLP(product.offerPrice)}`, inline: true },
-                { name: '💰 Precio Normal', value: `${formatCLP(product.normalPrice)}`, inline: true }
+                { name: '💳 Precio Tarjeta', value: offerPriceValue, inline: true },
+                { name: '💰 Precio Normal', value: normalPriceValue, inline: true }
             ])
             .setColor(color)
             .setTimestamp()
