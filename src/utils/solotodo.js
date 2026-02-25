@@ -64,7 +64,8 @@ async function searchSolotodo(query) {
             try {
                 const availUrl = new URL(`${SOLOTODO_API_URL}/products/available_entities/`);
                 availUrl.searchParams.set('countries', CHILE_COUNTRY_ID);
-                topMatches.forEach(p => availUrl.searchParams.append('ids', String(p.id)));
+                // Use a single 'ids' parameter with comma-separated values
+                availUrl.searchParams.set('ids', topMatches.map(p => p.id).join(','));
 
                 const availRes = await got(availUrl.toString(), {
                     ...getSafeGotOptions(),
@@ -93,7 +94,7 @@ async function searchSolotodo(query) {
             } catch (err) {
                 // We log the error but allow the search to proceed to fallback logic (non-stock-aware)
                 // so the user still gets a result even if the availability check fails.
-                logger.error('Error checking product availability during search:', err);
+                logger.error('Error checking product availability during search (URL: %s):', availUrl.toString(), err);
             }
 
             // Fallback: Return first Apple match among those containing query words
