@@ -13,6 +13,7 @@ const {
     NEW_CONDITION_URL,
     MIN_DESCRIPTIVE_SLUG_LENGTH,
     MAX_SKU_LIKE_SLUG_LENGTH,
+    SOLOTODO_AVAILABILITY_CHECK_LIMIT,
     BANNED_PICTURE_DOMAINS,
     APPLE_PRODUCTS
 } = require('./constants');
@@ -59,15 +60,14 @@ async function searchSolotodo(query) {
         });
 
         if (matches.length > 0) {
-            // Check availability for top 5 matches to prioritize in-stock results
-            const topMatches = matches.slice(0, 5);
-            let availUrl = null;
-            try {
-                availUrl = new URL(`${SOLOTODO_API_URL}/products/available_entities/`);
-                availUrl.searchParams.set('countries', CHILE_COUNTRY_ID);
-                // Use a single 'ids' parameter with comma-separated values
-                availUrl.searchParams.set('ids', topMatches.map(p => p.id).join(','));
+            // Check availability for top matches to prioritize in-stock results
+            const topMatches = matches.slice(0, SOLOTODO_AVAILABILITY_CHECK_LIMIT);
+            const availUrl = new URL(`${SOLOTODO_API_URL}/products/available_entities/`);
+            availUrl.searchParams.set('countries', CHILE_COUNTRY_ID);
+            // Use a single 'ids' parameter with comma-separated values
+            availUrl.searchParams.set('ids', topMatches.map(p => p.id).join(','));
 
+            try {
                 const availRes = await got(availUrl.toString(), {
                     ...getSafeGotOptions(),
                     responseType: 'json'
@@ -95,8 +95,7 @@ async function searchSolotodo(query) {
             } catch (err) {
                 // We log the error but allow the search to proceed to fallback logic (non-stock-aware)
                 // so the user still gets a result even if the availability check fails.
-                const urlStr = availUrl ? availUrl.toString() : 'N/A';
-                logger.error('Error checking product availability during search (URL: %s):', urlStr, err);
+                logger.error('Error checking product availability during search (URL: %s):', availUrl.toString(), err);
             }
 
             // Fallback: Return first Apple match among those containing query words
