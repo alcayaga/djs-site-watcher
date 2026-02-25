@@ -2,7 +2,7 @@ const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const config = require('../config');
 const got = require('got');
-const { formatCLP, sanitizeLinkText, formatDiscordTimestamp } = require('../utils/formatters');
+const { formatCLP, sanitizeLinkText, formatDiscordTimestamp, formatPriceValue } = require('../utils/formatters');
 const solotodo = require('../utils/solotodo');
 const { DEFAULT_PRICE_TOLERANCE, DEFAULT_GRACE_PERIOD_HOURS } = require('../utils/constants');
 const { sleep } = require('../utils/helpers');
@@ -353,7 +353,7 @@ class DealMonitor extends Monitor {
                 if (offerTrigger || normalTrigger) {
                     const triggers = [offerTrigger, normalTrigger].filter(t => t && t !== 'CHANGED' && t !== 'PENDING');
                     if (triggers.length > 0) {
-                        await this.notify({ product, triggers, date: now, stored });
+                        await this.notify({ product, triggers, date: now, stored, previousOfferPrice, previousNormalPrice });
                     }
                 }
 
@@ -480,7 +480,7 @@ class DealMonitor extends Monitor {
      * @param {object} change The change details.
      */
     async notify(change) {
-        let { product, triggers, stored, type } = change;
+        let { product, triggers, stored, type, previousOfferPrice, previousNormalPrice } = change;
         
         // Backward compatibility
         if (!triggers && type) triggers = [type];
@@ -513,12 +513,15 @@ class DealMonitor extends Monitor {
         const { description, color } = this._getNotificationMetadata(triggers, stored);
 
         // 4. Build Embed
+        const offerPriceValue = formatPriceValue(product.offerPrice, previousOfferPrice);
+        const normalPriceValue = formatPriceValue(product.normalPrice, previousNormalPrice);
+
         const embed = new Discord.EmbedBuilder()
             .setTitle(sanitizedName)
             .setDescription(description)
             .addFields([
-                { name: '💳 Precio Tarjeta', value: `${formatCLP(product.offerPrice)}`, inline: true },
-                { name: '💰 Precio Normal', value: `${formatCLP(product.normalPrice)}`, inline: true }
+                { name: '💳 Precio Tarjeta', value: offerPriceValue, inline: true },
+                { name: '💰 Precio Normal', value: normalPriceValue, inline: true }
             ])
             .setColor(color)
             .setTimestamp()

@@ -1000,4 +1000,51 @@ describe('DealMonitor', () => {
             expect(vendorField.value).toContain('... y');
         });
     });
+
+    describe('price formatting in embeds', () => {
+        it('should show previous price with strikethrough when price drops', async () => {
+            const product = { id: 1, name: 'iPhone', offerPrice: 80000, normalPrice: 90000 };
+            
+            await monitor.notify({ 
+                product, 
+                triggers: ['NEW_LOW_OFFER'], 
+                date: new Date().toISOString(),
+                previousOfferPrice: 100000,
+                previousNormalPrice: 110000 
+            });
+
+            expect(mockChannel.send).toHaveBeenCalled();
+            const sendCall = mockChannel.send.mock.calls[0][0];
+            const embed = sendCall.embeds[0];
+            
+            const offerField = embed.data.fields.find(f => f.name === '💳 Precio Tarjeta');
+            const normalField = embed.data.fields.find(f => f.name === '💰 Precio Normal');
+            
+            expect(offerField.value).toBe('~~$100.000~~\n**$80.000**');
+            expect(normalField.value).toBe('~~$110.000~~\n**$90.000**');
+        });
+
+        it('should only show current price when price stays the same or there is no previous price', async () => {
+            const product = { id: 1, name: 'iPhone', offerPrice: 80000, normalPrice: 90000 };
+            
+            // Previous offer price is same, previous normal price is null
+            await monitor.notify({ 
+                product, 
+                triggers: ['NEW_LOW_OFFER'], 
+                date: new Date().toISOString(),
+                previousOfferPrice: 80000,
+                previousNormalPrice: null
+            });
+
+            expect(mockChannel.send).toHaveBeenCalled();
+            const sendCall = mockChannel.send.mock.calls[0][0];
+            const embed = sendCall.embeds[0];
+            
+            const offerField = embed.data.fields.find(f => f.name === '💳 Precio Tarjeta');
+            const normalField = embed.data.fields.find(f => f.name === '💰 Precio Normal');
+            
+            expect(offerField.value).toBe('$80.000');
+            expect(normalField.value).toBe('$90.000');
+        });
+    });
 });
