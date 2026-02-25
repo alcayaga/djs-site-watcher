@@ -61,8 +61,9 @@ async function searchSolotodo(query) {
         if (matches.length > 0) {
             // Check availability for top 5 matches to prioritize in-stock results
             const topMatches = matches.slice(0, 5);
+            let availUrl = null;
             try {
-                const availUrl = new URL(`${SOLOTODO_API_URL}/products/available_entities/`);
+                availUrl = new URL(`${SOLOTODO_API_URL}/products/available_entities/`);
                 availUrl.searchParams.set('countries', CHILE_COUNTRY_ID);
                 // Use a single 'ids' parameter with comma-separated values
                 availUrl.searchParams.set('ids', topMatches.map(p => p.id).join(','));
@@ -94,7 +95,8 @@ async function searchSolotodo(query) {
             } catch (err) {
                 // We log the error but allow the search to proceed to fallback logic (non-stock-aware)
                 // so the user still gets a result even if the availability check fails.
-                logger.error('Error checking product availability during search (URL: %s):', availUrl.toString(), err);
+                const urlStr = availUrl ? availUrl.toString() : 'N/A';
+                logger.error('Error checking product availability during search (URL: %s):', urlStr, err);
             }
 
             // Fallback: Return first Apple match among those containing query words
