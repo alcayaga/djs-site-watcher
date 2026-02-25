@@ -60,6 +60,12 @@ async function searchSolotodo(query) {
         });
 
         if (matches.length > 0) {
+            const findBestMatch = (products) => {
+                const appleMatch = products.find(p => p.name.toLowerCase().startsWith('apple'));
+                if (appleMatch) return appleMatch;
+                return products.length > 0 ? products[0] : null;
+            };
+
             // Check availability for top matches to prioritize in-stock results
             const topMatches = matches.slice(0, SOLOTODO_AVAILABILITY_CHECK_LIMIT);
             const availUrl = new URL(`${SOLOTODO_API_URL}/products/available_entities/`);
@@ -83,27 +89,18 @@ async function searchSolotodo(query) {
 
                 // Filter in-stock products once
                 const inStockProducts = topMatches.filter(p => availabilityMap.get(p.id));
+                
+                const bestInStock = findBestMatch(inStockProducts);
+                if (bestInStock) return bestInStock;
 
-                // 1. Prioritize results that start with "Apple" AND are in stock
-                const appleInStock = inStockProducts.find(p => 
-                    p.name.toLowerCase().startsWith('apple')
-                );
-                if (appleInStock) return appleInStock;
-
-                // 2. Then any result that is in stock
-                if (inStockProducts.length > 0) return inStockProducts[0];
             } catch (err) {
                 // We log the error but allow the search to proceed to fallback logic (non-stock-aware)
                 // so the user still gets a result even if the availability check fails.
                 logger.error('Error checking product availability during search (URL: %s):', availUrl.toString(), err);
             }
 
-            // Fallback: Return first Apple match among those containing query words
-            const appleMatch = matches.find(p => p.name.toLowerCase().startsWith('apple'));
-            if (appleMatch) return appleMatch;
-
-            // Last resort: Return the first match containing query words
-            return matches[0];
+            // Fallback to searching all matches
+            return findBestMatch(matches);
         }
 
         // If no matches found with all words, return null to avoid misleading results
