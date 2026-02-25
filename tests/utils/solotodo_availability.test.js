@@ -59,29 +59,18 @@ describe('Solotodo Utils - searchSolotodo Availability', () => {
         expect(url).toContain('ids=224175');
     });
 
-    it('should fallback to first match if all are out of stock', async () => {
+    it('should return null if no matches contain all query words', async () => {
         // 1. Mock search results
         got.mockResolvedValueOnce({
             body: {
                 results: [
-                    { id: 1, name: 'Apple Product A', slug: 'a' },
-                    { id: 2, name: 'Apple Product B', slug: 'b' }
+                    { id: 1, name: 'Apple Watch', slug: 'watch' }
                 ]
             }
         });
 
-        // 2. Mock availability check (both empty)
-        got.mockResolvedValueOnce({
-            body: {
-                results: [
-                    { product: { id: 1 }, entities: [] },
-                    { product: { id: 2 }, entities: [] }
-                ]
-            }
-        });
-
-        const result = await searchSolotodo('Apple Product');
+        const result = await searchSolotodo('iPhone 15'); // None of these words in 'Apple Watch'
         
-        expect(result.id).toBe(1); // Fallback to first
+        expect(result).toBeNull();
     });
 });

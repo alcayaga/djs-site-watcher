@@ -79,18 +79,21 @@ async function searchSolotodo(query) {
                     }
                 }
 
+                // Filter in-stock products once
+                const inStockProducts = topMatches.filter(p => availabilityMap.get(p.id));
+
                 // 1. Prioritize results that start with "Apple" AND are in stock
-                const appleInStock = topMatches.find(p => 
-                    p.name.toLowerCase().startsWith('apple') && availabilityMap.get(p.id)
+                const appleInStock = inStockProducts.find(p => 
+                    p.name.toLowerCase().startsWith('apple')
                 );
                 if (appleInStock) return appleInStock;
 
                 // 2. Then any result that is in stock
-                const anyInStock = topMatches.find(p => availabilityMap.get(p.id));
-                if (anyInStock) return anyInStock;
+                if (inStockProducts.length > 0) return inStockProducts[0];
             } catch (err) {
+                // We log the error but allow the search to proceed to fallback logic (non-stock-aware)
+                // so the user still gets a result even if the availability check fails.
                 logger.error('Error checking product availability during search:', err);
-                // Continue to fallback if availability check fails
             }
 
             // Fallback: Return first Apple match among those containing query words
@@ -101,9 +104,8 @@ async function searchSolotodo(query) {
             return matches[0];
         }
 
-        // If no matches found with all words, return the first "Apple" result from overall results
-        const fallbackApple = response.body.results.find(p => p.name.toLowerCase().startsWith('apple'));
-        return fallbackApple || response.body.results[0];
+        // If no matches found with all words, return null to avoid misleading results
+        return null;
     }
     return null;
 }
