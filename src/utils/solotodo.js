@@ -37,6 +37,17 @@ function getSearchUrl(query) {
 }
 
 /**
+ * Finds the best product match from a list, prioritizing Apple products.
+ * @param {Array<object>} products The list of products to check.
+ * @returns {object|null} The best matching product or null.
+ */
+function findBestMatch(products) {
+    const appleMatch = products.find(p => p.name.toLowerCase().startsWith('apple'));
+    if (appleMatch) return appleMatch;
+    return products.length > 0 ? products[0] : null;
+}
+
+/**
  * Searches Solotodo for a product.
  * @param {string} query The search query.
  * @returns {Promise<object|null>} The first product found or null.
@@ -60,12 +71,6 @@ async function searchSolotodo(query) {
         });
 
         if (matches.length > 0) {
-            const findBestMatch = (products) => {
-                const appleMatch = products.find(p => p.name.toLowerCase().startsWith('apple'));
-                if (appleMatch) return appleMatch;
-                return products.length > 0 ? products[0] : null;
-            };
-
             // Check availability for top matches to prioritize in-stock results
             const topMatches = matches.slice(0, SOLOTODO_AVAILABILITY_CHECK_LIMIT);
             const availUrl = new URL(`${SOLOTODO_API_URL}/products/available_entities/`);

@@ -52,10 +52,11 @@ describe('Solotodo Utils - searchSolotodo Availability', () => {
         expect(result.id).toBe(224175);
         expect(result.name).toBe('Apple AirPods Pro (2nd gen)');
         
-        // Verify IDs were checked for availability in a comma-separated format
+        // Verify IDs were checked for availability regardless of order
         const availabilityCall = got.mock.calls[1];
-        const url = availabilityCall[0];
-        expect(url).toContain('ids=70846%2C224175');
+        const url = new URL(availabilityCall[0]);
+        const ids = new Set(url.searchParams.get('ids').split(','));
+        expect(ids).toEqual(new Set(['70846', '224175']));
     });
 
     it('should return null if no matches contain all query words', async () => {
