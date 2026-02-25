@@ -24,7 +24,7 @@ describe('Solotodo Utils - extractQuery', () => {
     it('should prioritize URL extraction for known products even if text contains generic terms', () => {
         // Regression test for "200 Lucas > URL" case where "AirPods" might be found in URL but "AirPods Pro" is better
         const input = '200 Lucas > https://www.paris.cl/apple-airpods-pro-2da-generacion-con-estuche-de-carga-magsafe-usb-c-556043999.html';
-        expect(extractQuery(input)).toBe('AirPods Pro');
+        expect(extractQuery(input)).toBe('AirPods Pro 2');
     });
 
     it('should fallback to clean text if no URL or known product', () => {
@@ -60,7 +60,7 @@ describe('Solotodo Utils - extractQuery', () => {
         expect(extractQuery('https://www.falabella.com/falabella-cl/product/7183779/AirPods-2ª-Generacion-Con-Estuche-De-Carga-Apple/7183779')).toBe('AirPods');
         
         // Paris with .html and numeric suffix in slug
-        expect(extractQuery('200 Lucas > https://www.paris.cl/apple-airpods-pro-2da-generacion-con-estuche-de-carga-magsafe-usb-c-556043999.html')).toBe('AirPods Pro');
+        expect(extractQuery('200 Lucas > https://www.paris.cl/apple-airpods-pro-2da-generacion-con-estuche-de-carga-magsafe-usb-c-556043999.html')).toBe('AirPods Pro 2');
         
         // ScotiaMarketplace
         expect(extractQuery('https://scotiamarketplace.cl/apple/1448009-airpods-pro-3-con-cancelacion-de-ruido-usb-c-3-gen.html')).toBe('AirPods Pro');
@@ -121,6 +121,13 @@ describe('Solotodo Utils - API functions', () => {
                 results: [
                     { name: 'Some random accessory', id: 1 },
                     { name: 'Apple iPhone 15', id: 2 }
+                ]
+            }
+        });
+        got.mockResolvedValueOnce({
+            body: {
+                results: [
+                    { product: { id: 2 }, entities: [{ active_registry: { is_available: true }, condition: 'https://schema.org/NewCondition' }] }
                 ]
             }
         });

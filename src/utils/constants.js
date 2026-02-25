@@ -15,6 +15,7 @@ const MAX_SKU_LIKE_SLUG_LENGTH = 10;
 
 const DEFAULT_PRICE_TOLERANCE = 500; // 500 CLP tolerance for phantom price spikes
 const DEFAULT_GRACE_PERIOD_HOURS = 12;
+const SOLOTODO_AVAILABILITY_CHECK_LIMIT = 5;
 
 // Domains that serve broken or non-standard images for Apple products.
 const BANNED_PICTURE_DOMAINS = [
@@ -52,6 +53,8 @@ const APPLE_PRODUCTS = [
     'Apple Watch Series 7', 'Apple Watch SE', 'Apple Watch',
 
     // Audio / Accessories
+    'AirPods Pro (2nd gen)', 'AirPods Pro (1st gen)', 'AirPods Pro 2',
+    'AirPods (4th gen)', 'AirPods (3rd gen)', 'AirPods (2nd gen)', 'AirPods (1st gen)',
     'AirPods Max', 'AirPods Pro', 'AirPods 4', 'AirPods',
     'HomePod mini', 'HomePod',
     'Apple TV 4K', 'Apple TV',
@@ -92,6 +95,7 @@ module.exports = {
     MAX_SKU_LIKE_SLUG_LENGTH,
     DEFAULT_PRICE_TOLERANCE,
     DEFAULT_GRACE_PERIOD_HOURS,
+    SOLOTODO_AVAILABILITY_CHECK_LIMIT,
     BANNED_PICTURE_DOMAINS,
     APPLE_PRODUCTS,
     ENV_DISCORDJS_BOT_TOKEN,

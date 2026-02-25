@@ -13,6 +13,7 @@ const {
     NEW_CONDITION_URL,
     MIN_DESCRIPTIVE_SLUG_LENGTH,
     MAX_SKU_LIKE_SLUG_LENGTH,
+    SOLOTODO_AVAILABILITY_CHECK_LIMIT,
     BANNED_PICTURE_DOMAINS,
     APPLE_PRODUCTS
 } = require('./constants');
@@ -36,6 +37,17 @@ function getSearchUrl(query) {
 }
 
 /**
+ * Finds the best product match from a list, prioritizing Apple products.
+ * @param {Array<object>} products The list of products to check.
+ * @returns {object|null} The best matching product or null.
+ */
+function findBestMatch(products) {
+    const appleMatch = products.find(p => p.name.toLowerCase().startsWith('apple '));
+    if (appleMatch) return appleMatch;
+    return products.length > 0 ? products[0] : null;
+}
+
+/**
  * Searches Solotodo for a product.
  * @param {string} query The search query.
  * @returns {Promise<object|null>} The first product found or null.
@@ -49,17 +61,55 @@ async function searchSolotodo(query) {
     });
 
     if (response.body.results && response.body.results.length > 0) {
-        // Prioritize results that start with "Apple" to avoid accessories or knock-offs
-        const appleResult = response.body.results.find(product =>
-            product.name.toLowerCase().startsWith('apple') &&
-            // Ensure the result actually contains the query terms (e.g. searching "AirPods Pro" shouldn't return base "AirPods")
-            query.split(' ').every(word => product.name.toLowerCase().includes(word.toLowerCase()))
-        );
+        const queryLower = query.toLowerCase();
+        const queryWords = queryLower.split(' ').filter(w => w.length > 0);
 
-        if (appleResult) return appleResult;
+        // Filter results that contain all query words
+        const matches = response.body.results.filter(product => {
+            const productName = product.name.toLowerCase();
+            return queryWords.every(word => productName.includes(word));
+        });
 
-        // Fallback: Return first result if no "Apple" match found (though unlikely for this bot)
-        return response.body.results[0];
+        if (matches.length > 0) {
+            // Check availability for top matches to prioritize in-stock results
+            const topMatches = matches.slice(0, SOLOTODO_AVAILABILITY_CHECK_LIMIT);
+            const availUrl = new URL(`${SOLOTODO_API_URL}/products/available_entities/`);
+            availUrl.searchParams.set('countries', CHILE_COUNTRY_ID);
+            // Use a single 'ids' parameter with comma-separated values
+            availUrl.searchParams.set('ids', topMatches.map(p => p.id).join(','));
+
+            try {
+                const availRes = await got(availUrl.toString(), {
+                    ...getSafeGotOptions(),
+                    responseType: 'json'
+                });
+
+                const availabilityMap = new Map();
+                if (availRes.body.results) {
+                    for (const res of availRes.body.results) {
+                        const validEntities = filterValidEntities(res.entities);
+                        availabilityMap.set(res.product.id, validEntities.length > 0);
+                    }
+                }
+
+                // Filter in-stock products once
+                const inStockProducts = topMatches.filter(p => availabilityMap.get(p.id));
+                
+                const bestInStock = findBestMatch(inStockProducts);
+                if (bestInStock) return bestInStock;
+
+            } catch (err) {
+                // We log the error but allow the search to proceed to fallback logic (non-stock-aware)
+                // so the user still gets a result even if the availability check fails.
+                logger.error('Error checking product availability during search (URL: %s):', availUrl.toString(), err);
+            }
+
+            // Fallback to searching all matches
+            return findBestMatch(matches);
+        }
+
+        // If no matches found with all words, return null to avoid misleading results
+        return null;
     }
     return null;
 }
