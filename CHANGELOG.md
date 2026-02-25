@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.5.0] - 2026-02-25
+
+### Features
+
+- **deals:** Show previous price with strikethrough on drop (55ac9b9)
+- **DealMonitor:** Support multiple store links in alerts (7268538)
+- **qa:** Add Discord reactions to QAChannel (f6eaa15)
+
+### Bug Fixes
+
+- **solotodo:** Improve search accuracy and prioritize in-stock products (260d6b0)
+
+### Refactoring
+
+- **core:** Implement structured logging with winston (edb6989)
+- **utils:** Use file-type library for image sniffing (ef02f36)
+- **config:** Move network constants to configuration (92c223f)
+- **deploy:** Use TARGET_ENV and dynamic PM2 config (b3796f6)
+- **config:** Use constants for environment variables in tests and config (def97c8)
+- **DealMonitor:** Implement immutable state updates (af4f03b)
+
+### Documentation
+
+- **channel:** Document chain of responsibility return logic (b0b4a76)
+
+### CI/CD
+
+- **ci:** Trigger staging deploy only after successful Node.js CI (11f44dc)
+- **ci:** Use custom sites config for testing (edff286)
+
 ## [3.4.0] - 2026-02-18
 
 ### Features
