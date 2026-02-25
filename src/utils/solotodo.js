@@ -49,17 +49,61 @@ async function searchSolotodo(query) {
     });
 
     if (response.body.results && response.body.results.length > 0) {
-        // Prioritize results that start with "Apple" to avoid accessories or knock-offs
-        const appleResult = response.body.results.find(product =>
-            product.name.toLowerCase().startsWith('apple') &&
-            // Ensure the result actually contains the query terms (e.g. searching "AirPods Pro" shouldn't return base "AirPods")
-            query.split(' ').every(word => product.name.toLowerCase().includes(word.toLowerCase()))
-        );
+        const queryLower = query.toLowerCase();
+        const queryWords = queryLower.split(' ').filter(w => w.length > 0);
 
-        if (appleResult) return appleResult;
+        // Filter results that contain all query words
+        const matches = response.body.results.filter(product => {
+            const productName = product.name.toLowerCase();
+            return queryWords.every(word => productName.includes(word));
+        });
 
-        // Fallback: Return first result if no "Apple" match found (though unlikely for this bot)
-        return response.body.results[0];
+        if (matches.length > 0) {
+            // Check availability for top 5 matches to prioritize in-stock results
+            const topMatches = matches.slice(0, 5);
+            try {
+                const availUrl = new URL(`${SOLOTODO_API_URL}/products/available_entities/`);
+                availUrl.searchParams.set('countries', CHILE_COUNTRY_ID);
+                topMatches.forEach(p => availUrl.searchParams.append('ids', String(p.id)));
+
+                const availRes = await got(availUrl.toString(), {
+                    ...getSafeGotOptions(),
+                    responseType: 'json'
+                });
+
+                const availabilityMap = new Map();
+                if (availRes.body.results) {
+                    for (const res of availRes.body.results) {
+                        const validEntities = filterValidEntities(res.entities);
+                        availabilityMap.set(res.product.id, validEntities.length > 0);
+                    }
+                }
+
+                // 1. Prioritize results that start with "Apple" AND are in stock
+                const appleInStock = topMatches.find(p => 
+                    p.name.toLowerCase().startsWith('apple') && availabilityMap.get(p.id)
+                );
+                if (appleInStock) return appleInStock;
+
+                // 2. Then any result that is in stock
+                const anyInStock = topMatches.find(p => availabilityMap.get(p.id));
+                if (anyInStock) return anyInStock;
+            } catch (err) {
+                logger.error('Error checking product availability during search:', err);
+                // Continue to fallback if availability check fails
+            }
+
+            // Fallback: Return first Apple match among those containing query words
+            const appleMatch = matches.find(p => p.name.toLowerCase().startsWith('apple'));
+            if (appleMatch) return appleMatch;
+
+            // Last resort: Return the first match containing query words
+            return matches[0];
+        }
+
+        // If no matches found with all words, return the first "Apple" result from overall results
+        const fallbackApple = response.body.results.find(p => p.name.toLowerCase().startsWith('apple'));
+        return fallbackApple || response.body.results[0];
     }
     return null;
 }

@@ -52,6 +52,8 @@ const APPLE_PRODUCTS = [
     'Apple Watch Series 7', 'Apple Watch SE', 'Apple Watch',
 
     // Audio / Accessories
+    'AirPods Pro (2nd gen)', 'AirPods Pro (1st gen)', 'AirPods Pro 2',
+    'AirPods (4th gen)', 'AirPods (3rd gen)', 'AirPods (2nd gen)', 'AirPods (1st gen)',
     'AirPods Max', 'AirPods Pro', 'AirPods 4', 'AirPods',
     'HomePod mini', 'HomePod',
     'Apple TV 4K', 'Apple TV',
