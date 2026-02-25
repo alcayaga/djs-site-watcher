@@ -2,7 +2,7 @@ const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const config = require('../config');
 const got = require('got');
-const { formatCLP, sanitizeLinkText, formatDiscordTimestamp } = require('../utils/formatters');
+const { formatCLP, sanitizeLinkText, formatDiscordTimestamp, formatPriceValue } = require('../utils/formatters');
 const solotodo = require('../utils/solotodo');
 const { DEFAULT_PRICE_TOLERANCE, DEFAULT_GRACE_PERIOD_HOURS } = require('../utils/constants');
 const { sleep } = require('../utils/helpers');
@@ -513,14 +513,6 @@ class DealMonitor extends Monitor {
         const { description, color } = this._getNotificationMetadata(triggers, stored);
 
         // 4. Build Embed
-        const formatPriceValue = (current, previous) => {
-            const formattedCurrent = formatCLP(current);
-            if (previous && previous > current) {
-                return `~~${formatCLP(previous)}~~\n**${formattedCurrent}**`;
-            }
-            return formattedCurrent;
-        };
-
         const offerPriceValue = formatPriceValue(product.offerPrice, previousOfferPrice);
         const normalPriceValue = formatPriceValue(product.normalPrice, previousNormalPrice);
 

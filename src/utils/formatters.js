@@ -55,9 +55,24 @@ function formatCLP(amount) {
     return '$' + Math.floor(value).toLocaleString('es-CL');
 }
 
+/**
+ * Formats a price value with a strikethrough of the previous price if the price dropped.
+ * @param {number|string} current The current price.
+ * @param {number|string} previous The previous price.
+ * @returns {string} The formatted price value for Discord markdown.
+ */
+function formatPriceValue(current, previous) {
+    const formattedCurrent = formatCLP(current);
+    if (previous && previous > current) {
+        return `~~${formatCLP(previous)}~~\n**${formattedCurrent}**`;
+    }
+    return formattedCurrent;
+}
+
 module.exports = {
     formatDiscordTimestamp,
     sanitizeMarkdown,
     sanitizeLinkText,
-    formatCLP
+    formatCLP,
+    formatPriceValue
 };

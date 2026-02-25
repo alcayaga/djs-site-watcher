@@ -1,6 +1,22 @@
-const { sanitizeMarkdown, sanitizeLinkText } = require('../../src/utils/formatters');
+const { sanitizeMarkdown, sanitizeLinkText, formatPriceValue } = require('../../src/utils/formatters');
 
 describe('Formatters Utils', () => {
+    describe('formatPriceValue', () => {
+        it('should show both prices with strikethrough if previous > current', () => {
+            expect(formatPriceValue(80000, 100000)).toBe('~~$100.000~~\n**$80.000**');
+        });
+
+        it('should show only current price if previous is lower or equal', () => {
+            expect(formatPriceValue(100000, 80000)).toBe('$100.000');
+            expect(formatPriceValue(100000, 100000)).toBe('$100.000');
+        });
+
+        it('should show only current price if previous is undefined or null', () => {
+            expect(formatPriceValue(100000, undefined)).toBe('$100.000');
+            expect(formatPriceValue(100000, null)).toBe('$100.000');
+        });
+    });
+
     describe('sanitizeMarkdown', () => {
         it('should escape backticks', () => {
             const input = 'Code with `backticks`';
