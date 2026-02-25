@@ -42,7 +42,7 @@ function getSearchUrl(query) {
  * @returns {object|null} The best matching product or null.
  */
 function findBestMatch(products) {
-    const appleMatch = products.find(p => p.name.toLowerCase().startsWith('apple'));
+    const appleMatch = products.find(p => p.name.toLowerCase().startsWith('apple '));
     if (appleMatch) return appleMatch;
     return products.length > 0 ? products[0] : null;
 }
