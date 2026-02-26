@@ -55,7 +55,8 @@ git fetch origin --prune --tags
 # If the target is a branch on the remote, create/reset a local branch to match and check it out.
 if git show-ref --verify --quiet "refs/remotes/origin/${DEPLOY_TARGET}"; then
     echo "[Deploy] Target is a branch. Syncing and checking out..."
-    git checkout -B "${DEPLOY_TARGET}" "origin/${DEPLOY_TARGET}"
+    git branch -f "${DEPLOY_TARGET}" "origin/${DEPLOY_TARGET}"
+    git checkout -f "${DEPLOY_TARGET}"
 # If it's a tag, check it out unambiguously. This avoids checking out a local branch with the same name.
 elif git show-ref --verify --quiet "refs/tags/${DEPLOY_TARGET}"; then
     echo "[Deploy] Target is a tag. Checking out..."
