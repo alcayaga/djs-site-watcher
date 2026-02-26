@@ -283,7 +283,7 @@ async function getAvailableEntities(productId, excludeRefurbished = true) {
 function isPictureUrlInvalid(url, { skipExtensionCheck = false } = {}) {
     if (!url) return true;
 
-    if (url.includes('not_found.png')) return true;
+    if (url.includes('/not_found.png')) return true;
 
     try {
         const hostname = new URL(url).hostname;
