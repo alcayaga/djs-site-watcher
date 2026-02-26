@@ -45,14 +45,14 @@ fi
 echo "[Deploy] Fetching all updates from remote..."
 git fetch origin --tags --prune
 
-# Check out the specific target (tag, branch, or commit hash)
-echo "[Deploy] Checking out target: ${DEPLOY_TARGET}..."
-git checkout -f "${DEPLOY_TARGET}"
-
-# If the target is a branch, reset to match origin exactly
-if git show-ref --verify --quiet "refs/heads/${DEPLOY_TARGET}"; then
-    echo "[Deploy] Target is a branch. Resetting to origin/${DEPLOY_TARGET}..."
-    git reset --hard "origin/${DEPLOY_TARGET}"
+# If the target is a branch on the remote, create/reset a local branch to match and check it out.
+if git show-ref --verify --quiet "refs/remotes/origin/${DEPLOY_TARGET}"; then
+    echo "[Deploy] Target is a branch. Syncing and checking out..."
+    git checkout -B "${DEPLOY_TARGET}" "origin/${DEPLOY_TARGET}"
+else
+    # Otherwise, assume it's a tag or commit hash and check it out directly.
+    echo "[Deploy] Target is a tag or commit. Checking out..."
+    git checkout -f "${DEPLOY_TARGET}"
 fi
 
 git clean -fd -e config/
