@@ -1,9 +1,7 @@
 const DealMonitor = require('../../src/monitors/DealMonitor');
-const storage = require('../../src/storage');
 const got = require('got');
 const solotodo = require('../../src/utils/solotodo');
 const Discord = require('discord.js');
-const { DEFAULT_PRICE_TOLERANCE } = require('../../src/utils/constants');
 
 jest.mock('got');
 jest.mock('discord.js');
