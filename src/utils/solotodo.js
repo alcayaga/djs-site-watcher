@@ -274,6 +274,33 @@ async function getAvailableEntities(productId, excludeRefurbished = true) {
 }
 
 /**
+ * Checks if a picture URL is invalid or blocked.
+ * @param {string} url The URL to check.
+ * @param {object} [options] Validation options.
+ * @param {boolean} [options.skipExtensionCheck=false] Whether to skip the file extension check.
+ * @returns {boolean} True if invalid.
+ */
+function isPictureUrlInvalid(url, options = { skipExtensionCheck: false }) {
+    if (!url) return true;
+
+    if (url.includes('not_found.png')) return true;
+
+    try {
+        const hostname = new URL(url).hostname;
+        if (BANNED_PICTURE_DOMAINS.some(domain => hostname === domain || hostname.endsWith('.' + domain))) {
+            return true;
+        }
+    } catch (e) {
+        logger.warn('[Solotodo] URL parsing failed for "%s": %s', url, e.message);
+        return true;
+    }
+
+    if (options.skipExtensionCheck) return false;
+
+    return !/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(url);
+}
+
+/**
  * Attempts to find a better picture URL if the current one is problematic (e.g. missing extension or from travel.cl).
  * @param {object} product The product object.
  * @param {Array} [entities] Optional pre-fetched entities.
@@ -282,28 +309,7 @@ async function getAvailableEntities(productId, excludeRefurbished = true) {
 async function getBestPictureUrl(product, entities = null) {
     const currentUrl = product.pictureUrl || product.picture_url;
     
-    /**
-     * Checks if a URL is invalid or blocked.
-     * @param {string} url The URL to check.
-     * @returns {boolean} True if invalid.
-     */
-    const isInvalid = (url) => {
-        if (!url) return true;
-
-        try {
-            const hostname = new URL(url).hostname;
-            if (BANNED_PICTURE_DOMAINS.some(domain => hostname === domain || hostname.endsWith('.' + domain))) {
-                return true;
-            }
-        } catch (e) {
-            logger.warn('[Solotodo] URL parsing failed for "%s": %s', url, e.message);
-            return true;
-        }
-
-        return !/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(url);
-    };
-
-    if (!isInvalid(currentUrl)) {
+    if (!isPictureUrlInvalid(currentUrl)) {
         logger.info('[Solotodo] Picture selected for product %s: %s', product.id, currentUrl);
         return currentUrl;
     }
@@ -316,7 +322,7 @@ async function getBestPictureUrl(product, entities = null) {
         for (const entity of availableEntities) {
             if (entity.picture_urls && Array.isArray(entity.picture_urls) && entity.picture_urls.length > 0) {
                 const entityUrl = entity.picture_urls[0];
-                if (!isInvalid(entityUrl)) {
+                if (!isPictureUrlInvalid(entityUrl)) {
                     logger.info('[Solotodo] Alternative picture selected for product %s: %s', product.id, entityUrl);
                     return entityUrl;
                 }
@@ -460,6 +466,7 @@ module.exports = {
     getStores,
     getProductHistory,
     getBestPictureUrl,
+    isPictureUrlInvalid,
     filterValidEntities,
     determinePriceKey,
     findBestEntities
