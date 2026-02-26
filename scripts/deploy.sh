@@ -52,21 +52,13 @@ fi
 echo "[Deploy] Fetching all updates from remote..."
 git fetch origin --prune --tags
 
-# If the target is a branch on the remote, create/reset a local branch to match and check it out.
-if git show-ref --verify --quiet "refs/remotes/origin/${DEPLOY_TARGET}"; then
-    echo "[Deploy] Target is a branch. Syncing and checking out..."
-    git branch -f "${DEPLOY_TARGET}" "origin/${DEPLOY_TARGET}"
-    git checkout -f "${DEPLOY_TARGET}"
-# If it's a tag, check it out unambiguously. This avoids checking out a local branch with the same name.
-elif git show-ref --verify --quiet "refs/tags/${DEPLOY_TARGET}"; then
-    echo "[Deploy] Target is a tag. Checking out..."
-    git checkout -f "tags/${DEPLOY_TARGET}"
-# Check if it looks like a commit hash and is a valid commit object.
-elif [[ "${DEPLOY_TARGET}" =~ ^[0-9a-fA-F]{7,40}$ ]] && git cat-file -e "${DEPLOY_TARGET}^{commit}" &>/dev/null; then
-    echo "[Deploy] Target is a commit hash. Checking out..."
+# Verify that the target ref resolves to a valid commit before checking out.
+# This is a security measure to ensure we're checking out a valid and known commit-ish object.
+if git rev-parse --verify --quiet "${DEPLOY_TARGET}^{commit}" &>/dev/null; then
+    echo "[Deploy] Target '${DEPLOY_TARGET}' is a valid ref. Checking out..."
     git checkout -f "${DEPLOY_TARGET}"
 else
-    echo "Error: Deploy target '${DEPLOY_TARGET}' is not a valid remote branch, tag, or commit hash."
+    echo "Error: Deploy target '${DEPLOY_TARGET}' could not be resolved to a valid commit."
     exit 1
 fi
 
