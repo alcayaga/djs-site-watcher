@@ -441,7 +441,10 @@ class DealMonitor extends Monitor {
             product.pictureUrl,
             ...entities.map(e => e.picture_urls?.[0])
         ];
-        const candidateUrls = [...new Set(allUrls.filter(Boolean))];
+        // Filter out nulls and invalid images (including placeholder like not_found.png)
+        // We skip extension check here because downloadImage can sniff the buffer for valid images
+        // even if the URL doesn't have a standard extension.
+        const candidateUrls = [...new Set(allUrls.filter(url => !solotodo.isPictureUrlInvalid(url, { skipExtensionCheck: true })))];
 
         for (const url of candidateUrls) {
             try {

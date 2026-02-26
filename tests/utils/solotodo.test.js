@@ -5,7 +5,16 @@ jest.mock('../../src/config', () => ({
     monitors: []
 }));
 
-const { extractQuery, searchSolotodo, searchByUrl, getAvailableEntities, getStores, getProductHistory, getBestPictureUrl } = require('../../src/utils/solotodo');
+const { 
+    extractQuery, 
+    searchSolotodo, 
+    searchByUrl, 
+    getAvailableEntities, 
+    getStores, 
+    getProductHistory, 
+    getBestPictureUrl,
+    isPictureUrlInvalid
+} = require('../../src/utils/solotodo');
 const got = require('got');
 
 jest.mock('got');
@@ -208,11 +217,59 @@ describe('Solotodo Utils - API functions', () => {
         expect(got).toHaveBeenCalledWith(expect.stringContaining('exclude_refurbished=true'), expect.any(Object));
     });
 
+    describe('isPictureUrlInvalid', () => {
+        it('should return true for null or empty strings', () => {
+            expect(isPictureUrlInvalid(null)).toBe(true);
+            expect(isPictureUrlInvalid('')).toBe(true);
+        });
+
+        it('should return true for malformed URLs', () => {
+            expect(isPictureUrlInvalid('not a valid url')).toBe(true);
+        });
+
+        it('should return true for not_found.png', () => {
+            expect(isPictureUrlInvalid('https://media.solotodo.com/media/products/not_found.png')).toBe(true);
+        });
+
+        it('should return true for banned domains', () => {
+            expect(isPictureUrlInvalid('https://tienda.travel.cl/pic.jpg')).toBe(true);
+            expect(isPictureUrlInvalid('https://dojiw2m9tvv09.cloudfront.net/pic.png')).toBe(true);
+        });
+
+        it('should return true for URLs without standard extensions', () => {
+            expect(isPictureUrlInvalid('https://example.com/image')).toBe(true);
+        });
+
+        it('should return false for valid image URLs', () => {
+            expect(isPictureUrlInvalid('https://media.solotodo.com/pic.png')).toBe(false);
+            expect(isPictureUrlInvalid('https://example.com/pic.jpg')).toBe(false);
+            expect(isPictureUrlInvalid('https://example.com/pic.webp')).toBe(false);
+            expect(isPictureUrlInvalid('https://example.com/pic.gif')).toBe(false);
+        });
+
+        it('should skip extension check if requested', () => {
+            expect(isPictureUrlInvalid('https://example.com/image', { skipExtensionCheck: true })).toBe(false);
+            // Should still block banned domains even if skipping extension check
+            expect(isPictureUrlInvalid('https://tienda.travel.cl/image', { skipExtensionCheck: true })).toBe(true);
+            // Should still block not_found.png even if skipping extension check
+            expect(isPictureUrlInvalid('https://media.solotodo.com/media/products/not_found.png', { skipExtensionCheck: true })).toBe(true);
+        });
+    });
+
     describe('getBestPictureUrl', () => {
         it('should return current URL if it is valid', async () => {
             const product = { pictureUrl: 'https://media.solotodo.com/pic.png' };
             const result = await getBestPictureUrl(product);
             expect(result).toBe('https://media.solotodo.com/pic.png');
+        });
+
+        it('should reject not_found.png and look into entities', async () => {
+            const product = { id: 1, pictureUrl: 'https://media.solotodo.com/media/products/not_found.png' };
+            const entities = [
+                { picture_urls: ['https://ripley.cl/good.png'] }
+            ];
+            const result = await getBestPictureUrl(product, entities);
+            expect(result).toBe('https://ripley.cl/good.png');
         });
 
         it('should exclude tienda.travel.cl and banned cloudfront images and look into entities', async () => {
