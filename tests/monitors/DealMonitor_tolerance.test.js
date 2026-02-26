@@ -277,4 +277,36 @@ describe('DealMonitor Price Tolerance', () => {
         expect(mockChannel.send).toHaveBeenCalled();
         expect(monitor.state['1'].minOfferPrice).toBe(119400);
     });
+
+    it('should use DEFAULT_PRICE_TOLERANCE if not specified in config', async () => {
+        // Re-initialize monitor without priceTolerance
+        // Note: DEFAULT_PRICE_TOLERANCE is now 1000
+        monitor = new DealMonitor('Deal', {
+            name: 'Deal',
+            url: 'https://api.com/deals',
+            file: './config/deals.json'
+        });
+        monitor.client = mockClient;
+
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 100000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                lastOfferPrice: 100000,
+                minNormalPrice: 100000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                lastNormalPrice: 100000
+            }
+        };
+
+        // Increase by 500 CLP (within DEFAULT_PRICE_TOLERANCE = 1000)
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 100500, normalPrice: 100000 }])
+        });
+
+        await monitor.check();
+
+        // Verify NO Pending Exit is set
+        expect(monitor.state['1'].pendingExitOffer).toBeUndefined();
+        expect(monitor.state['1'].lastOfferPrice).toBe(100500);
+    });
 });
