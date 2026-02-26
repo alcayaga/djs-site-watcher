@@ -12,17 +12,19 @@ if [[ ! "${TARGET_ENV}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
     exit 1
 fi
 
-readonly DEPLOY_BRANCH="${DEPLOY_BRANCH:-master}"
+# Support DEPLOY_TARGET for tags/commits/branches, fallback to DEPLOY_BRANCH, then master
+readonly DEPLOY_TARGET="${DEPLOY_TARGET:-${DEPLOY_BRANCH:-master}}"
 
 # Use DEPLOY_PATH env var or default to current directory if not set
 readonly TARGET_DIR="${DEPLOY_PATH:-$(pwd)}"
 
 echo "[Deploy] Starting deployment for environment: ${TARGET_ENV}"
 echo "[Deploy] Target Directory: ${TARGET_DIR}"
+echo "[Deploy] Target Ref: ${DEPLOY_TARGET}"
 
-# Security: Validate DEPLOY_BRANCH (allow alphanumeric, /, -, _, .)
-if [[ ! "${DEPLOY_BRANCH}" =~ ^[a-zA-Z0-9/._-]+$ || "${DEPLOY_BRANCH}" == -* ]]; then
-    echo "Error: Invalid characters or format in DEPLOY_BRANCH."
+# Security: Validate DEPLOY_TARGET (allow alphanumeric, /, -, _, .)
+if [[ ! "${DEPLOY_TARGET}" =~ ^[a-zA-Z0-9/._-]+$ || "${DEPLOY_TARGET}" == -* ]]; then
+    echo "Error: Invalid characters or format in DEPLOY_TARGET."
     exit 1
 fi
 
@@ -39,10 +41,20 @@ if [ ! -f "package.json" ]; then
     exit 1
 fi
 
-# Reset to match remote branch exactly
-echo "[Deploy] Fetching latest changes from branch: ${DEPLOY_BRANCH}..."
-git fetch origin "${DEPLOY_BRANCH}" --prune
-git reset --hard "origin/${DEPLOY_BRANCH}"
+# Fetch all updates from remote including tags
+echo "[Deploy] Fetching all updates from remote..."
+git fetch origin --tags --prune
+
+# Check out the specific target (tag, branch, or commit hash)
+echo "[Deploy] Checking out target: ${DEPLOY_TARGET}..."
+git checkout -f "${DEPLOY_TARGET}"
+
+# If the target is a branch, reset to match origin exactly
+if git show-ref --verify --quiet "refs/heads/${DEPLOY_TARGET}"; then
+    echo "[Deploy] Target is a branch. Resetting to origin/${DEPLOY_TARGET}..."
+    git reset --hard "origin/${DEPLOY_TARGET}"
+fi
+
 git clean -fd -e config/
 
 # Install dependencies (production only)
