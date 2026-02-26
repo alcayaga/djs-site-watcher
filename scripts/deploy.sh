@@ -23,7 +23,7 @@ echo "[Deploy] Target Directory: ${TARGET_DIR}"
 echo "[Deploy] Target Ref: ${DEPLOY_TARGET}"
 
 # Security: Validate DEPLOY_TARGET (allow alphanumeric, /, -, _, .)
-if [[ ! "${DEPLOY_TARGET}" =~ ^[a-zA-Z0-9/._-]+$ || "${DEPLOY_TARGET}" == -* || "${DEPLOY_TARGET}" == "." || "${DEPLOY_TARGET}" =~ \.\. || "${DEPLOY_TARGET}" =~ (^|/)\. || "${DEPLOY_TARGET}" =~ // || "${DEPLOY_TARGET}" =~ /$ ]]; then
+if [[ ! "${DEPLOY_TARGET}" =~ ^[a-zA-Z0-9/._-]+$ || "${DEPLOY_TARGET}" == -* || "${DEPLOY_TARGET}" == "." || "${DEPLOY_TARGET}" =~ ^/ || "${DEPLOY_TARGET}" =~ \.\. || "${DEPLOY_TARGET}" =~ (^|/)\. || "${DEPLOY_TARGET}" =~ // || "${DEPLOY_TARGET}" =~ /$ ]]; then
     echo "Error: Invalid characters or format in DEPLOY_TARGET."
     exit 1
 fi
