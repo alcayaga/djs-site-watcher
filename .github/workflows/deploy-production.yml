@@ -1,0 +1,47 @@
+name: Deploy to Production (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Tag, branch, or commit hash to deploy (e.g., v1.0.0, master)'
+        required: true
+        default: 'master'
+        type: string
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to Production Server
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+
+    steps:
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      env:
+        DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
+        DEPLOY_TARGET: ${{ inputs.target }}
+      with:
+        host: ${{ secrets.PROD_HOST }}
+        username: ${{ secrets.PROD_USERNAME }}
+        key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+        port: 22
+        envs: DEPLOY_PATH,DEPLOY_TARGET
+        script: |
+          if [ -z "$DEPLOY_PATH" ]; then
+            echo "Error: DEPLOY_PATH secret is not set."
+            exit 1
+          fi
+          
+          cd "$DEPLOY_PATH"
+          
+          # Execute the deployment script included in the repo
+          # The script is responsible for pulling the latest code and restarting the app
+          chmod +x scripts/deploy.sh
+          TARGET_ENV=production DEPLOY_TARGET=$DEPLOY_TARGET ./scripts/deploy.sh
