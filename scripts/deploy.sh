@@ -43,7 +43,7 @@ fi
 
 # Fetch all updates from remote including tags
 echo "[Deploy] Fetching all updates from remote..."
-git fetch origin --prune --prune-tags --tags
+git fetch origin --prune --tags
 
 # If the target is a branch on the remote, create/reset a local branch to match and check it out.
 if git show-ref --verify --quiet "refs/remotes/origin/${DEPLOY_TARGET}"; then
@@ -54,7 +54,7 @@ elif git show-ref --verify --quiet "refs/tags/${DEPLOY_TARGET}"; then
     echo "[Deploy] Target is a tag. Checking out..."
     git checkout -f "tags/${DEPLOY_TARGET}"
 # Check if it looks like a commit hash and is a valid commit object.
-elif [[ "${DEPLOY_TARGET}" =~ ^[0-9a-f]{7,40}$ ]] && git cat-file -e "${DEPLOY_TARGET}^{commit}" &>/dev/null; then
+elif [[ "${DEPLOY_TARGET}" =~ ^[0-9a-fA-F]{7,40}$ ]] && git cat-file -e "${DEPLOY_TARGET}^{commit}" &>/dev/null; then
     echo "[Deploy] Target is a commit hash. Checking out..."
     git checkout -f "${DEPLOY_TARGET}"
 else
