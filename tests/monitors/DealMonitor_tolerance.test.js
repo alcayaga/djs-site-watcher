@@ -15,38 +15,61 @@ jest.mock('../../src/utils/logger', () => ({
 jest.mock('../../src/utils/solotodo', () => ({
     ...jest.requireActual('../../src/utils/solotodo'),
     getProductHistory: jest.fn().mockResolvedValue([]),
+    getBestPictureUrl: jest.fn().mockImplementation(p => Promise.resolve(p.pictureUrl || p.picture_url)),
     getAvailableEntities: jest.fn().mockResolvedValue([
-        { active_registry: { offer_price: "119776", normal_price: "126080", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
+        { active_registry: { offer_price: "100000", normal_price: "100000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
     ]),
-    getStores: jest.fn().mockResolvedValue(new Map([["https://api.com/stores/1/", "Store 1"]])),
-    getBestPictureUrl: jest.fn().mockResolvedValue('http://pic.jpg')
+    getStores: jest.fn().mockResolvedValue(new Map([["https://api.com/stores/1/", "Store 1"]]))
 }));
 
-describe('DealMonitor Tolerance', () => {
+describe('DealMonitor Price Tolerance', () => {
     let monitor;
     let mockChannel;
     let mockClient;
 
     beforeEach(() => {
         jest.clearAllMocks();
-        mockClient = new Discord.Client();
-        // The mock Client in __mocks__/discord.js.js already has channels.cache.get mocking
-        // We just need to ensure the mockChannel we use has the send method we want
-        mockChannel = mockClient.channels.cache.get('mockDealsChannelId');
-        mockChannel.send = jest.fn().mockResolvedValue({ startThread: jest.fn() });
         
-        monitor = new DealMonitor('Deal', {
+        mockClient = new Discord.Client();
+        mockChannel = mockClient.channels.cache.get('mockDealsChannelId');
+        mockChannel.send = jest.fn().mockResolvedValue({ startThread: jest.fn().mockResolvedValue({}) });
+        
+        const monitorConfig = {
             name: 'Deal',
             url: 'https://api.com/deals',
-            file: './config/deals.json'
-        });
+            file: './config/deals.json',
+            priceTolerance: 500 // 500 CLP tolerance for these specific tests
+        };
+
+        monitor = new DealMonitor('Deal', monitorConfig);
         monitor.client = mockClient;
     });
+
+    const setupNotificationMocks = (offerPrice = 100000, normalPrice = 100000) => {
+        jest.spyOn(solotodo, 'getAvailableEntities').mockResolvedValue([
+            {
+                active_registry: {
+                    offer_price: String(offerPrice),
+                    normal_price: String(normalPrice),
+                    cell_monthly_payment: null
+                },
+                store: 'https://api.com/stores/1/',
+                external_url: 'https://store.com'
+            }
+        ]);
+        jest.spyOn(solotodo, 'getStores').mockResolvedValue(new Map([['https://api.com/stores/1/', 'Store 1']]));
+    };
 
     const mockApiResponse = (products) => {
         const results = products.map(p => ({
             product_entries: [{
-                product: { id: p.id, name: p.name, slug: 'slug', specs: { brand_unicode: 'Apple' } },
+                product: {
+                    id: p.id,
+                    name: p.name,
+                    slug: p.slug || 'slug',
+                    picture_url: p.picture_url || 'pic.jpg',
+                    specs: { brand_brand_unicode: 'Apple' }
+                },
                 metadata: {
                     prices_per_currency: [{
                         currency: solotodo.SOLOTODO_CLP_CURRENCY_URL,
@@ -59,38 +82,162 @@ describe('DealMonitor Tolerance', () => {
         return JSON.stringify({ results });
     };
 
-    it('should NOT alert for BACK_TO_LOW if decrease is within tolerance (Reproduction of reported issue)', async () => {
-        // Report: $120.384 -> $119.776 (608 CLP decrease)
-        // With 1000 tolerance, it SHOULD NOT alert.
-        
+    it('should ignore small price increases within tolerance and not set Pending Exit', async () => {
         monitor.state = {
-            '300332': { 
-                id: 300332, name: 'MacBook Charger', 
-                minOfferPrice: 119776, minOfferDate: '2025-01-01T00:00:00.000Z',
-                lastOfferPrice: 120384, // Current price is slightly above min
-                minNormalPrice: 126080, minNormalDate: '2025-01-01T00:00:00.000Z',
-                lastNormalPrice: 126720 
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 100000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                lastOfferPrice: 100000,
+                minNormalPrice: 100000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                lastNormalPrice: 100000
             }
         };
 
+        // Increase by 10 CLP (within 500 tolerance)
         got.mockResolvedValue({
-            body: mockApiResponse([{ id: 300332, name: 'MacBook Charger', offerPrice: 119776, normalPrice: 126080 }])
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 100010, normalPrice: 100000 }])
         });
 
         await monitor.check();
 
-        // 120.384 - 119.776 = 608 < 1000. 
-        // 120.384 <= 119.776 + 1000 is True.
-        // wasAtMin = True. 
-        // So it should NOT trigger BACK_TO_LOW.
+        // Verify NO Pending Exit is set
+        expect(monitor.state['1'].pendingExitOffer).toBeUndefined();
+        expect(monitor.state['1'].lastOfferPrice).toBe(100010);
         expect(mockChannel.send).not.toHaveBeenCalled();
+    });
+
+    it('should NOT trigger BACK_TO_LOW if the previous price was within tolerance of the minimum', async () => {
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 100000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                lastOfferPrice: 100010, // Slightly above min, but within tolerance
+                minNormalPrice: 100000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                lastNormalPrice: 100000
+            }
+        };
+
+        // Price returns to exactly the minimum
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 100000, normalPrice: 100000 }])
+        });
+
+        await monitor.check();
+
+        // Should NOT alert because the "exit" was not significant
+        expect(mockChannel.send).not.toHaveBeenCalled();
+        expect(monitor.state['1'].lastOfferPrice).toBe(100000);
+    });
+
+    it('should still trigger BACK_TO_LOW if the previous price was ABOVE tolerance', async () => {
+        setupNotificationMocks(100000);
+
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 100000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                lastOfferPrice: 101000, // Significantly above min (> 500 tolerance)
+                minNormalPrice: 100000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                lastNormalPrice: 100000
+            }
+        };
+
+        // Price returns to exactly the minimum
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 100000, normalPrice: 100000 }])
+        });
+
+        await monitor.check();
+
+        // SHOULD alert
+        expect(mockChannel.send).toHaveBeenCalled();
+        const sendCall = mockChannel.send.mock.calls[0][0];
+        expect(sendCall.embeds[0].data.description).toContain('Volvió al mínimo histórico');
+    });
+
+    it('should trigger BACK_TO_LOW if returning to a price within tolerance of the minimum (not exact minimum)', async () => {
+        setupNotificationMocks(100100, 100100);
+
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 100000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                lastOfferPrice: 110000, // Significantly above min
+                minNormalPrice: 100000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                lastNormalPrice: 110000
+            }
+        };
+
+        // Price returns to 100100 (within 500 tolerance of 100000)
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 100100, normalPrice: 100100 }])
+        });
+
+        await monitor.check();
+
+        // SHOULD alert
+        expect(mockChannel.send).toHaveBeenCalled();
+        const sendCall = mockChannel.send.mock.calls[0][0];
+        expect(sendCall.embeds[0].data.description).toContain('Volvió a precios históricos');
+        expect(monitor.state['1'].lastOfferPrice).toBe(100100);
+    });
+
+    it('should handle Pending Exit confirmation with tolerance', async () => {
+        const oldDate = '2024-01-01T00:00:00.000Z';
+        const exitDate = '2024-02-01T00:00:00.000Z';
+
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 100000, minOfferDate: oldDate,
+                lastOfferPrice: 110000,
+                pendingExitOffer: { date: exitDate },
+                minNormalPrice: 100000, minNormalDate: oldDate,
+                lastNormalPrice: 100000
+            }
+        };
+
+        // Price in next cycle is still above tolerance -> Confirm exit
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 110000, normalPrice: 100000 }])
+        });
+
+        await monitor.check();
+
+        expect(monitor.state['1'].minOfferDate).toBe(exitDate);
+        expect(monitor.state['1'].pendingExitOffer).toBeUndefined();
+    });
+
+    it('should treat returns to within tolerance as phantom spikes during Pending Exit check', async () => {
+        const oldDate = '2024-01-01T00:00:00.000Z';
+        const exitDate = '2024-02-01T00:00:00.000Z';
+
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone', 
+                minOfferPrice: 100000, minOfferDate: oldDate,
+                lastOfferPrice: 110000,
+                pendingExitOffer: { date: exitDate },
+                minNormalPrice: 100000, minNormalDate: oldDate,
+                lastNormalPrice: 100000
+            }
+        };
+
+        // Price returns to slightly above min but within tolerance (100400 < 100000 + 500)
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 100400, normalPrice: 100000 }])
+        });
+
+        await monitor.check();
+
+        // Should NOT confirm exit, should keep old date
+        expect(monitor.state['1'].minOfferDate).toBe(oldDate);
+        expect(monitor.state['1'].pendingExitOffer).toBeUndefined();
+        expect(monitor.state['1'].lastOfferPrice).toBe(100400);
     });
 
     it('should NOT alert for NEW_LOW if decrease is within tolerance', async () => {
-        // Min: 120.000. New: 119.500. Decrease: 500.
-        // 500 < 1000.
-        // It should update state but NOT alert.
-
+        // We use 500 tolerance from beforeEach config
         monitor.state = {
             '1': { 
                 id: 1, name: 'Product', 
@@ -99,21 +246,19 @@ describe('DealMonitor Tolerance', () => {
             }
         };
 
+        // Decrease by 400 (within 500 tolerance)
         got.mockResolvedValue({
-            body: mockApiResponse([{ id: 1, name: 'Product', offerPrice: 119500, normalPrice: 130000 }])
+            body: mockApiResponse([{ id: 1, name: 'Product', offerPrice: 119600, normalPrice: 130000 }])
         });
 
         await monitor.check();
 
         expect(mockChannel.send).not.toHaveBeenCalled();
-        expect(monitor.state['1'].minOfferPrice).toBe(119500);
+        expect(monitor.state['1'].minOfferPrice).toBe(119600);
     });
 
     it('should alert for NEW_LOW if decrease IS significant', async () => {
-        // Min: 120.000. New: 118.500. Decrease: 1500.
-        // 1500 >= 1000.
-        // It should alert.
-
+        // We use 500 tolerance
         monitor.state = {
             '1': { 
                 id: 1, name: 'Product', 
@@ -122,13 +267,14 @@ describe('DealMonitor Tolerance', () => {
             }
         };
 
+        // Decrease by 600 (> 500 tolerance)
         got.mockResolvedValue({
-            body: mockApiResponse([{ id: 1, name: 'Product', offerPrice: 118500, normalPrice: 130000 }])
+            body: mockApiResponse([{ id: 1, name: 'Product', offerPrice: 119400, normalPrice: 130000 }])
         });
 
         await monitor.check();
 
         expect(mockChannel.send).toHaveBeenCalled();
-        expect(monitor.state['1'].minOfferPrice).toBe(118500);
+        expect(monitor.state['1'].minOfferPrice).toBe(119400);
     });
 });
