@@ -65,7 +65,7 @@ fi
 
 if [ -n "${TARGET_TO_CHECKOUT}" ]; then
     echo "[Deploy] Target '${DEPLOY_TARGET}' is valid. Checking out '${TARGET_TO_CHECKOUT}'..."
-    git checkout -f "${TARGET_TO_CHECKOUT}" --
+    git checkout -f "${TARGET_TO_CHECKOUT}"
 else
     echo "Error: Deploy target '${DEPLOY_TARGET}' could not be resolved to a valid commit, tag, or remote branch."
     exit 1
