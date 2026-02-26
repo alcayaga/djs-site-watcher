@@ -280,7 +280,7 @@ async function getAvailableEntities(productId, excludeRefurbished = true) {
  * @param {boolean} [options.skipExtensionCheck=false] Whether to skip the file extension check.
  * @returns {boolean} True if invalid.
  */
-function isPictureUrlInvalid(url, options = { skipExtensionCheck: false }) {
+function isPictureUrlInvalid(url, { skipExtensionCheck = false } = {}) {
     if (!url) return true;
 
     if (url.includes('not_found.png')) return true;
@@ -295,7 +295,7 @@ function isPictureUrlInvalid(url, options = { skipExtensionCheck: false }) {
         return true;
     }
 
-    if (options.skipExtensionCheck) return false;
+    if (skipExtensionCheck) return false;
 
     return !/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(url);
 }

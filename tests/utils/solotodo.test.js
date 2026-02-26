@@ -223,6 +223,10 @@ describe('Solotodo Utils - API functions', () => {
             expect(isPictureUrlInvalid('')).toBe(true);
         });
 
+        it('should return true for malformed URLs', () => {
+            expect(isPictureUrlInvalid('not a valid url')).toBe(true);
+        });
+
         it('should return true for not_found.png', () => {
             expect(isPictureUrlInvalid('https://media.solotodo.com/media/products/not_found.png')).toBe(true);
         });
