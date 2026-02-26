@@ -181,13 +181,14 @@ class DealMonitor extends Monitor {
         }
 
         if (currentPrice < stored[minPriceKey]) {
+            const isSignificant = (stored[minPriceKey] - currentPrice) >= tolerance;
             if (this.config.verboseLogging) {
-                logger.info('[DealMonitor] %s (ID: %s) [%s] NEW HISTORIC LOW: %s -> %s', product.name, product.id, priceType, formatCLP(stored[minPriceKey]), formatCLP(currentPrice));
+                logger.info('[DealMonitor] %s (ID: %s) [%s] NEW HISTORIC LOW: %s -> %s (Significant: %s)', product.name, product.id, priceType, formatCLP(stored[minPriceKey]), formatCLP(currentPrice), isSignificant);
             }
             stored[minPriceKey] = currentPrice;
             stored[minDateKey] = now;
             stored[lastPriceKey] = currentPrice;
-            return `NEW_LOW_${notificationType}`;
+            return isSignificant ? `NEW_LOW_${notificationType}` : 'CHANGED';
         } else if (isAtMin && !wasAtMin) {
             if (this.config.verboseLogging) {
                 logger.info('[DealMonitor] %s (ID: %s) [%s] BACK TO HISTORIC LOW: %s', product.name, product.id, priceType, formatCLP(currentPrice));
