@@ -49,10 +49,17 @@ git fetch origin --tags --prune
 if git show-ref --verify --quiet "refs/remotes/origin/${DEPLOY_TARGET}"; then
     echo "[Deploy] Target is a branch. Syncing and checking out..."
     git checkout -B "${DEPLOY_TARGET}" "origin/${DEPLOY_TARGET}"
-else
-    # Otherwise, assume it's a tag or commit hash and check it out directly.
-    echo "[Deploy] Target is a tag or commit. Checking out..."
+# If it's a tag, check it out unambiguously. This avoids checking out a local branch with the same name.
+elif git show-ref --verify --quiet "refs/tags/${DEPLOY_TARGET}"; then
+    echo "[Deploy] Target is a tag. Checking out..."
+    git checkout -f "tags/${DEPLOY_TARGET}"
+# Check if it looks like a commit hash and is a valid commit object.
+elif [[ "${DEPLOY_TARGET}" =~ ^[0-9a-f]{7,40}$ ]] && git cat-file -e "${DEPLOY_TARGET}^{commit}" &>/dev/null; then
+    echo "[Deploy] Target is a commit hash. Checking out..."
     git checkout -f "${DEPLOY_TARGET}"
+else
+    echo "Error: Deploy target '${DEPLOY_TARGET}' is not a valid remote branch, tag, or commit hash."
+    exit 1
 fi
 
 git clean -fd -e config/
