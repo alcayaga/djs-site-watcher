@@ -43,7 +43,7 @@ fi
 
 # Fetch all updates from remote including tags
 echo "[Deploy] Fetching all updates from remote..."
-git fetch origin --tags --prune
+git fetch origin --prune --prune-tags --tags
 
 # If the target is a branch on the remote, create/reset a local branch to match and check it out.
 if git show-ref --verify --quiet "refs/remotes/origin/${DEPLOY_TARGET}"; then
