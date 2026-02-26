@@ -51,8 +51,11 @@ TARGET_TO_CHECKOUT=""
 if git show-ref --verify --quiet "refs/remotes/origin/${DEPLOY_TARGET}"; then
     # It's a branch name, use the remote-tracking branch to get the latest version.
     TARGET_TO_CHECKOUT="origin/${DEPLOY_TARGET}"
-elif git rev-parse --verify --quiet "${DEPLOY_TARGET}^{commit}" &>/dev/null; then
-    # It's a tag or a commit hash, use it directly.
+elif git show-ref --verify --quiet "refs/tags/${DEPLOY_TARGET}"; then
+    # It's a tag. Using the full ref is safer against ambiguity.
+    TARGET_TO_CHECKOUT="refs/tags/${DEPLOY_TARGET}"
+elif git rev-parse --verify --quiet "${DEPLOY_TARGET}^{commit}" &>/dev/null && ! git show-ref --verify --quiet "refs/heads/${DEPLOY_TARGET}"; then
+    # It's a commit hash, but not a local-only branch.
     TARGET_TO_CHECKOUT="${DEPLOY_TARGET}"
 fi
 
