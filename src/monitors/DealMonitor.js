@@ -75,7 +75,7 @@ class DealMonitor extends Monitor {
             const body = JSON.parse(data);
             if (!body.results || !Array.isArray(body.results)) return [];
 
-            return body.results
+            const parsed = body.results
                 .map(result => {
                     const entry = result.product_entries?.[0];
                     const product = entry?.product;
@@ -106,6 +106,7 @@ class DealMonitor extends Monitor {
                     };
                 })
                 .filter(p => p && p.offerPrice >= MIN_SANITY_PRICE && p.normalPrice >= MIN_SANITY_PRICE);
+            return parsed;
         } catch (e) {
             logger.error('Error parsing Solotodo data in DealMonitor:', e);
             return [];
@@ -181,13 +182,14 @@ class DealMonitor extends Monitor {
         }
 
         if (currentPrice < stored[minPriceKey]) {
+            const isSignificant = (stored[minPriceKey] - currentPrice) >= tolerance;
             if (this.config.verboseLogging) {
-                logger.info('[DealMonitor] %s (ID: %s) [%s] NEW HISTORIC LOW: %s -> %s', product.name, product.id, priceType, formatCLP(stored[minPriceKey]), formatCLP(currentPrice));
+                logger.info('[DealMonitor] %s (ID: %s) [%s] NEW HISTORIC LOW: %s -> %s (Significant: %s)', product.name, product.id, priceType, formatCLP(stored[minPriceKey]), formatCLP(currentPrice), isSignificant);
             }
             stored[minPriceKey] = currentPrice;
             stored[minDateKey] = now;
             stored[lastPriceKey] = currentPrice;
-            return `NEW_LOW_${notificationType}`;
+            return isSignificant ? `NEW_LOW_${notificationType}` : 'CHANGED';
         } else if (isAtMin && !wasAtMin) {
             if (this.config.verboseLogging) {
                 logger.info('[DealMonitor] %s (ID: %s) [%s] BACK TO HISTORIC LOW: %s', product.name, product.id, priceType, formatCLP(currentPrice));

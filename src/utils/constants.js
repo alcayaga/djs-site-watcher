@@ -13,7 +13,7 @@ const NEW_CONDITION_URL = 'https://schema.org/NewCondition';
 const MIN_DESCRIPTIVE_SLUG_LENGTH = 5;
 const MAX_SKU_LIKE_SLUG_LENGTH = 10;
 
-const DEFAULT_PRICE_TOLERANCE = 500; // 500 CLP tolerance for phantom price spikes
+const DEFAULT_PRICE_TOLERANCE = 1000; // 1,000 CLP tolerance for phantom price spikes and small fluctuations
 const DEFAULT_GRACE_PERIOD_HOURS = 12;
 const SOLOTODO_AVAILABILITY_CHECK_LIMIT = 5;
 

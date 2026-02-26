@@ -2,49 +2,28 @@ const DealMonitor = require('../../src/monitors/DealMonitor');
 const got = require('got');
 const solotodo = require('../../src/utils/solotodo');
 const Discord = require('discord.js');
+const logger = require('../../src/utils/logger');
 
 jest.mock('got');
-jest.mock('discord.js', () => {
-    const mockChannelInstance = {
-        send: jest.fn().mockResolvedValue({ startThread: jest.fn().mockResolvedValue({}) })
-    };
-    const mockClientInstance = {
-        channels: {
-            cache: {
-                get: jest.fn(() => mockChannelInstance)
-            }
-        }
-    };
-    return {
-        Client: jest.fn(() => mockClientInstance),
-        EmbedBuilder: jest.fn().mockImplementation(() => {
-            const embed = {
-                data: {},
-                setTitle: jest.fn((t) => { embed.data.title = t; return embed; }),
-                setDescription: jest.fn((d) => { embed.data.description = d; return embed; }),
-                addFields: jest.fn((f) => { embed.data.fields = f; return embed; }),
-                setColor: jest.fn((c) => { embed.data.color = c; return embed; }),
-                setTimestamp: jest.fn(() => { embed.data.timestamp = new Date(); return embed; }),
-                setFooter: jest.fn((f) => { embed.data.footer = f; return embed; }),
-                setThumbnail: jest.fn((u) => { embed.data.thumbnail = { url: u }; return embed; })
-            };
-            return embed;
-        }),
-        AttachmentBuilder: jest.fn(),
-        ThreadAutoArchiveDuration: { OneWeek: 10080 }
-    };
-});
+jest.mock('discord.js');
 jest.mock('../../src/storage');
 jest.mock('../../src/config');
+jest.mock('../../src/utils/logger', () => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+}));
+jest.mock('../../src/utils/helpers', () => ({
+    sleep: jest.fn().mockResolvedValue()
+}));
 jest.mock('../../src/utils/solotodo', () => ({
     ...jest.requireActual('../../src/utils/solotodo'),
     getProductHistory: jest.fn().mockResolvedValue([]),
     getBestPictureUrl: jest.fn().mockImplementation(p => Promise.resolve(p.pictureUrl || p.picture_url)),
-    getAvailableEntities: jest.fn().mockResolvedValue([]),
-    getStores: jest.fn().mockResolvedValue(new Map())
-}));
-jest.mock('../../src/utils/helpers', () => ({
-    sleep: jest.fn().mockResolvedValue()
+    getAvailableEntities: jest.fn().mockResolvedValue([
+        { active_registry: { offer_price: "100000", normal_price: "100000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
+    ]),
+    getStores: jest.fn().mockResolvedValue(new Map([["https://api.com/stores/1/", "Store 1"]]))
 }));
 
 describe('DealMonitor Price Tolerance', () => {
@@ -57,12 +36,14 @@ describe('DealMonitor Price Tolerance', () => {
         
         mockClient = new Discord.Client();
         mockChannel = mockClient.channels.cache.get('mockDealsChannelId');
+        mockChannel.send = jest.fn().mockResolvedValue({ startThread: jest.fn().mockResolvedValue({}) });
         
         const monitorConfig = {
             name: 'Deal',
             url: 'https://api.com/deals',
             file: './config/deals.json',
-            priceTolerance: 500 // 500 CLP tolerance
+            priceTolerance: 500, // 500 CLP tolerance for these specific tests
+            verboseLogging: true
         };
 
         monitor = new DealMonitor('Deal', monitorConfig);
@@ -260,8 +241,69 @@ describe('DealMonitor Price Tolerance', () => {
         expect(monitor.state['1'].lastOfferPrice).toBe(100400);
     });
 
+    it('should NOT alert for NEW_LOW if decrease is within tolerance', async () => {
+        // We use 500 tolerance from beforeEach config
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'Product', 
+                minOfferPrice: 120000, lastOfferPrice: 120000, 
+                minNormalPrice: 130000, lastNormalPrice: 130000 
+            }
+        };
+
+        // Decrease by 400 (within 500 tolerance)
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'Product', offerPrice: 119600, normalPrice: 130000 }])
+        });
+
+        await monitor.check();
+
+        expect(mockChannel.send).not.toHaveBeenCalled();
+        expect(monitor.state['1'].minOfferPrice).toBe(119600);
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.stringContaining('NEW HISTORIC LOW'),
+            'Product',
+            expect.anything(),
+            'Offer',
+            expect.anything(),
+            expect.anything(),
+            false
+        );
+    });
+
+    it('should alert for NEW_LOW if decrease IS significant', async () => {
+        // We use 500 tolerance
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'Product', 
+                minOfferPrice: 120000, lastOfferPrice: 120000, 
+                minNormalPrice: 130000, lastNormalPrice: 130000 
+            }
+        };
+
+        // Decrease by 600 (> 500 tolerance)
+        got.mockResolvedValue({
+            body: mockApiResponse([{ id: 1, name: 'Product', offerPrice: 119400, normalPrice: 130000 }])
+        });
+
+        await monitor.check();
+
+        expect(mockChannel.send).toHaveBeenCalled();
+        expect(monitor.state['1'].minOfferPrice).toBe(119400);
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.stringContaining('NEW HISTORIC LOW'),
+            'Product',
+            expect.anything(),
+            'Offer',
+            expect.anything(),
+            expect.anything(),
+            true
+        );
+    });
+
     it('should use DEFAULT_PRICE_TOLERANCE if not specified in config', async () => {
         // Re-initialize monitor without priceTolerance
+        // Note: DEFAULT_PRICE_TOLERANCE is now 1000
         monitor = new DealMonitor('Deal', {
             name: 'Deal',
             url: 'https://api.com/deals',
@@ -279,14 +321,15 @@ describe('DealMonitor Price Tolerance', () => {
             }
         };
 
-        // Increase by 100 CLP (within DEFAULT_PRICE_TOLERANCE = 500)
+        // Increase by 500 CLP (within DEFAULT_PRICE_TOLERANCE = 1000)
         got.mockResolvedValue({
-            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 100100, normalPrice: 100000 }])
+            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 100500, normalPrice: 100000 }])
         });
 
         await monitor.check();
 
         // Verify NO Pending Exit is set
         expect(monitor.state['1'].pendingExitOffer).toBeUndefined();
+        expect(monitor.state['1'].lastOfferPrice).toBe(100500);
     });
 });
