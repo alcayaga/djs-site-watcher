@@ -75,8 +75,8 @@ async function searchSolotodo(query) {
             const topMatches = matches.slice(0, SOLOTODO_AVAILABILITY_CHECK_LIMIT);
             const availUrl = new URL(`${SOLOTODO_API_URL}/products/available_entities/`);
             availUrl.searchParams.set('countries', CHILE_COUNTRY_ID);
-            // Use a single 'ids' parameter with comma-separated values
-            availUrl.searchParams.set('ids', topMatches.map(p => p.id).join(','));
+            // The API requires multiple 'ids' query parameters (e.g., ?ids=1&ids=2)
+            topMatches.forEach(p => availUrl.searchParams.append('ids', String(p.id)));
 
             try {
                 const availRes = await got(availUrl.toString(), {

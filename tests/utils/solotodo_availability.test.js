@@ -55,7 +55,7 @@ describe('Solotodo Utils - searchSolotodo Availability', () => {
         // Verify IDs were checked for availability regardless of order
         const availabilityCall = got.mock.calls.find(call => call[0].includes('/products/available_entities/'));
         const url = new URL(availabilityCall[0]);
-        const ids = new Set(url.searchParams.get('ids').split(','));
+        const ids = new Set(url.searchParams.getAll('ids'));
         expect(ids).toEqual(new Set(['70846', '224175']));
     });
 
