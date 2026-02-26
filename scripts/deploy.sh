@@ -48,20 +48,23 @@ git fetch origin --prune --tags
 # Verify that the target ref resolves to a valid commit before checking out.
 # We prioritize remote branches to ensure we deploy the latest code when a branch name is given.
 TARGET_TO_CHECKOUT=""
-if git show-ref --verify --quiet "refs/remotes/origin/${DEPLOY_TARGET}"; then
+# Prioritize full commit hashes to avoid ambiguity with branches/tags named like hashes.
+if [[ "${DEPLOY_TARGET}" =~ ^[0-9a-fA-F]{40}$ ]] && git rev-parse --verify --quiet "${DEPLOY_TARGET}^{commit}" &>/dev/null; then
+    TARGET_TO_CHECKOUT="${DEPLOY_TARGET}"
+elif git show-ref --verify --quiet "refs/remotes/origin/${DEPLOY_TARGET}"; then
     # It's a branch name, use the remote-tracking branch to get the latest version.
     TARGET_TO_CHECKOUT="origin/${DEPLOY_TARGET}"
 elif git show-ref --verify --quiet "refs/tags/${DEPLOY_TARGET}"; then
     # It's a tag. Using the full ref is safer against ambiguity.
     TARGET_TO_CHECKOUT="refs/tags/${DEPLOY_TARGET}"
 elif git rev-parse --verify --quiet "${DEPLOY_TARGET}^{commit}" &>/dev/null && ! git show-ref --verify --quiet "refs/heads/${DEPLOY_TARGET}"; then
-    # It's a commit hash, but not a local-only branch.
+    # It's a short commit hash or other ref, but not a local-only branch.
     TARGET_TO_CHECKOUT="${DEPLOY_TARGET}"
 fi
 
 if [ -n "${TARGET_TO_CHECKOUT}" ]; then
     echo "[Deploy] Target '${DEPLOY_TARGET}' is valid. Checking out '${TARGET_TO_CHECKOUT}'..."
-    git checkout -f "${TARGET_TO_CHECKOUT}"
+    git checkout -f -- "${TARGET_TO_CHECKOUT}"
 else
     echo "Error: Deploy target '${DEPLOY_TARGET}' could not be resolved to a valid commit, tag, or remote branch."
     exit 1
