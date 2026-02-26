@@ -2,6 +2,7 @@ const DealMonitor = require('../../src/monitors/DealMonitor');
 const got = require('got');
 const solotodo = require('../../src/utils/solotodo');
 const Discord = require('discord.js');
+const logger = require('../../src/utils/logger');
 
 jest.mock('got');
 jest.mock('discord.js');
@@ -11,6 +12,9 @@ jest.mock('../../src/utils/logger', () => ({
     info: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
+}));
+jest.mock('../../src/utils/helpers', () => ({
+    sleep: jest.fn().mockResolvedValue()
 }));
 jest.mock('../../src/utils/solotodo', () => ({
     ...jest.requireActual('../../src/utils/solotodo'),
@@ -38,7 +42,8 @@ describe('DealMonitor Price Tolerance', () => {
             name: 'Deal',
             url: 'https://api.com/deals',
             file: './config/deals.json',
-            priceTolerance: 500 // 500 CLP tolerance for these specific tests
+            priceTolerance: 500, // 500 CLP tolerance for these specific tests
+            verboseLogging: true
         };
 
         monitor = new DealMonitor('Deal', monitorConfig);
@@ -255,6 +260,15 @@ describe('DealMonitor Price Tolerance', () => {
 
         expect(mockChannel.send).not.toHaveBeenCalled();
         expect(monitor.state['1'].minOfferPrice).toBe(119600);
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.stringContaining('NEW HISTORIC LOW'),
+            'Product',
+            expect.anything(),
+            'Offer',
+            expect.anything(),
+            expect.anything(),
+            false
+        );
     });
 
     it('should alert for NEW_LOW if decrease IS significant', async () => {
@@ -276,6 +290,15 @@ describe('DealMonitor Price Tolerance', () => {
 
         expect(mockChannel.send).toHaveBeenCalled();
         expect(monitor.state['1'].minOfferPrice).toBe(119400);
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.stringContaining('NEW HISTORIC LOW'),
+            'Product',
+            expect.anything(),
+            'Offer',
+            expect.anything(),
+            expect.anything(),
+            true
+        );
     });
 
     it('should use DEFAULT_PRICE_TOLERANCE if not specified in config', async () => {

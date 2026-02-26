@@ -75,7 +75,7 @@ class DealMonitor extends Monitor {
             const body = JSON.parse(data);
             if (!body.results || !Array.isArray(body.results)) return [];
 
-            return body.results
+            const parsed = body.results
                 .map(result => {
                     const entry = result.product_entries?.[0];
                     const product = entry?.product;
@@ -106,6 +106,7 @@ class DealMonitor extends Monitor {
                     };
                 })
                 .filter(p => p && p.offerPrice >= MIN_SANITY_PRICE && p.normalPrice >= MIN_SANITY_PRICE);
+            return parsed;
         } catch (e) {
             logger.error('Error parsing Solotodo data in DealMonitor:', e);
             return [];
