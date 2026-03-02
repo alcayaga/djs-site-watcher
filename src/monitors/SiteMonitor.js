@@ -67,10 +67,9 @@ class SiteMonitor extends Monitor {
                     
                     const isFlapping = site.recentHashes.includes(hash);
                     
-                    site.recentHashes.push(hash);
-                    if (site.recentHashes.length > RECENT_HASH_HISTORY_SIZE) {
-                        site.recentHashes.shift();
-                    }
+                    const newHistory = site.recentHashes.filter(h => h !== hash);
+                    newHistory.push(hash);
+                    site.recentHashes = newHistory.slice(-RECENT_HASH_HISTORY_SIZE);
                     
                     site.lastChecked = new Date().toISOString();
                     site.lastUpdated = new Date().toISOString();
