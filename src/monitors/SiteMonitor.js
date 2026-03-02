@@ -24,6 +24,7 @@ function cleanText(text) {
 
 const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
 const CONTEXT_LINES = 3;
+const RECENT_HASH_HISTORY_SIZE = 5;
 
 /**
  * Monitor for changes on arbitrary websites based on CSS selectors.
@@ -67,7 +68,7 @@ class SiteMonitor extends Monitor {
                     const isFlapping = site.recentHashes.includes(hash);
                     
                     site.recentHashes.push(hash);
-                    if (site.recentHashes.length > 5) {
+                    if (site.recentHashes.length > RECENT_HASH_HISTORY_SIZE) {
                         site.recentHashes.shift();
                     }
                     
