@@ -24,6 +24,7 @@ function cleanText(text) {
 
 const { formatDiscordTimestamp, sanitizeMarkdown } = require('../utils/formatters');
 const CONTEXT_LINES = 3;
+const RECENT_HASH_HISTORY_SIZE = 5;
 
 /**
  * Monitor for changes on arbitrary websites based on CSS selectors.
@@ -60,6 +61,14 @@ class SiteMonitor extends Monitor {
                     const oldContent = site.lastContent || '';
                     const cleanOldContent = cleanText(oldContent);
                     
+                    if (!Array.isArray(site.recentHashes)) {
+                        site.recentHashes = [site.hash].filter(Boolean);
+                    }
+                    
+                    const isFlapping = site.recentHashes.includes(hash);
+                    
+                    site.recentHashes = [...site.recentHashes.filter(h => h !== hash), hash].slice(-RECENT_HASH_HISTORY_SIZE);
+                    
                     site.lastChecked = new Date().toISOString();
                     site.lastUpdated = new Date().toISOString();
                     site.hash = hash;
@@ -67,7 +76,11 @@ class SiteMonitor extends Monitor {
                     
                     if (cleanOldContent !== content) {
                         hasChanged = true;
-                        this.notify({ site, oldContent, newContent: content, dom });
+                        if (isFlapping) {
+                            logger.info('[Flap Prevention] Suppressed notification for %s. Hash %s was seen recently.', site.url, hash);
+                        } else {
+                            this.notify({ site, oldContent, newContent: content, dom });
+                        }
                     } else {
                         // Silent update (Migration to clean content)
                         hasChanged = true; 
@@ -196,6 +209,7 @@ class SiteMonitor extends Monitor {
             lastUpdated: time.toISOString(),
             hash: hash,
             lastContent: content,
+            recentHashes: [hash],
         };
         
         this.state.push(site);

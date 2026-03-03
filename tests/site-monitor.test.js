@@ -146,6 +146,35 @@ describe('SiteMonitor', () => {
         expect(notifySpy).not.toHaveBeenCalled();
     });
 
+    it('should prevent flapping notifications if hash is in recentHashes', async () => {
+        const notifySpy = jest.spyOn(siteMonitor, 'notify');
+        
+        const site = siteMonitor.state[0];
+        site.hash = 'old-hash';
+        site.recentHashes = ['old-hash', 'flap-hash'];
+        site.lastContent = 'initial content';
+        
+        const response = { body: '<html><head><title>Test Site</title></head><body>flap content</body></html>' };
+        got.mockResolvedValue(response);
+        
+        crypto._mockDigest.mockReturnValue('flap-hash');
+
+        await siteMonitor.check();
+
+        // It should update the state with the flap content and hash
+        expect(site.lastContent).toBe('flap content');
+        expect(site.hash).toBe('flap-hash');
+        
+        // But it should NOT notify because flap-hash is in recentHashes
+        expect(notifySpy).not.toHaveBeenCalled();
+        
+        // However, it SHOULD still save the state to disk
+        expect(storage.write).toHaveBeenCalled();
+        
+        // Also it should have logged the flap prevention
+        expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[Flap Prevention]'), site.url, 'flap-hash');
+    });
+
     // New tests for parse method
     describe('parse method', () => {
         it('should do nothing and return undefined', () => {
