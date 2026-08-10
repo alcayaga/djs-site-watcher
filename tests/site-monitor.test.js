@@ -222,7 +222,7 @@ describe('SiteMonitor', () => {
             },
             oldContent: 'old\ncontent',
             newContent: 'new\ncontent',
-            dom: { window: { document: { title: 'Test Site Title' } } },
+            title: 'Test Site Title',
         };
 
         beforeEach(() => {
@@ -309,7 +309,7 @@ describe('SiteMonitor', () => {
                 },
                 oldContent: 'old',
                 newContent: 'new',
-                dom: { window: { document: { } } }, // No title
+                title: undefined, 
             };
             diff.diffLines.mockReturnValue([]);
             siteMonitor.notify(mockChangeWithoutTitle);
@@ -323,7 +323,7 @@ describe('SiteMonitor', () => {
                 site: { url: 'http://test.com', lastUpdated: new Date() },
                 oldContent: 'old',
                 newContent: 'new',
-                dom: { window: { document: { title: 'Test' } } }
+                title: 'Test'
             };
 
             diff.diffLines.mockReturnValue([]);

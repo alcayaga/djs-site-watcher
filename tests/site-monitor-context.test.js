@@ -37,6 +37,7 @@ jest.mock('jsdom', () => {
                         querySelector: jest.fn((selector) => actualDom.window.document.querySelector(selector)),
                         title: actualDom.window.document.title,
                     },
+                    close: jest.fn(),
                 },
             };
         }),
@@ -147,7 +148,7 @@ describe('SiteMonitor Context & Clean Features', () => {
             site: { url: 'http://example.com', lastUpdated: 'now' },
             oldContent: '...',
             newContent: '...',
-            dom: { window: { document: { title: 'Title' } } },
+            title: 'Title',
         };
         
         const lines = [
@@ -174,7 +175,7 @@ describe('SiteMonitor Context & Clean Features', () => {
             site: { url: 'http://example.com', lastUpdated: 'now' },
             oldContent: '...',
             newContent: '...',
-            dom: { window: { document: { title: 'Title' } } },
+            title: 'Title',
         };
 
         const lines = [

@@ -39,6 +39,7 @@ class AppleFeatureMonitor extends Monitor {
                 parsedData[featureName] = { regions, id: featureId };
             }
         });
+        dom.window.close();
         return parsedData;
     }
 

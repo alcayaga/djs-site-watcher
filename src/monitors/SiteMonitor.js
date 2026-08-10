@@ -51,6 +51,7 @@ class SiteMonitor extends Monitor {
                 const { content, hash, dom } = await this.fetchAndProcess(site.url, site.css);
 
                 const title = dom.window.document.title;
+                dom.window.close();
                 if (title && title.trim().length > 0 && site.id !== title) {
                     logger.info('[Migration] Updating ID for %s from \'%s\' to \'%s\'', site.url, site.id, title);
                     site.id = title;
@@ -79,7 +80,7 @@ class SiteMonitor extends Monitor {
                         if (isFlapping) {
                             logger.info('[Flap Prevention] Suppressed notification for %s. Hash %s was seen recently.', site.url, hash);
                         } else {
-                            this.notify({ site, oldContent, newContent: content, dom });
+                            this.notify({ site, oldContent, newContent: content, title });
                         }
                     } else {
                         // Silent update (Migration to clean content)
@@ -184,6 +185,7 @@ class SiteMonitor extends Monitor {
             hash = result.hash;
             selectorFound = result.selectorFound;
             id = result.dom.window.document.title;
+            result.dom.window.close();
             fetchSuccess = true;
         } catch (error) {
             if (!force) {
@@ -257,7 +259,7 @@ class SiteMonitor extends Monitor {
      * @returns {Promise<void>}
      */
     async notify(change) {
-        const { site, oldContent, newContent, dom } = change;
+        const { site, oldContent, newContent, title: pageTitle } = change;
         const channel = this.getNotificationChannel();
         if (!channel) {
             logger.error('Notification channel not found for %s.', this.name);
@@ -266,7 +268,7 @@ class SiteMonitor extends Monitor {
 
         logger.info('Change detected! %s', site.url);
         
-        let title = dom.window.document.title || site.id;
+        let title = pageTitle || site.id;
 
         const changes = diff.diffLines(oldContent, newContent);
         const allLines = [];
