@@ -100,6 +100,7 @@ describe('DealMonitor Percentage Tolerance', () => {
             expect.anything(),
             expect.anything(),
             false, // isSignificant should be false
+            expect.anything(),
             expect.anything()
         );
     });
@@ -131,7 +132,41 @@ describe('DealMonitor Percentage Tolerance', () => {
             expect.anything(),
             expect.anything(),
             true, // isSignificant should be true
+            expect.anything(),
             expect.anything()
         );
+    });
+
+    it('should accumulate small drops and alert when the total drop reaches minDropPercentage', async () => {
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone 17', 
+                minOfferPrice: 1000000, notifiedMinOfferPrice: 1000000, lastOfferPrice: 1000000, 
+                minNormalPrice: 1000000, notifiedMinNormalPrice: 1000000, lastNormalPrice: 1000000 
+            }
+        };
+
+        // Day 1: Decrease by 30.000 CLP (3% drop) -> No alert, but minOfferPrice updates
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone 17', offerPrice: 970000, normalPrice: 1000000 }])
+        });
+
+        await monitor.check();
+
+        expect(mockChannel.send).not.toHaveBeenCalled();
+        expect(monitor.state['1'].minOfferPrice).toBe(970000);
+        expect(monitor.state['1'].notifiedMinOfferPrice).toBe(1000000);
+
+        // Day 2: Decrease by another 30.000 CLP to 940.000
+        // Total drop from notified (1.000.000) is 60.000 (6%)
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone 17', offerPrice: 940000, normalPrice: 1000000 }])
+        });
+
+        await monitor.check();
+
+        expect(mockChannel.send).toHaveBeenCalledTimes(1);
+        expect(monitor.state['1'].minOfferPrice).toBe(940000);
+        expect(monitor.state['1'].notifiedMinOfferPrice).toBe(940000);
     });
 });

@@ -269,6 +269,7 @@ describe('DealMonitor Price Tolerance', () => {
             expect.anything(),
             expect.anything(),
             false,
+            expect.anything(),
             expect.anything()
         );
     });
@@ -300,6 +301,7 @@ describe('DealMonitor Price Tolerance', () => {
             expect.anything(),
             expect.anything(),
             true,
+            expect.anything(),
             expect.anything()
         );
     });
