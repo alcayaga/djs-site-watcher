@@ -127,8 +127,16 @@ class DealMonitor extends Monitor {
         const minPriceKey = `min${priceType}Price`;
         const minDateKey = `min${priceType}Date`;
         const lastPriceKey = `last${priceType}Price`;
+        const notifiedMinKey = `notifiedMin${priceType}Price`;
         const pendingExitKey = `pendingExit${priceType}`;
         const notificationType = priceType.toUpperCase();
+        
+        let stateMigrated = false;
+        // Ensure notifiedMinKey exists for backward compatibility
+        if (stored[notifiedMinKey] === undefined) {
+            stored[notifiedMinKey] = stored[minPriceKey];
+            stateMigrated = true;
+        }
         
         const parsedTolerance = parseInt(this.config.priceTolerance, 10);
         const tolerance = !Number.isNaN(parsedTolerance) ? parsedTolerance : DEFAULT_PRICE_TOLERANCE;
@@ -185,23 +193,36 @@ class DealMonitor extends Monitor {
         }
 
         if (currentPrice < stored[minPriceKey]) {
-            const dropAmount = stored[minPriceKey] - currentPrice;
-            const dropPercentage = (dropAmount / stored[minPriceKey]) * 100;
+            const oldMinPrice = stored[minPriceKey];
+            const dropAmount = stored[notifiedMinKey] - currentPrice;
+            const dropPercentage = (dropAmount / stored[notifiedMinKey]) * 100;
             const isSignificant = dropAmount >= tolerance && dropPercentage >= minDropPercentage;
             
             if (this.config.verboseLogging) {
-                logger.info('[DealMonitor] %s (ID: %s) [%s] NEW HISTORIC LOW: %s -> %s (Significant: %s, Drop: %s%%)', product.name, product.id, priceType, formatCLP(stored[minPriceKey]), formatCLP(currentPrice), isSignificant, dropPercentage.toFixed(2));
+                logger.info('[DealMonitor] %s (ID: %s) [%s] NEW HISTORIC LOW: %s -> %s (Significant: %s, Drop: %s%% from %s)', product.name, product.id, priceType, formatCLP(oldMinPrice), formatCLP(currentPrice), isSignificant, dropPercentage.toFixed(2), formatCLP(stored[notifiedMinKey]));
             }
+            
             stored[minPriceKey] = currentPrice;
             stored[minDateKey] = now;
             stored[lastPriceKey] = currentPrice;
-            return isSignificant ? `NEW_LOW_${notificationType}` : 'CHANGED';
-        } else if (isAtMin && !wasAtMin) {
-            if (this.config.verboseLogging) {
-                logger.info('[DealMonitor] %s (ID: %s) [%s] BACK TO HISTORIC LOW: %s', product.name, product.id, priceType, formatCLP(currentPrice));
+            
+            if (isSignificant) {
+                stored[notifiedMinKey] = currentPrice;
+                return `NEW_LOW_${notificationType}`;
             }
-            stored[lastPriceKey] = currentPrice;
-            return `BACK_TO_LOW_${notificationType}`;
+            return 'CHANGED';
+        } else if (isAtMin && !wasAtMin) {
+            // Only alert BACK_TO_LOW if the minimum we are returning to is a minimum we actually notified the user about.
+            if (stored[minPriceKey] === stored[notifiedMinKey]) {
+                if (this.config.verboseLogging) {
+                    logger.info('[DealMonitor] %s (ID: %s) [%s] BACK TO HISTORIC LOW: %s', product.name, product.id, priceType, formatCLP(currentPrice));
+                }
+                stored[lastPriceKey] = currentPrice;
+                return `BACK_TO_LOW_${notificationType}`;
+            } else {
+                stored[lastPriceKey] = currentPrice;
+                return 'CHANGED';
+            }
         } else if (currentPrice !== stored[lastPriceKey]) {
             const isIncrease = currentPrice > stored[lastPriceKey];
 
@@ -235,6 +256,10 @@ class DealMonitor extends Monitor {
                 return 'PENDING';
             }
             
+            return 'CHANGED';
+        }
+        
+        if (stateMigrated) {
             return 'CHANGED';
         }
         return null;
@@ -322,8 +347,10 @@ class DealMonitor extends Monitor {
                     newState[productId] = {
                         minOfferPrice: minOffer,
                         minOfferDate,
+                        notifiedMinOfferPrice: minOffer,
                         minNormalPrice: minNormal,
                         minNormalDate,
+                        notifiedMinNormalPrice: minNormal,
                         lastOfferPrice: product.offerPrice,
                         lastNormalPrice: product.normalPrice,
                         name: product.name,
