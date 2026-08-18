@@ -131,9 +131,11 @@ class DealMonitor extends Monitor {
         const pendingExitKey = `pendingExit${priceType}`;
         const notificationType = priceType.toUpperCase();
         
+        let stateMigrated = false;
         // Ensure notifiedMinKey exists for backward compatibility
         if (stored[notifiedMinKey] === undefined) {
             stored[notifiedMinKey] = stored[minPriceKey];
+            stateMigrated = true;
         }
         
         const parsedTolerance = parseInt(this.config.priceTolerance, 10);
@@ -210,11 +212,17 @@ class DealMonitor extends Monitor {
             }
             return 'CHANGED';
         } else if (isAtMin && !wasAtMin) {
-            if (this.config.verboseLogging) {
-                logger.info('[DealMonitor] %s (ID: %s) [%s] BACK TO HISTORIC LOW: %s', product.name, product.id, priceType, formatCLP(currentPrice));
+            // Only alert BACK_TO_LOW if the minimum we are returning to is a minimum we actually notified the user about.
+            if (stored[minPriceKey] === stored[notifiedMinKey]) {
+                if (this.config.verboseLogging) {
+                    logger.info('[DealMonitor] %s (ID: %s) [%s] BACK TO HISTORIC LOW: %s', product.name, product.id, priceType, formatCLP(currentPrice));
+                }
+                stored[lastPriceKey] = currentPrice;
+                return `BACK_TO_LOW_${notificationType}`;
+            } else {
+                stored[lastPriceKey] = currentPrice;
+                return 'CHANGED';
             }
-            stored[lastPriceKey] = currentPrice;
-            return `BACK_TO_LOW_${notificationType}`;
         } else if (currentPrice !== stored[lastPriceKey]) {
             const isIncrease = currentPrice > stored[lastPriceKey];
 
@@ -248,6 +256,10 @@ class DealMonitor extends Monitor {
                 return 'PENDING';
             }
             
+            return 'CHANGED';
+        }
+        
+        if (stateMigrated) {
             return 'CHANGED';
         }
         return null;

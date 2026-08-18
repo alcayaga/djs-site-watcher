@@ -169,4 +169,46 @@ describe('DealMonitor Percentage Tolerance', () => {
         expect(monitor.state['1'].minOfferPrice).toBe(940000);
         expect(monitor.state['1'].notifiedMinOfferPrice).toBe(940000);
     });
+    it('should NOT alert BACK_TO_LOW if returning to an insignificant low', async () => {
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone 17', 
+                minOfferPrice: 970000, notifiedMinOfferPrice: 1000000, lastOfferPrice: 1100000, 
+                minNormalPrice: 1000000, notifiedMinNormalPrice: 1000000, lastNormalPrice: 1000000 
+            }
+        };
+
+        // Price drops from 1.100.000 to 970.000
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone 17', offerPrice: 970000, normalPrice: 1000000 }])
+        });
+
+        await monitor.check();
+
+        // Should not send BACK_TO_LOW alert because 970k was never notified
+        expect(mockChannel.send).not.toHaveBeenCalled();
+        expect(monitor.state['1'].lastOfferPrice).toBe(970000);
+    });
+
+    it('should migrate legacy state by initializing notified minimums and saving state', async () => {
+        const storage = require('../../src/storage');
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone 17', 
+                minOfferPrice: 1000000, lastOfferPrice: 1000000, 
+                minNormalPrice: 1000000, lastNormalPrice: 1000000 
+            }
+        };
+
+        // Price is unchanged
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone 17', offerPrice: 1000000, normalPrice: 1000000 }])
+        });
+
+        await monitor.check();
+
+        expect(monitor.state['1'].notifiedMinOfferPrice).toBe(1000000);
+        expect(monitor.state['1'].notifiedMinNormalPrice).toBe(1000000);
+        expect(storage.write).toHaveBeenCalled();
+    });
 });
