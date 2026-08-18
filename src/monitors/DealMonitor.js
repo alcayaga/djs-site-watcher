@@ -4,7 +4,7 @@ const config = require('../config');
 const got = require('got');
 const { formatCLP, sanitizeLinkText, formatDiscordTimestamp, formatPriceValue } = require('../utils/formatters');
 const solotodo = require('../utils/solotodo');
-const { DEFAULT_PRICE_TOLERANCE, DEFAULT_GRACE_PERIOD_HOURS } = require('../utils/constants');
+const { DEFAULT_PRICE_TOLERANCE, DEFAULT_GRACE_PERIOD_HOURS, DEFAULT_MIN_DROP_PERCENTAGE } = require('../utils/constants');
 const { sleep } = require('../utils/helpers');
 const { getSafeGotOptions } = require('../utils/network');
 const { downloadImage } = require('../utils/image');
@@ -82,7 +82,7 @@ class DealMonitor extends Monitor {
                     
                     // Find the CLP (Currency 1) price in the metadata
                     const prices = entry?.metadata?.prices_per_currency?.find(p => 
-                        p.currency === solotodo.SOLOTODO_CLP_CURRENCY_URL
+                        p.currency === solotodo.SOLOTODO_CLP_CURRENCY_URL || String(p.currency) === solotodo.SOLOTODO_CLP_CURRENCY_ID
                     );
 
                     if (!product || !prices) {
@@ -127,11 +127,22 @@ class DealMonitor extends Monitor {
         const minPriceKey = `min${priceType}Price`;
         const minDateKey = `min${priceType}Date`;
         const lastPriceKey = `last${priceType}Price`;
+        const notifiedMinKey = `notifiedMin${priceType}Price`;
         const pendingExitKey = `pendingExit${priceType}`;
         const notificationType = priceType.toUpperCase();
         
+        let stateMigrated = false;
+        // Ensure notifiedMinKey exists for backward compatibility
+        if (stored[notifiedMinKey] === undefined) {
+            stored[notifiedMinKey] = stored[minPriceKey];
+            stateMigrated = true;
+        }
+        
         const parsedTolerance = parseInt(this.config.priceTolerance, 10);
         const tolerance = !Number.isNaN(parsedTolerance) ? parsedTolerance : DEFAULT_PRICE_TOLERANCE;
+        
+        const parsedMinDropPct = parseFloat(this.config.minDropPercentage);
+        const minDropPercentage = !Number.isNaN(parsedMinDropPct) ? parsedMinDropPct : DEFAULT_MIN_DROP_PERCENTAGE;
         
         const parsedGrace = parseInt(this.config.gracePeriodHours, 10);
         const gracePeriodHours = !Number.isNaN(parsedGrace) ? parsedGrace : DEFAULT_GRACE_PERIOD_HOURS;
@@ -182,20 +193,36 @@ class DealMonitor extends Monitor {
         }
 
         if (currentPrice < stored[minPriceKey]) {
-            const isSignificant = (stored[minPriceKey] - currentPrice) >= tolerance;
+            const oldMinPrice = stored[minPriceKey];
+            const dropAmount = stored[notifiedMinKey] - currentPrice;
+            const dropPercentage = (dropAmount / stored[notifiedMinKey]) * 100;
+            const isSignificant = dropAmount >= tolerance && dropPercentage >= minDropPercentage;
+            
             if (this.config.verboseLogging) {
-                logger.info('[DealMonitor] %s (ID: %s) [%s] NEW HISTORIC LOW: %s -> %s (Significant: %s)', product.name, product.id, priceType, formatCLP(stored[minPriceKey]), formatCLP(currentPrice), isSignificant);
+                logger.info('[DealMonitor] %s (ID: %s) [%s] NEW HISTORIC LOW: %s -> %s (Significant: %s, Drop: %s%% from %s)', product.name, product.id, priceType, formatCLP(oldMinPrice), formatCLP(currentPrice), isSignificant, dropPercentage.toFixed(2), formatCLP(stored[notifiedMinKey]));
             }
+            
             stored[minPriceKey] = currentPrice;
             stored[minDateKey] = now;
             stored[lastPriceKey] = currentPrice;
-            return isSignificant ? `NEW_LOW_${notificationType}` : 'CHANGED';
-        } else if (isAtMin && !wasAtMin) {
-            if (this.config.verboseLogging) {
-                logger.info('[DealMonitor] %s (ID: %s) [%s] BACK TO HISTORIC LOW: %s', product.name, product.id, priceType, formatCLP(currentPrice));
+            
+            if (isSignificant) {
+                stored[notifiedMinKey] = currentPrice;
+                return `NEW_LOW_${notificationType}`;
             }
-            stored[lastPriceKey] = currentPrice;
-            return `BACK_TO_LOW_${notificationType}`;
+            return 'CHANGED';
+        } else if (isAtMin && !wasAtMin) {
+            // Only alert BACK_TO_LOW if the minimum we are returning to is a minimum we actually notified the user about.
+            if (stored[minPriceKey] === stored[notifiedMinKey]) {
+                if (this.config.verboseLogging) {
+                    logger.info('[DealMonitor] %s (ID: %s) [%s] BACK TO HISTORIC LOW: %s', product.name, product.id, priceType, formatCLP(currentPrice));
+                }
+                stored[lastPriceKey] = currentPrice;
+                return `BACK_TO_LOW_${notificationType}`;
+            } else {
+                stored[lastPriceKey] = currentPrice;
+                return 'CHANGED';
+            }
         } else if (currentPrice !== stored[lastPriceKey]) {
             const isIncrease = currentPrice > stored[lastPriceKey];
 
@@ -229,6 +256,10 @@ class DealMonitor extends Monitor {
                 return 'PENDING';
             }
             
+            return 'CHANGED';
+        }
+        
+        if (stateMigrated) {
             return 'CHANGED';
         }
         return null;
@@ -282,7 +313,8 @@ class DealMonitor extends Monitor {
                             const history = await solotodo.getProductHistory(productId);
                             for (const entity of history) {
                                 // Only backfill history from CLP (Currency 1) entities
-                                if (entity.entity?.currency !== solotodo.SOLOTODO_CLP_CURRENCY_URL) {
+                                const entityCurrency = entity.entity?.currency;
+                                if (entityCurrency !== solotodo.SOLOTODO_CLP_CURRENCY_URL && String(entityCurrency) !== solotodo.SOLOTODO_CLP_CURRENCY_ID) {
                                     continue;
                                 }
 
@@ -315,8 +347,10 @@ class DealMonitor extends Monitor {
                     newState[productId] = {
                         minOfferPrice: minOffer,
                         minOfferDate,
+                        notifiedMinOfferPrice: minOffer,
                         minNormalPrice: minNormal,
                         minNormalDate,
+                        notifiedMinNormalPrice: minNormal,
                         lastOfferPrice: product.offerPrice,
                         lastNormalPrice: product.normalPrice,
                         name: product.name,
