@@ -174,7 +174,7 @@ describe('SiteMonitor', () => {
         // Also it should have logged the flap prevention
         expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[Flap Prevention]'), site.url, 'flap-hash');
         
-        // Ensure recentHashes is bounded and retains newest-to-oldest order
+        // Ensure recentHashes is bounded and retained for flap detection, preserving oldest-to-newest order
         expect(site.recentHashes).toEqual(['h2', 'h3', 'h4', 'h6', 'flap-hash']);
     });
 
