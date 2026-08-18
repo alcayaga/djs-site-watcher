@@ -151,7 +151,7 @@ describe('SiteMonitor', () => {
         
         const site = siteMonitor.state[0];
         site.hash = 'old-hash';
-        site.recentHashes = ['old-hash', 'flap-hash'];
+        site.recentHashes = ['h1', 'h2', 'h3', 'h4', 'flap-hash', 'h6'];
         site.lastContent = 'initial content';
         
         const response = { body: '<html><head><title>Test Site</title></head><body>flap content</body></html>' };
@@ -173,6 +173,9 @@ describe('SiteMonitor', () => {
         
         // Also it should have logged the flap prevention
         expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[Flap Prevention]'), site.url, 'flap-hash');
+        
+        // Ensure recentHashes is bounded and retains newest-to-oldest order
+        expect(site.recentHashes).toEqual(['h2', 'h3', 'h4', 'h6', 'flap-hash']);
     });
 
     // New tests for parse method
@@ -420,6 +423,11 @@ describe('SiteMonitor', () => {
             expect(site.lastContent).toBe('');
             expect(warning).toBe(false);
             expect(siteMonitor.state).toHaveLength(2);
+        });
+
+        it('should throw error even if force is true when CSS selector is invalid', async () => {
+            got.mockResolvedValue({ body: '<html><body></body></html>' });
+            await expect(siteMonitor.addSite('http://error.com', '::invalid', true)).rejects.toThrow('Invalid CSS selector: ::invalid');
         });
     });
 });

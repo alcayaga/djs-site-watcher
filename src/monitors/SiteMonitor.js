@@ -93,6 +93,11 @@ class SiteMonitor extends Monitor {
                         hasChanged = true;
                         logger.info('[Migration] Backfilled lastContent for %s without notification.', site.url);
                     }
+                    if (Array.isArray(site.recentHashes) && site.recentHashes.length > RECENT_HASH_HISTORY_SIZE) {
+                        site.recentHashes = site.recentHashes.slice(-RECENT_HASH_HISTORY_SIZE);
+                        hasChanged = true;
+                        logger.info('[Migration] Trimmed recent hashes for %s.', site.url);
+                    }
                     site.lastChecked = new Date().toISOString();
                 }
                 return { site, hasChanged };
@@ -132,22 +137,27 @@ class SiteMonitor extends Monitor {
         let content = '';
         let selectorFound = false;
 
-        if (css) {
-            const selectorNode = dom.window.document.querySelector(css);
-            if (selectorNode) {
-                content = selectorNode.textContent;
-                selectorFound = true;
+        try {
+            if (css) {
+                const selectorNode = dom.window.document.querySelector(css);
+                if (selectorNode) {
+                    content = selectorNode.textContent;
+                    selectorFound = true;
+                }
+            } else {
+                const headNode = dom.window.document.querySelector('head');
+                content = headNode ? headNode.textContent : '';
+                selectorFound = !!headNode;
             }
-        } else {
-            const headNode = dom.window.document.querySelector('head');
-            content = headNode ? headNode.textContent : '';
-            selectorFound = !!headNode;
+
+            content = cleanText(content);
+            const hash = crypto.createHash('md5').update(content).digest('hex');
+
+            return { content, hash, selectorFound, dom };
+        } catch (error) {
+            dom.window.close();
+            throw error;
         }
-
-        content = cleanText(content);
-        const hash = crypto.createHash('md5').update(content).digest('hex');
-
-        return { content, hash, selectorFound, dom };
     }
 
     /**
@@ -188,6 +198,9 @@ class SiteMonitor extends Monitor {
             result.dom.window.close();
             fetchSuccess = true;
         } catch (error) {
+            if (error.name === 'SyntaxError') {
+                throw new Error(`Invalid CSS selector: ${css}`);
+            }
             if (!force) {
                 throw error;
             }
@@ -255,7 +268,7 @@ class SiteMonitor extends Monitor {
 
     /**
      * Sends a notification for a changed site.
-     * @param {object} change The change object containing site, old/new content, and dom.
+     * @param {object} change The change object containing site, old/new content, and title.
      * @returns {Promise<void>}
      */
     async notify(change) {
