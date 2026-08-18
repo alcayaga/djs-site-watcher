@@ -358,7 +358,8 @@ async function getStores() {
     const storeMap = new Map();
     if (Array.isArray(response.body)) {
         for (const store of response.body) {
-            storeMap.set(store.url, store.name);
+            if (store.url) storeMap.set(store.url, store.name);
+            if (store.id) storeMap.set(store.id, store.name);
         }
     }
     cachedStores = storeMap;
