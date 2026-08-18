@@ -9,6 +9,7 @@ const JSDOM = jest.fn((html) => {
                 querySelectorAll: jest.fn((selector) => actualDom.window.document.querySelectorAll(selector)),
                 title: actualDom.window.document.title,
             },
+            close: jest.fn(),
         },
     };
 });

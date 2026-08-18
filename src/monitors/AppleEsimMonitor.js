@@ -25,6 +25,7 @@ class AppleEsimMonitor extends Monitor {
 
         if (!countryHeading) {
             logger.warn('Could not find section for %s on the eSIM page.', countryToMonitor);
+            dom.window.close();
             return this.state; // Return old state if section not found
         }
 
@@ -58,6 +59,7 @@ class AppleEsimMonitor extends Monitor {
             parsedData[countryToMonitor] = carriers.sort((a, b) => a.name.localeCompare(b.name));
         }
 
+        dom.window.close();
         return parsedData;
     }
 

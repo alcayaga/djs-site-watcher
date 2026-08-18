@@ -51,6 +51,7 @@ class SiteMonitor extends Monitor {
                 const { content, hash, dom } = await this.fetchAndProcess(site.url, site.css);
 
                 const title = dom.window.document.title;
+                dom.window.close();
                 if (title && title.trim().length > 0 && site.id !== title) {
                     logger.info('[Migration] Updating ID for %s from \'%s\' to \'%s\'', site.url, site.id, title);
                     site.id = title;
@@ -79,7 +80,7 @@ class SiteMonitor extends Monitor {
                         if (isFlapping) {
                             logger.info('[Flap Prevention] Suppressed notification for %s. Hash %s was seen recently.', site.url, hash);
                         } else {
-                            this.notify({ site, oldContent, newContent: content, dom });
+                            this.notify({ site, oldContent, newContent: content, title });
                         }
                     } else {
                         // Silent update (Migration to clean content)
@@ -91,6 +92,11 @@ class SiteMonitor extends Monitor {
                         site.lastContent = content;
                         hasChanged = true;
                         logger.info('[Migration] Backfilled lastContent for %s without notification.', site.url);
+                    }
+                    if (Array.isArray(site.recentHashes) && site.recentHashes.length > RECENT_HASH_HISTORY_SIZE) {
+                        site.recentHashes = site.recentHashes.slice(-RECENT_HASH_HISTORY_SIZE);
+                        hasChanged = true;
+                        logger.info('[Migration] Trimmed recent hashes for %s.', site.url);
                     }
                     site.lastChecked = new Date().toISOString();
                 }
@@ -131,22 +137,27 @@ class SiteMonitor extends Monitor {
         let content = '';
         let selectorFound = false;
 
-        if (css) {
-            const selectorNode = dom.window.document.querySelector(css);
-            if (selectorNode) {
-                content = selectorNode.textContent;
-                selectorFound = true;
+        try {
+            if (css) {
+                const selectorNode = dom.window.document.querySelector(css);
+                if (selectorNode) {
+                    content = selectorNode.textContent;
+                    selectorFound = true;
+                }
+            } else {
+                const headNode = dom.window.document.querySelector('head');
+                content = headNode ? headNode.textContent : '';
+                selectorFound = !!headNode;
             }
-        } else {
-            const headNode = dom.window.document.querySelector('head');
-            content = headNode ? headNode.textContent : '';
-            selectorFound = !!headNode;
+
+            content = cleanText(content);
+            const hash = crypto.createHash('md5').update(content).digest('hex');
+
+            return { content, hash, selectorFound, dom };
+        } catch (error) {
+            dom.window.close();
+            throw error;
         }
-
-        content = cleanText(content);
-        const hash = crypto.createHash('md5').update(content).digest('hex');
-
-        return { content, hash, selectorFound, dom };
     }
 
     /**
@@ -184,8 +195,12 @@ class SiteMonitor extends Monitor {
             hash = result.hash;
             selectorFound = result.selectorFound;
             id = result.dom.window.document.title;
+            result.dom.window.close();
             fetchSuccess = true;
         } catch (error) {
+            if (error.name === 'SyntaxError') {
+                throw new Error(`Invalid CSS selector: ${css}`);
+            }
             if (!force) {
                 throw error;
             }
@@ -253,11 +268,11 @@ class SiteMonitor extends Monitor {
 
     /**
      * Sends a notification for a changed site.
-     * @param {object} change The change object containing site, old/new content, and dom.
+     * @param {object} change The change object containing site, old/new content, and title.
      * @returns {Promise<void>}
      */
     async notify(change) {
-        const { site, oldContent, newContent, dom } = change;
+        const { site, oldContent, newContent, title: pageTitle } = change;
         const channel = this.getNotificationChannel();
         if (!channel) {
             logger.error('Notification channel not found for %s.', this.name);
@@ -266,7 +281,7 @@ class SiteMonitor extends Monitor {
 
         logger.info('Change detected! %s', site.url);
         
-        let title = dom.window.document.title || site.id;
+        let title = pageTitle || site.id;
 
         const changes = diff.diffLines(oldContent, newContent);
         const allLines = [];
