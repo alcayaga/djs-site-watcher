@@ -16,31 +16,34 @@ class AppleFeatureMonitor extends Monitor {
      */
     parse(data) {
         const dom = new JSDOM(data);
-        const sections = dom.window.document.querySelectorAll('.features');
-        const parsedData = {};
-        const keywords = this.config.keywords || [];
+        try {
+            const sections = dom.window.document.querySelectorAll('.features');
+            const parsedData = {};
+            const keywords = this.config.keywords || [];
 
-        sections.forEach(section => {
-            const featureNameElement = section.querySelector('h2');
-            if (!featureNameElement) return;
-            const featureName = featureNameElement.textContent.trim();
-            const featureId = section.id;
+            sections.forEach(section => {
+                const featureNameElement = section.querySelector('h2');
+                if (!featureNameElement) return;
+                const featureName = featureNameElement.textContent.trim();
+                const featureId = section.id;
 
-            const regions = [];
-            const listItems = section.querySelectorAll('li');
-            listItems.forEach(li => {
-                const region = li.textContent.trim();
-                if (keywords.some(keyword => region.toLowerCase().includes(keyword))) {
-                    regions.push(region);
+                const regions = [];
+                const listItems = section.querySelectorAll('li');
+                listItems.forEach(li => {
+                    const region = li.textContent.trim();
+                    if (keywords.some(keyword => region.toLowerCase().includes(keyword))) {
+                        regions.push(region);
+                    }
+                });
+
+                if (regions.length > 0) {
+                    parsedData[featureName] = { regions, id: featureId };
                 }
             });
-
-            if (regions.length > 0) {
-                parsedData[featureName] = { regions, id: featureId };
-            }
-        });
-        dom.window.close();
-        return parsedData;
+            return parsedData;
+        } finally {
+            dom.window.close();
+        }
     }
 
     /**
