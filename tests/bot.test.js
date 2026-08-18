@@ -93,6 +93,26 @@ describe('Bot', () => {
         expect(bot.client.on).toHaveBeenCalledWith('interactionCreate', expect.any(Function));
     });
 
+    it('should configure keepOverLimit to protect the bot user in GuildMemberManager cache', () => {
+        jest.doMock('../src/config', () => ({
+            DISCORDJS_BOT_TOKEN: 'mock_token',
+            channels: []
+        }));
+        const bot = require('../src/bot.js');
+        const { Options } = require('discord.js');
+        
+        expect(Options.cacheWithLimits).toHaveBeenCalled();
+        const callArgs = Options.cacheWithLimits.mock.calls[0][0];
+        const keepOverLimitFn = callArgs.GuildMemberManager.keepOverLimit;
+        
+        expect(keepOverLimitFn).toBeDefined();
+        
+        bot.client.user = { id: 'bot-id' };
+        
+        expect(keepOverLimitFn({ id: 'bot-id' })).toBe(true);
+        expect(keepOverLimitFn({ id: 'other-id' })).toBe(false);
+    });
+
     describe('on "ready" event', () => {
         describe('in SINGLE_RUN mode', () => {
             beforeEach(() => {

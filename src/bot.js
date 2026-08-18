@@ -14,7 +14,10 @@ const client = new Client({
         ...Options.DefaultMakeCacheSettings,
         MessageManager: 20,
         UserManager: 50,
-        GuildMemberManager: 50,
+        GuildMemberManager: {
+            maxSize: 50,
+            keepOverLimit: member => member.id === client.user?.id,
+        },
         ThreadManager: 10,
     }),
 });
