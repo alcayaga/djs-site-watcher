@@ -4,7 +4,7 @@ const config = require('../config');
 const got = require('got');
 const { formatCLP, sanitizeLinkText, formatDiscordTimestamp, formatPriceValue } = require('../utils/formatters');
 const solotodo = require('../utils/solotodo');
-const { DEFAULT_PRICE_TOLERANCE, DEFAULT_GRACE_PERIOD_HOURS } = require('../utils/constants');
+const { DEFAULT_PRICE_TOLERANCE, DEFAULT_GRACE_PERIOD_HOURS, DEFAULT_MIN_DROP_PERCENTAGE } = require('../utils/constants');
 const { sleep } = require('../utils/helpers');
 const { getSafeGotOptions } = require('../utils/network');
 const { downloadImage } = require('../utils/image');
@@ -133,6 +133,9 @@ class DealMonitor extends Monitor {
         const parsedTolerance = parseInt(this.config.priceTolerance, 10);
         const tolerance = !Number.isNaN(parsedTolerance) ? parsedTolerance : DEFAULT_PRICE_TOLERANCE;
         
+        const parsedMinDropPct = parseFloat(this.config.minDropPercentage);
+        const minDropPercentage = !Number.isNaN(parsedMinDropPct) ? parsedMinDropPct : DEFAULT_MIN_DROP_PERCENTAGE;
+        
         const parsedGrace = parseInt(this.config.gracePeriodHours, 10);
         const gracePeriodHours = !Number.isNaN(parsedGrace) ? parsedGrace : DEFAULT_GRACE_PERIOD_HOURS;
 
@@ -182,9 +185,12 @@ class DealMonitor extends Monitor {
         }
 
         if (currentPrice < stored[minPriceKey]) {
-            const isSignificant = (stored[minPriceKey] - currentPrice) >= tolerance;
+            const dropAmount = stored[minPriceKey] - currentPrice;
+            const dropPercentage = (dropAmount / stored[minPriceKey]) * 100;
+            const isSignificant = dropAmount >= tolerance && dropPercentage >= minDropPercentage;
+            
             if (this.config.verboseLogging) {
-                logger.info('[DealMonitor] %s (ID: %s) [%s] NEW HISTORIC LOW: %s -> %s (Significant: %s)', product.name, product.id, priceType, formatCLP(stored[minPriceKey]), formatCLP(currentPrice), isSignificant);
+                logger.info('[DealMonitor] %s (ID: %s) [%s] NEW HISTORIC LOW: %s -> %s (Significant: %s, Drop: %s%%)', product.name, product.id, priceType, formatCLP(stored[minPriceKey]), formatCLP(currentPrice), isSignificant, dropPercentage.toFixed(2));
             }
             stored[minPriceKey] = currentPrice;
             stored[minDateKey] = now;
