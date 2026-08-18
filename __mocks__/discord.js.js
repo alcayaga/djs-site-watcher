@@ -210,3 +210,7 @@ module.exports = {
   },
   Collection: Map,
 };
+module.exports.Options = {
+    cacheWithLimits: jest.fn(() => ({})),
+    DefaultMakeCacheSettings: {}
+};
