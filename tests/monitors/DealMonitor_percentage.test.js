@@ -209,6 +209,15 @@ describe('DealMonitor Percentage Tolerance', () => {
 
         expect(monitor.state['1'].notifiedMinOfferPrice).toBe(1000000);
         expect(monitor.state['1'].notifiedMinNormalPrice).toBe(1000000);
-        expect(storage.write).toHaveBeenCalled();
+        
+        expect(storage.write).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                '1': expect.objectContaining({
+                    notifiedMinOfferPrice: 1000000,
+                    notifiedMinNormalPrice: 1000000
+                })
+            })
+        );
     });
 });
