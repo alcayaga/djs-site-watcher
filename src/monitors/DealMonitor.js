@@ -212,10 +212,17 @@ class DealMonitor extends Monitor {
             }
             return 'CHANGED';
         } else if (isAtMin && !wasAtMin) {
-            // Only alert BACK_TO_LOW if the minimum we are returning to is a minimum we actually notified the user about.
-            if (stored[minPriceKey] === stored[notifiedMinKey]) {
+            // Check if the drop back to the minimum is significant enough to warrant an alert
+            const dropAmount = stored[lastPriceKey] - currentPrice;
+            const dropPercentage = (dropAmount / stored[lastPriceKey]) * 100;
+            const isSignificant = dropAmount >= tolerance && dropPercentage >= minDropPercentage;
+
+            // Only alert BACK_TO_LOW if:
+            // 1. The minimum we are returning to is a minimum we actually notified the user about.
+            // 2. The drop from the last known higher price is significant (>= minDropPercentage).
+            if (stored[minPriceKey] === stored[notifiedMinKey] && isSignificant) {
                 if (this.config.verboseLogging) {
-                    logger.info('[DealMonitor] %s (ID: %s) [%s] BACK TO HISTORIC LOW: %s', product.name, product.id, priceType, formatCLP(currentPrice));
+                    logger.info('[DealMonitor] %s (ID: %s) [%s] BACK TO HISTORIC LOW: %s (Drop: %s%%)', product.name, product.id, priceType, formatCLP(currentPrice), dropPercentage.toFixed(2));
                 }
                 stored[lastPriceKey] = currentPrice;
                 return `BACK_TO_LOW_${notificationType}`;
