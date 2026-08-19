@@ -16,51 +16,53 @@ class AppleEsimMonitor extends Monitor {
      */
     parse(data) {
         const dom = new JSDOM(data);
-        const document = dom.window.document;
-        const parsedData = {};
-        const countryToMonitor = this.config.country || 'Chile'; // Default to Chile if not specified
+        try {
+            const document = dom.window.document;
+            const parsedData = {};
+            const countryToMonitor = this.config.country || 'Chile'; // Default to Chile if not specified
 
-        const countryHeading = Array.from(document.querySelectorAll('h2'))
-            .find(heading => heading.textContent.trim() === countryToMonitor);
+            const countryHeading = Array.from(document.querySelectorAll('h2'))
+                .find(heading => heading.textContent.trim() === countryToMonitor);
 
-        if (!countryHeading) {
-            logger.warn('Could not find section for %s on the eSIM page.', countryToMonitor);
+            if (!countryHeading) {
+                logger.warn('Could not find section for %s on the eSIM page.', countryToMonitor);
+                return this.state; // Return old state if section not found
+            }
+
+            const carriers = [];
+            let nextElement = countryHeading.nextElementSibling;
+            let currentCapability = 'General';
+
+            while (nextElement && nextElement.tagName !== 'H2') {
+                const h3 = nextElement.querySelector('h3') || (nextElement.tagName === 'H3' ? nextElement : null);
+                if (h3) {
+                    currentCapability = h3.textContent.trim();
+                }
+
+                const list = nextElement.querySelector('ul, ol') || (nextElement.matches('ul, ol') ? nextElement : null);
+                if (list) {
+                    list.querySelectorAll('li').forEach(li => {
+                        const linkElement = li.querySelector('a');
+                        if (linkElement) {
+                            carriers.push({
+                                name: linkElement.textContent.trim(),
+                                link: linkElement.href,
+                                capability: currentCapability,
+                            });
+                        }
+                    });
+                }
+                nextElement = nextElement.nextElementSibling;
+            }
+
+            if (carriers.length > 0) {
+                parsedData[countryToMonitor] = carriers.sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            return parsedData;
+        } finally {
             dom.window.close();
-            return this.state; // Return old state if section not found
         }
-
-        const carriers = [];
-        let nextElement = countryHeading.nextElementSibling;
-        let currentCapability = 'General';
-
-        while (nextElement && nextElement.tagName !== 'H2') {
-            const h3 = nextElement.querySelector('h3') || (nextElement.tagName === 'H3' ? nextElement : null);
-            if (h3) {
-                currentCapability = h3.textContent.trim();
-            }
-
-            const list = nextElement.querySelector('ul, ol') || (nextElement.matches('ul, ol') ? nextElement : null);
-            if (list) {
-                list.querySelectorAll('li').forEach(li => {
-                    const linkElement = li.querySelector('a');
-                    if (linkElement) {
-                        carriers.push({
-                            name: linkElement.textContent.trim(),
-                            link: linkElement.href,
-                            capability: currentCapability,
-                        });
-                    }
-                });
-            }
-            nextElement = nextElement.nextElementSibling;
-        }
-
-        if (carriers.length > 0) {
-            parsedData[countryToMonitor] = carriers.sort((a, b) => a.name.localeCompare(b.name));
-        }
-
-        dom.window.close();
-        return parsedData;
     }
 
     /**

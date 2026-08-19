@@ -210,3 +210,21 @@ module.exports = {
   },
   Collection: Map,
 };
+/**
+ * Why: Keep the mocked makeCache value callable like discord.js.
+ */
+function mockCacheFactory() {
+    return {};
+}
+
+/**
+ * Why: Return the mocked cache factory from Options.cacheWithLimits.
+ */
+function mockCacheWithLimits() {
+    return mockCacheFactory;
+}
+
+module.exports.Options = {
+    cacheWithLimits: jest.fn(mockCacheWithLimits),
+    DefaultMakeCacheSettings: { MessageManager: 200 }
+};

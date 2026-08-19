@@ -2,7 +2,7 @@
 const config = require('./config');
 
 // Import required modules
-const { Client, GatewayIntentBits, Partials, Events } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Events, Options } = require('discord.js');
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -10,6 +10,16 @@ const client = new Client({
         GatewayIntentBits.MessageContent,
     ],
     partials: [Partials.Channel],
+    makeCache: Options.cacheWithLimits({
+        ...Options.DefaultMakeCacheSettings,
+        MessageManager: 20,
+        UserManager: 50,
+        GuildMemberManager: {
+            maxSize: 50,
+            keepOverLimit: member => member.id === client.user?.id,
+        },
+        ThreadManager: 10,
+    }),
 });
 
 const interactionHandler = require('./handlers/interactionHandler');
