@@ -190,6 +190,27 @@ describe('DealMonitor Percentage Tolerance', () => {
         expect(monitor.state['1'].lastOfferPrice).toBe(970000);
     });
 
+    it('should NOT alert BACK_TO_LOW if returning to a notified low but the drop is less than minDropPercentage', async () => {
+        monitor.state = {
+            '1': { 
+                id: 1, name: 'iPhone 17', 
+                minOfferPrice: 1000000, notifiedMinOfferPrice: 1000000, lastOfferPrice: 1030000, 
+                minNormalPrice: 1000000, notifiedMinNormalPrice: 1000000, lastNormalPrice: 1000000 
+            }
+        };
+
+        // Price drops from 1.030.000 to 1.000.000 (Drop is 30.000 -> ~2.9% < 5%)
+        got.mockResolvedValueOnce({
+            body: mockApiResponse([{ id: 1, name: 'iPhone 17', offerPrice: 1000000, normalPrice: 1000000 }])
+        });
+
+        await monitor.check();
+
+        // Should not send BACK_TO_LOW alert because the drop was insignificant
+        expect(mockChannel.send).not.toHaveBeenCalled();
+        expect(monitor.state['1'].lastOfferPrice).toBe(1000000);
+    });
+
     it('should migrate legacy state by initializing notified minimums and saving state', async () => {
         const storage = require('../../src/storage');
         monitor.state = {
