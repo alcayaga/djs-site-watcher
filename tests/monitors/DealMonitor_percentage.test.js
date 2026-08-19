@@ -190,6 +190,10 @@ describe('DealMonitor Percentage Tolerance', () => {
         expect(monitor.state['1'].lastOfferPrice).toBe(970000);
     });
 
+    /**
+     * Covers the regression where returning to a previously notified low 
+     * must not alert BACK_TO_LOW when the drop is below minDropPercentage.
+     */
     it('should NOT alert BACK_TO_LOW if returning to a notified low but the drop is less than minDropPercentage', async () => {
         monitor.state = {
             '1': { 
