@@ -166,6 +166,43 @@ describe('Bot', () => {
                 expect(monitorManager.setAllIntervals).toHaveBeenCalledWith(10);
                 expect(monitorManager.startAll).toHaveBeenCalled();
             });
+
+            /**
+             * Ensures the bot successfully registers the background heartbeat cron and properly
+             * hooks it into the discord client lifecycle to prevent monitoring drift and failures.
+             */
+            it('should initialize Uptime Kuma reporting if configured', async () => {
+                jest.doMock('../src/config', () => ({
+                    interval: 10,
+                    monitors: [],
+                    DISCORDJS_BOT_TOKEN: 'mock_token',
+                    SINGLE_RUN: 'false',
+                    channels: [],
+                    uptimeKumaUrl: 'http://test-kuma.local'
+                }));
+                require('../src/bot.js');
+                const readyCallback = getReadyCallback();
+                expect(readyCallback).toBeDefined();
+
+                const { CronJob } = require('cron');
+                CronJob.mockClear();
+
+                await readyCallback();
+
+                expect(CronJob).toHaveBeenCalledWith('0 */10 * * * *', expect.any(Function));
+                
+                // Capture the instance and callback
+                const cronJobInstance = CronJob.mock.instances[0];
+                expect(cronJobInstance.start).toHaveBeenCalled();
+                
+                const onTick = CronJob.mock.calls[0][1];
+                const got = require('got');
+                got.mockClear();
+                
+                await onTick();
+                
+                expect(got).toHaveBeenCalledWith('http://test-kuma.local', expect.any(Object));
+            });
         });
     });
 

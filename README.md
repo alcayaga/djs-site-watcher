@@ -72,6 +72,7 @@ List of features of the site-watcher bot:
    - `monitors`: Customize `channelId` and `apiDelay` for specific monitors.
    - `channels`: Configure specific IDs and delays for Q&A or Deals moderation.
    - `interval`: The refresh rate in minutes (default `5`).
+   - `uptimeKumaUrl` (Optional): A Push URL from [Uptime Kuma](https://github.com/louislam/uptime-kuma) to ping as a heartbeat on the same interval. Users can also set this value in the `.env` file as `UPTIME_KUMA_URL`.
 
 <sub>**Note**: Using `settings.json` is the recommended way to manage configuration.</sub>
 

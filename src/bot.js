@@ -2,6 +2,9 @@
 const config = require('./config');
 
 // Import required modules
+const { CronJob } = require('cron');
+const got = require('got');
+const { getSafeGotOptions } = require('./utils/network');
 const { Client, GatewayIntentBits, Partials, Events, Options } = require('discord.js');
 const client = new Client({
     intents: [
@@ -112,6 +115,33 @@ client.on(Events.ClientReady, async () => {
     
     // Start the cron jobs
     monitorManager.startAll();
+
+    // Setup Uptime Kuma Heartbeat
+    if (config.uptimeKumaUrl) {
+        /**
+         * We do a background ping to the configured Uptime Kuma Push URL on the same schedule
+         * as the monitors. This acts as a heartbeat to prove the bot process is alive.
+         */
+        /**
+         * Pings the configured Uptime Kuma Push URL to report the bot is alive.
+         * @returns {Promise<void>}
+         */
+        const pingUptimeKuma = async () => {
+            try {
+                await got(config.uptimeKumaUrl, getSafeGotOptions());
+                logger.info('Pinged Uptime Kuma heartbeat URL successfully.');
+            } catch (error) {
+                logger.error('Failed to ping Uptime Kuma:', error.message);
+            }
+        };
+
+        const parsedInterval = parseInt(config.interval, 10);
+        const interval = (!isNaN(parsedInterval) && parsedInterval > 0) ? parsedInterval : 5;
+        
+        const uptimeCronJob = new CronJob(`0 */${interval} * * * *`, pingUptimeKuma);
+        uptimeCronJob.start();
+        logger.info('Uptime Kuma reporting enabled with interval %d.', interval);
+    }
 
     logger.info('[%s] Ready...', client.user.tag);
     logger.info('[%s] Running an interval of %d minute(s).', client.user.tag, config.interval);
