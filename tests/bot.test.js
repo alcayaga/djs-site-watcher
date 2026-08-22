@@ -168,7 +168,8 @@ describe('Bot', () => {
             });
 
             /**
-             * Tests the initialization of the Uptime Kuma reporting cron job.
+             * Ensures the bot successfully registers the background heartbeat cron and properly
+             * hooks it into the discord client lifecycle to prevent monitoring drift and failures.
              */
             it('should initialize Uptime Kuma reporting if configured', async () => {
                 jest.doMock('../src/config', () => ({

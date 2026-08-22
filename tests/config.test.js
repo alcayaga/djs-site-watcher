@@ -107,7 +107,8 @@ describe('config', () => {
     });
 
     /**
-     * Test case for loading UPTIME_KUMA_URL from environment variables.
+     * Ensures that sensitive monitoring endpoints can be injected via the environment
+     * for seamless containerized deployments without modifying config files.
      */
     it('should load UPTIME_KUMA_URL from env', () => {
         const { ENV_UPTIME_KUMA_URL } = require('../src/utils/constants');
@@ -120,7 +121,8 @@ describe('config', () => {
     });
 
     /**
-     * Test case for loading uptimeKumaUrl from settings.json.
+     * Verifies that the heartbeat URL can be persisted within the local state config
+     * so that users don't have to manage environment variables directly.
      */
     it('should load uptimeKumaUrl from config file', () => {
         const { ENV_UPTIME_KUMA_URL } = require('../src/utils/constants');
@@ -135,7 +137,8 @@ describe('config', () => {
     });
 
     /**
-     * Test case to ensure config file precedence over environment variables for uptimeKumaUrl.
+     * Protects the fallback logic precedence to prevent unexpected behaviors when both
+     * the local state and environment variables exist. Local configs should always override.
      */
     it('should prioritize uptimeKumaUrl from config file over env variable', () => {
         const { ENV_UPTIME_KUMA_URL } = require('../src/utils/constants');
