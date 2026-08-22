@@ -106,6 +106,9 @@ describe('config', () => {
         expect(config.retryLimit).toBe(3);
     });
 
+    /**
+     * Test case for loading UPTIME_KUMA_URL from environment variables.
+     */
     it('should load UPTIME_KUMA_URL from env', () => {
         const { ENV_UPTIME_KUMA_URL } = require('../src/utils/constants');
         process.env[ENV_UPTIME_KUMA_URL] = 'http://kuma.example.com';
@@ -116,6 +119,9 @@ describe('config', () => {
         expect(config.uptimeKumaUrl).toBe('http://kuma.example.com');
     });
 
+    /**
+     * Test case for loading uptimeKumaUrl from settings.json.
+     */
     it('should load uptimeKumaUrl from config file', () => {
         const { ENV_UPTIME_KUMA_URL } = require('../src/utils/constants');
         delete process.env[ENV_UPTIME_KUMA_URL];
@@ -124,6 +130,21 @@ describe('config', () => {
             uptimeKumaUrl: 'http://config-kuma.example.com'
         });
         storage.SENSITIVE_SETTINGS_KEYS = [];
+        const config = require('../src/config');
+        expect(config.uptimeKumaUrl).toBe('http://config-kuma.example.com');
+    });
+
+    /**
+     * Test case to ensure config file precedence over environment variables for uptimeKumaUrl.
+     */
+    it('should prioritize uptimeKumaUrl from config file over env variable', () => {
+        const { ENV_UPTIME_KUMA_URL } = require('../src/utils/constants');
+        process.env[ENV_UPTIME_KUMA_URL] = 'http://env-kuma.example.com';
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({
+            uptimeKumaUrl: 'http://config-kuma.example.com'
+        });
+        storage.SENSITIVE_SETTINGS_KEYS = [ENV_UPTIME_KUMA_URL];
         const config = require('../src/config');
         expect(config.uptimeKumaUrl).toBe('http://config-kuma.example.com');
     });

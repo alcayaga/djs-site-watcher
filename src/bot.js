@@ -122,17 +122,25 @@ client.on(Events.ClientReady, async () => {
          * We do a background ping to the configured Uptime Kuma Push URL on the same schedule
          * as the monitors. This acts as a heartbeat to prove the bot process is alive.
          */
-        const interval = parseInt(config.interval, 10) || 5;
-        const uptimeCronJob = new CronJob(`0 */${interval} * * * *`, async () => {
+        /**
+         * Pings the configured Uptime Kuma Push URL to report the bot is alive.
+         * @returns {Promise<void>}
+         */
+        const pingUptimeKuma = async () => {
             try {
                 await got(config.uptimeKumaUrl, getSafeGotOptions());
                 logger.info('Pinged Uptime Kuma heartbeat URL successfully.');
             } catch (error) {
                 logger.error('Failed to ping Uptime Kuma:', error.message);
             }
-        });
+        };
+
+        const parsedInterval = parseInt(config.interval, 10);
+        const interval = (!isNaN(parsedInterval) && parsedInterval > 0) ? parsedInterval : 5;
+        
+        const uptimeCronJob = new CronJob(`0 */${interval} * * * *`, pingUptimeKuma);
         uptimeCronJob.start();
-        logger.info('Uptime Kuma reporting enabled.');
+        logger.info('Uptime Kuma reporting enabled with interval %d.', interval);
     }
 
     logger.info('[%s] Ready...', client.user.tag);
