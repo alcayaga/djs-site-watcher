@@ -105,4 +105,26 @@ describe('config', () => {
         expect(config.requestTimeout).toBe(8000);
         expect(config.retryLimit).toBe(3);
     });
+
+    it('should load UPTIME_KUMA_URL from env', () => {
+        const { ENV_UPTIME_KUMA_URL } = require('../src/utils/constants');
+        process.env[ENV_UPTIME_KUMA_URL] = 'http://kuma.example.com';
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({});
+        storage.SENSITIVE_SETTINGS_KEYS = [ENV_UPTIME_KUMA_URL];
+        const config = require('../src/config');
+        expect(config.uptimeKumaUrl).toBe('http://kuma.example.com');
+    });
+
+    it('should load uptimeKumaUrl from config file', () => {
+        const { ENV_UPTIME_KUMA_URL } = require('../src/utils/constants');
+        delete process.env[ENV_UPTIME_KUMA_URL];
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({
+            uptimeKumaUrl: 'http://config-kuma.example.com'
+        });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+        const config = require('../src/config');
+        expect(config.uptimeKumaUrl).toBe('http://config-kuma.example.com');
+    });
 });

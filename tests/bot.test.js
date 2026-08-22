@@ -166,6 +166,27 @@ describe('Bot', () => {
                 expect(monitorManager.setAllIntervals).toHaveBeenCalledWith(10);
                 expect(monitorManager.startAll).toHaveBeenCalled();
             });
+
+            it('should initialize Uptime Kuma reporting if configured', async () => {
+                jest.doMock('../src/config', () => ({
+                    interval: 10,
+                    monitors: [],
+                    DISCORDJS_BOT_TOKEN: 'mock_token',
+                    SINGLE_RUN: 'false',
+                    channels: [],
+                    uptimeKumaUrl: 'http://test-kuma.local'
+                }));
+                require('../src/bot.js');
+                const readyCallback = getReadyCallback();
+                expect(readyCallback).toBeDefined();
+
+                const { CronJob } = require('cron');
+                CronJob.mockClear();
+
+                await readyCallback();
+
+                expect(CronJob).toHaveBeenCalledWith('0 */10 * * * *', expect.any(Function));
+            });
         });
     });
 
