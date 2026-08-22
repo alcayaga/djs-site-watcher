@@ -107,14 +107,31 @@ describe('config', () => {
     });
 
     /**
-     * Verifies that the heartbeat URL can be loaded directly from the local state config.
+     * Guards against regressions by ensuring settings.json remains the single
+     * supported source for the heartbeat URL after the removal of the 
+     * environment-variable fallback.
      */
     it('should load uptimeKumaUrl from config file', () => {
         const storage = require('../src/storage');
         storage.loadSettings.mockReturnValue({
             uptimeKumaUrl: 'http://config-kuma.example.com'
         });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
         const config = require('../src/config');
         expect(config.uptimeKumaUrl).toBe('http://config-kuma.example.com');
+    });
+
+    /**
+     * Ensures that setting UPTIME_KUMA_URL in the environment is completely ignored,
+     * confirming the fallback removal works as intended.
+     */
+    it('should completely ignore UPTIME_KUMA_URL from environment', () => {
+        process.env.UPTIME_KUMA_URL = 'http://env-kuma.example.com';
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({});
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+        const config = require('../src/config');
+        expect(config.uptimeKumaUrl).toBeUndefined();
+        delete process.env.UPTIME_KUMA_URL;
     });
 });

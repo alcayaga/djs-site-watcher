@@ -85,7 +85,9 @@ config.solotodoBaseUrl = process.env[ENV_SOLOTODO_BASE_URL] || 'https://www.solo
 config.solotodoApiUrl = process.env[ENV_SOLOTODO_API_URL] || 'https://publicapi.solotodo.com';
 
 // Monitoring Configuration
-// (uptimeKumaUrl is loaded directly from settings.json)
+// settings.json is the single source of truth for uptimeKumaUrl.
+// We do not fall back to an environment variable to avoid a false-positive
+// missing-variable warning in OPTIONAL_ENV_VARS.
 
 if (config.ALLOW_PRIVATE_IPS) {
     logger.warn('⚠️ SSRF Protection bypass is ACTIVE (ALLOW_PRIVATE_IPS=true). Private IPs will be allowed.');
