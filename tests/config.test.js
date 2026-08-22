@@ -107,47 +107,13 @@ describe('config', () => {
     });
 
     /**
-     * Ensures that sensitive monitoring endpoints can be injected via the environment
-     * for seamless containerized deployments without modifying config files.
-     */
-    it('should load UPTIME_KUMA_URL from env', () => {
-        const { ENV_UPTIME_KUMA_URL } = require('../src/utils/constants');
-        process.env[ENV_UPTIME_KUMA_URL] = 'http://kuma.example.com';
-        const storage = require('../src/storage');
-        storage.loadSettings.mockReturnValue({});
-        storage.SENSITIVE_SETTINGS_KEYS = [ENV_UPTIME_KUMA_URL];
-        const config = require('../src/config');
-        expect(config.uptimeKumaUrl).toBe('http://kuma.example.com');
-    });
-
-    /**
-     * Verifies that the heartbeat URL can be persisted within the local state config
-     * so that users don't have to manage environment variables directly.
+     * Verifies that the heartbeat URL can be loaded directly from the local state config.
      */
     it('should load uptimeKumaUrl from config file', () => {
-        const { ENV_UPTIME_KUMA_URL } = require('../src/utils/constants');
-        delete process.env[ENV_UPTIME_KUMA_URL];
         const storage = require('../src/storage');
         storage.loadSettings.mockReturnValue({
             uptimeKumaUrl: 'http://config-kuma.example.com'
         });
-        storage.SENSITIVE_SETTINGS_KEYS = [];
-        const config = require('../src/config');
-        expect(config.uptimeKumaUrl).toBe('http://config-kuma.example.com');
-    });
-
-    /**
-     * Protects the fallback logic precedence to prevent unexpected behaviors when both
-     * the local state and environment variables exist. Local configs should always override.
-     */
-    it('should prioritize uptimeKumaUrl from config file over env variable', () => {
-        const { ENV_UPTIME_KUMA_URL } = require('../src/utils/constants');
-        process.env[ENV_UPTIME_KUMA_URL] = 'http://env-kuma.example.com';
-        const storage = require('../src/storage');
-        storage.loadSettings.mockReturnValue({
-            uptimeKumaUrl: 'http://config-kuma.example.com'
-        });
-        storage.SENSITIVE_SETTINGS_KEYS = [ENV_UPTIME_KUMA_URL];
         const config = require('../src/config');
         expect(config.uptimeKumaUrl).toBe('http://config-kuma.example.com');
     });

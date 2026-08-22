@@ -11,7 +11,6 @@ const {
     ENV_SINGLE_RUN,
     ENV_AP_RESPONSE_DELAY,
     ENV_SOLOTODO_API_DELAY,
-    ENV_UPTIME_KUMA_URL
 } = require('./utils/constants');
 
 const SITES_FILE = './config/sites.json';
@@ -30,7 +29,6 @@ const OPTIONAL_ENV_VARS = [
     ENV_DISCORDJS_TEXTCHANNEL_ID,
     ENV_DISCORDJS_APCHANNEL_ID,
     ENV_DISCORDJS_DEALS_CHANNEL_ID,
-    ENV_UPTIME_KUMA_URL
 ];
 
 const SENSITIVE_SETTINGS_KEYS = [
