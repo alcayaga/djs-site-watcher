@@ -179,7 +179,7 @@ describe('Bot', () => {
                     channels: [],
                     uptimeKumaUrl: 'http://test-kuma.local'
                 }));
-                const bot = require('../src/bot.js');
+                require('../src/bot.js');
                 const readyCallback = getReadyCallback();
                 expect(readyCallback).toBeDefined();
 
