@@ -899,12 +899,12 @@ describe('DealMonitor', () => {
             const product = { id: 1, name: 'iPhone', offerPrice: 80000, normalPrice: 90000 };
             const stored = { minOfferPrice: 100000, minNormalPrice: 110000 };
             
-            // Mock getAvailableEntities to return multiple stores
+            // Provide a mix of matching and non-matching store prices to verify that the embed correctly filters out stores whose current effective price exceeds the product's recorded minimum offer price.
             const solotodo = require('../../src/utils/solotodo');
             solotodo.getAvailableEntities.mockResolvedValueOnce([
                 { active_registry: { offer_price: 80000 }, store: "https://api.com/stores/1/", external_url: 'http://store-a.com' },
                 { active_registry: { offer_price: 80000 }, store: "https://api.com/stores/2/", external_url: 'http://store-b.com' },
-                { active_registry: { offer_price: 85000 }, store: "https://api.com/stores/3/", external_url: 'http://store-c.com' } // Too expensive
+                { active_registry: { offer_price: 85000 }, store: "https://api.com/stores/3/", external_url: 'http://store-c.com' }
             ]);
 
             await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], stored, previousOfferPrice: 100000, previousNormalPrice: 110000 });
@@ -949,7 +949,7 @@ describe('DealMonitor', () => {
             
             const solotodo = require('../../src/utils/solotodo');
             
-            // Create 20 stores
+            // Mock an excessively large number of store entities with long URLs to intentionally exceed Discord's 1024-character field limit, forcing the embed builder to trigger its truncation logic.
             const entities = Array.from({ length: 20 }, (_, i) => ({
                 active_registry: { offer_price: 80000 }, 
                 store: i + 1, 
@@ -970,9 +970,10 @@ describe('DealMonitor', () => {
             const vendorField = embed.data.fields.find(f => f.name === 'Dónde comprar');
             expect(vendorField).toBeDefined();
             
-            // Check if value length is within safe limit
+            // Discord enforces a strict 1024-character limit per embed field; exceeding it causes a rejection.
             expect(vendorField.value.length).toBeLessThanOrEqual(1024);
-            // Check if truncation message is present
+            
+            // Verify the user is informed that additional stores exist but were omitted for space.
             expect(vendorField.value).toContain('... y');
         });
     });
