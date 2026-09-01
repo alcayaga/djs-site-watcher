@@ -2,18 +2,34 @@ const { sanitizeMarkdown, sanitizeLinkText, formatPriceValue } = require('../../
 
 describe('Formatters Utils', () => {
     describe('formatPriceValue', () => {
-        it('should show both prices with strikethrough if previous > current', () => {
-            expect(formatPriceValue(80000, 100000)).toBe('~~$100.000~~\n**$80.000**');
+        it('should format simple price without previous', () => {
+            expect(formatPriceValue(1000)).toBe('**$1.000**');
         });
 
-        it('should show only current price if previous is lower or equal', () => {
-            expect(formatPriceValue(100000, 80000)).toBe('$100.000');
-            expect(formatPriceValue(100000, 100000)).toBe('$100.000');
+        it('should format price drop with strikethrough and arrow', () => {
+            expect(formatPriceValue(1000, 2000)).toBe('~~$2.000~~ → **$1.000**');
         });
 
-        it('should show only current price if previous is undefined or null', () => {
-            expect(formatPriceValue(100000, undefined)).toBe('$100.000');
-            expect(formatPriceValue(100000, null)).toBe('$100.000');
+        it('should not add strikethrough if price increased', () => {
+            expect(formatPriceValue(2000, 1000)).toBe('**$2.000**');
+        });
+
+        it('should not add strikethrough if price is same', () => {
+            expect(formatPriceValue(1000, 1000)).toBe('**$1.000**');
+        });
+
+        it('should handle string inputs', () => {
+            expect(formatPriceValue('1000', '2000')).toBe('~~$2.000~~ → **$1.000**');
+        });
+
+        it('should handle lexicographical sorting boundaries correctly (no drop)', () => {
+            // Lexicographically '900' > '1000' is true, but numerically 900 < 1000.
+            expect(formatPriceValue('1000', '900')).toBe('**$1.000**');
+        });
+
+        it('should handle lexicographical sorting boundaries correctly (price drop)', () => {
+            // Lexicographically '10000' > '9000' is false, but numerically 10000 > 9000.
+            expect(formatPriceValue('9000', '10000')).toBe('~~$10.000~~ → **$9.000**');
         });
     });
 

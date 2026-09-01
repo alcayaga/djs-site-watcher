@@ -438,22 +438,22 @@ class DealMonitor extends Monitor {
         let triggerDate = null;
 
         if (bothNewLow) {
-            statusText = 'Nuevos mínimos históricos';
+            statusText = '🔥 Nuevos mínimos históricos';
             color = 0x2ecc71;
         } else if (bothBackToLow) {
-            statusText = 'Volvió a precios históricos';
+            statusText = '♻️ Volvió a precios históricos';
             showDate = true;
             triggerDate = stored?.minOfferDate;
         } else if (triggers.length > 1) {
-            statusText = 'Nuevos precios históricos';
+            statusText = '🔥 Nuevos precios históricos';
             color = 0x2ecc71;
         } else {
             const type = triggers[0];
             const notificationConfig = {
-                'NEW_LOW_OFFER': { text: 'Nuevo mínimo histórico con Tarjeta', color: 0x2ecc71 },
-                'BACK_TO_LOW_OFFER': { text: 'Volvió al mínimo histórico con Tarjeta', showDate: true, date: stored?.minOfferDate },
-                'NEW_LOW_NORMAL': { text: 'Nuevo mínimo histórico con todo medio de pago', color: 0x27ae60 },
-                'BACK_TO_LOW_NORMAL': { text: 'Volvió al mínimo histórico con todo medio de pago', showDate: true, date: stored?.minNormalDate }
+                'NEW_LOW_OFFER': { text: '💳 Nuevo mínimo histórico con Tarjeta', color: 0x2ecc71 },
+                'BACK_TO_LOW_OFFER': { text: '💳 Volvió al mínimo histórico con Tarjeta', showDate: true, date: stored?.minOfferDate },
+                'NEW_LOW_NORMAL': { text: '💰 Nuevo mínimo histórico con todo medio de pago', color: 0x27ae60 },
+                'BACK_TO_LOW_NORMAL': { text: '💰 Volvió al mínimo histórico con todo medio de pago', showDate: true, date: stored?.minNormalDate }
             };
             const details = notificationConfig[type];
             statusText = details?.text || '';
@@ -565,48 +565,45 @@ class DealMonitor extends Monitor {
         const embed = new Discord.EmbedBuilder()
             .setTitle(sanitizedName)
             .setDescription(description)
-            .addFields([
-                { name: '💳 Precio Tarjeta', value: offerPriceValue, inline: true },
-                { name: '💰 Precio Normal', value: normalPriceValue, inline: true }
-            ])
             .setColor(color)
             .setTimestamp()
             .setFooter({ text: 'powered by Solotodo'});
 
+        if (product.offerPrice === product.normalPrice && previousOfferPrice === previousNormalPrice) {
+            embed.addFields([
+                { name: 'Precio (Todo medio de pago)', value: offerPriceValue, inline: false }
+            ]);
+        } else {
+            embed.addFields([
+                { name: 'Precio Tarjeta', value: offerPriceValue, inline: true },
+                { name: 'Precio Normal', value: normalPriceValue, inline: true }
+            ]);
+        }
+
         if (bestEntities.length > 0) {
-            if (bestEntities.length === 1) {
-                const { storeName, safeUrl } = this._formatStoreLink(product, bestEntities[0], storeMap);
-                const fieldName = `🛒 Vendido por ${storeName}`;
-                let fieldValue = `[Ir a la tienda ↗](${safeUrl})`;
+            let fieldLines = [];
+            let currentLength = 0;
+            
+            const MAX_VALUE_LENGTH = 1024;
+            const TRUNCATION_BUFFER = 35;
+            const SAFE_MAX_LENGTH = MAX_VALUE_LENGTH - TRUNCATION_BUFFER;
 
-                if (fieldValue.length > 1024) {
-                    fieldValue = 'El link de la tienda es demasiado largo para mostrar.';
-                    logger.warn('[DealMonitor] Store URL for product %s is too long to display in Discord embed.', product.id);
-                }
-
-                embed.addFields([{ name: fieldName.substring(0, 256), value: fieldValue, inline: false }]);
-            } else {
-                let fieldLines = [];
-                let currentLength = 0;
+            for (const entity of bestEntities) {
+                const { storeName, safeUrl } = this._formatStoreLink(product, entity, storeMap);
+                let line = `• [**${storeName}** ↗](${safeUrl})`;
                 
-                // Discord embed field value limit is 1024 characters.
-                // We use a buffer of 24 characters to account for the truncation message ("• ... y X más").
-                const MAX_VALUE_LENGTH = 1024;
-                const TRUNCATION_BUFFER = 24;
-                const SAFE_MAX_LENGTH = MAX_VALUE_LENGTH - TRUNCATION_BUFFER;
-
-                for (const entity of bestEntities) {
-                    const { storeName, safeUrl } = this._formatStoreLink(product, entity, storeMap);
-                    const line = `• **${storeName}**: [Ir a la tienda ↗](${safeUrl})`;
-                    if (currentLength + line.length + 1 > SAFE_MAX_LENGTH) {
-                        fieldLines.push(`• ... y ${bestEntities.length - fieldLines.length} más`);
-                        break;
-                    }
-                    fieldLines.push(line);
-                    currentLength += line.length + 1; // +1 for newline
+                if (entity.best_coupon && entity.best_coupon.code) {
+                    line += `\n  ↳ Cupón: \`${entity.best_coupon.code}\``;
                 }
-                embed.addFields([{ name: '🛒 Disponible en:', value: fieldLines.join('\n'), inline: false }]);
+
+                if (currentLength + line.length + 2 > SAFE_MAX_LENGTH) {
+                    fieldLines.push(`*... y ${bestEntities.length - fieldLines.length} tienda(s) más*`);
+                    break;
+                }
+                fieldLines.push(line);
+                currentLength += line.length + 2; 
             }
+            embed.addFields([{ name: 'Dónde comprar', value: fieldLines.join('\n\n'), inline: false }]);
         }
 
         // 5. Handle Image / Attachment
