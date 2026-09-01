@@ -21,6 +21,16 @@ describe('Formatters Utils', () => {
         it('should handle string inputs', () => {
             expect(formatPriceValue('1000', '2000')).toBe('~~$2.000~~ → **$1.000**');
         });
+
+        it('should handle lexicographical sorting boundaries correctly (no drop)', () => {
+            // Lexicographically '900' > '1000' is true, but numerically 900 < 1000.
+            expect(formatPriceValue('1000', '900')).toBe('**$1.000**');
+        });
+
+        it('should handle lexicographical sorting boundaries correctly (price drop)', () => {
+            // Lexicographically '10000' > '9000' is false, but numerically 10000 > 9000.
+            expect(formatPriceValue('9000', '10000')).toBe('~~$10.000~~ → **$9.000**');
+        });
     });
 
     describe('sanitizeMarkdown', () => {
