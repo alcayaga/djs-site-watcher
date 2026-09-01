@@ -417,6 +417,40 @@ function determinePriceKey(triggers = []) {
 }
 
 /**
+ * Calculates the effective price considering any available coupons.
+ * @param {object} entity The entity.
+ * @param {string} priceKey The price key ('offer_price' or 'normal_price').
+ * @returns {number} The effective price.
+ */
+function getEffectivePrice(entity, priceKey) {
+    let price = parseFloat(entity.active_registry?.[priceKey]);
+    if (isNaN(price)) return NaN;
+
+    if (entity.best_coupon && entity.best_coupon.code) {
+        const coupon = entity.best_coupon;
+        const applies = coupon.price_type === 'both' || 
+                        (priceKey === 'offer_price' && coupon.price_type === 'offer') ||
+                        (priceKey === 'normal_price' && coupon.price_type === 'normal');
+        
+        if (applies) {
+            const couponAmount = parseFloat(coupon.amount);
+            if (!isNaN(couponAmount)) {
+                if (coupon.amount_type === 1) { // Raw amount
+                    price -= couponAmount;
+                } else if (coupon.amount_type === 2) { // Percentage
+                    let discount = price * (couponAmount / 100);
+                    if (coupon.max_discount_amount) {
+                        discount = Math.min(discount, parseFloat(coupon.max_discount_amount));
+                    }
+                    price -= discount;
+                }
+            }
+        }
+    }
+    return Math.max(0, price);
+}
+
+/**
  * Finds the minimum price and all entities matching it in a single pass.
  * @param {Array} entities List of valid entities.
  * @param {string} priceKey The price key to check.
@@ -427,7 +461,7 @@ function findBestEntities(entities, priceKey, minSanityPrice) {
     if (!entities || !Array.isArray(entities)) return { minPrice: Infinity, bestEntities: [] };
     
     return entities.reduce((acc, entity) => {
-        const p = parseFloat(entity.active_registry?.[priceKey]);
+        const p = getEffectivePrice(entity, priceKey);
 
         // Ignore invalid or unsanitary prices
         if (isNaN(p) || p < minSanityPrice) {
@@ -470,5 +504,6 @@ module.exports = {
     isPictureUrlInvalid,
     filterValidEntities,
     determinePriceKey,
-    findBestEntities
+    findBestEntities,
+    getEffectivePrice
 };

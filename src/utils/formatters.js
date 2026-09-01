@@ -64,9 +64,9 @@ function formatCLP(amount) {
 function formatPriceValue(current, previous) {
     const formattedCurrent = formatCLP(current);
     if (previous && previous > current) {
-        return `~~${formatCLP(previous)}~~\n**${formattedCurrent}**`;
+        return `~~${formatCLP(previous)}~~ → **${formattedCurrent}**`;
     }
-    return formattedCurrent;
+    return `**${formattedCurrent}**`;
 }
 
 module.exports = {

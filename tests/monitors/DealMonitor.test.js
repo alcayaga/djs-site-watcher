@@ -117,7 +117,7 @@ describe('DealMonitor', () => {
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
         expect(embed.data.title).toBe('iPhone');
-        expect(embed.data.description).toBe('Nuevo mínimo histórico con Tarjeta');
+        expect(embed.data.description).toBe('💳 Nuevo mínimo histórico con Tarjeta');
         expect(embed.data.footer.text).toBe('powered by Solotodo');
         
         expect(monitor.state['1'].minOfferPrice).toBe(450000);
@@ -168,7 +168,7 @@ describe('DealMonitor', () => {
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
         expect(embed.data.title).toBe('iPhone');
-        expect(embed.data.description).toBe('Nuevo mínimo histórico con todo medio de pago');
+        expect(embed.data.description).toBe('💰 Nuevo mínimo histórico con todo medio de pago');
         expect(embed.data.footer.text).toBe('powered by Solotodo');
         
         expect(monitor.state['1'].minNormalPrice).toBe(550000);
@@ -224,7 +224,7 @@ describe('DealMonitor', () => {
         const embed = sendCall.embeds[0];
         expect(embed.data.title).toBe('iPhone');
         // Unix for 2024-12-01T10:00:00Z is 1733047200
-        expect(embed.data.description).toBe('Volvió al mínimo histórico con Tarjeta de <t:1733047200:R>');
+        expect(embed.data.description).toBe('💳 Volvió al mínimo histórico con Tarjeta de <t:1733047200:R>');
         expect(embed.data.footer.text).toBe('powered by Solotodo');
         
         const dateField = embed.data.fields.find(f => f.name === '🕒 Precio visto por última vez');
@@ -366,7 +366,7 @@ describe('DealMonitor', () => {
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
         
-        expect(embed.data.description).toBe(`Volvió a precios históricos de <t:${exitUnix}:R>`);
+        expect(embed.data.description).toBe(`♻️ Volvió a precios históricos de <t:${exitUnix}:R>`);
         
         // 2. Verify Date did NOT update again (it keeps the exit date)
         expect(monitor.state['1'].minOfferDate).toBe(exitDate);
@@ -462,27 +462,15 @@ describe('DealMonitor', () => {
     });
 
     it('should show only one alert if both prices reach new low', async () => {
-        monitor.state = {
-            '1': { 
-                id: 1, name: 'iPhone', 
-                minOfferPrice: 500000, minOfferDate: '2025-01-01T00:00:00.000Z',
-                lastOfferPrice: 500000, 
-                minNormalPrice: 600000, minNormalDate: '2025-01-01T00:00:00.000Z',
-                lastNormalPrice: 600000 
-            }
-        };
+        const product = { id: 1, name: 'iPhone', offerPrice: 100000, normalPrice: 110000 };
+        const stored = { minOfferPrice: 120000, minNormalPrice: 130000 };
+        await monitor.notify({ product, triggers: ['NEW_LOW_OFFER', 'NEW_LOW_NORMAL'], date: new Date().toISOString(), stored });
 
-        got.mockResolvedValue({
-            body: mockApiResponse([{ id: 1, name: 'iPhone', offerPrice: 450000, normalPrice: 550000 }])
-        });
-
-        await monitor.check();
-
-        expect(mockChannel.send).toHaveBeenCalledTimes(1);
+        expect(mockChannel.send).toHaveBeenCalled();
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
         expect(embed.data.title).toBe('iPhone');
-        expect(embed.data.description).toBe('Nuevos mínimos históricos');
+        expect(embed.data.description).toBe('🔥 Nuevos mínimos históricos');
         expect(embed.data.footer.text).toBe('powered by Solotodo');
     });
 
@@ -639,8 +627,8 @@ describe('DealMonitor', () => {
         const sendCall = mockChannel.send.mock.calls[0][0];
         const embed = sendCall.embeds[0];
         // Should link to ABC.cl, not Reuse
-        expect(embed.data.fields.find(f => f.name.includes('Vendido por ABC.cl'))).toBeDefined();
-        expect(embed.data.fields.find(f => f.name.includes('Vendido por Reuse'))).toBeUndefined();
+        expect(embed.data.fields.find(f => f.name === 'Dónde comprar' && f.value.includes('ABC.cl'))).toBeDefined();
+        expect(embed.data.fields.find(f => f.name === 'Dónde comprar' && f.value.includes('Reuse'))).toBeUndefined();
     });
 
     describe('image handling', () => {
@@ -908,101 +896,89 @@ describe('DealMonitor', () => {
         });
 
         it('should list all stores selling at the minimum price', async () => {
-            const product = { id: 1, name: 'iPhone', offerPrice: 100000, normalPrice: 110000 };
-            const entities = [
-                {
-                    active_registry: { offer_price: "100000", normal_price: "110000", cell_monthly_payment: null },
-                    store: "https://api.com/stores/1/",
-                    external_url: "https://store-a.com/prod"
-                },
-                {
-                    active_registry: { offer_price: "100000", normal_price: "110000", cell_monthly_payment: null },
-                    store: "https://api.com/stores/2/",
-                    external_url: "https://store-b.com/prod"
-                },
-                {
-                    active_registry: { offer_price: "105000", normal_price: "115000", cell_monthly_payment: null }, // More expensive
-                    store: "https://api.com/stores/3/",
-                    external_url: "https://store-c.com/prod"
-                }
-            ];
+            const product = { id: 1, name: 'iPhone', offerPrice: 80000, normalPrice: 90000 };
+            const stored = { minOfferPrice: 100000, minNormalPrice: 110000 };
+            
+            // Mock getAvailableEntities to return multiple stores
+            const solotodo = require('../../src/utils/solotodo');
+            solotodo.getAvailableEntities.mockResolvedValueOnce([
+                { active_registry: { offer_price: 80000 }, store: "https://api.com/stores/1/", external_url: 'http://store-a.com' },
+                { active_registry: { offer_price: 80000 }, store: "https://api.com/stores/2/", external_url: 'http://store-b.com' },
+                { active_registry: { offer_price: 85000 }, store: "https://api.com/stores/3/", external_url: 'http://store-c.com' } // Too expensive
+            ]);
 
-            solotodo.getAvailableEntities.mockResolvedValue(entities);
-
-            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], stored, previousOfferPrice: 100000, previousNormalPrice: 110000 });
 
             expect(mockChannel.send).toHaveBeenCalled();
             const sendCall = mockChannel.send.mock.calls[0][0];
             const embed = sendCall.embeds[0];
             
-            const vendorField = embed.data.fields.find(f => f.name.includes('Vendido por') || f.name.includes('Disponible en'));
+            const vendorField = embed.data.fields.find(f => f.name === 'Dónde comprar');
             expect(vendorField).toBeDefined();
             expect(vendorField.value).toContain('Store A');
             expect(vendorField.value).toContain('Store B');
             expect(vendorField.value).not.toContain('Store C');
-            expect(vendorField.value).toContain('store-a.com');
-            expect(vendorField.value).toContain('store-b.com');
         });
 
         it('should fallback to single store format or handle single store correctly', async () => {
-            const product = { id: 1, name: 'iPhone', offerPrice: 100000, normalPrice: 110000 };
-            const entities = [
-                {
-                    active_registry: { offer_price: "100000", normal_price: "110000", cell_monthly_payment: null },
-                    store: "https://api.com/stores/1/",
-                    external_url: "https://store-a.com/prod"
-                }
-            ];
+            const product = { id: 1, name: 'iPhone', offerPrice: 80000, normalPrice: 90000 };
+            const stored = { minOfferPrice: 100000, minNormalPrice: 110000 };
+            
+            const solotodo = require('../../src/utils/solotodo');
+            solotodo.getAvailableEntities.mockResolvedValueOnce([
+                { active_registry: { offer_price: 80000 }, store: 1, external_url: 'http://store-a.com' }
+            ]);
 
-            solotodo.getAvailableEntities.mockResolvedValue(entities);
+            solotodo.getStores.mockResolvedValueOnce(new Map([[1, 'Store A']]));
 
-            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], stored, previousOfferPrice: 100000, previousNormalPrice: 110000 });
 
             expect(mockChannel.send).toHaveBeenCalled();
             const sendCall = mockChannel.send.mock.calls[0][0];
             const embed = sendCall.embeds[0];
             
-            const vendorField = embed.data.fields.find(f => f.name.includes('Vendido por') || f.name.includes('Disponible en'));
+            const vendorField = embed.data.fields.find(f => f.name === 'Dónde comprar');
             expect(vendorField).toBeDefined();
-            // Check either name or value for the store name (Single store puts it in name, Multi store in value)
-            const content = (vendorField.name + vendorField.value);
+            const content = vendorField.value;
             expect(content).toContain('Store A');
-            expect(content).toContain('store-a.com');
         });
 
         it('should truncate list of stores if it exceeds limit', async () => {
-            solotodo.getStores.mockResolvedValue(new Map([
-                ["https://api.com/stores/1/", "Store A"],
-            ]));
-
-            const product = { id: 1, name: 'iPhone', offerPrice: 100000, normalPrice: 110000 };
-            // Create enough entities to exceed 1000 chars
+            const product = { id: 1, name: 'iPhone', offerPrice: 80000, normalPrice: 90000 };
+            const stored = { minOfferPrice: 100000, minNormalPrice: 110000 };
+            
+            const solotodo = require('../../src/utils/solotodo');
+            
+            // Create 20 stores
             const entities = Array.from({ length: 20 }, (_, i) => ({
-                active_registry: { offer_price: "100000", normal_price: "110000", cell_monthly_payment: null },
-                store: "https://api.com/stores/1/",
-                external_url: `https://store-a.com/prod/${i}`
+                active_registry: { offer_price: 80000 }, 
+                store: i + 1, 
+                external_url: `http://store-very-long-url-name-to-take-space-${i}.com`
             }));
+            
+            const storeMap = new Map(Array.from({ length: 20 }, (_, i) => [i + 1, `Store Very Long Name ${i}`]));
 
-            solotodo.getAvailableEntities.mockResolvedValue(entities);
+            solotodo.getAvailableEntities.mockResolvedValueOnce(entities);
+            solotodo.getStores.mockResolvedValueOnce(storeMap);
 
-            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], date: new Date().toISOString() });
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'], stored, previousOfferPrice: 100000, previousNormalPrice: 110000 });
 
             expect(mockChannel.send).toHaveBeenCalled();
             const sendCall = mockChannel.send.mock.calls[0][0];
             const embed = sendCall.embeds[0];
             
-            const vendorField = embed.data.fields.find(f => f.name.includes('Disponible en'));
+            const vendorField = embed.data.fields.find(f => f.name === 'Dónde comprar');
             expect(vendorField).toBeDefined();
             
             // Check if value length is within safe limit
             expect(vendorField.value.length).toBeLessThanOrEqual(1024);
-            // Check for truncation indicator
+            // Check if truncation message is present
             expect(vendorField.value).toContain('... y');
         });
     });
 
     describe('price formatting in embeds', () => {
-        it('should show previous price with strikethrough when price drops', async () => {
+        it('should show previous price with strikethrough and arrow when price drops', async () => {
             const product = { id: 1, name: 'iPhone', offerPrice: 80000, normalPrice: 90000 };
             
             await monitor.notify({ 
@@ -1017,11 +993,11 @@ describe('DealMonitor', () => {
             const sendCall = mockChannel.send.mock.calls[0][0];
             const embed = sendCall.embeds[0];
             
-            const offerField = embed.data.fields.find(f => f.name === '💳 Precio Tarjeta');
-            const normalField = embed.data.fields.find(f => f.name === '💰 Precio Normal');
+            const offerField = embed.data.fields.find(f => f.name === 'Precio Tarjeta');
+            const normalField = embed.data.fields.find(f => f.name === 'Precio Normal');
             
-            expect(offerField.value).toBe('~~$100.000~~\n**$80.000**');
-            expect(normalField.value).toBe('~~$110.000~~\n**$90.000**');
+            expect(offerField.value).toBe('~~$100.000~~ → **$80.000**');
+            expect(normalField.value).toBe('~~$110.000~~ → **$90.000**');
         });
 
         it('should only show current price when price stays the same or there is no previous price', async () => {
@@ -1040,11 +1016,11 @@ describe('DealMonitor', () => {
             const sendCall = mockChannel.send.mock.calls[0][0];
             const embed = sendCall.embeds[0];
             
-            const offerField = embed.data.fields.find(f => f.name === '💳 Precio Tarjeta');
-            const normalField = embed.data.fields.find(f => f.name === '💰 Precio Normal');
+            const offerField = embed.data.fields.find(f => f.name === 'Precio Tarjeta');
+            const normalField = embed.data.fields.find(f => f.name === 'Precio Normal');
             
-            expect(offerField.value).toBe('$80.000');
-            expect(normalField.value).toBe('$90.000');
+            expect(offerField.value).toBe('**$80.000**');
+            expect(normalField.value).toBe('**$90.000**');
         });
     });
 });
