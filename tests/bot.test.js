@@ -93,6 +93,26 @@ describe('Bot', () => {
         expect(bot.client.on).toHaveBeenCalledWith('interactionCreate', expect.any(Function));
     });
 
+    it('should configure keepOverLimit to protect the bot user in GuildMemberManager cache', () => {
+        jest.doMock('../src/config', () => ({
+            DISCORDJS_BOT_TOKEN: 'mock_token',
+            channels: []
+        }));
+        const bot = require('../src/bot.js');
+        const { Options } = require('discord.js');
+        
+        expect(Options.cacheWithLimits).toHaveBeenCalled();
+        const callArgs = Options.cacheWithLimits.mock.calls[0][0];
+        const keepOverLimitFn = callArgs.GuildMemberManager.keepOverLimit;
+        
+        expect(keepOverLimitFn).toBeDefined();
+        
+        bot.client.user = { id: 'bot-id' };
+        
+        expect(keepOverLimitFn({ id: 'bot-id' })).toBe(true);
+        expect(keepOverLimitFn({ id: 'other-id' })).toBe(false);
+    });
+
     describe('on "ready" event', () => {
         describe('in SINGLE_RUN mode', () => {
             beforeEach(() => {
@@ -145,6 +165,43 @@ describe('Bot', () => {
                 expect(monitorManager.initialize).toHaveBeenCalled();
                 expect(monitorManager.setAllIntervals).toHaveBeenCalledWith(10);
                 expect(monitorManager.startAll).toHaveBeenCalled();
+            });
+
+            /**
+             * Ensures the bot successfully registers the background heartbeat cron and properly
+             * hooks it into the discord client lifecycle to prevent monitoring drift and failures.
+             */
+            it('should initialize Uptime Kuma reporting if configured', async () => {
+                jest.doMock('../src/config', () => ({
+                    interval: 10,
+                    monitors: [],
+                    DISCORDJS_BOT_TOKEN: 'mock_token',
+                    SINGLE_RUN: 'false',
+                    channels: [],
+                    uptimeKumaUrl: 'http://test-kuma.local'
+                }));
+                require('../src/bot.js');
+                const readyCallback = getReadyCallback();
+                expect(readyCallback).toBeDefined();
+
+                const { CronJob } = require('cron');
+                CronJob.mockClear();
+
+                await readyCallback();
+
+                expect(CronJob).toHaveBeenCalledWith('0 */10 * * * *', expect.any(Function));
+                
+                // Capture the instance and callback
+                const cronJobInstance = CronJob.mock.instances[0];
+                expect(cronJobInstance.start).toHaveBeenCalled();
+                
+                const onTick = CronJob.mock.calls[0][1];
+                const got = require('got');
+                got.mockClear();
+                
+                await onTick();
+                
+                expect(got).toHaveBeenCalledWith('http://test-kuma.local', expect.any(Object));
             });
         });
     });

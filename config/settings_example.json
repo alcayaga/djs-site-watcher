@@ -2,6 +2,7 @@
   "interval": 5,
   "requestTimeout": 10000,
   "retryLimit": 2,
+  "uptimeKumaUrl": "",
   "defaultChannelId": "YOUR_DEFAULT_CHANNEL_ID",
   "monitors": [
     {
