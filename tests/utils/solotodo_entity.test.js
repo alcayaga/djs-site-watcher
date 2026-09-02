@@ -69,6 +69,58 @@ describe('Solotodo Entity Utils', () => {
         });
     });
 
+    describe('getEffectivePrice', () => {
+        it('should return NaN if active_registry price is invalid', () => {
+            expect(solotodo.getEffectivePrice({}, 'offer_price')).toBeNaN();
+        });
+
+        it('should return base price if no valid coupon exists', () => {
+            const entity = { active_registry: { offer_price: '1000' } };
+            expect(solotodo.getEffectivePrice(entity, 'offer_price')).toBe(1000);
+        });
+
+        it('should apply raw amount discount if coupon applies to both', () => {
+            const entity = { 
+                active_registry: { offer_price: '1000' },
+                best_coupon: { code: 'TEST', amount: '200', amount_type: 1, price_type: 'both' }
+            };
+            expect(solotodo.getEffectivePrice(entity, 'offer_price')).toBe(800);
+        });
+
+        it('should apply percentage discount with max_discount', () => {
+            const entity = { 
+                active_registry: { offer_price: '1000' },
+                best_coupon: { code: 'TEST', amount: '20', amount_type: 2, price_type: 'both', max_discount_amount: '150' }
+            };
+            // 20% of 1000 is 200, max is 150, so discount is 150
+            expect(solotodo.getEffectivePrice(entity, 'offer_price')).toBe(850);
+        });
+
+        it('should apply percentage discount without max_discount', () => {
+            const entity = { 
+                active_registry: { offer_price: '1000' },
+                best_coupon: { code: 'TEST', amount: '20', amount_type: 2, price_type: 'both', max_discount_amount: null }
+            };
+            expect(solotodo.getEffectivePrice(entity, 'offer_price')).toBe(800);
+        });
+
+        it('should not go below zero', () => {
+            const entity = { 
+                active_registry: { offer_price: '1000' },
+                best_coupon: { code: 'TEST', amount: '2000', amount_type: 1, price_type: 'both' }
+            };
+            expect(solotodo.getEffectivePrice(entity, 'offer_price')).toBe(0);
+        });
+        
+        it('should not apply coupon if price_type mismatch', () => {
+            const entity = { 
+                active_registry: { offer_price: '1000' },
+                best_coupon: { code: 'TEST', amount: '200', amount_type: 1, price_type: 'normal' }
+            };
+            expect(solotodo.getEffectivePrice(entity, 'offer_price')).toBe(1000);
+        });
+    });
+
     describe('findBestEntities', () => {
         const MIN_SANITY_PRICE = 1000;
 
@@ -91,9 +143,24 @@ describe('Solotodo Entity Utils', () => {
             expect(bestEntities).toContain(entities[2]);
         });
 
-        it('should ignore entities with prices below sanity check', () => {
+        it('should find best entity considering coupons', () => {
             const entities = [
-                { active_registry: { offer_price: '500' } }, // Below sanity
+                { active_registry: { offer_price: '2000' } },
+                { active_registry: { offer_price: '1600' } },
+                { 
+                    active_registry: { offer_price: '1700' },
+                    best_coupon: { code: 'TEST', amount: '200', amount_type: 1, price_type: 'both' }
+                }
+            ];
+            const { minPrice, bestEntities } = solotodo.findBestEntities(entities, 'offer_price', MIN_SANITY_PRICE);
+            expect(minPrice).toBe(1500);
+            expect(bestEntities).toHaveLength(1);
+            expect(bestEntities[0]).toBe(entities[2]); // The 1700 - 200 = 1500 one
+        });
+
+        it('should ignore entities with effective prices below sanity check', () => {
+            const entities = [
+                { active_registry: { offer_price: '1100' }, best_coupon: { code: 'TEST', amount: '500', amount_type: 1, price_type: 'both' } }, // Effective: 600 (Below sanity)
                 { active_registry: { offer_price: '1500' } }, // Best valid
             ];
             const { minPrice, bestEntities } = solotodo.findBestEntities(entities, 'offer_price', MIN_SANITY_PRICE);

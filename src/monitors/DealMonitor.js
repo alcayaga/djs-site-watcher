@@ -4,7 +4,7 @@ const config = require('../config');
 const got = require('got');
 const { formatCLP, sanitizeLinkText, formatDiscordTimestamp, formatPriceValue } = require('../utils/formatters');
 const solotodo = require('../utils/solotodo');
-const { DEFAULT_PRICE_TOLERANCE, DEFAULT_GRACE_PERIOD_HOURS } = require('../utils/constants');
+const { DEFAULT_PRICE_TOLERANCE, DEFAULT_GRACE_PERIOD_HOURS, DEFAULT_MIN_DROP_PERCENTAGE } = require('../utils/constants');
 const { sleep } = require('../utils/helpers');
 const { getSafeGotOptions } = require('../utils/network');
 const { downloadImage } = require('../utils/image');
@@ -82,7 +82,7 @@ class DealMonitor extends Monitor {
                     
                     // Find the CLP (Currency 1) price in the metadata
                     const prices = entry?.metadata?.prices_per_currency?.find(p => 
-                        p.currency === solotodo.SOLOTODO_CLP_CURRENCY_URL
+                        p.currency === solotodo.SOLOTODO_CLP_CURRENCY_URL || String(p.currency) === solotodo.SOLOTODO_CLP_CURRENCY_ID
                     );
 
                     if (!product || !prices) {
@@ -127,11 +127,22 @@ class DealMonitor extends Monitor {
         const minPriceKey = `min${priceType}Price`;
         const minDateKey = `min${priceType}Date`;
         const lastPriceKey = `last${priceType}Price`;
+        const notifiedMinKey = `notifiedMin${priceType}Price`;
         const pendingExitKey = `pendingExit${priceType}`;
         const notificationType = priceType.toUpperCase();
         
+        let stateMigrated = false;
+        // Ensure notifiedMinKey exists for backward compatibility
+        if (stored[notifiedMinKey] === undefined) {
+            stored[notifiedMinKey] = stored[minPriceKey];
+            stateMigrated = true;
+        }
+        
         const parsedTolerance = parseInt(this.config.priceTolerance, 10);
         const tolerance = !Number.isNaN(parsedTolerance) ? parsedTolerance : DEFAULT_PRICE_TOLERANCE;
+        
+        const parsedMinDropPct = parseFloat(this.config.minDropPercentage);
+        const minDropPercentage = !Number.isNaN(parsedMinDropPct) ? parsedMinDropPct : DEFAULT_MIN_DROP_PERCENTAGE;
         
         const parsedGrace = parseInt(this.config.gracePeriodHours, 10);
         const gracePeriodHours = !Number.isNaN(parsedGrace) ? parsedGrace : DEFAULT_GRACE_PERIOD_HOURS;
@@ -182,20 +193,43 @@ class DealMonitor extends Monitor {
         }
 
         if (currentPrice < stored[minPriceKey]) {
-            const isSignificant = (stored[minPriceKey] - currentPrice) >= tolerance;
+            const oldMinPrice = stored[minPriceKey];
+            const dropAmount = stored[notifiedMinKey] - currentPrice;
+            const dropPercentage = (dropAmount / stored[notifiedMinKey]) * 100;
+            const isSignificant = dropAmount >= tolerance && dropPercentage >= minDropPercentage;
+            
             if (this.config.verboseLogging) {
-                logger.info('[DealMonitor] %s (ID: %s) [%s] NEW HISTORIC LOW: %s -> %s (Significant: %s)', product.name, product.id, priceType, formatCLP(stored[minPriceKey]), formatCLP(currentPrice), isSignificant);
+                logger.info('[DealMonitor] %s (ID: %s) [%s] NEW HISTORIC LOW: %s -> %s (Significant: %s, Drop: %s%% from %s)', product.name, product.id, priceType, formatCLP(oldMinPrice), formatCLP(currentPrice), isSignificant, dropPercentage.toFixed(2), formatCLP(stored[notifiedMinKey]));
             }
+            
             stored[minPriceKey] = currentPrice;
             stored[minDateKey] = now;
             stored[lastPriceKey] = currentPrice;
-            return isSignificant ? `NEW_LOW_${notificationType}` : 'CHANGED';
-        } else if (isAtMin && !wasAtMin) {
-            if (this.config.verboseLogging) {
-                logger.info('[DealMonitor] %s (ID: %s) [%s] BACK TO HISTORIC LOW: %s', product.name, product.id, priceType, formatCLP(currentPrice));
+            
+            if (isSignificant) {
+                stored[notifiedMinKey] = currentPrice;
+                return `NEW_LOW_${notificationType}`;
             }
-            stored[lastPriceKey] = currentPrice;
-            return `BACK_TO_LOW_${notificationType}`;
+            return 'CHANGED';
+        } else if (isAtMin && !wasAtMin) {
+            // Check if the drop back to the minimum is significant enough to warrant an alert
+            const dropAmount = stored[lastPriceKey] - currentPrice;
+            const dropPercentage = (dropAmount / stored[lastPriceKey]) * 100;
+            const isSignificant = dropAmount >= tolerance && dropPercentage >= minDropPercentage;
+
+            // Only alert BACK_TO_LOW if:
+            // 1. The minimum we are returning to is a minimum we actually notified the user about.
+            // 2. The drop from the last known higher price is significant (>= minDropPercentage).
+            if (stored[minPriceKey] === stored[notifiedMinKey] && isSignificant) {
+                if (this.config.verboseLogging) {
+                    logger.info('[DealMonitor] %s (ID: %s) [%s] BACK TO HISTORIC LOW: %s (Drop: %s%%)', product.name, product.id, priceType, formatCLP(currentPrice), dropPercentage.toFixed(2));
+                }
+                stored[lastPriceKey] = currentPrice;
+                return `BACK_TO_LOW_${notificationType}`;
+            } else {
+                stored[lastPriceKey] = currentPrice;
+                return 'CHANGED';
+            }
         } else if (currentPrice !== stored[lastPriceKey]) {
             const isIncrease = currentPrice > stored[lastPriceKey];
 
@@ -229,6 +263,10 @@ class DealMonitor extends Monitor {
                 return 'PENDING';
             }
             
+            return 'CHANGED';
+        }
+        
+        if (stateMigrated) {
             return 'CHANGED';
         }
         return null;
@@ -282,7 +320,8 @@ class DealMonitor extends Monitor {
                             const history = await solotodo.getProductHistory(productId);
                             for (const entity of history) {
                                 // Only backfill history from CLP (Currency 1) entities
-                                if (entity.entity?.currency !== solotodo.SOLOTODO_CLP_CURRENCY_URL) {
+                                const entityCurrency = entity.entity?.currency;
+                                if (entityCurrency !== solotodo.SOLOTODO_CLP_CURRENCY_URL && String(entityCurrency) !== solotodo.SOLOTODO_CLP_CURRENCY_ID) {
                                     continue;
                                 }
 
@@ -315,8 +354,10 @@ class DealMonitor extends Monitor {
                     newState[productId] = {
                         minOfferPrice: minOffer,
                         minOfferDate,
+                        notifiedMinOfferPrice: minOffer,
                         minNormalPrice: minNormal,
                         minNormalDate,
+                        notifiedMinNormalPrice: minNormal,
                         lastOfferPrice: product.offerPrice,
                         lastNormalPrice: product.normalPrice,
                         name: product.name,
@@ -397,22 +438,22 @@ class DealMonitor extends Monitor {
         let triggerDate = null;
 
         if (bothNewLow) {
-            statusText = 'Nuevos mínimos históricos';
+            statusText = '🔥 Nuevos mínimos históricos';
             color = 0x2ecc71;
         } else if (bothBackToLow) {
-            statusText = 'Volvió a precios históricos';
+            statusText = '♻️ Volvió a precios históricos';
             showDate = true;
             triggerDate = stored?.minOfferDate;
         } else if (triggers.length > 1) {
-            statusText = 'Nuevos precios históricos';
+            statusText = '🔥 Nuevos precios históricos';
             color = 0x2ecc71;
         } else {
             const type = triggers[0];
             const notificationConfig = {
-                'NEW_LOW_OFFER': { text: 'Nuevo mínimo histórico con Tarjeta', color: 0x2ecc71 },
-                'BACK_TO_LOW_OFFER': { text: 'Volvió al mínimo histórico con Tarjeta', showDate: true, date: stored?.minOfferDate },
-                'NEW_LOW_NORMAL': { text: 'Nuevo mínimo histórico con todo medio de pago', color: 0x27ae60 },
-                'BACK_TO_LOW_NORMAL': { text: 'Volvió al mínimo histórico con todo medio de pago', showDate: true, date: stored?.minNormalDate }
+                'NEW_LOW_OFFER': { text: '💳 Nuevo mínimo histórico con Tarjeta', color: 0x2ecc71 },
+                'BACK_TO_LOW_OFFER': { text: '💳 Volvió al mínimo histórico con Tarjeta', showDate: true, date: stored?.minOfferDate },
+                'NEW_LOW_NORMAL': { text: '💰 Nuevo mínimo histórico con todo medio de pago', color: 0x27ae60 },
+                'BACK_TO_LOW_NORMAL': { text: '💰 Volvió al mínimo histórico con todo medio de pago', showDate: true, date: stored?.minNormalDate }
             };
             const details = notificationConfig[type];
             statusText = details?.text || '';
@@ -524,48 +565,45 @@ class DealMonitor extends Monitor {
         const embed = new Discord.EmbedBuilder()
             .setTitle(sanitizedName)
             .setDescription(description)
-            .addFields([
-                { name: '💳 Precio Tarjeta', value: offerPriceValue, inline: true },
-                { name: '💰 Precio Normal', value: normalPriceValue, inline: true }
-            ])
             .setColor(color)
             .setTimestamp()
             .setFooter({ text: 'powered by Solotodo'});
 
+        if (product.offerPrice === product.normalPrice && previousOfferPrice === previousNormalPrice) {
+            embed.addFields([
+                { name: 'Precio (Todo medio de pago)', value: offerPriceValue, inline: false }
+            ]);
+        } else {
+            embed.addFields([
+                { name: 'Precio Tarjeta', value: offerPriceValue, inline: true },
+                { name: 'Precio Normal', value: normalPriceValue, inline: true }
+            ]);
+        }
+
         if (bestEntities.length > 0) {
-            if (bestEntities.length === 1) {
-                const { storeName, safeUrl } = this._formatStoreLink(product, bestEntities[0], storeMap);
-                const fieldName = `🛒 Vendido por ${storeName}`;
-                let fieldValue = `[Ir a la tienda ↗](${safeUrl})`;
+            let fieldLines = [];
+            let currentLength = 0;
+            
+            const MAX_VALUE_LENGTH = 1024;
+            const TRUNCATION_BUFFER = 35;
+            const SAFE_MAX_LENGTH = MAX_VALUE_LENGTH - TRUNCATION_BUFFER;
 
-                if (fieldValue.length > 1024) {
-                    fieldValue = 'El link de la tienda es demasiado largo para mostrar.';
-                    logger.warn('[DealMonitor] Store URL for product %s is too long to display in Discord embed.', product.id);
-                }
-
-                embed.addFields([{ name: fieldName.substring(0, 256), value: fieldValue, inline: false }]);
-            } else {
-                let fieldLines = [];
-                let currentLength = 0;
+            for (const entity of bestEntities) {
+                const { storeName, safeUrl } = this._formatStoreLink(product, entity, storeMap);
+                let line = `• [**${storeName}** ↗](${safeUrl})`;
                 
-                // Discord embed field value limit is 1024 characters.
-                // We use a buffer of 24 characters to account for the truncation message ("• ... y X más").
-                const MAX_VALUE_LENGTH = 1024;
-                const TRUNCATION_BUFFER = 24;
-                const SAFE_MAX_LENGTH = MAX_VALUE_LENGTH - TRUNCATION_BUFFER;
-
-                for (const entity of bestEntities) {
-                    const { storeName, safeUrl } = this._formatStoreLink(product, entity, storeMap);
-                    const line = `• **${storeName}**: [Ir a la tienda ↗](${safeUrl})`;
-                    if (currentLength + line.length + 1 > SAFE_MAX_LENGTH) {
-                        fieldLines.push(`• ... y ${bestEntities.length - fieldLines.length} más`);
-                        break;
-                    }
-                    fieldLines.push(line);
-                    currentLength += line.length + 1; // +1 for newline
+                if (entity.best_coupon && entity.best_coupon.code) {
+                    line += `\n  ↳ Cupón: \`${entity.best_coupon.code}\``;
                 }
-                embed.addFields([{ name: '🛒 Disponible en:', value: fieldLines.join('\n'), inline: false }]);
+
+                if (currentLength + line.length + 2 > SAFE_MAX_LENGTH) {
+                    fieldLines.push(`*... y ${bestEntities.length - fieldLines.length} tienda(s) más*`);
+                    break;
+                }
+                fieldLines.push(line);
+                currentLength += line.length + 2; 
             }
+            embed.addFields([{ name: 'Dónde comprar', value: fieldLines.join('\n\n'), inline: false }]);
         }
 
         // 5. Handle Image / Attachment

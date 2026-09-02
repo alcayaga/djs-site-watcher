@@ -43,6 +43,7 @@ describe('DealMonitor Price Tolerance', () => {
             url: 'https://api.com/deals',
             file: './config/deals.json',
             priceTolerance: 500, // 500 CLP tolerance for these specific tests
+            minDropPercentage: 0, // Disable percentage check for absolute tolerance tests
             verboseLogging: true
         };
 
@@ -267,7 +268,9 @@ describe('DealMonitor Price Tolerance', () => {
             'Offer',
             expect.anything(),
             expect.anything(),
-            false
+            false,
+            expect.anything(),
+            expect.anything()
         );
     });
 
@@ -297,7 +300,9 @@ describe('DealMonitor Price Tolerance', () => {
             'Offer',
             expect.anything(),
             expect.anything(),
-            true
+            true,
+            expect.anything(),
+            expect.anything()
         );
     });
 
@@ -307,7 +312,8 @@ describe('DealMonitor Price Tolerance', () => {
         monitor = new DealMonitor('Deal', {
             name: 'Deal',
             url: 'https://api.com/deals',
-            file: './config/deals.json'
+            file: './config/deals.json',
+            minDropPercentage: 0
         });
         monitor.client = mockClient;
 
