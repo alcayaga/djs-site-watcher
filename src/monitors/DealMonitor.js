@@ -592,7 +592,9 @@ class DealMonitor extends Monitor {
                 return 0;
             });
             const { safeUrl } = this._formatStoreLink(product, sortedBest[0], storeMap);
-            primaryStoreUrl = safeUrl;
+            if (safeUrl !== '#') {
+                primaryStoreUrl = safeUrl;
+            }
         }
 
         const embed = new Discord.EmbedBuilder()
