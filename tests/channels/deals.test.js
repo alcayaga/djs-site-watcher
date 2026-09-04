@@ -103,7 +103,7 @@ describe('DealsChannel', () => {
                 active_registry: { offer_price: '799990', normal_price: '899990', is_available: true, cell_monthly_payment: null } 
             }
         ]);
-        solotodo.getStores.mockResolvedValue(new Map([['https://store.com/1/', 'Store 1']]));
+        solotodo.getStores.mockResolvedValue(new Map([['https://store.com/1/', { name: 'Store 1' }]]));
         solotodo.getProductUrl.mockReturnValue('https://solotodo.cl/products/123');
 
         mockMessage.content = 'Oferta: https://some-store.com/iphone15';

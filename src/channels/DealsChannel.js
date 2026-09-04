@@ -104,7 +104,8 @@ class DealsChannel extends ChannelHandler {
 
                         if (filteredEntities.length > 0) {
                             const priceList = filteredEntities.map(entity => {
-                                const storeName = storeMap.get(entity.store) || 'Tienda';
+                                const storeData = storeMap.get(entity.store);
+                                const storeName = storeData?.name || 'Tienda';
                                 let line = `• [${sanitizeLinkText(storeName)}](${entity.external_url}): **${formatCLP(entity.offerPriceNum)}**`;
                                 if (Math.floor(entity.normalPriceNum) !== Math.floor(entity.offerPriceNum)) {
                                     line += ` (Normal: ${formatCLP(entity.normalPriceNum)})`;
