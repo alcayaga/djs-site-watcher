@@ -29,6 +29,10 @@ const client = new Client({
     partials: [Partials.Channel],
 });
 
+/**
+ * Initializes the bot, mocks the necessary Solotodo network responses,
+ * injects the scenario data, and manually triggers the DealMonitor to send a test notification.
+ */
 async function runSimulation() {
     logger.info(`Starting simulation: ${scenarioName}`);
     
