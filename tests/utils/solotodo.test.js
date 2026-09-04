@@ -197,7 +197,7 @@ describe('Solotodo Utils - API functions', () => {
         });
 
         const storeMap1 = await getStores();
-        expect(storeMap1.get('https://api.com/stores/1/')).toBe('Store 1');
+        expect(storeMap1.get('https://api.com/stores/1/')).toEqual({ url: 'https://api.com/stores/1/', name: 'Store 1' });
         expect(got).toHaveBeenCalledTimes(1);
 
         // Second call should use cache

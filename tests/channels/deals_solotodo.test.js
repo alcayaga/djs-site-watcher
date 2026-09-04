@@ -137,10 +137,10 @@ describe('DealsChannel Solotodo Integration', () => {
         ];
 
         const mockStoreMap = new Map([
-            ['https://api.com/stores/1/', 'Store 1'],
-            ['https://api.com/stores/2/', 'Store 2'],
-            ['https://api.com/stores/4/', 'Store 4'],
-            ['https://api.com/stores/5/', 'Store 5']
+            ['https://api.com/stores/1/', { name: 'Store 1' }],
+            ['https://api.com/stores/2/', { name: 'Store 2' }],
+            ['https://api.com/stores/4/', { name: 'Store 4' }],
+            ['https://api.com/stores/5/', { name: 'Store 5' }]
         ]);
 
         getAvailableEntities.mockResolvedValue(mockEntities);

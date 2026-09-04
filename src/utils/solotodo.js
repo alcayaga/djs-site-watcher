@@ -336,13 +336,13 @@ async function getBestPictureUrl(product, entities = null) {
     return null;
 }
 
+const STORES_CACHE_TTL = 21600000; // 6 hours
 let cachedStores = null;
 let storesLastUpdated = 0;
-const STORES_CACHE_TTL = 3600000; // 1 hour
 
 /**
  * Fetches all stores from Solotodo.
- * @returns {Promise<Map<string, string>>} A map of store URL to store name.
+ * @returns {Promise<Map<string, object>>} A map of store URL/ID to store object.
  */
 async function getStores() {
     const now = Date.now();
@@ -358,8 +358,8 @@ async function getStores() {
     const storeMap = new Map();
     if (Array.isArray(response.body)) {
         for (const store of response.body) {
-            if (store.url) storeMap.set(store.url, store.name);
-            if (store.id) storeMap.set(store.id, store.name);
+            if (store.url) storeMap.set(store.url, store);
+            if (store.id) storeMap.set(store.id, store);
         }
     }
     cachedStores = storeMap;

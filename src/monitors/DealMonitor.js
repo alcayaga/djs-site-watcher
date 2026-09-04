@@ -450,8 +450,8 @@ class DealMonitor extends Monitor {
         } else {
             const type = triggers[0];
             const notificationConfig = {
-                'NEW_LOW_OFFER': { text: '💳 Nuevo mínimo histórico con Tarjeta', color: 0x2ecc71 },
-                'BACK_TO_LOW_OFFER': { text: '💳 Volvió al mínimo histórico con Tarjeta', showDate: true, date: stored?.minOfferDate },
+                'NEW_LOW_OFFER': { text: '💳 Nuevo mínimo histórico en Oferta', color: 0x2ecc71 },
+                'BACK_TO_LOW_OFFER': { text: '💳 Volvió al mínimo histórico en Oferta', showDate: true, date: stored?.minOfferDate },
                 'NEW_LOW_NORMAL': { text: '💰 Nuevo mínimo histórico con todo medio de pago', color: 0x27ae60 },
                 'BACK_TO_LOW_NORMAL': { text: '💰 Volvió al mínimo histórico con todo medio de pago', showDate: true, date: stored?.minNormalDate }
             };
@@ -508,7 +508,7 @@ class DealMonitor extends Monitor {
      * @returns {{storeName: string, safeUrl: string}} The sanitized store name and URL.
      */
     _formatStoreLink(product, entity, storeMap) {
-        const storeName = sanitizeLinkText(storeMap.get(entity.store) || 'Tienda');
+        const storeData = storeMap.get(entity.store); const storeName = sanitizeLinkText(storeData?.name || 'Tienda');
         let safeUrl = '#';
         try {
             const urlObj = new URL(entity.external_url);
@@ -562,8 +562,44 @@ class DealMonitor extends Monitor {
         const offerPriceValue = formatPriceValue(product.offerPrice, previousOfferPrice);
         const normalPriceValue = formatPriceValue(product.normalPrice, previousNormalPrice);
 
+        // Calculate dynamic offer label based on bestEntities
+        let offerLabel = 'Precio Oferta';
+        if (bestEntities.length === 1) {
+            const entity = bestEntities[0];
+            const storeData = storeMap.get(entity.store);
+            if (product.offerPrice === product.normalPrice) {
+                offerLabel = 'Con todo medio de pago';
+            } else if (storeData && storeData.preferred_payment_method) {
+                offerLabel = storeData.preferred_payment_method;
+            } else {
+                offerLabel = 'Precio efectivo';
+            }
+        }
+
+        // Determine the primary store link for the embed title
+        let primaryStoreUrl = solotodo.getProductUrl(product); // fallback
+        if (bestEntities.length > 0) {
+            const sortedBest = [...bestEntities].sort((a, b) => {
+                const aNoCard = parseFloat(a.active_registry.offer_price) === parseFloat(a.active_registry.normal_price);
+                const bNoCard = parseFloat(b.active_registry.offer_price) === parseFloat(b.active_registry.normal_price);
+                if (aNoCard && !bNoCard) return -1;
+                if (!aNoCard && bNoCard) return 1;
+
+                const aNormal = parseFloat(a.active_registry.normal_price);
+                const bNormal = parseFloat(b.active_registry.normal_price);
+                if (aNormal !== bNormal) return aNormal - bNormal;
+
+                return 0;
+            });
+            const { safeUrl } = this._formatStoreLink(product, sortedBest[0], storeMap);
+            if (safeUrl !== '#') {
+                primaryStoreUrl = safeUrl;
+            }
+        }
+
         const embed = new Discord.EmbedBuilder()
             .setTitle(sanitizedName)
+            .setURL(primaryStoreUrl)
             .setDescription(description)
             .setColor(color)
             .setTimestamp()
@@ -571,11 +607,11 @@ class DealMonitor extends Monitor {
 
         if (product.offerPrice === product.normalPrice && previousOfferPrice === previousNormalPrice) {
             embed.addFields([
-                { name: 'Precio (Todo medio de pago)', value: offerPriceValue, inline: false }
+                { name: offerLabel === 'Precio Oferta' ? 'Precio (Todo medio de pago)' : offerLabel, value: offerPriceValue, inline: false }
             ]);
         } else {
             embed.addFields([
-                { name: 'Precio Tarjeta', value: offerPriceValue, inline: true },
+                { name: offerLabel, value: offerPriceValue, inline: true },
                 { name: 'Precio Normal', value: normalPriceValue, inline: true }
             ]);
         }
@@ -603,7 +639,7 @@ class DealMonitor extends Monitor {
                 fieldLines.push(line);
                 currentLength += line.length + 2; 
             }
-            embed.addFields([{ name: 'Dónde comprar', value: fieldLines.join('\n\n'), inline: false }]);
+            embed.addFields([{ name: 'Dónde comprar', value: fieldLines.join('\n'), inline: false }]);
         }
 
         // 5. Handle Image / Attachment

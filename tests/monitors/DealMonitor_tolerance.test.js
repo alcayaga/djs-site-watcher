@@ -23,7 +23,7 @@ jest.mock('../../src/utils/solotodo', () => ({
     getAvailableEntities: jest.fn().mockResolvedValue([
         { active_registry: { offer_price: "100000", normal_price: "100000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
     ]),
-    getStores: jest.fn().mockResolvedValue(new Map([["https://api.com/stores/1/", "Store 1"]]))
+    getStores: jest.fn().mockResolvedValue(new Map([["https://api.com/stores/1/", { name: "Store 1" }]]))
 }));
 
 describe('DealMonitor Price Tolerance', () => {
@@ -63,7 +63,7 @@ describe('DealMonitor Price Tolerance', () => {
                 external_url: 'https://store.com'
             }
         ]);
-        jest.spyOn(solotodo, 'getStores').mockResolvedValue(new Map([['https://api.com/stores/1/', 'Store 1']]));
+        jest.spyOn(solotodo, 'getStores').mockResolvedValue(new Map([['https://api.com/stores/1/', { name: 'Store 1' }]]));
     };
 
     const mockApiResponse = (products) => {

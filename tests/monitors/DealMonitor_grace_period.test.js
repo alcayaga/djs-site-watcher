@@ -21,6 +21,7 @@ jest.mock('discord.js', () => {
             const embed = {
                 data: {},
                 setTitle: jest.fn((t) => { embed.data.title = t; return embed; }),
+                setURL: jest.fn((u) => { embed.data.url = u; return embed; }),
                 setDescription: jest.fn((d) => { embed.data.description = d; return embed; }),
                 addFields: jest.fn((f) => { embed.data.fields = f; return embed; }),
                 setColor: jest.fn((c) => { embed.data.color = c; return embed; }),
@@ -82,7 +83,7 @@ describe('DealMonitor Grace Period', () => {
                 external_url: 'https://store.com'
             }
         ]);
-        jest.spyOn(solotodo, 'getStores').mockResolvedValue(new Map([['https://api.com/stores/1/', 'Store 1']]));
+        jest.spyOn(solotodo, 'getStores').mockResolvedValue(new Map([['https://api.com/stores/1/', { name: 'Store 1' }]]));
     };
 
     const mockApiResponse = (products) => {
