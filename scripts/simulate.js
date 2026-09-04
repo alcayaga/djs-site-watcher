@@ -56,7 +56,7 @@ async function runSimulation() {
         // Cache the Deals channel
         const dealsChannelConfig = config.channels.find(c => c.handler === 'DealsChannel');
         if (dealsChannelConfig && dealsChannelConfig.channelId) {
-            logger.info(`Fetching channel from Discord API: ${dealsChannelConfig.channelId}`);
+            logger.info('Fetching Deals channel from Discord API...');
             await client.channels.fetch(dealsChannelConfig.channelId);
             monitor.config.channelId = dealsChannelConfig.channelId;
         }
