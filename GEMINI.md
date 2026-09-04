@@ -95,15 +95,12 @@ The loop ends when there are no more unattended reviews, or after 5 iterations i
 
 
 ## Testing Strategy Rules
-When validating changes, ALWAYS follow this strict execution order:
+When validating changes, ALWAYS follow the strict execution order defined in the project's standard contribution guide.
 
-1. **Targeted Unit Test:**
-   - Run the specific test file: `npm test -- path/to/specific.test.js`
-   - **Mocks:** Leverage the `__mocks__` directory when mocking external dependencies or modules.
-   - Goal: Fail fast.
-
-2. **Full Validation:**
-   - Execute only if targeted test passes: `npm run preflight`
+Read **`docs/CONTRIBUTING.md`** for the complete testing architecture, including:
+1. Targeted Unit Testing
+2. Full Validation (`npm run preflight`)
+3. **(Optional)** The Visual Simulation Framework (for E2E Discord embed testing when making major UI changes)
 
 
 ## Troubleshooting
