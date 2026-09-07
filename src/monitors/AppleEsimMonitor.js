@@ -24,7 +24,7 @@ class AppleEsimMonitor extends Monitor {
             $('h2').each((_, heading) => {
                 if ($(heading).text().trim() === countryToMonitor) {
                     countryHeading = heading;
-                    return false; // break loop
+                    return false;
                 }
             });
 
