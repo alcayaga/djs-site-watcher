@@ -165,6 +165,10 @@ if (require.main === module) {
 }
 
 // Graceful shutdown
+/**
+ * Gracefully shuts down the Discord client before process termination.
+ * Handles both SIGINT and SIGTERM to guarantee cleanup.
+ */
 const shutdown = () => {
     logger.info('Shutdown signal received. Shutting down gracefully...');
     client.destroy();
