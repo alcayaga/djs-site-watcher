@@ -8,6 +8,7 @@ const storage = require('../storage');
 const { URL } = require('url');
 const { getSafeGotOptions } = require('../utils/network');
 const logger = require('../utils/logger');
+const { sleep } = require('../utils/helpers');
 
 /**
  * Cleans the text by trimming lines and removing empty ones.
@@ -44,18 +45,20 @@ class SiteMonitor extends Monitor {
     async check() {
         logger.info('Checking for %s updates...', this.name);
         let sitesArray = Array.isArray(this.state) ? this.state : [];
+        let hasAnyChanges = false;
 
-        const checkPromises = sitesArray.map(async (site) => {
-            let hasChanged = false;
+        for (let i = 0; i < sitesArray.length; i++) {
+            const site = sitesArray[i];
             try {
                 const { content, hash, dom } = await this.fetchAndProcess(site.url, site.css);
 
                 const title = dom.window.document.title;
-                dom.window.close();
+                dom.window.close(); // Immediate cleanup
+                
                 if (title && title.trim().length > 0 && site.id !== title) {
                     logger.info('[Migration] Updating ID for %s from \'%s\' to \'%s\'', site.url, site.id, title);
                     site.id = title;
-                    hasChanged = true;
+                    hasAnyChanges = true;
                 }
 
                 if (site.hash !== hash) {
@@ -76,7 +79,7 @@ class SiteMonitor extends Monitor {
                     site.lastContent = content;
                     
                     if (cleanOldContent !== content) {
-                        hasChanged = true;
+                        hasAnyChanges = true;
                         if (isFlapping) {
                             logger.info('[Flap Prevention] Suppressed notification for %s. Hash %s was seen recently.', site.url, hash);
                         } else {
@@ -84,35 +87,34 @@ class SiteMonitor extends Monitor {
                         }
                     } else {
                         // Silent update (Migration to clean content)
-                        hasChanged = true; 
+                        hasAnyChanges = true; 
                         logger.info('[Migration] Updated %s to clean content format without notification.', site.url);
                     }
                 } else {
                     if (site.lastContent === undefined) {
                         site.lastContent = content;
-                        hasChanged = true;
+                        hasAnyChanges = true;
                         logger.info('[Migration] Backfilled lastContent for %s without notification.', site.url);
                     }
                     if (Array.isArray(site.recentHashes) && site.recentHashes.length > RECENT_HASH_HISTORY_SIZE) {
                         site.recentHashes = site.recentHashes.slice(-RECENT_HASH_HISTORY_SIZE);
-                        hasChanged = true;
+                        hasAnyChanges = true;
                         logger.info('[Migration] Trimmed recent hashes for %s.', site.url);
                     }
                     site.lastChecked = new Date().toISOString();
                 }
-                return { site, hasChanged };
             } catch (err) {
                 logger.error('Error checking site %s:', site.url, err);
-                return { site, hasChanged: false };
             }
-        });
-
-        const results = await Promise.all(checkPromises);
-        const hasAnyChanges = results.some(r => r.hasChanged);
+            
+            // Wait 2 seconds before processing the next site to allow Garbage Collection of JSDOM
+            if (i < sitesArray.length - 1) {
+                await sleep(2000);
+            }
+        }
 
         if (hasAnyChanges) {
-            const updatedSites = results.map(r => r.site);
-            await this.saveState(updatedSites);
+            await this.saveState(sitesArray);
         }
     }
 
