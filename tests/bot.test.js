@@ -34,7 +34,7 @@ jest.mock('../src/MonitorManager', () => ({
 // Mock storage, got, jsdom, discord.js using shared mocks
 jest.mock('../src/storage');
 jest.mock('got');
-jest.mock('jsdom');
+
 jest.mock('discord.js');
 
 // Mock fs

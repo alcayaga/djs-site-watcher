@@ -1,4 +1,4 @@
-const { JSDOM } = require('jsdom');
+const cheerio = require('cheerio');
 const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const crypto = require('crypto');
@@ -8,7 +8,7 @@ const storage = require('../storage');
 const { URL } = require('url');
 const { getSafeGotOptions } = require('../utils/network');
 const logger = require('../utils/logger');
-const { sleep } = require('../utils/helpers');
+
 
 /**
  * Cleans the text by trimming lines and removing empty ones.
@@ -50,10 +50,7 @@ class SiteMonitor extends Monitor {
         for (let i = 0; i < sitesArray.length; i++) {
             const site = sitesArray[i];
             try {
-                const { content, hash, dom } = await this.fetchAndProcess(site.url, site.css);
-
-                const title = dom.window.document.title;
-                dom.window.close(); // Immediate cleanup
+                const { content, hash, title } = await this.fetchAndProcess(site.url, site.css);
                 
                 if (title && title.trim().length > 0 && site.id !== title) {
                     logger.info('[Migration] Updating ID for %s from \'%s\' to \'%s\'', site.url, site.id, title);
@@ -107,10 +104,7 @@ class SiteMonitor extends Monitor {
                 logger.error('Error checking site %s:', site.url, err);
             }
             
-            // Wait 2 seconds before processing the next site to allow Garbage Collection of JSDOM
-            if (i < sitesArray.length - 1) {
-                await sleep(2000);
-            }
+            // Removed 2-second sleep since Cheerio doesn't have the memory overhead of JSDOM
         }
 
         if (hasAnyChanges) {
@@ -122,7 +116,7 @@ class SiteMonitor extends Monitor {
      * Fetches and processes the content of a site.
      * @param {string} url The URL to fetch.
      * @param {string} css The CSS selector to use.
-     * @returns {Promise<{content: string, hash: string, dom: JSDOM, selectorFound: boolean}>} The processed content.
+     * @returns {Promise<{content: string, hash: string, title: string, selectorFound: boolean}>} The processed content.
      */
     async fetchAndProcess(url, css) {
         const parsedUrl = new URL(url);
@@ -135,31 +129,30 @@ class SiteMonitor extends Monitor {
             maxResponseSize: 5 * 1024 * 1024,
             ...getSafeGotOptions()
         });
-        const dom = new JSDOM(response.body);
+        
+        const $ = cheerio.load(response.body, { scriptingEnabled: false });
         let content = '';
         let selectorFound = false;
 
-        try {
-            if (css) {
-                const selectorNode = dom.window.document.querySelector(css);
-                if (selectorNode) {
-                    content = selectorNode.textContent;
-                    selectorFound = true;
-                }
-            } else {
-                const headNode = dom.window.document.querySelector('head');
-                content = headNode ? headNode.textContent : '';
-                selectorFound = !!headNode;
+        if (css) {
+            const selectorNode = $(css);
+            if (selectorNode.length > 0) {
+                content = selectorNode.text();
+                selectorFound = true;
             }
-
-            content = cleanText(content);
-            const hash = crypto.createHash('md5').update(content).digest('hex');
-
-            return { content, hash, selectorFound, dom };
-        } catch (error) {
-            dom.window.close();
-            throw error;
+        } else {
+            const headNode = $('head');
+            if (headNode.length > 0) {
+                content = headNode.text();
+                selectorFound = true;
+            }
         }
+
+        content = cleanText(content);
+        const hash = crypto.createHash('md5').update(content).digest('hex');
+        const title = $('title').text();
+
+        return { content, hash, selectorFound, title };
     }
 
     /**
@@ -196,11 +189,10 @@ class SiteMonitor extends Monitor {
             content = result.content;
             hash = result.hash;
             selectorFound = result.selectorFound;
-            id = result.dom.window.document.title;
-            result.dom.window.close();
+            id = result.title;
             fetchSuccess = true;
         } catch (error) {
-            if (error.name === 'SyntaxError') {
+            if (error.name === 'SyntaxError' || (error.message && (error.message.includes('supported by css-select') || error.message.includes('unmatched pseudo-class')))) {
                 throw new Error(`Invalid CSS selector: ${css}`);
             }
             if (!force) {

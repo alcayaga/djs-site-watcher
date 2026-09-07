@@ -4,7 +4,7 @@ const Discord = require('discord.js');
 const got = require('got');
 
 // Mock external modules
-jest.mock('jsdom');
+
 jest.mock('discord.js');
 jest.mock('got');
 jest.mock('../src/storage');
@@ -68,7 +68,7 @@ describe('AppleFeatureMonitor', () => {
                     id: "feature-a",
                 },
             });
-            expect(jest.requireMock('jsdom').JSDOM).toHaveBeenCalledWith(html);
+
         });
 
         it('should return empty object if no features match keywords', () => {

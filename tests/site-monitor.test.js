@@ -9,7 +9,7 @@ const logger = require('../src/utils/logger');
 // Use manual mocks from __mocks__ and src/__mocks__
 jest.mock('discord.js');
 jest.mock('got');
-jest.mock('jsdom');
+
 jest.mock('crypto');
 jest.mock('diff');
 jest.mock('../src/storage');
@@ -360,7 +360,7 @@ describe('SiteMonitor', () => {
             expect(got).toHaveBeenCalledWith('http://example.com', expect.anything());
             expect(result.content).toBe('content');
             expect(result.hash).toBe('mock-hash-clean');
-            expect(result.dom).toBeDefined();
+            expect(result.title).toBeDefined();
             expect(result.selectorFound).toBe(true);
         });
     });

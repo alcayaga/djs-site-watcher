@@ -1,4 +1,4 @@
-const { JSDOM } = require('jsdom');
+const cheerio = require('cheerio');
 const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const { sanitizeMarkdown, sanitizeLinkText } = require('../utils/formatters');
@@ -15,14 +15,18 @@ class AppleEsimMonitor extends Monitor {
      * @returns {object} The parsed carrier data, keyed by country.
      */
     parse(data) {
-        const dom = new JSDOM(data);
+        const $ = cheerio.load(data, { scriptingEnabled: false });
         try {
-            const document = dom.window.document;
             const parsedData = {};
             const countryToMonitor = this.config.country || 'Chile'; // Default to Chile if not specified
 
-            const countryHeading = Array.from(document.querySelectorAll('h2'))
-                .find(heading => heading.textContent.trim() === countryToMonitor);
+            let countryHeading = null;
+            $('h2').each((_, heading) => {
+                if ($(heading).text().trim() === countryToMonitor) {
+                    countryHeading = heading;
+                    return false; // break loop
+                }
+            });
 
             if (!countryHeading) {
                 logger.warn('Could not find section for %s on the eSIM page.', countryToMonitor);
@@ -30,29 +34,29 @@ class AppleEsimMonitor extends Monitor {
             }
 
             const carriers = [];
-            let nextElement = countryHeading.nextElementSibling;
+            let nextElement = $(countryHeading).next();
             let currentCapability = 'General';
 
-            while (nextElement && nextElement.tagName !== 'H2') {
-                const h3 = nextElement.querySelector('h3') || (nextElement.tagName === 'H3' ? nextElement : null);
+            while (nextElement.length > 0 && nextElement.prop('tagName') !== 'H2') {
+                const h3 = nextElement.find('h3').length > 0 ? nextElement.find('h3') : (nextElement.prop('tagName') === 'H3' ? nextElement : null);
                 if (h3) {
-                    currentCapability = h3.textContent.trim();
+                    currentCapability = h3.text().trim();
                 }
 
-                const list = nextElement.querySelector('ul, ol') || (nextElement.matches('ul, ol') ? nextElement : null);
+                const list = nextElement.find('ul, ol').length > 0 ? nextElement.find('ul, ol') : (nextElement.is('ul, ol') ? nextElement : null);
                 if (list) {
-                    list.querySelectorAll('li').forEach(li => {
-                        const linkElement = li.querySelector('a');
-                        if (linkElement) {
+                    list.find('li').each((_, li) => {
+                        const linkElement = $(li).find('a');
+                        if (linkElement.length > 0) {
                             carriers.push({
-                                name: linkElement.textContent.trim(),
-                                link: linkElement.href,
+                                name: linkElement.text().trim(),
+                                link: linkElement.attr('href'),
                                 capability: currentCapability,
                             });
                         }
                     });
                 }
-                nextElement = nextElement.nextElementSibling;
+                nextElement = nextElement.next();
             }
 
             if (carriers.length > 0) {
@@ -60,8 +64,9 @@ class AppleEsimMonitor extends Monitor {
             }
 
             return parsedData;
-        } finally {
-            dom.window.close();
+        } catch (error) {
+            logger.error('Error parsing Apple eSIM:', error);
+            return {};
         }
     }
 
