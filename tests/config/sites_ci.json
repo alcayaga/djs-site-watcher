@@ -1,8 +1,8 @@
 [
     {
-        "id": "example-com",
-        "url": "https://example.com",
-        "css": "h1",
+        "id": "github",
+        "url": "https://github.com/status",
+        "css": "body",
         "lastChecked": "",
         "lastUpdated": "",
         "hash": "",
