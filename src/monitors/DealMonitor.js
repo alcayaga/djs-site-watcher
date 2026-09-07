@@ -33,14 +33,14 @@ class DealMonitor extends Monitor {
     }
 
     /**
-     * Fetches the data from the monitor's URL(s).
+     * Fetches the data from the monitor's URL(s) and parses it immediately.
      * Supports multiple URLs and appends exclude_refurbished=true.
-     * Fetches are performed sequentially with a delay between them.
-     * @returns {Promise<string>} The fetched data as a JSON string.
+     * Extracts minimal product objects and discards raw JSON to optimize memory.
+     * @returns {Promise<Array>} List of minimal products.
      */
     async fetch() {
         const urls = Array.isArray(this.config.url) ? this.config.url : [this.config.url];
-        const allResults = [];
+        const products = [];
 
         for (let i = 0; i < urls.length; i++) {
             const baseUrl = urls[i];
@@ -50,8 +50,40 @@ class DealMonitor extends Monitor {
                 
                 const response = await got(url.toString(), getSafeGotOptions());
                 const body = JSON.parse(response.body);
-                if (body.results) {
-                    allResults.push(...body.results);
+                
+                if (body && body.results && Array.isArray(body.results)) {
+                    for (const result of body.results) {
+                        const entry = result.product_entries?.[0];
+                        const product = entry?.product;
+                        
+                        // Find the CLP (Currency 1) price in the metadata
+                        const prices = entry?.metadata?.prices_per_currency?.find(p => 
+                            p.currency === solotodo.SOLOTODO_CLP_CURRENCY_URL || String(p.currency) === solotodo.SOLOTODO_CLP_CURRENCY_ID
+                        );
+
+                        if (!product || !prices) continue;
+
+                        // Extract brand - can be at specs.brand_brand_unicode or specs.brand_unicode depending on category
+                        const brand = product.specs?.brand_brand_unicode || 
+                                      product.specs?.brand_brand_name || 
+                                      product.specs?.brand_unicode || 
+                                      product.specs?.brand_name;
+
+                        const offerPrice = parseFloat(prices.offer_price);
+                        const normalPrice = parseFloat(prices.normal_price);
+
+                        if (offerPrice >= MIN_SANITY_PRICE && normalPrice >= MIN_SANITY_PRICE) {
+                            products.push({
+                                id: product.id,
+                                name: product.name,
+                                brand: brand,
+                                slug: product.slug,
+                                pictureUrl: product.picture_url,
+                                offerPrice,
+                                normalPrice
+                            });
+                        }
+                    }
                 }
             } catch (e) {
                 logger.error('Error fetching from Solotodo URL %s:', baseUrl, e);
@@ -63,54 +95,17 @@ class DealMonitor extends Monitor {
             }
         }
 
-        return JSON.stringify({ results: allResults });
+        return products;
     }
+
     /**
      * Parses the Solotodo API response.
-     * @param {string} data The JSON string from the API.
+     * @param {Array} data The extracted product array from fetch().
      * @returns {Array} List of products with relevant price info.
      */
     parse(data) {
-        try {
-            const body = JSON.parse(data);
-            if (!body.results || !Array.isArray(body.results)) return [];
-
-            const parsed = body.results
-                .map(result => {
-                    const entry = result.product_entries?.[0];
-                    const product = entry?.product;
-                    
-                    // Find the CLP (Currency 1) price in the metadata
-                    const prices = entry?.metadata?.prices_per_currency?.find(p => 
-                        p.currency === solotodo.SOLOTODO_CLP_CURRENCY_URL || String(p.currency) === solotodo.SOLOTODO_CLP_CURRENCY_ID
-                    );
-
-                    if (!product || !prices) {
-                        return null;
-                    }
-
-                    // Extract brand - can be at specs.brand_brand_unicode or specs.brand_unicode depending on category
-                    const brand = product.specs.brand_brand_unicode || 
-                                  product.specs.brand_brand_name || 
-                                  product.specs.brand_unicode || 
-                                  product.specs.brand_name;
-
-                    return {
-                        id: product.id,
-                        name: product.name,
-                        brand: brand,
-                        slug: product.slug,
-                        pictureUrl: product.picture_url,
-                        offerPrice: parseFloat(prices.offer_price),
-                        normalPrice: parseFloat(prices.normal_price)
-                    };
-                })
-                .filter(p => p && p.offerPrice >= MIN_SANITY_PRICE && p.normalPrice >= MIN_SANITY_PRICE);
-            return parsed;
-        } catch (e) {
-            logger.error('Error parsing Solotodo data in DealMonitor:', e);
-            return [];
-        }
+        // Data is already parsed and mapped in fetch() to optimize memory
+        return Array.isArray(data) ? data : [];
     }
 
     /**
