@@ -13,6 +13,19 @@ const logger = require('../utils/logger');
 const MIN_SANITY_PRICE = 1000; // Anything below 1,000 CLP is likely an error for Apple products in these categories
 
 /**
+ * Predicate to check if a price entry corresponds to Chilean Pesos (CLP).
+ * We specifically filter for CLP because this bot is designed to alert users in Chile
+ * about local deals. Including foreign currencies (like USD or EUR) would result
+ * in false positives or invalid price comparisons.
+ *
+ * @param {object} p The currency price entry from the API.
+ * @returns {boolean} True if the currency is CLP.
+ */
+function isChileanPeso(p) {
+    return p.currency === solotodo.SOLOTODO_CLP_CURRENCY_URL || String(p.currency) === solotodo.SOLOTODO_CLP_CURRENCY_ID;
+}
+
+/**
  * Monitor for Solotodo deals on Apple products.
  * Tracks price history and alerts when a product reaches its historic minimum price.
  */
@@ -56,10 +69,7 @@ class DealMonitor extends Monitor {
                         const entry = result.product_entries?.[0];
                         const product = entry?.product;
                         
-                        // Find the CLP (Currency 1) price in the metadata
-                        const prices = entry?.metadata?.prices_per_currency?.find(p => 
-                            p.currency === solotodo.SOLOTODO_CLP_CURRENCY_URL || String(p.currency) === solotodo.SOLOTODO_CLP_CURRENCY_ID
-                        );
+                        const prices = entry?.metadata?.prices_per_currency?.find(isChileanPeso);
 
                         if (!product || !prices) continue;
 
