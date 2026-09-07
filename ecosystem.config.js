@@ -25,6 +25,7 @@ module.exports = {
     {
       name: isProduction ? 'djs-site-watcher' : `djs-site-watcher-${targetEnv}`,
       script: 'src/bot.js',
+      node_args: '--max-old-space-size=200',
       // Automatic recovery & stability settings
       max_memory_restart: '300M',      // Prevents OOM crashes from slow leaks
       exp_backoff_restart_delay: 100,  // Prevents CPU exhaustion during rapid crash loops
