@@ -25,6 +25,12 @@ module.exports = {
     {
       name: isProduction ? 'djs-site-watcher' : `djs-site-watcher-${targetEnv}`,
       script: 'src/bot.js',
+      // Automatic recovery & stability settings
+      max_memory_restart: '300M',      // Restart if memory exceeds 300MB
+      exp_backoff_restart_delay: 100,  // Exponential backoff for restarts starting at 100ms
+      max_restarts: 10,                // Max restarts before marking as errored
+      min_uptime: 5000,                // App must stay up for 5s to be considered online
+      kill_timeout: 5000,              // Wait 5s before sending SIGKILL after SIGINT
       // Common environment variables
       env: {
         NODE_ENV: 'production',

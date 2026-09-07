@@ -164,4 +164,14 @@ if (require.main === module) {
     client.login(config.DISCORDJS_BOT_TOKEN);
 }
 
+// Graceful shutdown
+const shutdown = () => {
+    logger.info('Shutdown signal received. Shutting down gracefully...');
+    client.destroy();
+    process.exit(0);
+};
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+
 module.exports = { client };
