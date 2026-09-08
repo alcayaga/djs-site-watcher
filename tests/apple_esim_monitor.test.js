@@ -4,7 +4,7 @@ const got = require('got');
 const logger = require('../src/utils/logger');
 
 // Mock external modules
-jest.mock('jsdom');
+
 jest.mock('discord.js');
 jest.mock('got');
 jest.mock('../src/storage');
@@ -61,12 +61,12 @@ describe('AppleEsimMonitor', () => {
             const parsedData = appleEsimMonitor.parse(html);
             expect(parsedData).toEqual({
                 Chile: [
-                    { name: 'Carrier 1', link: 'http://carrier1.com/', capability: 'General' },
-                    { name: 'Carrier 2', link: 'http://carrier2.com/', capability: 'General' },
-                    { name: 'Carrier 3', link: 'http://carrier3.com/', capability: 'Specific Capability' },
+                    { name: 'Carrier 1', link: 'http://carrier1.com', capability: 'General' },
+                    { name: 'Carrier 2', link: 'http://carrier2.com', capability: 'General' },
+                    { name: 'Carrier 3', link: 'http://carrier3.com', capability: 'Specific Capability' },
                 ],
             });
-            expect(jest.requireMock('jsdom').JSDOM).toHaveBeenCalledWith(html);
+
         });
 
         it('should return old state if country heading is not found', () => {
@@ -76,14 +76,14 @@ describe('AppleEsimMonitor', () => {
             const parsedData = appleEsimMonitor.parse(html);
             expect(parsedData).toEqual(appleEsimMonitor.state); // Should return the old state
             expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Could not find section for %s'), 'Chile');
-            expect(jest.requireMock('jsdom').JSDOM).toHaveBeenCalledWith(html);
+
         });
 
         it('should handle empty carrier list for the country', () => {
             const html = `<html><body><h2>Chile</h2></body></html>`;
             const parsedData = appleEsimMonitor.parse(html);
             expect(parsedData).toEqual({}); // Should return empty object for Chile
-            expect(jest.requireMock('jsdom').JSDOM).toHaveBeenCalledWith(html);
+
         });
     });
 

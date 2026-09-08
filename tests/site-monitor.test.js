@@ -9,7 +9,7 @@ const logger = require('../src/utils/logger');
 // Use manual mocks from __mocks__ and src/__mocks__
 jest.mock('discord.js');
 jest.mock('got');
-jest.mock('jsdom');
+
 jest.mock('crypto');
 jest.mock('diff');
 jest.mock('../src/storage');
@@ -350,7 +350,7 @@ describe('SiteMonitor', () => {
     describe('fetchAndProcess method', () => {
         it('should fetch, clean, and hash content', async () => {
             const rawContent = '  content  \n';
-            const html = `<html><body>${rawContent}</body></html>`;
+            const html = `<html><head><title>Test Site</title></head><body>${rawContent}</body></html>`;
             got.mockResolvedValue({ body: html });
             
             crypto._mockDigest.mockReturnValue('mock-hash-clean');
@@ -360,7 +360,7 @@ describe('SiteMonitor', () => {
             expect(got).toHaveBeenCalledWith('http://example.com', expect.anything());
             expect(result.content).toBe('content');
             expect(result.hash).toBe('mock-hash-clean');
-            expect(result.dom).toBeDefined();
+            expect(result.title).toBe('Test Site');
             expect(result.selectorFound).toBe(true);
         });
     });

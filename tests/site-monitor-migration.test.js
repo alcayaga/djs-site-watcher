@@ -7,7 +7,7 @@ const crypto = require('crypto');
 // Use manual mocks
 jest.mock('discord.js');
 jest.mock('got');
-jest.mock('jsdom');
+
 jest.mock('crypto');
 jest.mock('diff');
 jest.mock('../src/storage');

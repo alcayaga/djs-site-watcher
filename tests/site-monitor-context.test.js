@@ -27,22 +27,7 @@ jest.mock('../src/utils/logger', () => ({
     error: jest.fn(),
     warn: jest.fn(),
 }));
-jest.mock('jsdom', () => {
-    return {
-        JSDOM: jest.fn((html) => {
-            const actualDom = new (jest.requireActual('jsdom').JSDOM)(html);
-            return {
-                window: {
-                    document: {
-                        querySelector: jest.fn((selector) => actualDom.window.document.querySelector(selector)),
-                        title: actualDom.window.document.title,
-                    },
-                    close: jest.fn(),
-                },
-            };
-        }),
-    };
-});
+
 jest.mock('crypto', () => {
     const mockUpdate = jest.fn().mockReturnThis();
     const mockDigest = jest.fn().mockReturnValue('mock-hash');

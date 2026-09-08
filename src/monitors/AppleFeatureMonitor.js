@@ -1,4 +1,4 @@
-const { JSDOM } = require('jsdom');
+const cheerio = require('cheerio');
 const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const { sanitizeMarkdown } = require('../utils/formatters');
@@ -15,22 +15,20 @@ class AppleFeatureMonitor extends Monitor {
      * @returns {object} The parsed feature data.
      */
     parse(data) {
-        const dom = new JSDOM(data);
+        const $ = cheerio.load(data, { scriptingEnabled: false });
         try {
-            const sections = dom.window.document.querySelectorAll('.features');
             const parsedData = {};
             const keywords = this.config.keywords || [];
 
-            sections.forEach(section => {
-                const featureNameElement = section.querySelector('h2');
-                if (!featureNameElement) return;
-                const featureName = featureNameElement.textContent.trim();
-                const featureId = section.id;
+            $('.features').each((_, section) => {
+                const featureNameElement = $(section).find('h2');
+                if (featureNameElement.length === 0) return;
+                const featureName = featureNameElement.text().trim();
+                const featureId = $(section).attr('id');
 
                 const regions = [];
-                const listItems = section.querySelectorAll('li');
-                listItems.forEach(li => {
-                    const region = li.textContent.trim();
+                $(section).find('li').each((_, li) => {
+                    const region = $(li).text().trim();
                     if (keywords.some(keyword => region.toLowerCase().includes(keyword))) {
                         regions.push(region);
                     }
@@ -41,8 +39,9 @@ class AppleFeatureMonitor extends Monitor {
                 }
             });
             return parsedData;
-        } finally {
-            dom.window.close();
+        } catch (error) {
+            logger.error('Error parsing Apple Features:', error);
+            return {};
         }
     }
 
