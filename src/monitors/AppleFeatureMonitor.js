@@ -20,16 +20,22 @@ class AppleFeatureMonitor extends Monitor {
             const parsedData = {};
             const keywords = this.config.keywords || [];
 
-            $('.features').each((_, section) => {
-                const featureNameElement = $(section).find('h2');
-                if (featureNameElement.length === 0) return;
-                const featureName = featureNameElement.text().trim();
-                const featureId = $(section).attr('id');
+            // Support both legacy .features wrapper and newer .section-content formats
+            const containerSelector = $('.features').length > 0 ? '.features' : '.section-content';
+
+            $(containerSelector).each((_, section) => {
+                const heading = $(section).find('h2, h3, h4').first();
+                if (heading.length === 0) return;
+                
+                const featureName = heading.text().replace(/\s+/g, ' ').trim();
+                if (!featureName || featureName === 'Apple Footer' || featureName === 'Shop and Learn') return;
+                
+                const featureId = $(section).attr('id') || heading.attr('id') || $(section).parent().attr('id');
 
                 const regions = [];
                 $(section).find('li').each((_, li) => {
-                    const region = $(li).text().trim();
-                    if (keywords.some(keyword => region.toLowerCase().includes(keyword))) {
+                    const region = $(li).text().replace(/\s+/g, ' ').trim();
+                    if (keywords.length === 0 || keywords.some(keyword => region.toLowerCase().includes(keyword))) {
                         regions.push(region);
                     }
                 });
@@ -245,29 +251,25 @@ class AppleFeatureMonitor extends Monitor {
      */
     async loadState() {
         const storage = require('../storage');
-        try {
-            const state = await storage.read(this.config.file);
-            if (Object.keys(state).length === 0) {
-                this.isFreshInstall = true;
-            }
-            return state;
-        } catch {
-            // If it's the iOS monitor, attempt to migrate the legacy state file
-            if (this.name === 'AppleFeature:iOS') {
-                try {
-                    const legacyState = await storage.read('./config/apple_features.json');
-                    logger.info('Migrating legacy apple_features.json to %s', this.config.file);
-                    // Save immediately so we don't migrate again
-                    await storage.write(this.config.file, legacyState);
-                    return legacyState;
-                } catch {
-                    // Legacy file doesn't exist either
-                }
-            }
-            logger.info('Could not load state for %s from %s. Starting fresh.', this.name, this.config.file);
-            this.isFreshInstall = true;
-            return {};
+        const fs = require('fs');
+        
+        // If it's the iOS monitor, and the current file doesn't exist, try to migrate
+        if (this.name === 'AppleFeature:iOS' && !fs.existsSync(this.config.file) && fs.existsSync('./config/apple_features.json')) {
+            logger.info('Migrating legacy apple_features.json to %s', this.config.file);
+            const legacyState = await storage.read('./config/apple_features.json');
+            await storage.write(this.config.file, legacyState);
+            return legacyState;
         }
+
+        const state = await storage.read(this.config.file);
+        
+        // If the state is empty (meaning file didn't exist or was empty), flag as fresh install
+        if (Object.keys(state).length === 0) {
+            logger.info('Could not find existing state for %s. Starting fresh.', this.name);
+            this.isFreshInstall = true;
+        }
+        
+        return state;
     }
 }
 
