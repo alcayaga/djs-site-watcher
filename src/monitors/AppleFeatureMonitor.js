@@ -145,18 +145,31 @@ class AppleFeatureMonitor extends Monitor {
             if (items.length <= 3) {
                 // Detailed view for small updates
                 items.forEach(item => {
-                    const encodedUrl = encodeURI(`${url}#${item.id}`);
-                    const fixedPartLength = '📍 \n🔗 '.length + encodedUrl.length;
+                    let encodedUrl = encodeURI(`${url}#${item.id}`);
+                    let fixedPartLength = '📍 \n🔗 '.length + encodedUrl.length;
+                    
+                    // If the URL itself is too long for the field, omit it
+                    if (fixedPartLength > 1024) {
+                        encodedUrl = '';
+                        fixedPartLength = '📍 '.length;
+                    }
+
                     const budget = 1024 - fixedPartLength;
                     
                     let sanitizedRegion = sanitizeMarkdown(item.region);
                     if (sanitizedRegion.length > budget) {
-                        sanitizedRegion = sanitizedRegion.substring(0, budget - 3) + '...';
+                        if (budget >= 3) {
+                            sanitizedRegion = sanitizedRegion.substring(0, budget - 3) + '...';
+                        } else {
+                            sanitizedRegion = sanitizedRegion.substring(0, budget);
+                        }
                     }
+                    
+                    const value = encodedUrl ? `📍 ${sanitizedRegion}\n🔗 ${encodedUrl}` : `📍 ${sanitizedRegion}`;
 
                     embed.addFields([{
                         name: `✨ ${sanitizeMarkdown(item.featureName).substring(0, 253)}`,
-                        value: `📍 ${sanitizedRegion}\n🔗 ${encodedUrl}`,
+                        value: value,
                         inline: false
                     }]);
                 });
@@ -192,12 +205,20 @@ class AppleFeatureMonitor extends Monitor {
                     description += `- **${sanitizeMarkdown(category)}** (${featureList.length}): ${featuresText}\n`;
                 }
 
-                const linkSuffix = `\n🔗 [Ver lista completa en Apple.com](${url})`;
+                let linkSuffix = `\n🔗 [Ver lista completa en Apple.com](${url})`;
                 
+                if (linkSuffix.length > 4096) {
+                    linkSuffix = '';
+                }
+
                 // Enforce Discord 4096 char limit safely without cutting the link
                 if (description.length + linkSuffix.length > 4096) {
-                    const maxDescLength = 4096 - linkSuffix.length - 3; // 3 for '...'
-                    description = description.substring(0, maxDescLength) + '...';
+                    const budget = 4096 - linkSuffix.length;
+                    if (budget >= 3) {
+                        description = description.substring(0, budget - 3) + '...';
+                    } else {
+                        description = description.substring(0, Math.max(0, budget));
+                    }
                 }
                 
                 description += linkSuffix;
