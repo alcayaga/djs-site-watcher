@@ -231,6 +231,33 @@ class AppleFeatureMonitor extends Monitor {
 
         await Promise.all(notificationPromises);
     }
+
+    /**
+     * Loads the monitor's state from storage.
+     * Overridden to provide a migration path from the legacy monolithic apple_features.json
+     * @returns {Promise<object>} The loaded state.
+     */
+    async loadState() {
+        const storage = require('../storage');
+        try {
+            return await storage.read(this.config.file);
+        } catch {
+            // If it's the iOS monitor, attempt to migrate the legacy state file
+            if (this.name === 'AppleFeature:iOS') {
+                try {
+                    const legacyState = await storage.read('./config/apple_features.json');
+                    logger.info('Migrating legacy apple_features.json to %s', this.config.file);
+                    // Save immediately so we don't migrate again
+                    await storage.write(this.config.file, legacyState);
+                    return legacyState;
+                } catch {
+                    // Legacy file doesn't exist either
+                }
+            }
+            logger.info('Could not load state for %s from %s. Starting fresh.', this.name, this.config.file);
+            return {};
+        }
+    }
 }
 
 module.exports = AppleFeatureMonitor;
