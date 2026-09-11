@@ -269,11 +269,13 @@ class AppleFeatureMonitor extends Monitor {
             return legacyState;
         }
 
+        const fileExists = fs.existsSync(this.config.file);
         const state = await storage.read(this.config.file);
         
-        // If the state is empty (meaning file didn't exist or was empty), flag as fresh install
-        if (Object.keys(state).length === 0) {
-            logger.info('Could not find existing state for %s. Starting fresh.', this.name);
+        // Only flag as a fresh install if the state file does not exist at all.
+        // If it exists but is empty/corrupt, we want standard processing.
+        if (!fileExists) {
+            logger.info('Could not find existing state file for %s. Starting fresh.', this.name);
             this.isFreshInstall = true;
         }
         

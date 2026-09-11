@@ -100,8 +100,13 @@ if (!config.monitors) {
 } else {
     // Merge user-defined monitors with defaults
     config.monitors = config.monitors.map(userMonitor => {
+        if (userMonitor.name === 'AppleFeature') {
+            userMonitor.name = 'AppleFeature:iOS';
+        }
+
         const baseName = userMonitor.name.split(':')[0];
-        const defaultMonitor = defaultMonitors.find(m => m.name === userMonitor.name || m.name === baseName);
+        const defaultMonitor = defaultMonitors.find(m => m.name === userMonitor.name) 
+                            || defaultMonitors.find(m => m.name === baseName);
         return defaultMonitor ? { ...defaultMonitor, ...userMonitor } : userMonitor;
     });
 }
