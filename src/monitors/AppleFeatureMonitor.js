@@ -145,16 +145,25 @@ class AppleFeatureMonitor extends Monitor {
             if (items.length <= 3) {
                 // Detailed view for small updates
                 items.forEach(item => {
+                    const encodedUrl = encodeURI(`${url}#${item.id}`);
+                    const fixedPartLength = '📍 \n🔗 '.length + encodedUrl.length;
+                    const budget = 1024 - fixedPartLength;
+                    
+                    let sanitizedRegion = sanitizeMarkdown(item.region);
+                    if (sanitizedRegion.length > budget) {
+                        sanitizedRegion = sanitizedRegion.substring(0, budget - 3) + '...';
+                    }
+
                     embed.addFields([{
                         name: `✨ ${sanitizeMarkdown(item.featureName).substring(0, 253)}`,
-                        value: `📍 ${sanitizeMarkdown(item.region)}\n🔗 ${encodeURI(`${url}#${item.id}`)}`,
+                        value: `📍 ${sanitizedRegion}\n🔗 ${encodedUrl}`,
                         inline: false
                     }]);
                 });
             } else {
                 // Digest view for large updates
                 const allRegions = new Set();
-                const categories = {};
+                const categories = Object.create(null);
                 
                 items.forEach(item => {
                     allRegions.add(item.region);
