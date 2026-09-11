@@ -20,8 +20,12 @@ class AppleFeatureMonitor extends Monitor {
             const parsedData = {};
             const keywords = this.config.keywords || [];
 
-            // Support both legacy .features wrapper and newer .section-content formats
-            const containerSelector = $('.features').length > 0 ? '.features' : '.section-content';
+            // Support nested .features .section-content, falling back to legacy formats
+            const containerSelector = $('.features .section-content').length > 0
+                ? '.features .section-content'
+                : $('.features').length > 0
+                    ? '.features'
+                    : '.section-content';
 
             $(containerSelector).each((_, section) => {
                 const heading = $(section).find('h2, h3, h4').first();

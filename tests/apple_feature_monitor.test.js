@@ -270,6 +270,30 @@ describe('AppleFeatureMonitor', () => {
     });
 
     describe('Multi-OS robust parsing', () => {
+        it('should parse nested .features .section-content structures independently', () => {
+            const html = `
+                <html>
+                <body>
+                    <div class="features" id="nested-features">
+                        <div class="section-content">
+                            <h2>Feature 1</h2>
+                            <ul><li>Chile</li></ul>
+                        </div>
+                        <div class="section-content">
+                            <h2>Feature 2</h2>
+                            <ul><li>Chile</li></ul>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+            const parsed = appleFeatureMonitor.parse(html);
+            expect(parsed['Feature 1']).toBeDefined();
+            expect(parsed['Feature 1'].id).toBe('nested-features');
+            expect(parsed['Feature 2']).toBeDefined();
+            expect(parsed['Feature 2'].id).toBe('nested-features');
+        });
+
         it('should parse macOS HTML structure (.features with h4)', () => {
             const html = `
                 <html>
