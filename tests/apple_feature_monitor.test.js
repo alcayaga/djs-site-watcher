@@ -221,6 +221,24 @@ describe('AppleFeatureMonitor', () => {
             expect(embed.setDescription).toHaveBeenCalledWith(expect.stringContaining('- **Cat B** (2): Feature 3, Feature 4'));
         });
 
+        it('should group colon-free feature names under fallback category "Otras" in digest mode', async () => {
+            const changes = {
+                added: [
+                    { featureName: "Just Feature 1", region: "Reg A", id: "1" },
+                    { featureName: "Just Feature 2", region: "Reg A", id: "2" },
+                    { featureName: "Just Feature 3", region: "Reg B", id: "3" },
+                    { featureName: "Just Feature 4", region: "Reg C", id: "4" },
+                ],
+            };
+            await appleFeatureMonitor.notify(changes);
+
+            // mockChannel is cleared before each test
+            expect(mockChannel.send).toHaveBeenCalledTimes(1);
+            const embed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(embed.data.title).toBe('🌟 ¡4 nuevas funciones de Apple disponibles! 🐸');
+            expect(embed.setDescription).toHaveBeenCalledWith(expect.stringContaining('- **Otras** (4): Just Feature 1, Just Feature 2, Just Feature 3, Just Feature 4'));
+        });
+
         it('should send a detailed embed for each removed feature/region', async () => {
             const changes = {
                 removed: [

@@ -167,9 +167,13 @@ class AppleFeatureMonitor extends Monitor {
                 
                 items.forEach(item => {
                     allRegions.add(item.region);
-                    const parts = item.featureName.split(':');
-                    const category = parts[0].trim();
-                    const subFeature = parts.slice(1).join(':').trim() || category;
+                    const separatorIndex = item.featureName.indexOf(':');
+                    const category = separatorIndex === -1 
+                        ? 'Otras' 
+                        : item.featureName.slice(0, separatorIndex).trim();
+                    const subFeature = separatorIndex === -1 
+                        ? item.featureName.trim() 
+                        : item.featureName.slice(separatorIndex + 1).trim() || category;
                     
                     if (!categories[category]) categories[category] = new Set();
                     categories[category].add(subFeature);
