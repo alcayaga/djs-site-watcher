@@ -24,7 +24,8 @@ class MonitorManager {
         for (const monitorConfig of config.monitors) {
             if (monitorConfig.enabled) {
                 const monitorName = monitorConfig.name;
-                const MonitorClass = monitorClassMap.get(`${monitorName}Monitor`);
+                const baseName = monitorName.split(':')[0];
+                const MonitorClass = monitorClassMap.get(`${baseName}Monitor`);
 
                 if (MonitorClass) {
                     try {

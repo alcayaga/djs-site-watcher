@@ -16,7 +16,17 @@
       "channelId": "YOUR_CHANNEL_ID"
     },
     {
-      "name": "AppleFeature",
+      "name": "AppleFeature:iOS",
+      "enabled": true,
+      "channelId": "YOUR_CHANNEL_ID"
+    },
+    {
+      "name": "AppleFeature:macOS",
+      "enabled": true,
+      "channelId": "YOUR_CHANNEL_ID"
+    },
+    {
+      "name": "AppleFeature:watchOS",
       "enabled": true,
       "channelId": "YOUR_CHANNEL_ID"
     },

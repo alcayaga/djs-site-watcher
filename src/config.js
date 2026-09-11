@@ -100,7 +100,8 @@ if (!config.monitors) {
 } else {
     // Merge user-defined monitors with defaults
     config.monitors = config.monitors.map(userMonitor => {
-        const defaultMonitor = defaultMonitors.find(m => m.name === userMonitor.name);
+        const baseName = userMonitor.name.split(':')[0];
+        const defaultMonitor = defaultMonitors.find(m => m.name === userMonitor.name || m.name === baseName);
         return defaultMonitor ? { ...defaultMonitor, ...userMonitor } : userMonitor;
     });
 }
