@@ -97,6 +97,12 @@ class AppleFeatureMonitor extends Monitor {
             }
         }
 
+        if (this.isFreshInstall) {
+            logger.info('Fresh install detected for %s. Seeding data silently without notifying.', this.name);
+            this.isFreshInstall = false;
+            return { added: [], removed: [] };
+        }
+
         if (added.length > 0 || removed.length > 0) {
             return { added, removed };
         }
@@ -240,7 +246,11 @@ class AppleFeatureMonitor extends Monitor {
     async loadState() {
         const storage = require('../storage');
         try {
-            return await storage.read(this.config.file);
+            const state = await storage.read(this.config.file);
+            if (Object.keys(state).length === 0) {
+                this.isFreshInstall = true;
+            }
+            return state;
         } catch {
             // If it's the iOS monitor, attempt to migrate the legacy state file
             if (this.name === 'AppleFeature:iOS') {
@@ -255,6 +265,7 @@ class AppleFeatureMonitor extends Monitor {
                 }
             }
             logger.info('Could not load state for %s from %s. Starting fresh.', this.name, this.config.file);
+            this.isFreshInstall = true;
             return {};
         }
     }
