@@ -334,12 +334,15 @@ describe('AppleFeatureMonitor', () => {
     });
 
     describe('Fresh Install & Migration logic', () => {
-        it('should flag isFreshInstall if state is completely empty', async () => {
+        it('should flag isFreshInstall if state file is completely absent', async () => {
             const storage = require('../src/storage');
             storage.read = jest.fn().mockResolvedValue({});
             storage.write = jest.fn().mockResolvedValue();
             const fs = require('fs');
-            jest.spyOn(fs, 'existsSync').mockReturnValue(true); // Don't trigger migration
+            jest.spyOn(fs, 'existsSync').mockImplementation((path) => {
+                if (path === appleFeatureMonitor.config.file) return false;
+                return false;
+            });
 
             await appleFeatureMonitor.loadState();
             expect(appleFeatureMonitor.isFreshInstall).toBe(true);
