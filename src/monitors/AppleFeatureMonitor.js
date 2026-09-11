@@ -39,7 +39,7 @@ class AppleFeatureMonitor extends Monitor {
                 const regions = [];
                 $(section).find('li').each((_, li) => {
                     const region = $(li).text().replace(/\s+/g, ' ').trim();
-                    if (keywords.length === 0 || keywords.some(keyword => region.toLowerCase().includes(keyword))) {
+                    if (keywords.length === 0 || keywords.some(keyword => region.toLowerCase().includes(keyword.toLowerCase()))) {
                         regions.push(region);
                     }
                 });
