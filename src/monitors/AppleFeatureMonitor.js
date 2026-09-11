@@ -262,6 +262,10 @@ class AppleFeatureMonitor extends Monitor {
             logger.info('Migrating legacy apple_features.json to %s', this.config.file);
             const legacyState = await storage.read('./config/apple_features.json');
             await storage.write(this.config.file, legacyState);
+            if (Object.keys(legacyState).length === 0) {
+                logger.info('Migrated legacy state was empty. Flagging as fresh install.');
+                this.isFreshInstall = true;
+            }
             return legacyState;
         }
 

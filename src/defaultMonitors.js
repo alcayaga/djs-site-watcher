@@ -25,6 +25,13 @@ const defaultMonitors = [
         ],
     },
     {
+        name: 'AppleFeature',
+        enabled: true,
+        url: 'https://www.apple.com/ios/feature-availability/',
+        file: './config/apple_features.json',
+        keywords: ['chile', 'spanish (latin america)', 'scl'],
+    },
+    {
         name: 'AppleFeature:iOS',
         enabled: true,
         url: 'https://www.apple.com/ios/feature-availability/',

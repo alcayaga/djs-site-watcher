@@ -142,4 +142,18 @@ describe('config', () => {
             }
         }
     });
+
+    it('should correctly merge legacy AppleFeature monitor with its default', () => {
+        const customMonitors = [{ name: 'AppleFeature', channelId: '123' }];
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({ monitors: customMonitors });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+        const config = require('../src/config');
+        
+        const mergedMonitor = config.monitors.find(m => m.name === 'AppleFeature');
+        expect(mergedMonitor).toBeDefined();
+        expect(mergedMonitor.url).toBe('https://www.apple.com/ios/feature-availability/');
+        expect(mergedMonitor.file).toBe('./config/apple_features.json');
+        expect(mergedMonitor.channelId).toBe('123');
+    });
 });

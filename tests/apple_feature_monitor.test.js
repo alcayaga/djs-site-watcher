@@ -366,6 +366,27 @@ describe('AppleFeatureMonitor', () => {
             expect(appleFeatureMonitor.isFreshInstall).toBeUndefined(); // Should not be fresh
         });
 
+        it('should flag isFreshInstall if migrated legacy file is empty', async () => {
+            appleFeatureMonitor.name = 'AppleFeature:iOS';
+            const storage = require('../src/storage');
+            const fs = require('fs');
+            
+            jest.spyOn(fs, 'existsSync').mockImplementation((path) => {
+                if (path === appleFeatureMonitor.config.file) return false;
+                if (path === './config/apple_features.json') return true;
+                return false;
+            });
+
+            const emptyLegacyState = {};
+            storage.read = jest.fn().mockResolvedValue(emptyLegacyState);
+            storage.write = jest.fn().mockResolvedValue();
+
+            const state = await appleFeatureMonitor.loadState();
+            expect(state).toEqual(emptyLegacyState);
+            expect(storage.write).toHaveBeenCalledWith(appleFeatureMonitor.config.file, emptyLegacyState);
+            expect(appleFeatureMonitor.isFreshInstall).toBe(true);
+        });
+
         it('should return empty changes in compare() when isFreshInstall is true to prevent spam', () => {
             appleFeatureMonitor.isFreshInstall = true;
             const changes = appleFeatureMonitor.compare({ "New Feature": { regions: ["Chile"], id: "1" } });
