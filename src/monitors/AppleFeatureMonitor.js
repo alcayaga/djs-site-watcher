@@ -118,24 +118,83 @@ class AppleFeatureMonitor extends Monitor {
         
         const url = this.config.url;
         const notificationConfigs = [
-            { key: 'added', title: '🌟 ¡Nueva función de Apple disponible! 🐸', color: '#0071E3', logSuffix: 'found' },
-            { key: 'removed', title: '🚫 ¡Función de Apple eliminada! 🐸', color: '#F44336', logSuffix: 'removed' }
+            { key: 'added', titlePlural: '🌟 ¡{count} nuevas funciones de Apple disponibles! 🐸', titleSingular: '🌟 ¡Nueva función de Apple disponible! 🐸', color: '#0071E3', logSuffix: 'found' },
+            { key: 'removed', titlePlural: '🚫 ¡{count} funciones de Apple eliminadas! 🐸', titleSingular: '🚫 ¡Función de Apple eliminada! 🐸', color: '#F44336', logSuffix: 'removed' }
         ];
 
-        const notificationPromises = notificationConfigs.flatMap(config =>
-            (changes[config.key] || []).map(item => {
+        const notificationPromises = [];
+
+        for (const config of notificationConfigs) {
+            const items = changes[config.key] || [];
+            if (items.length === 0) continue;
+
+            items.forEach(item => {
                 logger.info('Apple feature %s: %s in %s', config.logSuffix, item.featureName, item.region);
-                const embed = new Discord.EmbedBuilder()
-                    .setTitle(config.title)
-                    .addFields([
-                        { name: '✨ Función', value: sanitizeMarkdown(item.featureName), inline: true },
-                        { name: '📍 Región/Idioma', value: sanitizeMarkdown(item.region), inline: true },
-                        { name: '🔗 URL', value: encodeURI(`${url}#${item.id}`) }
-                    ])
-                    .setColor(config.color);
-                return channel.send({ embeds: [embed] });
-            })
-        );
+            });
+
+            // Calculate unique features by name
+            const uniqueFeatures = new Set(items.map(i => i.featureName)).size;
+            const title = uniqueFeatures > 1 
+                ? config.titlePlural.replace('{count}', uniqueFeatures) 
+                : config.titleSingular;
+
+            const embed = new Discord.EmbedBuilder()
+                .setTitle(title)
+                .setColor(config.color);
+
+            if (items.length <= 3) {
+                // Detailed view for small updates
+                items.forEach(item => {
+                    embed.addFields([{
+                        name: `✨ ${sanitizeMarkdown(item.featureName).substring(0, 253)}`,
+                        value: `📍 ${sanitizeMarkdown(item.region)}\n🔗 ${encodeURI(`${url}#${item.id}`)}`,
+                        inline: false
+                    }]);
+                });
+            } else {
+                // Digest view for large updates
+                const allRegions = new Set();
+                const categories = {};
+                
+                items.forEach(item => {
+                    allRegions.add(item.region);
+                    const parts = item.featureName.split(':');
+                    const category = parts[0].trim();
+                    const subFeature = parts.slice(1).join(':').trim() || category;
+                    
+                    if (!categories[category]) categories[category] = new Set();
+                    categories[category].add(subFeature);
+                });
+
+                const regionsText = Array.from(allRegions).map(r => `**${sanitizeMarkdown(r)}**`).join(', ');
+                const isAdded = config.key === 'added';
+                
+                let description = isAdded 
+                    ? `Se han detectado nuevas funciones para: ${regionsText}\n\n**Novedades por categoría:**\n`
+                    : `Se han eliminado funciones para: ${regionsText}\n\n**Cambios por categoría:**\n`;
+
+                for (const [category, features] of Object.entries(categories)) {
+                    const featureList = Array.from(features);
+                    const featuresText = featureList.map(f => sanitizeMarkdown(f)).join(', ');
+                    description += `- **${sanitizeMarkdown(category)}** (${featureList.length}): ${featuresText}\n`;
+                }
+
+                const linkSuffix = `\n🔗 [Ver lista completa en Apple.com](${url})`;
+                
+                // Enforce Discord 4096 char limit safely without cutting the link
+                if (description.length + linkSuffix.length > 4096) {
+                    const maxDescLength = 4096 - linkSuffix.length - 3; // 3 for '...'
+                    description = description.substring(0, maxDescLength) + '...';
+                }
+                
+                description += linkSuffix;
+                
+                embed.setDescription(description);
+            }
+
+            notificationPromises.push(channel.send({ embeds: [embed] }));
+        }
+
         await Promise.all(notificationPromises);
     }
 }

@@ -174,58 +174,77 @@ describe('AppleFeatureMonitor', () => {
 
     // Test notify method
     describe('notify method', () => {
-        it('should send embeds for each added feature/region', () => {
+        it('should send a single detailed embed for 3 or fewer added features', async () => {
             const changes = {
                 added: [
                     { featureName: "New Feature", region: "New Region", id: "new-feature" },
                     { featureName: "Existing Feature", region: "New Locale", id: "existing-feature" },
                 ],
             };
-            appleFeatureMonitor.notify(changes);
+            await appleFeatureMonitor.notify(changes);
 
             expect(client.channels.cache.get).toHaveBeenCalledWith('mockChannelId');
-            expect(mockChannel.send).toHaveBeenCalledTimes(2); // One for each added item
+            expect(mockChannel.send).toHaveBeenCalledTimes(1);
 
-            // Check first embed
-            const firstEmbed = mockChannel.send.mock.calls[0][0].embeds[0];
-            expect(firstEmbed.data.title).toBe('🌟 ¡Nueva función de Apple disponible! 🐸');
-            expect(firstEmbed.addFields).toHaveBeenCalledWith([
-                { name: '✨ Función', value: 'New Feature', inline: true },
-                { name: '📍 Región/Idioma', value: 'New Region', inline: true },
-                { name: '🔗 URL', value: 'http://apple.com/features#new-feature' }
-            ]);
-            expect(firstEmbed.data.color).toBe('#0071E3');
-
-            // Check second embed
-            const secondEmbed = mockChannel.send.mock.calls[1][0].embeds[0];
-            expect(secondEmbed.data.title).toBe('🌟 ¡Nueva función de Apple disponible! 🐸');
-            expect(secondEmbed.addFields).toHaveBeenCalledWith([
-                { name: '✨ Función', value: 'Existing Feature', inline: true },
-                { name: '📍 Región/Idioma', value: 'New Locale', inline: true },
-                { name: '🔗 URL', value: 'http://apple.com/features#existing-feature' }
-            ]);
-            expect(secondEmbed.data.color).toBe('#0071E3');
+            const embed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(embed.data.title).toBe('🌟 ¡2 nuevas funciones de Apple disponibles! 🐸');
+            expect(embed.data.color).toBe('#0071E3');
+            expect(embed.addFields).toHaveBeenCalledWith([{
+                name: '✨ New Feature',
+                value: '📍 New Region\n🔗 http://apple.com/features#new-feature',
+                inline: false
+            }]);
+            expect(embed.addFields).toHaveBeenCalledWith([{
+                name: '✨ Existing Feature',
+                value: '📍 New Locale\n🔗 http://apple.com/features#existing-feature',
+                inline: false
+            }]);
         });
 
-        it('should send embeds for each removed feature/region', () => {
+        it('should send a single digest embed for more than 3 added features', async () => {
+            const changes = {
+                added: [
+                    { featureName: "Cat A: Feature 1", region: "Reg A", id: "1" },
+                    { featureName: "Cat A: Feature 2", region: "Reg A", id: "2" },
+                    { featureName: "Cat B: Feature 3", region: "Reg B", id: "3" },
+                    { featureName: "Cat B: Feature 4", region: "Reg B", id: "4" },
+                ],
+            };
+            await appleFeatureMonitor.notify(changes);
+
+            expect(mockChannel.send).toHaveBeenCalledTimes(1);
+            const embed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(embed.data.title).toBe('🌟 ¡4 nuevas funciones de Apple disponibles! 🐸');
+            expect(embed.data.color).toBe('#0071E3');
+            expect(embed.setDescription).toHaveBeenCalledWith(expect.stringContaining('Se han detectado nuevas funciones para: **Reg A**, **Reg B**'));
+            expect(embed.setDescription).toHaveBeenCalledWith(expect.stringContaining('- **Cat A** (2): Feature 1, Feature 2'));
+            expect(embed.setDescription).toHaveBeenCalledWith(expect.stringContaining('- **Cat B** (2): Feature 3, Feature 4'));
+        });
+
+        it('should send a detailed embed for each removed feature/region', async () => {
             const changes = {
                 removed: [
                     { featureName: "Old Feature", region: "Old Region", id: "old-feature" },
                 ],
             };
-            appleFeatureMonitor.notify(changes);
+            await appleFeatureMonitor.notify(changes);
 
             expect(mockChannel.send).toHaveBeenCalledTimes(1);
             const embed = mockChannel.send.mock.calls[0][0].embeds[0];
-            expect(embed.data.title).toContain('Función de Apple eliminada');
+            expect(embed.data.title).toBe('🚫 ¡Función de Apple eliminada! 🐸');
             expect(embed.data.color).toBe('#F44336');
+            expect(embed.addFields).toHaveBeenCalledWith([{
+                name: '✨ Old Feature',
+                value: '📍 Old Region\n🔗 http://apple.com/features#old-feature',
+                inline: false
+            }]);
         });
 
-        it('should log an error if notification channel not found', () => {
+        it('should log an error if notification channel not found', async () => {
             client.channels.cache.get.mockReturnValueOnce(undefined);
             const changes = { added: [{ featureName: "Test", region: "Test", id: "test" }] };
 
-            appleFeatureMonitor.notify(changes);
+            await appleFeatureMonitor.notify(changes);
 
             expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Notification channel not found for %s.'), 'AppleFeature');
             expect(mockChannel.send).not.toHaveBeenCalled();
