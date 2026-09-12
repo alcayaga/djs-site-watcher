@@ -396,7 +396,7 @@ describe('AppleFeatureMonitor', () => {
             expect(appleFeatureMonitor.isFreshInstall).toBe(true);
         });
 
-        it('should handle readJSON failure during legacy migration by setting isFreshInstall and returning empty state', async () => {
+        it('should handle readJSON failure during legacy migration by preserving retry state and not saving fallback data', async () => {
             appleFeatureMonitor.name = 'AppleFeature:iOS';
             appleFeatureMonitor.config.file = './config/apple_features_ios.json';
             
@@ -408,23 +408,27 @@ describe('AppleFeatureMonitor', () => {
             });
 
             const fsExtra = require('fs-extra');
-            jest.spyOn(fsExtra, 'readJSON').mockRejectedValue(new Error('Permission denied'));
+            jest.spyOn(fsExtra, 'readJSON').mockRejectedValueOnce(new Error('Permission denied'));
             const storage = require("../src/storage");
             storage.write = jest.fn().mockResolvedValue();
 
             let state = await appleFeatureMonitor.loadState();
             expect(state).toEqual({});
             expect(storage.write).not.toHaveBeenCalled();
-            expect(appleFeatureMonitor.isFreshInstall).toBe(true);
+            expect(appleFeatureMonitor.isMigrationPending).toBe(true);
 
-            // Retry with non-empty data
-            const legacyState = { "Legacy": { regions: ["Chile"], id: "1" } };
-            jest.spyOn(fsExtra, 'readJSON').mockResolvedValue(legacyState);
+            // simulate check() being called which shouldn't save state because compare() returns null
+            const changes = appleFeatureMonitor.compare({ 'Apple Intelligence': { regions: ['US'], id: '1' } });
+            expect(changes).toBeNull();
             
+            // Try again, this time it succeeds
+            jest.spyOn(fsExtra, 'readJSON').mockResolvedValueOnce({
+                'Apple Intelligence': { regions: ['US'], id: '1' }
+            });
             state = await appleFeatureMonitor.loadState();
-            expect(state).toEqual(legacyState);
-            expect(storage.write).toHaveBeenCalledWith(appleFeatureMonitor.config.file, legacyState);
-            expect(appleFeatureMonitor.isFreshInstall).toBe(false);
+            expect(state).toEqual({ 'Apple Intelligence': { regions: ['US'], id: '1' } });
+            expect(storage.write).toHaveBeenCalledWith('./config/apple_features_ios.json', { 'Apple Intelligence': { regions: ['US'], id: '1' } });
+            expect(appleFeatureMonitor.isMigrationPending).toBe(false);
         });
 
         it('should normalize legacy state keys and regions during migration', async () => {

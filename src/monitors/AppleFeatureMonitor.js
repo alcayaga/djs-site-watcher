@@ -107,6 +107,11 @@ class AppleFeatureMonitor extends Monitor {
             }
         }
 
+        if (this.isMigrationPending) {
+            logger.info('Migration is pending for %s. Skipping comparison and state save to allow retry.', this.name);
+            return null;
+        }
+
         if (this.isFreshInstall) {
             logger.info('Fresh install detected for %s. Seeding data silently without notifying.', this.name);
             // Only clear the flag if we actually seeded data, to prevent
@@ -284,9 +289,10 @@ class AppleFeatureMonitor extends Monitor {
                         };
                     }
                 }
+                this.isMigrationPending = false;
             } catch (err) {
                 logger.error('Failed to read legacy apple_features.json during migration: %s', err.message);
-                this.isFreshInstall = true;
+                this.isMigrationPending = true;
                 return {};
             }
             
