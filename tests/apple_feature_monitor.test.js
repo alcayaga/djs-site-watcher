@@ -438,8 +438,15 @@ describe('AppleFeatureMonitor', () => {
                 return false;
             });
 
-            const rawLegacyState = { "Apple\xA0Intelligence": { regions: ["Spanish\xA0(Chile)"], id: "1" } };
-            const expectedState = { "Apple Intelligence": { regions: ["Spanish (Chile)"], id: "1" } };
+            const rawLegacyState = { 
+                "Apple\xA0Intelligence": { regions: ["Spanish\xA0(Chile)"], id: "1" },
+                "Apple Intelligence": { regions: ["US"], id: "2" },
+                "Other Feature": { regions: ["Chile", " Chile "], id: "3" }
+            };
+            const expectedState = { 
+                "Apple Intelligence": { regions: ["Spanish (Chile)", "US"], id: "1" },
+                "Other Feature": { regions: ["Chile"], id: "3" }
+            };
 
             const fsExtra = require('fs-extra');
             jest.spyOn(fsExtra, 'readJSON').mockResolvedValue(rawLegacyState);
