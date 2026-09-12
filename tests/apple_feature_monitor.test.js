@@ -417,18 +417,23 @@ describe('AppleFeatureMonitor', () => {
             expect(storage.write).not.toHaveBeenCalled();
             expect(appleFeatureMonitor.isMigrationPending).toBe(true);
 
-            // simulate check() being called which shouldn't save state because compare() returns null
-            const changes = appleFeatureMonitor.compare({ 'Apple Intelligence': { regions: ['US'], id: '1' } });
-            expect(changes).toBeNull();
+            appleFeatureMonitor.fetch = jest.fn().mockResolvedValue('<html/>');
+            appleFeatureMonitor.parse = jest.fn().mockReturnValue({ 'Apple Intelligence': { regions: ['US'], id: '1' } });
+
+            // check() runs, but migration is pending, so it retries loadState() which fails again
+            jest.spyOn(fsExtra, 'readJSON').mockRejectedValueOnce(new Error('Permission denied'));
+            await appleFeatureMonitor.check();
+            expect(storage.write).not.toHaveBeenCalled();
+            expect(appleFeatureMonitor.isMigrationPending).toBe(true);
             
-            // Try again, this time it succeeds
+            // Try again, this time it succeeds during check()
             jest.spyOn(fsExtra, 'readJSON').mockResolvedValueOnce({
                 'Apple Intelligence': { regions: ['US'], id: '1' }
             });
-            state = await appleFeatureMonitor.loadState();
-            expect(state).toEqual({ 'Apple Intelligence': { regions: ['US'], id: '1' } });
+            await appleFeatureMonitor.check();
             expect(storage.write).toHaveBeenCalledWith('./config/apple_features_ios.json', { 'Apple Intelligence': { regions: ['US'], id: '1' } });
             expect(appleFeatureMonitor.isMigrationPending).toBe(false);
+            expect(appleFeatureMonitor.state).toEqual({ 'Apple Intelligence': { regions: ['US'], id: '1' } });
         });
 
         it('should normalize legacy state keys and regions during migration', async () => {

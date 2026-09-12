@@ -60,6 +60,14 @@ class AppleFeatureMonitor extends Monitor {
      * @param {object} newData The newly parsed feature data.
      * @returns {{added: Array, removed: Array}|null} An object with arrays of new and removed features/regions, or null if no changes.
      */
+    async check() {
+        if (this.isMigrationPending) {
+            logger.info('Migration is pending for %s. Retrying loadState...', this.name);
+            this.state = await this.loadState();
+        }
+        await super.check();
+    }
+
     compare(newData) {
         const added = [];
         const removed = [];
