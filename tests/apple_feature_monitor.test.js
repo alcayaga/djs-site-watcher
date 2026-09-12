@@ -412,10 +412,19 @@ describe('AppleFeatureMonitor', () => {
             const storage = require("../src/storage");
             storage.write = jest.fn().mockResolvedValue();
 
-            const state = await appleFeatureMonitor.loadState();
+            let state = await appleFeatureMonitor.loadState();
             expect(state).toEqual({});
             expect(storage.write).not.toHaveBeenCalled();
             expect(appleFeatureMonitor.isFreshInstall).toBe(true);
+
+            // Retry with non-empty data
+            const legacyState = { "Legacy": { regions: ["Chile"], id: "1" } };
+            jest.spyOn(fsExtra, 'readJSON').mockResolvedValue(legacyState);
+            
+            state = await appleFeatureMonitor.loadState();
+            expect(state).toEqual(legacyState);
+            expect(storage.write).toHaveBeenCalledWith(appleFeatureMonitor.config.file, legacyState);
+            expect(appleFeatureMonitor.isFreshInstall).toBe(false);
         });
 
         it('should return empty changes in compare() when isFreshInstall is true to prevent spam', () => {

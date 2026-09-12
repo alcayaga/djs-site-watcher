@@ -278,6 +278,8 @@ class AppleFeatureMonitor extends Monitor {
             if (Object.keys(legacyState).length === 0) {
                 logger.info('Migrated legacy state was empty. Flagging as fresh install.');
                 this.isFreshInstall = true;
+            } else {
+                this.isFreshInstall = false;
             }
             return legacyState;
         }
