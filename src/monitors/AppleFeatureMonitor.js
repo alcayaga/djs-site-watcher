@@ -20,16 +20,26 @@ class AppleFeatureMonitor extends Monitor {
             const parsedData = {};
             const keywords = this.config.keywords || [];
 
-            $('.features').each((_, section) => {
-                const featureNameElement = $(section).find('h2');
-                if (featureNameElement.length === 0) return;
-                const featureName = featureNameElement.text().trim();
-                const featureId = $(section).attr('id');
+            // Support nested .features .section-content, falling back to legacy formats
+            const containerSelector = $('.features .section-content').length > 0
+                ? '.features .section-content'
+                : $('.features').length > 0
+                    ? '.features'
+                    : '.section-content';
+
+            $(containerSelector).each((_, section) => {
+                const heading = $(section).find('h2, h3, h4').first();
+                if (heading.length === 0) return;
+                
+                const featureName = heading.text().replace(/\s+/g, ' ').trim();
+                if (!featureName || featureName === 'Apple Footer' || featureName === 'Shop and Learn') return;
+                
+                const featureId = $(section).attr('id') || heading.attr('id') || $(section).parent().attr('id');
 
                 const regions = [];
                 $(section).find('li').each((_, li) => {
-                    const region = $(li).text().trim();
-                    if (keywords.some(keyword => region.toLowerCase().includes(keyword))) {
+                    const region = $(li).text().replace(/\s+/g, ' ').trim();
+                    if (keywords.length === 0 || keywords.some(keyword => region.toLowerCase().includes(keyword.toLowerCase()))) {
                         regions.push(region);
                     }
                 });
@@ -95,6 +105,16 @@ class AppleFeatureMonitor extends Monitor {
                     }
                 });
             }
+        }
+
+        if (this.isFreshInstall) {
+            logger.info('Fresh install detected for %s. Seeding data silently without notifying.', this.name);
+            // Only clear the flag if we actually seeded data, to prevent
+            // a temporary parse failure from un-suppressing the next successful run
+            if (Object.keys(newData).length > 0) {
+                this.isFreshInstall = false;
+            }
+            return { added: [], removed: [] };
         }
 
         if (added.length > 0 || removed.length > 0) {
@@ -230,6 +250,40 @@ class AppleFeatureMonitor extends Monitor {
         }
 
         await Promise.all(notificationPromises);
+    }
+
+    /**
+     * Loads the monitor's state from storage.
+     * Overridden to provide a migration path from the legacy monolithic apple_features.json
+     * @returns {Promise<object>} The loaded state.
+     */
+    async loadState() {
+        const storage = require('../storage');
+        const fs = require('fs');
+        
+        // If it's the iOS monitor, and the current file doesn't exist, try to migrate
+        if (this.name === 'AppleFeature:iOS' && !fs.existsSync(this.config.file) && fs.existsSync('./config/apple_features.json')) {
+            logger.info('Migrating legacy apple_features.json to %s', this.config.file);
+            const legacyState = await storage.read('./config/apple_features.json');
+            await storage.write(this.config.file, legacyState);
+            if (Object.keys(legacyState).length === 0) {
+                logger.info('Migrated legacy state was empty. Flagging as fresh install.');
+                this.isFreshInstall = true;
+            }
+            return legacyState;
+        }
+
+        const fileExists = fs.existsSync(this.config.file);
+        const state = await storage.read(this.config.file);
+        
+        // Only flag as a fresh install if the state file does not exist at all.
+        // If it exists but is empty/corrupt, we want standard processing.
+        if (!fileExists) {
+            logger.info('Could not find existing state file for %s. Starting fresh.', this.name);
+            this.isFreshInstall = true;
+        }
+        
+        return state;
     }
 }
 

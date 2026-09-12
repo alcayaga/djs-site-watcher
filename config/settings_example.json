@@ -16,8 +16,24 @@
       "channelId": "YOUR_CHANNEL_ID"
     },
     {
-      "name": "AppleFeature",
+      "name": "AppleFeature:iOS",
       "enabled": true,
+      "url": "https://www.apple.com/ios/feature-availability/",
+      "file": "./config/apple_features_ios.json",
+      "channelId": "YOUR_CHANNEL_ID"
+    },
+    {
+      "name": "AppleFeature:macOS",
+      "enabled": true,
+      "url": "https://www.apple.com/macos/feature-availability/",
+      "file": "./config/apple_features_macos.json",
+      "channelId": "YOUR_CHANNEL_ID"
+    },
+    {
+      "name": "AppleFeature:watchOS",
+      "enabled": true,
+      "url": "https://www.apple.com/watchos/feature-availability/",
+      "file": "./config/apple_features_watchos.json",
       "channelId": "YOUR_CHANNEL_ID"
     },
     {

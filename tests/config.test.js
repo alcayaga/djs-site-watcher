@@ -142,4 +142,27 @@ describe('config', () => {
             }
         }
     });
+
+    it('should migrate legacy AppleFeature to AppleFeature:iOS and deduplicate if explicit iOS exists', () => {
+        const customMonitors = [
+            { name: 'AppleFeature', channelId: '123' },
+            { name: 'AppleFeature:iOS', file: './custom.json', channelId: '456' } // Explicit override fixture
+        ];
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({ monitors: customMonitors });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+        const config = require('../src/config');
+        
+        // They should be merged into a single AppleFeature:iOS monitor (last one wins for overrides)
+        expect(config.monitors.length).toBe(1);
+        
+        const mergedMonitor = config.monitors[0];
+        expect(mergedMonitor.name).toBe('AppleFeature:iOS');
+        expect(mergedMonitor.url).toBe('https://www.apple.com/ios/feature-availability/');
+        expect(mergedMonitor.file).toBe('./custom.json');
+        expect(mergedMonitor.channelId).toBe('456');
+        
+        // No monitor should remain with the legacy name
+        expect(config.monitors.find(m => m.name === 'AppleFeature')).toBeUndefined();
+    });
 });

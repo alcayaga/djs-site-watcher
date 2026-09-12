@@ -268,4 +268,134 @@ describe('AppleFeatureMonitor', () => {
             expect(mockChannel.send).not.toHaveBeenCalled();
         });
     });
+
+    describe('Multi-OS robust parsing', () => {
+        it('should parse nested .features .section-content structures independently', () => {
+            const html = `
+                <html>
+                <body>
+                    <div class="features" id="nested-features">
+                        <div class="section-content">
+                            <h2>Feature 1</h2>
+                            <ul><li>Chile</li></ul>
+                        </div>
+                        <div class="section-content">
+                            <h2>Feature 2</h2>
+                            <ul><li>Chile</li></ul>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+            const parsed = appleFeatureMonitor.parse(html);
+            expect(parsed['Feature 1']).toBeDefined();
+            expect(parsed['Feature 1'].id).toBe('nested-features');
+            expect(parsed['Feature 2']).toBeDefined();
+            expect(parsed['Feature 2'].id).toBe('nested-features');
+        });
+
+        it('should parse macOS HTML structure (.features with h4)', () => {
+            const html = `
+                <html>
+                <body>
+                    <div class="features" id="macos-feat">
+                        <div class="section-content">
+                            <h4>macOS Feature</h4>
+                            <ul><li>Chile</li></ul>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+            const parsed = appleFeatureMonitor.parse(html);
+            expect(parsed['macOS Feature']).toBeDefined();
+            expect(parsed['macOS Feature'].regions).toContain('Chile');
+        });
+
+        it('should parse watchOS HTML structure (.section-content with h2 in table-heading)', () => {
+            const html = `
+                <html>
+                <body>
+                    <div class="section-content" id="watchos-feat">
+                        <div class="table-heading">
+                            <h2>watchOS Feature</h2>
+                        </div>
+                        <div class="table-body">
+                            <ul><li>Chile</li></ul>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+            const parsed = appleFeatureMonitor.parse(html);
+            expect(parsed['watchOS Feature']).toBeDefined();
+            expect(parsed['watchOS Feature'].regions).toContain('Chile');
+        });
+    });
+
+    describe('Fresh Install & Migration logic', () => {
+        it('should flag isFreshInstall if state file is completely absent', async () => {
+            const storage = require('../src/storage');
+            storage.read = jest.fn().mockResolvedValue({});
+            storage.write = jest.fn().mockResolvedValue();
+            const fs = require('fs');
+            jest.spyOn(fs, 'existsSync').mockImplementation((path) => {
+                if (path === appleFeatureMonitor.config.file) return false;
+                return false;
+            });
+
+            await appleFeatureMonitor.loadState();
+            expect(appleFeatureMonitor.isFreshInstall).toBe(true);
+        });
+
+        it('should migrate legacy file for AppleFeature:iOS', async () => {
+            appleFeatureMonitor.name = 'AppleFeature:iOS';
+            const storage = require('../src/storage');
+            const fs = require('fs');
+            
+            jest.spyOn(fs, 'existsSync').mockImplementation((path) => {
+                if (path === appleFeatureMonitor.config.file) return false;
+                if (path === './config/apple_features.json') return true;
+                return false;
+            });
+
+            const legacyState = { "Legacy": { regions: ["Chile"], id: "1" } };
+            storage.read = jest.fn().mockResolvedValue(legacyState);
+            storage.write = jest.fn().mockResolvedValue();
+
+            const state = await appleFeatureMonitor.loadState();
+            expect(state).toEqual(legacyState);
+            expect(storage.write).toHaveBeenCalledWith(appleFeatureMonitor.config.file, legacyState);
+            expect(appleFeatureMonitor.isFreshInstall).toBeUndefined(); // Should not be fresh
+        });
+
+        it('should flag isFreshInstall if migrated legacy file is empty', async () => {
+            appleFeatureMonitor.name = 'AppleFeature:iOS';
+            const storage = require('../src/storage');
+            const fs = require('fs');
+            
+            jest.spyOn(fs, 'existsSync').mockImplementation((path) => {
+                if (path === appleFeatureMonitor.config.file) return false;
+                if (path === './config/apple_features.json') return true;
+                return false;
+            });
+
+            const emptyLegacyState = {};
+            storage.read = jest.fn().mockResolvedValue(emptyLegacyState);
+            storage.write = jest.fn().mockResolvedValue();
+
+            const state = await appleFeatureMonitor.loadState();
+            expect(state).toEqual(emptyLegacyState);
+            expect(storage.write).toHaveBeenCalledWith(appleFeatureMonitor.config.file, emptyLegacyState);
+            expect(appleFeatureMonitor.isFreshInstall).toBe(true);
+        });
+
+        it('should return empty changes in compare() when isFreshInstall is true to prevent spam', () => {
+            appleFeatureMonitor.isFreshInstall = true;
+            const changes = appleFeatureMonitor.compare({ "New Feature": { regions: ["Chile"], id: "1" } });
+            
+            expect(changes).toEqual({ added: [], removed: [] });
+            expect(appleFeatureMonitor.isFreshInstall).toBe(false); // Flag should be cleared
+        });
+    });
 });

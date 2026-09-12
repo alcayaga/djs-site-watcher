@@ -25,10 +25,24 @@ const defaultMonitors = [
         ],
     },
     {
-        name: 'AppleFeature',
+        name: 'AppleFeature:iOS',
         enabled: true,
         url: 'https://www.apple.com/ios/feature-availability/',
-        file: './config/apple_features.json',
+        file: './config/apple_features_ios.json',
+        keywords: ['chile', 'spanish (latin america)', 'scl'],
+    },
+    {
+        name: 'AppleFeature:macOS',
+        enabled: true,
+        url: 'https://www.apple.com/macos/feature-availability/',
+        file: './config/apple_features_macos.json',
+        keywords: ['chile', 'spanish (latin america)', 'scl'],
+    },
+    {
+        name: 'AppleFeature:watchOS',
+        enabled: true,
+        url: 'https://www.apple.com/watchos/feature-availability/',
+        file: './config/apple_features_watchos.json',
         keywords: ['chile', 'spanish (latin america)', 'scl'],
     },
     {

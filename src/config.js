@@ -100,9 +100,20 @@ if (!config.monitors) {
 } else {
     // Merge user-defined monitors with defaults
     config.monitors = config.monitors.map(userMonitor => {
-        const defaultMonitor = defaultMonitors.find(m => m.name === userMonitor.name);
+        if (userMonitor.name === 'AppleFeature') {
+            userMonitor.name = 'AppleFeature:iOS';
+        }
+
+        const baseName = userMonitor.name.split(':')[0];
+        const defaultMonitor = defaultMonitors.find(m => m.name === userMonitor.name) 
+                            || defaultMonitors.find(m => m.name === baseName);
         return defaultMonitor ? { ...defaultMonitor, ...userMonitor } : userMonitor;
     });
+
+    // Deduplicate monitors by name (e.g. if legacy AppleFeature and AppleFeature:iOS both existed)
+    const uniqueMonitors = new Map();
+    config.monitors.forEach(m => uniqueMonitors.set(m.name, m));
+    config.monitors = Array.from(uniqueMonitors.values());
 }
 
 // Initialize specific monitor settings if missing
