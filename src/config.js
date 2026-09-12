@@ -100,6 +100,8 @@ if (!config.monitors) {
 } else {
     // Merge user-defined monitors with defaults
     config.monitors = config.monitors.map(userMonitor => {
+        // Transparently migrate users from the old singular AppleFeature monitor 
+        // to the multi-OS format, defaulting to iOS to preserve existing behavior.
         if (userMonitor.name === 'AppleFeature') {
             userMonitor.name = 'AppleFeature:iOS';
         }
@@ -110,7 +112,8 @@ if (!config.monitors) {
         return defaultMonitor ? { ...defaultMonitor, ...userMonitor } : userMonitor;
     });
 
-    // Deduplicate monitors by name (e.g. if legacy AppleFeature and AppleFeature:iOS both existed)
+    // Deduplicate monitors by name (e.g. if legacy AppleFeature and AppleFeature:iOS both existed
+    // in the user's config during a messy migration, this prevents dual execution/spam).
     const uniqueMonitors = new Map();
     config.monitors.forEach(m => uniqueMonitors.set(m.name, m));
     config.monitors = Array.from(uniqueMonitors.values());

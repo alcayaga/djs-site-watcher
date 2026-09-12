@@ -261,7 +261,9 @@ class AppleFeatureMonitor extends Monitor {
         const storage = require('../storage');
         const fs = require('fs');
         
-        // If it's the iOS monitor, and the current file doesn't exist, try to migrate
+        // If it's the iOS monitor, and its target file doesn't exist, try to migrate from the old global file.
+        // We restrict this exclusively to iOS because the legacy apple_features.json strictly tracked iOS data.
+        // If macOS or watchOS inherited this file, they would immediately flag all iOS features as "removed" and spam the user.
         if (this.name === 'AppleFeature:iOS' && !fs.existsSync(this.config.file) && fs.existsSync('./config/apple_features.json')) {
             logger.info('Migrating legacy apple_features.json to %s', this.config.file);
             let legacyState = {};
