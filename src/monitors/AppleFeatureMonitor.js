@@ -60,6 +60,14 @@ class AppleFeatureMonitor extends Monitor {
      * @param {object} newData The newly parsed feature data.
      * @returns {{added: Array, removed: Array}|null} An object with arrays of new and removed features/regions, or null if no changes.
      */
+    async check() {
+        if (this.isMigrationPending) {
+            logger.info('Migration is pending for %s. Retrying loadState...', this.name);
+            this.state = await this.loadState();
+        }
+        await super.check();
+    }
+
     compare(newData) {
         const added = [];
         const removed = [];
@@ -105,6 +113,11 @@ class AppleFeatureMonitor extends Monitor {
                     }
                 });
             }
+        }
+
+        if (this.isMigrationPending) {
+            logger.info('Migration is pending for %s. Skipping comparison and state save to allow retry.', this.name);
+            return null;
         }
 
         if (this.isFreshInstall) {
@@ -261,14 +274,43 @@ class AppleFeatureMonitor extends Monitor {
         const storage = require('../storage');
         const fs = require('fs');
         
-        // If it's the iOS monitor, and the current file doesn't exist, try to migrate
-        if (this.name === 'AppleFeature:iOS' && !fs.existsSync(this.config.file) && fs.existsSync('./config/apple_features.json')) {
+        // If it's the iOS monitor, and its target file doesn't exist (or migration failed half-way), try to migrate from the old global file.
+        // We restrict this exclusively to iOS because the legacy apple_features.json strictly tracked iOS data.
+        // If macOS or watchOS inherited this file, they would immediately flag all iOS features as "removed" and spam the user.
+        if (this.name === 'AppleFeature:iOS' && (!fs.existsSync(this.config.file) || this.isMigrationPending) && fs.existsSync('./config/apple_features.json')) {
             logger.info('Migrating legacy apple_features.json to %s', this.config.file);
-            const legacyState = await storage.read('./config/apple_features.json');
+            this.isMigrationPending = true;
+            let legacyState = {};
+            try {
+                const fsExtra = require('fs-extra');
+                const rawLegacyState = await fsExtra.readJSON('./config/apple_features.json');
+                for (const key in rawLegacyState) {
+                    const normalizedKey = key.replace(/\s+/g, ' ').trim();
+                    const newRegions = (rawLegacyState[key].regions || []).map(r => r.replace(/\s+/g, ' ').trim());
+                    
+                    if (legacyState[normalizedKey]) {
+                        const existingRegions = legacyState[normalizedKey].regions;
+                        legacyState[normalizedKey].regions = Array.from(new Set([...existingRegions, ...newRegions]));
+                    } else {
+                        legacyState[normalizedKey] = {
+                            id: rawLegacyState[key].id,
+                            regions: Array.from(new Set(newRegions))
+                        };
+                    }
+                }
+            } catch (err) {
+                logger.error('Failed to read legacy apple_features.json during migration: %s', err.message);
+                this.isMigrationPending = true;
+                return {};
+            }
+            
             await storage.write(this.config.file, legacyState);
+            this.isMigrationPending = false;
             if (Object.keys(legacyState).length === 0) {
                 logger.info('Migrated legacy state was empty. Flagging as fresh install.');
                 this.isFreshInstall = true;
+            } else {
+                this.isFreshInstall = false;
             }
             return legacyState;
         }
@@ -283,7 +325,32 @@ class AppleFeatureMonitor extends Monitor {
             this.isFreshInstall = true;
         }
         
-        return state;
+        // Strictly normalize the loaded state to safeguard against legacy data artifacts.
+        // The old parser saved feature names and regions containing non-breaking spaces (\xA0) 
+        // directly from Apple's website (e.g. "Apple\xA0Intelligence"). The new parser strictly 
+        // normalizes these to standard spaces. If we don't normalize the loaded state here, 
+        // compare() will treat the newly parsed standard-spaced features as brand new "additions" 
+        // and the old non-breaking space features as "removals", causing massive phantom 
+        // notification spam (especially if the bot is run on an unmigrated settings file).
+        // We also merge regions for duplicate keys to prevent data loss if two legacy keys 
+        // normalize to the exact same string.
+        const normalizedState = {};
+        for (const key in state) {
+            const normalizedKey = key.replace(/\s+/g, ' ').trim();
+            const newRegions = (state[key].regions || []).map(r => r.replace(/\s+/g, ' ').trim());
+            
+            if (normalizedState[normalizedKey]) {
+                const existingRegions = normalizedState[normalizedKey].regions;
+                normalizedState[normalizedKey].regions = Array.from(new Set([...existingRegions, ...newRegions]));
+            } else {
+                normalizedState[normalizedKey] = {
+                    id: state[key].id,
+                    regions: Array.from(new Set(newRegions))
+                };
+            }
+        }
+        
+        return normalizedState;
     }
 }
 

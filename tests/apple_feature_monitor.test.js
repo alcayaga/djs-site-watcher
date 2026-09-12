@@ -350,9 +350,10 @@ describe('AppleFeatureMonitor', () => {
 
         it('should migrate legacy file for AppleFeature:iOS', async () => {
             appleFeatureMonitor.name = 'AppleFeature:iOS';
-            const storage = require('../src/storage');
-            const fs = require('fs');
+            appleFeatureMonitor.config.file = './config/apple_features_ios.json';
             
+            // Mock that new file doesn't exist, but legacy one does
+            const fs = require('fs');
             jest.spyOn(fs, 'existsSync').mockImplementation((path) => {
                 if (path === appleFeatureMonitor.config.file) return false;
                 if (path === './config/apple_features.json') return true;
@@ -360,19 +361,21 @@ describe('AppleFeatureMonitor', () => {
             });
 
             const legacyState = { "Legacy": { regions: ["Chile"], id: "1" } };
-            storage.read = jest.fn().mockResolvedValue(legacyState);
+            const fsExtra = require('fs-extra');
+            jest.spyOn(fsExtra, 'readJSON').mockResolvedValue(legacyState);
+            const storage = require('../src/storage');
             storage.write = jest.fn().mockResolvedValue();
 
             const state = await appleFeatureMonitor.loadState();
             expect(state).toEqual(legacyState);
             expect(storage.write).toHaveBeenCalledWith(appleFeatureMonitor.config.file, legacyState);
-            expect(appleFeatureMonitor.isFreshInstall).toBeUndefined(); // Should not be fresh
+            expect(appleFeatureMonitor.isFreshInstall).toBeFalsy();
         });
 
         it('should flag isFreshInstall if migrated legacy file is empty', async () => {
             appleFeatureMonitor.name = 'AppleFeature:iOS';
-            const storage = require('../src/storage');
-            const fs = require('fs');
+            const fs = require("fs");
+
             
             jest.spyOn(fs, 'existsSync').mockImplementation((path) => {
                 if (path === appleFeatureMonitor.config.file) return false;
@@ -380,8 +383,11 @@ describe('AppleFeatureMonitor', () => {
                 return false;
             });
 
+            const storage = require("../src/storage");
+
             const emptyLegacyState = {};
-            storage.read = jest.fn().mockResolvedValue(emptyLegacyState);
+            const fsExtra = require('fs-extra');
+            jest.spyOn(fsExtra, 'readJSON').mockResolvedValue(emptyLegacyState);
             storage.write = jest.fn().mockResolvedValue();
 
             const state = await appleFeatureMonitor.loadState();
@@ -390,12 +396,133 @@ describe('AppleFeatureMonitor', () => {
             expect(appleFeatureMonitor.isFreshInstall).toBe(true);
         });
 
+        it('should handle readJSON failure during legacy migration by preserving retry state and not saving fallback data', async () => {
+            appleFeatureMonitor.name = 'AppleFeature:iOS';
+            appleFeatureMonitor.config.file = './config/apple_features_ios.json';
+            
+            const fs = require("fs");
+            jest.spyOn(fs, 'existsSync').mockImplementation((path) => {
+                if (path === appleFeatureMonitor.config.file) return false;
+                if (path === './config/apple_features.json') return true;
+                return false;
+            });
+
+            const fsExtra = require('fs-extra');
+            jest.spyOn(fsExtra, 'readJSON').mockRejectedValueOnce(new Error('Permission denied'));
+            const storage = require("../src/storage");
+            storage.write = jest.fn().mockResolvedValue();
+
+            let state = await appleFeatureMonitor.loadState();
+            expect(state).toEqual({});
+            expect(storage.write).not.toHaveBeenCalled();
+            expect(appleFeatureMonitor.isMigrationPending).toBe(true);
+
+            appleFeatureMonitor.fetch = jest.fn().mockResolvedValue('<html/>');
+            appleFeatureMonitor.parse = jest.fn().mockReturnValue({ 'Apple Intelligence': { regions: ['US'], id: '1' } });
+
+            // check() runs, but migration is pending, so it retries loadState() which fails again
+            jest.spyOn(fsExtra, 'readJSON').mockRejectedValueOnce(new Error('Permission denied'));
+            await appleFeatureMonitor.check();
+            expect(storage.write).not.toHaveBeenCalled();
+            expect(appleFeatureMonitor.isMigrationPending).toBe(true);
+            
+            // Try again, this time it succeeds during check()
+            jest.spyOn(fsExtra, 'readJSON').mockResolvedValueOnce({
+                'Apple Intelligence': { regions: ['US'], id: '1' }
+            });
+            await appleFeatureMonitor.check();
+            expect(storage.write).toHaveBeenCalledWith('./config/apple_features_ios.json', { 'Apple Intelligence': { regions: ['US'], id: '1' } });
+            expect(appleFeatureMonitor.isMigrationPending).toBe(false);
+            expect(appleFeatureMonitor.state).toEqual({ 'Apple Intelligence': { regions: ['US'], id: '1' } });
+        });
+
+        it('should handle storage.write failure during legacy migration by preserving retry state', async () => {
+            appleFeatureMonitor.name = 'AppleFeature:iOS';
+            appleFeatureMonitor.config.file = './config/apple_features_ios.json';
+            
+            const fs = require("fs");
+            jest.spyOn(fs, 'existsSync').mockImplementation((path) => {
+                if (path === appleFeatureMonitor.config.file) return false;
+                if (path === './config/apple_features.json') return true;
+                return false;
+            });
+
+            const fsExtra = require('fs-extra');
+            jest.spyOn(fsExtra, 'readJSON').mockResolvedValue({
+                'Apple Intelligence': { regions: ['US'], id: '1' }
+            });
+            const storage = require("../src/storage");
+            storage.write = jest.fn().mockRejectedValueOnce(new Error('Disk full'));
+
+            await expect(appleFeatureMonitor.loadState()).rejects.toThrow('Disk full');
+            expect(appleFeatureMonitor.isMigrationPending).toBe(true);
+        });
+
+        it('should retry legacy migration even if target file exists after a partial write failure', async () => {
+            appleFeatureMonitor.name = 'AppleFeature:iOS';
+            appleFeatureMonitor.config.file = './config/apple_features_ios.json';
+            
+            // Simulate the state where isMigrationPending is true from a previous failed write
+            appleFeatureMonitor.isMigrationPending = true;
+            
+            const fs = require("fs");
+            jest.spyOn(fs, 'existsSync').mockImplementation((path) => {
+                if (path === appleFeatureMonitor.config.file) return true; // File exists now!
+                if (path === './config/apple_features.json') return true;
+                return false;
+            });
+
+            const fsExtra = require('fs-extra');
+            jest.spyOn(fsExtra, 'readJSON').mockResolvedValue({
+                'Apple Intelligence': { regions: ['US'], id: '1' }
+            });
+            const storage = require("../src/storage");
+            storage.write = jest.fn().mockResolvedValue();
+
+            let state = await appleFeatureMonitor.loadState();
+            
+            expect(state).toEqual({ 'Apple Intelligence': { regions: ['US'], id: '1' } });
+            expect(storage.write).toHaveBeenCalled();
+            expect(appleFeatureMonitor.isMigrationPending).toBe(false);
+        });
+
+        it('should normalize legacy state keys and regions during migration', async () => {
+            appleFeatureMonitor.name = 'AppleFeature:iOS';
+            appleFeatureMonitor.config.file = './config/apple_features_ios.json';
+            
+            const fs = require("fs");
+            jest.spyOn(fs, 'existsSync').mockImplementation((path) => {
+                if (path === appleFeatureMonitor.config.file) return false;
+                if (path === './config/apple_features.json') return true;
+                return false;
+            });
+
+            const rawLegacyState = { 
+                "Apple\xA0Intelligence": { regions: ["Spanish\xA0(Chile)"], id: "1" },
+                "Apple Intelligence": { regions: ["US"], id: "2" },
+                "Other Feature": { regions: ["Chile", " Chile "], id: "3" }
+            };
+            const expectedState = { 
+                "Apple Intelligence": { regions: ["Spanish (Chile)", "US"], id: "1" },
+                "Other Feature": { regions: ["Chile"], id: "3" }
+            };
+
+            const fsExtra = require('fs-extra');
+            jest.spyOn(fsExtra, 'readJSON').mockResolvedValue(rawLegacyState);
+            const storage = require("../src/storage");
+            storage.write = jest.fn().mockResolvedValue();
+
+            const state = await appleFeatureMonitor.loadState();
+            expect(state).toEqual(expectedState);
+            expect(storage.write).toHaveBeenCalledWith(appleFeatureMonitor.config.file, expectedState);
+        });
+
         it('should return empty changes in compare() when isFreshInstall is true to prevent spam', () => {
             appleFeatureMonitor.isFreshInstall = true;
             const changes = appleFeatureMonitor.compare({ "New Feature": { regions: ["Chile"], id: "1" } });
             
             expect(changes).toEqual({ added: [], removed: [] });
-            expect(appleFeatureMonitor.isFreshInstall).toBe(false); // Flag should be cleared
+            expect(appleFeatureMonitor.isFreshInstall).toBeFalsy(); // Flag should be cleared
         });
     });
 });

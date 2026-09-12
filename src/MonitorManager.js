@@ -24,6 +24,9 @@ class MonitorManager {
         for (const monitorConfig of config.monitors) {
             if (monitorConfig.enabled) {
                 const monitorName = monitorConfig.name;
+                // Allow instantiating multiple independent instances of the same Monitor class 
+                // by using a colon suffix in the config (e.g., AppleFeature:iOS, AppleFeature:macOS).
+                // The base class name is resolved from the prefix (AppleFeature -> AppleFeatureMonitor).
                 const baseName = monitorName.split(':')[0];
                 const MonitorClass = monitorClassMap.get(`${baseName}Monitor`);
 
