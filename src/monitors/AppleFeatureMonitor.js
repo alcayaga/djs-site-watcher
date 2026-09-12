@@ -267,7 +267,14 @@ class AppleFeatureMonitor extends Monitor {
             let legacyState = {};
             try {
                 const fsExtra = require('fs-extra');
-                legacyState = await fsExtra.readJSON('./config/apple_features.json');
+                const rawLegacyState = await fsExtra.readJSON('./config/apple_features.json');
+                for (const key in rawLegacyState) {
+                    const normalizedKey = key.replace(/\s+/g, ' ').trim();
+                    legacyState[normalizedKey] = {
+                        id: rawLegacyState[key].id,
+                        regions: (rawLegacyState[key].regions || []).map(r => r.replace(/\s+/g, ' ').trim())
+                    };
+                }
             } catch (err) {
                 logger.error('Failed to read legacy apple_features.json during migration: %s', err.message);
                 this.isFreshInstall = true;
