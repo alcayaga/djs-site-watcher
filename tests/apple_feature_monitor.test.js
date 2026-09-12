@@ -396,6 +396,28 @@ describe('AppleFeatureMonitor', () => {
             expect(appleFeatureMonitor.isFreshInstall).toBe(true);
         });
 
+        it('should handle readJSON failure during legacy migration by setting isFreshInstall and returning empty state', async () => {
+            appleFeatureMonitor.name = 'AppleFeature:iOS';
+            appleFeatureMonitor.config.file = './config/apple_features_ios.json';
+            
+            const fs = require("fs");
+            jest.spyOn(fs, 'existsSync').mockImplementation((path) => {
+                if (path === appleFeatureMonitor.config.file) return false;
+                if (path === './config/apple_features.json') return true;
+                return false;
+            });
+
+            const fsExtra = require('fs-extra');
+            jest.spyOn(fsExtra, 'readJSON').mockRejectedValue(new Error('Permission denied'));
+            const storage = require("../src/storage");
+            storage.write = jest.fn().mockResolvedValue();
+
+            const state = await appleFeatureMonitor.loadState();
+            expect(state).toEqual({});
+            expect(storage.write).not.toHaveBeenCalled();
+            expect(appleFeatureMonitor.isFreshInstall).toBe(true);
+        });
+
         it('should return empty changes in compare() when isFreshInstall is true to prevent spam', () => {
             appleFeatureMonitor.isFreshInstall = true;
             const changes = appleFeatureMonitor.compare({ "New Feature": { regions: ["Chile"], id: "1" } });

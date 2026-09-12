@@ -270,6 +270,7 @@ class AppleFeatureMonitor extends Monitor {
                 legacyState = await fsExtra.readJSON('./config/apple_features.json');
             } catch (err) {
                 logger.error('Failed to read legacy apple_features.json during migration: %s', err.message);
+                this.isFreshInstall = true;
                 return {};
             }
             
