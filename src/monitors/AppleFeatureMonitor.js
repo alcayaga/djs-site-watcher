@@ -308,6 +308,15 @@ class AppleFeatureMonitor extends Monitor {
             this.isFreshInstall = true;
         }
         
+        // Strictly normalize the loaded state to safeguard against legacy data artifacts.
+        // The old parser saved feature names and regions containing non-breaking spaces (\xA0) 
+        // directly from Apple's website (e.g. "Apple\xA0Intelligence"). The new parser strictly 
+        // normalizes these to standard spaces. If we don't normalize the loaded state here, 
+        // compare() will treat the newly parsed standard-spaced features as brand new "additions" 
+        // and the old non-breaking space features as "removals", causing massive phantom 
+        // notification spam (especially if the bot is run on an unmigrated settings file).
+        // We also merge regions for duplicate keys to prevent data loss if two legacy keys 
+        // normalize to the exact same string.
         const normalizedState = {};
         for (const key in state) {
             const normalizedKey = key.replace(/\s+/g, ' ').trim();
