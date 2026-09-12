@@ -264,7 +264,15 @@ class AppleFeatureMonitor extends Monitor {
         // If it's the iOS monitor, and the current file doesn't exist, try to migrate
         if (this.name === 'AppleFeature:iOS' && !fs.existsSync(this.config.file) && fs.existsSync('./config/apple_features.json')) {
             logger.info('Migrating legacy apple_features.json to %s', this.config.file);
-            const legacyState = await storage.read('./config/apple_features.json');
+            let legacyState = {};
+            try {
+                const fsExtra = require('fs-extra');
+                legacyState = await fsExtra.readJSON('./config/apple_features.json');
+            } catch (err) {
+                logger.error('Failed to read legacy apple_features.json during migration: %s', err.message);
+                return {};
+            }
+            
             await storage.write(this.config.file, legacyState);
             if (Object.keys(legacyState).length === 0) {
                 logger.info('Migrated legacy state was empty. Flagging as fresh install.');
