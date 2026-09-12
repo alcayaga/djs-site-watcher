@@ -109,6 +109,11 @@ if (!config.monitors) {
                             || defaultMonitors.find(m => m.name === baseName);
         return defaultMonitor ? { ...defaultMonitor, ...userMonitor } : userMonitor;
     });
+
+    // Deduplicate monitors by name (e.g. if legacy AppleFeature and AppleFeature:iOS both existed)
+    const uniqueMonitors = new Map();
+    config.monitors.forEach(m => uniqueMonitors.set(m.name, m));
+    config.monitors = Array.from(uniqueMonitors.values());
 }
 
 // Initialize specific monitor settings if missing

@@ -109,7 +109,11 @@ class AppleFeatureMonitor extends Monitor {
 
         if (this.isFreshInstall) {
             logger.info('Fresh install detected for %s. Seeding data silently without notifying.', this.name);
-            this.isFreshInstall = false;
+            // Only clear the flag if we actually seeded data, to prevent
+            // a temporary parse failure from un-suppressing the next successful run
+            if (Object.keys(newData).length > 0) {
+                this.isFreshInstall = false;
+            }
             return { added: [], removed: [] };
         }
 

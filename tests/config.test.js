@@ -143,7 +143,7 @@ describe('config', () => {
         }
     });
 
-    it('should migrate legacy AppleFeature to AppleFeature:iOS and inherit iOS defaults', () => {
+    it('should migrate legacy AppleFeature to AppleFeature:iOS and deduplicate if explicit iOS exists', () => {
         const customMonitors = [
             { name: 'AppleFeature', channelId: '123' },
             { name: 'AppleFeature:iOS', file: './custom.json', channelId: '456' } // Explicit override fixture
@@ -153,17 +153,14 @@ describe('config', () => {
         storage.SENSITIVE_SETTINGS_KEYS = [];
         const config = require('../src/config');
         
-        // The legacy monitor should be renamed and merged with iOS defaults
-        const migratedMonitor = config.monitors[0];
-        expect(migratedMonitor.name).toBe('AppleFeature:iOS');
-        expect(migratedMonitor.url).toBe('https://www.apple.com/ios/feature-availability/');
-        expect(migratedMonitor.file).toBe('./config/apple_features_ios.json');
-        expect(migratedMonitor.channelId).toBe('123');
+        // They should be merged into a single AppleFeature:iOS monitor (last one wins for overrides)
+        expect(config.monitors.length).toBe(1);
         
-        // The explicit monitor should preserve its custom file fixture
-        const explicitMonitor = config.monitors[1];
-        expect(explicitMonitor.name).toBe('AppleFeature:iOS');
-        expect(explicitMonitor.file).toBe('./custom.json');
+        const mergedMonitor = config.monitors[0];
+        expect(mergedMonitor.name).toBe('AppleFeature:iOS');
+        expect(mergedMonitor.url).toBe('https://www.apple.com/ios/feature-availability/');
+        expect(mergedMonitor.file).toBe('./custom.json');
+        expect(mergedMonitor.channelId).toBe('456');
         
         // No monitor should remain with the legacy name
         expect(config.monitors.find(m => m.name === 'AppleFeature')).toBeUndefined();
