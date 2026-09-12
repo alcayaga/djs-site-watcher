@@ -436,6 +436,28 @@ describe('AppleFeatureMonitor', () => {
             expect(appleFeatureMonitor.state).toEqual({ 'Apple Intelligence': { regions: ['US'], id: '1' } });
         });
 
+        it('should handle storage.write failure during legacy migration by preserving retry state', async () => {
+            appleFeatureMonitor.name = 'AppleFeature:iOS';
+            appleFeatureMonitor.config.file = './config/apple_features_ios.json';
+            
+            const fs = require("fs");
+            jest.spyOn(fs, 'existsSync').mockImplementation((path) => {
+                if (path === appleFeatureMonitor.config.file) return false;
+                if (path === './config/apple_features.json') return true;
+                return false;
+            });
+
+            const fsExtra = require('fs-extra');
+            jest.spyOn(fsExtra, 'readJSON').mockResolvedValue({
+                'Apple Intelligence': { regions: ['US'], id: '1' }
+            });
+            const storage = require("../src/storage");
+            storage.write = jest.fn().mockRejectedValueOnce(new Error('Disk full'));
+
+            await expect(appleFeatureMonitor.loadState()).rejects.toThrow('Disk full');
+            expect(appleFeatureMonitor.isMigrationPending).toBe(true);
+        });
+
         it('should normalize legacy state keys and regions during migration', async () => {
             appleFeatureMonitor.name = 'AppleFeature:iOS';
             appleFeatureMonitor.config.file = './config/apple_features_ios.json';

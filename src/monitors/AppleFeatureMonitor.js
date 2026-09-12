@@ -279,6 +279,7 @@ class AppleFeatureMonitor extends Monitor {
         // If macOS or watchOS inherited this file, they would immediately flag all iOS features as "removed" and spam the user.
         if (this.name === 'AppleFeature:iOS' && !fs.existsSync(this.config.file) && fs.existsSync('./config/apple_features.json')) {
             logger.info('Migrating legacy apple_features.json to %s', this.config.file);
+            this.isMigrationPending = true;
             let legacyState = {};
             try {
                 const fsExtra = require('fs-extra');
@@ -297,7 +298,6 @@ class AppleFeatureMonitor extends Monitor {
                         };
                     }
                 }
-                this.isMigrationPending = false;
             } catch (err) {
                 logger.error('Failed to read legacy apple_features.json during migration: %s', err.message);
                 this.isMigrationPending = true;
@@ -305,6 +305,7 @@ class AppleFeatureMonitor extends Monitor {
             }
             
             await storage.write(this.config.file, legacyState);
+            this.isMigrationPending = false;
             if (Object.keys(legacyState).length === 0) {
                 logger.info('Migrated legacy state was empty. Flagging as fresh install.');
                 this.isFreshInstall = true;
