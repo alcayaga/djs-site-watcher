@@ -308,7 +308,23 @@ class AppleFeatureMonitor extends Monitor {
             this.isFreshInstall = true;
         }
         
-        return state;
+        const normalizedState = {};
+        for (const key in state) {
+            const normalizedKey = key.replace(/\s+/g, ' ').trim();
+            const newRegions = (state[key].regions || []).map(r => r.replace(/\s+/g, ' ').trim());
+            
+            if (normalizedState[normalizedKey]) {
+                const existingRegions = normalizedState[normalizedKey].regions;
+                normalizedState[normalizedKey].regions = Array.from(new Set([...existingRegions, ...newRegions]));
+            } else {
+                normalizedState[normalizedKey] = {
+                    id: state[key].id,
+                    regions: Array.from(new Set(newRegions))
+                };
+            }
+        }
+        
+        return normalizedState;
     }
 }
 
