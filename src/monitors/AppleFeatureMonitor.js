@@ -149,10 +149,15 @@ class AppleFeatureMonitor extends Monitor {
             return;
         }
         
+        let osName = 'Apple';
+        if (this.name && this.name.includes(':')) {
+            osName = this.name.split(':')[1].trim() || 'Apple';
+        }
+
         const url = this.config.url;
         const notificationConfigs = [
-            { key: 'added', titlePlural: '🌟 ¡{count} nuevas funciones de Apple disponibles! 🐸', titleSingular: '🌟 ¡Nueva función de Apple disponible! 🐸', color: '#0071E3', logSuffix: 'found' },
-            { key: 'removed', titlePlural: '🚫 ¡{count} funciones de Apple eliminadas! 🐸', titleSingular: '🚫 ¡Función de Apple eliminada! 🐸', color: '#F44336', logSuffix: 'removed' }
+            { key: 'added', titlePlural: `🌟 ¡{count} nuevas funciones de ${osName} disponibles! 🐸`, titleSingular: `🌟 ¡Nueva función de ${osName} disponible! 🐸`, color: '#0071E3', logSuffix: 'found' },
+            { key: 'removed', titlePlural: `🚫 ¡{count} funciones de ${osName} eliminadas! 🐸`, titleSingular: `🚫 ¡Función de ${osName} eliminada! 🐸`, color: '#F44336', logSuffix: 'removed' }
         ];
 
         const notificationPromises = [];
@@ -229,8 +234,8 @@ class AppleFeatureMonitor extends Monitor {
                 const isAdded = config.key === 'added';
                 
                 let description = isAdded 
-                    ? `Se han detectado nuevas funciones para: ${regionsText}\n\n**Novedades por categoría:**\n`
-                    : `Se han eliminado funciones para: ${regionsText}\n\n**Cambios por categoría:**\n`;
+                    ? `Se han detectado nuevas funciones para: ${regionsText}\n\n**Novedades por categoría:**\n\n`
+                    : `Se han eliminado funciones para: ${regionsText}\n\n**Cambios por categoría:**\n\n`;
 
                 for (const [category, features] of Object.entries(categories)) {
                     const featureList = Array.from(features);
