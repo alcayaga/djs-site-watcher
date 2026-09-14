@@ -201,7 +201,7 @@ describe('AppleFeatureMonitor', () => {
             }]);
         });
 
-        it('should send a single digest embed for more than 3 added features', async () => {
+        it('should send a single digest embed for more than 3 added features with correct double newlines for mobile lists', async () => {
             const changes = {
                 added: [
                     { featureName: "Cat A: Feature 1", region: "Reg A", id: "1" },
@@ -216,9 +216,19 @@ describe('AppleFeatureMonitor', () => {
             const embed = mockChannel.send.mock.calls[0][0].embeds[0];
             expect(embed.data.title).toBe('🌟 ¡4 nuevas funciones de Apple disponibles! 🐸');
             expect(embed.data.color).toBe('#0071E3');
-            expect(embed.setDescription).toHaveBeenCalledWith(expect.stringContaining('Se han detectado nuevas funciones para: **Reg A**, **Reg B**'));
-            expect(embed.setDescription).toHaveBeenCalledWith(expect.stringContaining('- **Cat A** (2): Feature 1, Feature 2'));
+            expect(embed.setDescription).toHaveBeenCalledWith(expect.stringContaining('Se han detectado nuevas funciones para: **Reg A**, **Reg B**\n\n**Novedades por categoría:**\n\n- **Cat A** (2): Feature 1, Feature 2'));
             expect(embed.setDescription).toHaveBeenCalledWith(expect.stringContaining('- **Cat B** (2): Feature 3, Feature 4'));
+        });
+
+        it('should use OS-specific name in embed title if present in monitor name', async () => {
+            const iosMonitor = new AppleFeatureMonitor('AppleFeature:iOS', monitorConfig);
+            iosMonitor.getNotificationChannel = jest.fn().mockReturnValue(mockChannel);
+            
+            const changes = { added: [{ featureName: "New Feature", region: "New Region", id: "1" }] };
+            await iosMonitor.notify(changes);
+            
+            const embed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(embed.data.title).toBe('🌟 ¡Nueva función de iOS disponible! 🐸');
         });
 
         it('should group colon-free feature names under fallback category "Otras" in digest mode', async () => {

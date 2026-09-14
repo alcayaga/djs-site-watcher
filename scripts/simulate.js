@@ -47,40 +47,64 @@ async function runSimulation() {
         // Initialize ChannelManager
         await channelManager.initialize(client);
 
-        const monitorConfig = {
-            name: 'Deal',
-            enabled: true,
-            interval: '* * * * * *',
-            file: './config/deals.json',
-        };
-        
-        const monitor = new DealMonitor('Deal', monitorConfig);
-        await monitor.initialize(client);
-        
-        // Cache the Deals channel
-        const dealsChannelConfig = config.channels.find(c => c.handler === 'DealsChannel');
-        if (dealsChannelConfig && dealsChannelConfig.channelId) {
-            logger.info('Fetching Deals channel from Discord API...');
-            await client.channels.fetch(dealsChannelConfig.channelId);
-            monitor.config.channelId = dealsChannelConfig.channelId;
-        }
-        
-        const channel = monitor.getNotificationChannel();
-        if (!channel) {
-            logger.error('Channel could not be resolved! Notification will not send.');
-            return;
-        }
+        if (scenario.monitorType === 'AppleFeature') {
+            const AppleFeatureMonitor = require('../src/monitors/AppleFeatureMonitor');
+            const monitorConfig = {
+                name: scenario.monitorName || 'AppleFeature:iOS',
+                enabled: true,
+                url: 'https://www.apple.com/ios/feature-availability/',
+                file: './config/apple_features_ios.json',
+                channelId: config.defaultChannelId,
+            };
+            
+            const monitor = new AppleFeatureMonitor(monitorConfig.name, monitorConfig);
+            await monitor.initialize(client);
+            
+            const channel = monitor.getNotificationChannel();
+            if (!channel) {
+                logger.error('Channel could not be resolved! Notification will not send.');
+                return;
+            }
 
-        logger.info('Triggering notify() on DealMonitor...');
-        
-        await monitor.notify({ 
-            product: scenario.product, 
-            triggers: scenario.triggers, 
-            date: new Date().toISOString(), 
-            stored: scenario.stored, 
-            previousOfferPrice: scenario.previousOfferPrice, 
-            previousNormalPrice: scenario.previousNormalPrice 
-        });
+            logger.info('Triggering notify() on AppleFeatureMonitor...');
+            await monitor.notify(scenario.changes);
+        } else {
+            // Default to DealMonitor for backward compatibility
+            const monitorConfig = {
+                name: 'Deal',
+                enabled: true,
+                interval: '* * * * * *',
+                file: './config/deals.json',
+            };
+            
+            const monitor = new DealMonitor('Deal', monitorConfig);
+            await monitor.initialize(client);
+            
+            // Cache the Deals channel
+            const dealsChannelConfig = config.channels.find(c => c.handler === 'DealsChannel');
+            if (dealsChannelConfig && dealsChannelConfig.channelId) {
+                logger.info('Fetching Deals channel from Discord API...');
+                await client.channels.fetch(dealsChannelConfig.channelId);
+                monitor.config.channelId = dealsChannelConfig.channelId;
+            }
+            
+            const channel = monitor.getNotificationChannel();
+            if (!channel) {
+                logger.error('Channel could not be resolved! Notification will not send.');
+                return;
+            }
+
+            logger.info('Triggering notify() on DealMonitor...');
+            
+            await monitor.notify({ 
+                product: scenario.product, 
+                triggers: scenario.triggers, 
+                date: new Date().toISOString(), 
+                stored: scenario.stored, 
+                previousOfferPrice: scenario.previousOfferPrice, 
+                previousNormalPrice: scenario.previousNormalPrice 
+            });
+        }
 
         logger.info('Notification sent successfully!');
     } finally {
