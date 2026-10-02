@@ -15,8 +15,10 @@ describe('deploy-staging.yml workflow security and sanitization', () => {
     expect(workflowContent).toContain('name: Deploy to Staging');
     expect(workflowContent).toContain('workflow_dispatch:');
     expect(workflowContent).toContain('workflow_run:');
-    // Ensure workflow_dispatch can run only on master or when workflow_run succeeds
-    expect(workflowContent).toContain("(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') || github.event.workflow_run.conclusion == 'success'");
+    // Ensure workflow_dispatch can run only on master or when workflow_run succeeds from master push in same repo
+    expect(workflowContent).toContain(
+      "(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'master' && github.event.workflow_run.head_repository.full_name == github.repository)"
+    );
   });
 
   it('workflow must not contain hardcoded private IP addresses or personal usernames', () => {
@@ -45,10 +47,10 @@ describe('deploy-staging.yml workflow security and sanitization', () => {
   });
 
   it('workflow must pin all third-party actions to a full-length 40-character commit SHA', () => {
-    const usesLines = workflowContent.split('\n').filter((line) => line.trim().startsWith('uses:'));
+    const usesLines = workflowContent.split('\n').filter((line) => /^\s*(-\s+)?uses:/.test(line));
     expect(usesLines.length).toBeGreaterThan(0);
     for (const line of usesLines) {
-      expect(line).toMatch(/uses:\s*[^\s@]+@[a-f0-9]{40}/);
+      expect(line).toMatch(/uses:\s*[^\s@]+@[a-f0-9]{40}(\s+#.*)?\s*$/);
     }
   });
 
