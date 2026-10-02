@@ -16,19 +16,100 @@ jobs:
   deploy:
     name: Deploy to Staging Server
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') || github.event.workflow_run.conclusion == 'success' }}
     environment: staging
     permissions:
       contents: read
 
     steps:
+    - name: Install WireGuard
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends wireguard-tools resolvconf
+
+    - name: Configure and Connect WireGuard
+      env:
+        WIREGUARD_CONFIG: ${{ secrets.STAGING_WIREGUARD_CONFIG }}
+        STAGING_HOST: ${{ secrets.STAGING_HOST }}
+      run: |
+        if [ -z "$WIREGUARD_CONFIG" ]; then
+          echo "::error::Secret STAGING_WIREGUARD_CONFIG is not set."
+          exit 1
+        fi
+        if [ -z "$STAGING_HOST" ]; then
+          echo "::error::Secret STAGING_HOST is not set."
+          exit 1
+        fi
+
+        # Validate STAGING_HOST format (IPv4 or valid hostname)
+        if [[ ! "$STAGING_HOST" =~ ^[a-zA-Z0-9.-]+$ ]]; then
+          echo "::error::Invalid STAGING_HOST format."
+          exit 1
+        fi
+
+        # Resolve STAGING_HOST to an IPv4 address for WireGuard AllowedIPs routing
+        TARGET_IP=$(getent ahostsv4 "$STAGING_HOST" 2>/dev/null | awk '{print $1; exit}')
+        if [ -z "$TARGET_IP" ]; then
+          # Fallback check if STAGING_HOST is already a direct IPv4 address
+          if [[ "$STAGING_HOST" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+            TARGET_IP="$STAGING_HOST"
+          else
+            echo "::error::Unable to resolve STAGING_HOST ($STAGING_HOST) to an IPv4 address."
+            exit 1
+          fi
+        fi
+
+        # Persist TARGET_IP to environment for subsequent SSH probe and deployment steps
+        echo "TARGET_IP=$TARGET_IP" >> "$GITHUB_ENV"
+
+        # Pre-create config file with strict permissions (0600) to prevent unauthorized reads
+        sudo install -m 600 -o root -g root /dev/null /etc/wireguard/wg0.conf
+        printf '%s\n' "$WIREGUARD_CONFIG" | sudo tee /etc/wireguard/wg0.conf > /dev/null
+
+        # Defensive sanitization:
+        # 1. Remove DNS lines to avoid breaking GitHub runner's native DNS
+        # 2. Restrict AllowedIPs strictly to the target host to guarantee split-tunneling and prevent runner disconnect
+        sudo awk -v host_ip="$TARGET_IP" '
+          /^[[:space:]]*DNS[[:space:]]*=/ { next }
+          /^[[:space:]]*AllowedIPs[[:space:]]*=/ {
+            print "AllowedIPs = " host_ip "/32"
+            next
+          }
+          { print }
+        ' /etc/wireguard/wg0.conf | sudo tee /etc/wireguard/wg0.conf.tmp > /dev/null
+        sudo mv /etc/wireguard/wg0.conf.tmp /etc/wireguard/wg0.conf
+        sudo chmod 600 /etc/wireguard/wg0.conf
+
+        # Bring up WireGuard interface
+        sudo wg-quick up wg0
+
+    - name: Verify Staging Host Reachability
+      run: |
+        echo "Testing connection to target host on port 22 via WireGuard..."
+        REACHABLE=false
+        DEADLINE=$(( $(date +%s) + 10 ))
+
+        while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+          if timeout 1 bash -c "</dev/tcp/$TARGET_IP/22" 2>/dev/null; then
+            echo "Target SSH port is reachable over WireGuard."
+            REACHABLE=true
+            break
+          fi
+          sleep 1
+        done
+
+        if [ "$REACHABLE" != "true" ]; then
+          echo "::error::Could not connect to target host on port 22 over WireGuard tunnel within 10s."
+          exit 1
+        fi
+
     - name: Deploy via SSH
-      uses: appleboy/ssh-action@v1.0.3
+      uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
       env:
         DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
       with:
-        host: home.alcayaga.net
-        username: gemini-cli
+        host: ${{ env.TARGET_IP }}
+        username: ${{ secrets.STAGING_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: 22
         envs: DEPLOY_PATH
@@ -44,3 +125,13 @@ jobs:
           # The script is responsible for pulling the latest code and restarting the app
           chmod +x scripts/deploy.sh
           TARGET_ENV=staging ./scripts/deploy.sh
+
+    - name: Disconnect WireGuard & Secure Cleanup
+      if: always()
+      run: |
+        if [ -f /etc/wireguard/wg0.conf ]; then
+          echo "Tearing down WireGuard tunnel..."
+          sudo wg-quick down wg0 || true
+          echo "Sanitizing WireGuard configuration..."
+          sudo shred -u /etc/wireguard/wg0.conf 2>/dev/null || sudo rm -f /etc/wireguard/wg0.conf
+        fi
