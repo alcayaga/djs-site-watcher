@@ -1366,7 +1366,7 @@ describe('DealMonitor', () => {
             expect(monitor.state['99']).toBeUndefined();
         });
 
-        it('should skip creating entry when no valid history records are found', async () => {
+        it('should cache negative result and skip initialized price state when no valid history records are found', async () => {
             const product = { id: 99, name: 'New iPad', offerPrice: 500000, normalPrice: 500000 };
             monitor.fetch = jest.fn().mockResolvedValue([product]);
             monitor.state = {};
@@ -1374,7 +1374,57 @@ describe('DealMonitor', () => {
 
             await monitor.check();
 
-            expect(monitor.state['99']).toBeUndefined();
+            expect(monitor.state['99'].minOfferPrice).toBeUndefined();
+            expect(monitor.state['99'].uninitialized).toBe(true);
+            expect(monitor.state['99'].noHistoryUntil).toBeDefined();
+        });
+
+        it('should skip history lookup while negative cache is unexpired and retry after expiry', async () => {
+            const product = { id: 99, name: 'New iPad', offerPrice: 500000, normalPrice: 500000 };
+            monitor.fetch = jest.fn().mockResolvedValue([product]);
+            monitor.state = {
+                '99': {
+                    uninitialized: true,
+                    noHistoryUntil: new Date(Date.now() + 3600 * 1000).toISOString(),
+                    name: 'New iPad'
+                }
+            };
+
+            await monitor.check();
+
+            expect(solotodo.getProductHistory).not.toHaveBeenCalled();
+
+            // Expire the negative cache
+            monitor.state['99'].noHistoryUntil = new Date(Date.now() - 3600 * 1000).toISOString();
+            solotodo.getProductHistory.mockResolvedValueOnce([
+                {
+                    entity: { currency: solotodo.SOLOTODO_CLP_CURRENCY_URL, condition: 'https://schema.org/NewCondition', store: 'https://api.com/stores/1/' },
+                    pricing_history: [{ is_available: true, offer_price: "450000", normal_price: "450000", timestamp: "2025-01-01T00:00:00.000Z" }]
+                }
+            ]);
+
+            await monitor.check();
+
+            expect(solotodo.getProductHistory).toHaveBeenCalledWith('99');
+            expect(monitor.state['99'].uninitialized).toBeUndefined();
+            expect(monitor.state['99'].minOfferPrice).toBe(450000);
+        });
+
+        it('should use found historic price instead of browse prices when only one price is found in history', async () => {
+            const product = { id: 99, name: 'New iPad', offerPrice: 300000, normalPrice: 350000 };
+            monitor.fetch = jest.fn().mockResolvedValue([product]);
+            monitor.state = {};
+            solotodo.getProductHistory.mockResolvedValueOnce([
+                {
+                    entity: { currency: solotodo.SOLOTODO_CLP_CURRENCY_URL, condition: 'https://schema.org/NewCondition', store: 'https://api.com/stores/1/' },
+                    pricing_history: [{ is_available: true, offer_price: "450000", normal_price: "NaN", timestamp: "2025-01-01T00:00:00.000Z" }]
+                }
+            ]);
+
+            await monitor.check();
+
+            expect(monitor.state['99'].minOfferPrice).toBe(450000);
+            expect(monitor.state['99'].minNormalPrice).toBe(450000);
         });
 
         it('should revert candidate deals when storeMap is unavailable', async () => {

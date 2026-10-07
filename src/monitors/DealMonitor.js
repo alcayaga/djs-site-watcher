@@ -11,6 +11,7 @@ const { downloadImage } = require('../utils/image');
 const logger = require('../utils/logger');
 
 const MIN_SANITY_PRICE = 1000; // Anything below 1,000 CLP is likely an error for Apple products in these categories
+const NO_HISTORY_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours negative-cache TTL for products with no valid history
 
 /**
  * Predicate to check if a price entry corresponds to Chilean Pesos (CLP).
@@ -329,8 +330,10 @@ class DealMonitor extends Monitor {
                 // Create a shallow copy to ensure immutable updates
                 let stored = newState[productId] ? { ...newState[productId] } : null;
 
-                if (!stored) {
-                    // First time seeing this product
+                const isUninitialized = !stored || stored.uninitialized;
+
+                if (isUninitialized) {
+                    // First time seeing this product or retrying after negative cache expiry
                     let minOffer = Infinity;
                     let minNormal = Infinity;
                     let minOfferDate = now;
@@ -340,6 +343,18 @@ class DealMonitor extends Monitor {
                         if (!storeMap) {
                             logger.warn('[DealMonitor] Skipping initialization for %s (ID: %s): storeMap unavailable.', product.name, productId);
                             continue;
+                        }
+
+                        // Check finite negative-cache expiry before calling getProductHistory
+                        const nowTime = new Date(now).getTime();
+                        if (stored?.uninitialized && stored.noHistoryUntil) {
+                            const expiryTime = new Date(stored.noHistoryUntil).getTime();
+                            if (nowTime < expiryTime) {
+                                if (this.config.verboseLogging) {
+                                    logger.info('[DealMonitor] Skipping history lookup for %s (ID: %s): negative cache active until %s.', product.name, productId, stored.noHistoryUntil);
+                                }
+                                continue;
+                            }
                         }
 
                         logger.info('New product detected: %s (ID: %s). Backfilling history...', product.name, productId);
@@ -379,18 +394,25 @@ class DealMonitor extends Monitor {
                             }
 
                             if (!foundOffer && !foundNormal) {
-                                logger.warn('[DealMonitor] Skipping initialization for %s (ID: %s): no valid history records found.', product.name, productId);
+                                logger.warn('[DealMonitor] Skipping initialization for %s (ID: %s): no valid history records found. Caching negative result.', product.name, productId);
+                                const retryAfter = new Date(nowTime + NO_HISTORY_CACHE_TTL_MS).toISOString();
+                                newState[productId] = {
+                                    uninitialized: true,
+                                    noHistoryUntil: retryAfter,
+                                    name: product.name
+                                };
+                                hasChanges = true;
                                 await sleep(this.config.apiDelay);
                                 continue;
                             }
 
                             if (!foundOffer) {
-                                minOffer = product.offerPrice;
-                                minOfferDate = now;
+                                minOffer = minNormal;
+                                minOfferDate = minNormalDate;
                             }
                             if (!foundNormal) {
-                                minNormal = product.normalPrice;
-                                minNormalDate = now;
+                                minNormal = minOffer;
+                                minNormalDate = minOfferDate;
                             }
 
                             if (this.config.verboseLogging) {
