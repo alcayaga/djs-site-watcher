@@ -1,4 +1,4 @@
-const { sanitizeMarkdown, sanitizeLinkText, formatPriceValue } = require('../../src/utils/formatters');
+const { sanitizeMarkdown, sanitizeLinkText, formatPriceValue, toSafeMarkdownUrl } = require('../../src/utils/formatters');
 
 describe('Formatters Utils', () => {
     describe('formatPriceValue', () => {
@@ -79,6 +79,23 @@ describe('Formatters Utils', () => {
             const input = 'User <@123456>';
             const expected = 'User \\<@123456\\>';
             expect(sanitizeLinkText(input)).toBe(expected);
+        });
+    });
+
+    describe('toSafeMarkdownUrl', () => {
+        it('should return valid HTTP and HTTPS URLs encoded for markdown', () => {
+            expect(toSafeMarkdownUrl('https://example.com/product(1)[test]')).toBe('https://example.com/product%281%29%5Btest%5D');
+            expect(toSafeMarkdownUrl('http://example.com/item')).toBe('http://example.com/item');
+            expect(toSafeMarkdownUrl('https://example.com/item%20name?ref=test%26promo')).toBe('https://example.com/item%20name?ref=test%26promo');
+        });
+
+        it('should fallback to # for invalid protocols or malformed URLs', () => {
+            expect(toSafeMarkdownUrl('javascript:alert(1)')).toBe('#');
+            expect(toSafeMarkdownUrl('data:text/html,test')).toBe('#');
+            expect(toSafeMarkdownUrl('not-a-url')).toBe('#');
+            expect(toSafeMarkdownUrl('')).toBe('#');
+            expect(toSafeMarkdownUrl(null)).toBe('#');
+            expect(toSafeMarkdownUrl(undefined)).toBe('#');
         });
     });
 });

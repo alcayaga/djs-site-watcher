@@ -16,7 +16,12 @@ jest.mock('../../src/utils/logger', () => ({
 }));
 jest.mock('../../src/utils/solotodo', () => ({
     ...jest.requireActual('../../src/utils/solotodo'),
-    getProductHistory: jest.fn().mockResolvedValue([]),
+    getProductHistory: jest.fn().mockResolvedValue([
+        {
+            entity: { currency: 'https://api.solotodo.com/currencies/1/', condition: 'https://schema.org/NewCondition', store: 'https://api.com/stores/1/' },
+            pricing_history: [{ is_available: true, offer_price: "10000", normal_price: "10000", timestamp: "2025-01-01T00:00:00.000Z" }]
+        }
+    ]),
     getBestPictureUrl: jest.fn().mockImplementation(p => Promise.resolve(p.pictureUrl || p.picture_url)),
     getAvailableEntities: jest.fn().mockResolvedValue([
         // Using realistic prices (>= 1000) to satisfy DealMonitor.MIN_SANITY_PRICE
@@ -1041,7 +1046,7 @@ describe('DealMonitor', () => {
                 const embed = sendCall.embeds[0];
                 const offerField = embed.data.fields.find(f => f.name === 'Tarjeta CMR');
                 expect(offerField).toBeDefined();
-                expect(embed.data.url).toBe('http://store-a.com');
+                expect(embed.data.url).toBe('http://store-a.com/');
             });
 
             it('should use Precio Oferta when multiple stores match', async () => {
@@ -1062,7 +1067,7 @@ describe('DealMonitor', () => {
                 expect(offerField).toBeDefined();
                 
                 // Should pick Store A because lowest normal_price
-                expect(embed.data.url).toBe('http://store-a.com');
+                expect(embed.data.url).toBe('http://store-a.com/');
             });
 
             it('should prefer store with offer == normal price for URL tie-breaker', async () => {
@@ -1080,7 +1085,7 @@ describe('DealMonitor', () => {
                 const sendCall = mockChannel.send.mock.calls[0][0];
                 const embed = sendCall.embeds[0];
                 // Store B has offer == normal so it should be prioritized
-                expect(embed.data.url).toBe('http://store-b.com');
+                expect(embed.data.url).toBe('http://store-b.com/');
             });
         });
     });
@@ -1338,7 +1343,7 @@ describe('DealMonitor', () => {
             expect(monitor._getTolerance()).toBe(1000);
         });
 
-        it('should skip history backfill when storeMap is unavailable', async () => {
+        it('should skip creating entry when storeMap is unavailable', async () => {
             const product = { id: 99, name: 'New iPad', offerPrice: 500000, normalPrice: 500000 };
             monitor.fetch = jest.fn().mockResolvedValue([product]);
             monitor.state = {};
@@ -1347,8 +1352,29 @@ describe('DealMonitor', () => {
             await monitor.check();
 
             expect(solotodo.getProductHistory).not.toHaveBeenCalled();
-            expect(monitor.state['99'].minOfferPrice).toBe(500000);
-            expect(monitor.state['99'].minNormalPrice).toBe(500000);
+            expect(monitor.state['99']).toBeUndefined();
+        });
+
+        it('should skip creating entry when history backfill throws an error', async () => {
+            const product = { id: 99, name: 'New iPad', offerPrice: 500000, normalPrice: 500000 };
+            monitor.fetch = jest.fn().mockResolvedValue([product]);
+            monitor.state = {};
+            solotodo.getProductHistory.mockRejectedValueOnce(new Error('History API failure'));
+
+            await monitor.check();
+
+            expect(monitor.state['99']).toBeUndefined();
+        });
+
+        it('should skip creating entry when no valid history records are found', async () => {
+            const product = { id: 99, name: 'New iPad', offerPrice: 500000, normalPrice: 500000 };
+            monitor.fetch = jest.fn().mockResolvedValue([product]);
+            monitor.state = {};
+            solotodo.getProductHistory.mockResolvedValueOnce([]);
+
+            await monitor.check();
+
+            expect(monitor.state['99']).toBeUndefined();
         });
 
         it('should revert candidate deals when storeMap is unavailable', async () => {
@@ -1410,6 +1436,109 @@ describe('DealMonitor', () => {
             // minOfferPrice is reverted to previous safe minimum 650.000, not corrupted to 640.000
             expect(monitor.state['1'].minOfferPrice).toBe(650000);
             expect(monitor.state['1'].suppressedOfferPrice).toBe(640000);
+        });
+
+        it('should re-evaluate valid minimum drop if refurbished offer is suppressed but a genuine valid drop exists', async () => {
+            // Refurbished store offers 399.990 (browse price 399.990)
+            // But a genuine valid store offers 599.990, which is lower than previous minOfferPrice 650.000
+            const product = { id: 1, name: 'iPad mini 6', offerPrice: 399990, normalPrice: 777293 };
+            monitor.fetch = jest.fn().mockResolvedValue([product]);
+            monitor.state = {
+                '1': {
+                    name: 'iPad mini 6',
+                    minOfferPrice: 650000,
+                    minNormalPrice: 650000,
+                    notifiedMinOfferPrice: 650000,
+                    notifiedMinNormalPrice: 650000,
+                    lastOfferPrice: 777293,
+                    lastNormalPrice: 777293
+                }
+            };
+
+            solotodo.getStores.mockResolvedValue(new Map([
+                [6101, { id: 6101, name: 'BackOnline' }],
+                [1, { id: 1, name: 'MacOnline' }]
+            ]));
+            solotodo.getAvailableEntities.mockResolvedValue([
+                {
+                    store: 6101,
+                    condition: 'https://schema.org/NewCondition',
+                    external_url: 'https://backonline.cl/products/ipad',
+                    active_registry: { offer_price: '399990', normal_price: '399990', cell_monthly_payment: null }
+                },
+                {
+                    store: 1,
+                    condition: 'https://schema.org/NewCondition',
+                    external_url: 'https://maconline.com/products/ipad',
+                    active_registry: { offer_price: '599990', normal_price: '777293', cell_monthly_payment: null }
+                }
+            ]);
+
+            await monitor.check();
+
+            expect(solotodo.getAvailableEntities).toHaveBeenCalledWith(1);
+            // Notification should be sent for the genuine deal
+            expect(mockChannel.send).toHaveBeenCalled();
+            const sendCall = mockChannel.send.mock.calls[0][0];
+            const embed = sendCall.embeds[0];
+            const offerField = embed.data.fields.find(f => f.name.includes('Oferta') || f.name.includes('Precio'));
+            expect(offerField.value).toContain('$599.990');
+            expect(offerField.value).not.toContain('$399.990');
+
+            // Stored minOfferPrice should be updated to genuine drop (599990), not refurbished (399990) nor reverted (650000)
+            expect(monitor.state['1'].minOfferPrice).toBe(599990);
+            expect(monitor.state['1'].lastOfferPrice).toBe(599990);
+            expect(monitor.state['1'].suppressedOfferPrice).toBe(399990);
+        });
+
+        it('should re-evaluate valid normal minimum drop if refurbished normal is suppressed but a genuine valid normal drop exists', async () => {
+            const product = { id: 1, name: 'iPad mini 6', offerPrice: 777293, normalPrice: 399990 };
+            monitor.fetch = jest.fn().mockResolvedValue([product]);
+            monitor.state = {
+                '1': {
+                    name: 'iPad mini 6',
+                    minOfferPrice: 650000,
+                    minNormalPrice: 650000,
+                    notifiedMinOfferPrice: 650000,
+                    notifiedMinNormalPrice: 650000,
+                    lastOfferPrice: 777293,
+                    lastNormalPrice: 777293
+                }
+            };
+
+            solotodo.getStores.mockResolvedValue(new Map([
+                [6101, { id: 6101, name: 'BackOnline' }],
+                [1, { id: 1, name: 'MacOnline' }]
+            ]));
+            solotodo.getAvailableEntities.mockResolvedValue([
+                {
+                    store: 6101,
+                    condition: 'https://schema.org/NewCondition',
+                    external_url: 'https://backonline.cl/products/ipad',
+                    active_registry: { offer_price: '399990', normal_price: '399990', cell_monthly_payment: null }
+                },
+                {
+                    store: 1,
+                    condition: 'https://schema.org/NewCondition',
+                    external_url: 'https://maconline.com/products/ipad',
+                    active_registry: { offer_price: '777293', normal_price: '599990', cell_monthly_payment: null }
+                }
+            ]);
+
+            await monitor.check();
+
+            expect(solotodo.getAvailableEntities).toHaveBeenCalledWith(1);
+            expect(mockChannel.send).toHaveBeenCalled();
+            const sendCall = mockChannel.send.mock.calls[0][0];
+            const embed = sendCall.embeds[0];
+            const normalField = embed.data.fields.find(f => f.name === 'Precio Normal');
+            expect(normalField).toBeDefined();
+            expect(normalField.value).toContain('$599.990');
+            expect(normalField.value).not.toContain('$399.990');
+
+            expect(monitor.state['1'].minNormalPrice).toBe(599990);
+            expect(monitor.state['1'].lastNormalPrice).toBe(599990);
+            expect(monitor.state['1'].suppressedNormalPrice).toBe(399990);
         });
     });
 });

@@ -1,7 +1,7 @@
 const { ThreadAutoArchiveDuration, EmbedBuilder, RESTJSONErrorCodes } = require('discord.js');
 const ChannelHandler = require('../ChannelHandler');
 const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl, getAvailableEntities, getStores, filterValidEntities } = require('../utils/solotodo');
-const { sanitizeLinkText, formatCLP, sanitizeMarkdown } = require('../utils/formatters');
+const { sanitizeLinkText, formatCLP, sanitizeMarkdown, toSafeMarkdownUrl } = require('../utils/formatters');
 const logger = require('../utils/logger');
 
 /**
@@ -108,7 +108,7 @@ class DealsChannel extends ChannelHandler {
                             const priceList = filteredEntities.map(entity => {
                                 const storeData = storeMap.get(entity.store);
                                 const storeName = storeData?.name || 'Tienda';
-                                const safeUrl = (entity.external_url || '#').replace(/\)/g, '%29').replace(/\(/g, '%28');
+                                const safeUrl = toSafeMarkdownUrl(entity.external_url);
                                 let line = `• [${sanitizeLinkText(storeName)}](${safeUrl}): **${formatCLP(entity.offerPriceNum)}**`;
                                 if (Math.floor(entity.normalPriceNum) !== Math.floor(entity.offerPriceNum)) {
                                     line += ` (Normal: ${formatCLP(entity.normalPriceNum)})`;

@@ -4,6 +4,9 @@
  * Script to fix corrupted deal state for product 125322 (iPad Mini 6) in config/deals.json.
  * This repairs the false-positive historic minimum ($399.990) caused by BackOnline (refurbished store),
  * restoring the true historic minimum ($649.990) and current valid market price ($777.293).
+ *
+ * NOTE: Stop the bot process before running this script to avoid concurrent in-memory state overwrites,
+ * and restart the bot afterward so it loads the repaired state from disk.
  */
 
 const fs = require('fs');
@@ -62,7 +65,15 @@ try {
     delete deals[productId].suppressedOfferTime;
     delete deals[productId].suppressedNormalTime;
 
-    fs.writeFileSync(dealsFilePath, JSON.stringify(deals, null, 2) + '\n', 'utf8');
+    const tempDealsFilePath = `${dealsFilePath}.tmp_${process.pid}_${Date.now()}`;
+    try {
+        fs.writeFileSync(tempDealsFilePath, JSON.stringify(deals, null, 2) + '\n', 'utf8');
+        fs.renameSync(tempDealsFilePath, dealsFilePath);
+    } finally {
+        if (fs.existsSync(tempDealsFilePath)) {
+            fs.unlinkSync(tempDealsFilePath);
+        }
+    }
     const updatedEntry = deals[productId];
     console.log(`Successfully restored product ${productId} in ${dealsFilePath}:`);
     console.log(`New state: minOffer=${updatedEntry.minOfferPrice}, minNormal=${updatedEntry.minNormalPrice}, lastOffer=${updatedEntry.lastOfferPrice}, lastNormal=${updatedEntry.lastNormalPrice}`);

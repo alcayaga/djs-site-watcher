@@ -123,7 +123,40 @@ describe('DealsChannel', () => {
         expect(embed.data.url).toBe('https://solotodo.cl/products/123');
         expect(embed.data.description).toContain('[Apple iPhone 15](https://solotodo.cl/products/123)');
         expect(embed.addFields).toHaveBeenCalledWith(expect.objectContaining({
-            name: expect.stringContaining('precios')
+            name: expect.stringContaining('precios'),
+            value: expect.stringContaining('• [Store 1](https://store.com/p123): **$799.990** (Normal: $899.990)')
+        }));
+    });
+
+    it('should sanitize URLs and fall back to # for invalid protocols in price list embed', async () => {
+        const product = { id: 123, name: 'Apple iPhone 15', slug: 'apple-iphone-15' };
+        solotodo.searchByUrl.mockResolvedValue(product);
+        solotodo.getAvailableEntities.mockResolvedValue([
+            {
+                store: 'https://store.com/1/',
+                external_url: 'javascript:alert(1)',
+                active_registry: { offer_price: '500000', normal_price: '500000', is_available: true, cell_monthly_payment: null }
+            },
+            {
+                store: 'https://store.com/2/',
+                external_url: 'https://store.com/item(1)[test]',
+                active_registry: { offer_price: '600000', normal_price: '600000', is_available: true, cell_monthly_payment: null }
+            }
+        ]);
+        solotodo.getStores.mockResolvedValue(new Map([
+            ['https://store.com/1/', { name: 'Store 1' }],
+            ['https://store.com/2/', { name: 'Store 2' }]
+        ]));
+        solotodo.getProductUrl.mockReturnValue('https://solotodo.cl/products/123');
+
+        mockMessage.content = 'Oferta: https://some-store.com/iphone15';
+        await handler.handle(mockMessage, mockState);
+
+        const thread = await mockMessage.startThread.mock.results[0].value;
+        const embed = thread.send.mock.calls[0][0].embeds[0];
+        expect(embed.addFields).toHaveBeenCalledWith(expect.objectContaining({
+            name: expect.stringContaining('precios'),
+            value: expect.stringContaining('• [Store 1](#): **$500.000**\n• [Store 2](https://store.com/item%281%29%5Btest%5D): **$600.000**')
         }));
     });
 
