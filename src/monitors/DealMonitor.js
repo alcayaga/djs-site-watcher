@@ -119,6 +119,16 @@ class DealMonitor extends Monitor {
     }
 
     /**
+     * Gets the configured price tolerance in CLP, falling back to DEFAULT_PRICE_TOLERANCE.
+     * @private
+     * @returns {number} The price tolerance.
+     */
+    _getTolerance() {
+        const parsedTolerance = parseInt(this.config.priceTolerance, 10);
+        return !Number.isNaN(parsedTolerance) ? parsedTolerance : DEFAULT_PRICE_TOLERANCE;
+    }
+
+    /**
      * Internal helper to check for price updates and determine notification type.
      * @private
      * @param {object} product The product object.
@@ -143,8 +153,7 @@ class DealMonitor extends Monitor {
             stateMigrated = true;
         }
         
-        const parsedTolerance = parseInt(this.config.priceTolerance, 10);
-        const tolerance = !Number.isNaN(parsedTolerance) ? parsedTolerance : DEFAULT_PRICE_TOLERANCE;
+        const tolerance = this._getTolerance();
         
         const parsedMinDropPct = parseFloat(this.config.minDropPercentage);
         const minDropPercentage = !Number.isNaN(parsedMinDropPct) ? parsedMinDropPct : DEFAULT_MIN_DROP_PERCENTAGE;
@@ -299,7 +308,12 @@ class DealMonitor extends Monitor {
         try {
             const data = await this.fetch();
             const products = this.parse(data);
-            const storeMap = await solotodo.getStores();
+            let storeMap = null;
+            try {
+                storeMap = await solotodo.getStores();
+            } catch (storeError) {
+                logger.error('Error fetching stores for %s:', this.name, storeError);
+            }
             
             let hasChanges = false;
             const newState = { ...this.state };
@@ -321,46 +335,52 @@ class DealMonitor extends Monitor {
                     let minNormalDate = new Date().toISOString();
 
                     if (!isSingleRun) {
-                        logger.info('New product detected: %s (ID: %s). Backfilling history...', product.name, productId);
-                        try {
-                            const history = await solotodo.getProductHistory(productId);
-                            let foundValidHistory = false;
-                            for (const entity of history) {
-                                // Only backfill history from CLP (Currency 1) entities
-                                const entityCurrency = entity.entity?.currency;
-                                if (entityCurrency !== solotodo.SOLOTODO_CLP_CURRENCY_URL && String(entityCurrency) !== solotodo.SOLOTODO_CLP_CURRENCY_ID) {
-                                    continue;
-                                }
-
-                                // Skip non-new, refurbished, or banned stores
-                                if (!solotodo.isValidEntity(entity.entity, storeMap)) {
-                                    continue;
-                                }
-
-                                for (const record of entity.pricing_history) {
-                                    if (!record.is_available) continue;
-                                    const offer = parseFloat(record.offer_price);
-                                    const normal = parseFloat(record.normal_price);
-                                    
-                                    // Update on <= to capture the LAST seen date of the minimum price
-                                    if (offer >= MIN_SANITY_PRICE && (!foundValidHistory || offer <= minOffer)) {
-                                        minOffer = offer;
-                                        minOfferDate = record.timestamp;
+                        if (!storeMap) {
+                            logger.warn('[DealMonitor] Skipping history backfill for %s (ID: %s): storeMap unavailable.', product.name, productId);
+                        } else {
+                            logger.info('New product detected: %s (ID: %s). Backfilling history...', product.name, productId);
+                            try {
+                                const history = await solotodo.getProductHistory(productId);
+                                let foundOffer = false;
+                                let foundNormal = false;
+                                for (const entity of history) {
+                                    // Only backfill history from CLP (Currency 1) entities
+                                    const entityCurrency = entity.entity?.currency;
+                                    if (entityCurrency !== solotodo.SOLOTODO_CLP_CURRENCY_URL && String(entityCurrency) !== solotodo.SOLOTODO_CLP_CURRENCY_ID) {
+                                        continue;
                                     }
-                                    if (normal >= MIN_SANITY_PRICE && (!foundValidHistory || normal <= minNormal)) {
-                                        minNormal = normal;
-                                        minNormalDate = record.timestamp;
+
+                                    // Skip non-new, refurbished, or banned stores
+                                    if (!solotodo.isValidEntity(entity.entity, storeMap)) {
+                                        continue;
                                     }
-                                    foundValidHistory = true;
+
+                                    for (const record of entity.pricing_history) {
+                                        if (!record.is_available) continue;
+                                        const offer = parseFloat(record.offer_price);
+                                        const normal = parseFloat(record.normal_price);
+                                        
+                                        // Update on <= to capture the LAST seen date of the minimum price
+                                        if (offer >= MIN_SANITY_PRICE && (!foundOffer || offer <= minOffer)) {
+                                            minOffer = offer;
+                                            minOfferDate = record.timestamp;
+                                            foundOffer = true;
+                                        }
+                                        if (normal >= MIN_SANITY_PRICE && (!foundNormal || normal <= minNormal)) {
+                                            minNormal = normal;
+                                            minNormalDate = record.timestamp;
+                                            foundNormal = true;
+                                        }
+                                    }
                                 }
+                                if (this.config.verboseLogging) {
+                                    logger.info('[DealMonitor] Backfill for %s (ID: %s) complete. Min Offer: %s (%s), Min Normal: %s (%s)', product.name, productId, formatCLP(minOffer), minOfferDate, formatCLP(minNormal), minNormalDate);
+                                }
+                                // Delay to avoid bursting API
+                                await sleep(this.config.apiDelay);
+                            } catch (historyError) {
+                                logger.error('Error backfilling history for product %s:', productId, historyError);
                             }
-                            if (this.config.verboseLogging) {
-                                logger.info('[DealMonitor] Backfill for %s (ID: %s) complete. Min Offer: %s (%s), Min Normal: %s (%s)', product.name, productId, formatCLP(minOffer), minOfferDate, formatCLP(minNormal), minNormalDate);
-                            }
-                            // Delay to avoid bursting API
-                            await sleep(this.config.apiDelay);
-                        } catch (historyError) {
-                            logger.error('Error backfilling history for product %s:', productId, historyError);
                         }
                     }
 
@@ -393,85 +413,170 @@ class DealMonitor extends Monitor {
                 const prevMinOffer = stored.minOfferPrice;
                 const prevMinOfferDate = stored.minOfferDate;
                 const prevNotifiedMinOffer = stored.notifiedMinOfferPrice;
+                const prevPendingExitOffer = stored.pendingExitOffer;
 
                 const prevMinNormal = stored.minNormalPrice;
                 const prevMinNormalDate = stored.minNormalDate;
                 const prevNotifiedMinNormal = stored.notifiedMinNormalPrice;
+                const prevPendingExitNormal = stored.pendingExitNormal;
+                const prevSuppressedOffer = stored.suppressedOfferPrice;
+                const prevSuppressedNormal = stored.suppressedNormalPrice;
 
-                let offerTrigger = this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer');
-                let normalTrigger = this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal');
+                let offerTrigger = null;
+                let normalTrigger = null;
+
+                /**
+                 * Restores offer price state to pre-check snapshot.
+                 * @param {number} [targetPrice=previousOfferPrice] Price to set as lastOfferPrice.
+                 */
+                const restoreOffer = (targetPrice = previousOfferPrice) => {
+                    stored.minOfferPrice = prevMinOffer;
+                    stored.minOfferDate = prevMinOfferDate;
+                    stored.notifiedMinOfferPrice = prevNotifiedMinOffer;
+                    if (prevPendingExitOffer !== undefined) {
+                        stored.pendingExitOffer = prevPendingExitOffer;
+                    } else {
+                        delete stored.pendingExitOffer;
+                    }
+                    stored.lastOfferPrice = targetPrice;
+                    offerTrigger = null;
+                };
+
+                /**
+                 * Restores normal price state to pre-check snapshot.
+                 * @param {number} [targetPrice=previousNormalPrice] Price to set as lastNormalPrice.
+                 */
+                const restoreNormal = (targetPrice = previousNormalPrice) => {
+                    stored.minNormalPrice = prevMinNormal;
+                    stored.minNormalDate = prevMinNormalDate;
+                    stored.notifiedMinNormalPrice = prevNotifiedMinNormal;
+                    if (prevPendingExitNormal !== undefined) {
+                        stored.pendingExitNormal = prevPendingExitNormal;
+                    } else {
+                        delete stored.pendingExitNormal;
+                    }
+                    stored.lastNormalPrice = targetPrice;
+                    normalTrigger = null;
+                };
+
+                offerTrigger = this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer');
+                normalTrigger = this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal');
+
+                // Expire cached suppression after TTL (6 hours) or when browse price changes
+                const SUPPRESSION_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+                const nowTime = new Date(now).getTime();
+
+                if (stored.suppressedOfferPrice !== undefined) {
+                    const isExpired = stored.suppressedOfferTime &&
+                        (nowTime - new Date(stored.suppressedOfferTime).getTime() >= SUPPRESSION_CACHE_TTL_MS);
+                    if (stored.suppressedOfferPrice !== currentOffer || isExpired) {
+                        delete stored.suppressedOfferPrice;
+                        delete stored.suppressedOfferValidMin;
+                        delete stored.suppressedOfferTime;
+                    }
+                }
+
+                if (stored.suppressedNormalPrice !== undefined) {
+                    const isExpired = stored.suppressedNormalTime &&
+                        (nowTime - new Date(stored.suppressedNormalTime).getTime() >= SUPPRESSION_CACHE_TTL_MS);
+                    if (stored.suppressedNormalPrice !== currentNormal || isExpired) {
+                        delete stored.suppressedNormalPrice;
+                        delete stored.suppressedNormalValidMin;
+                        delete stored.suppressedNormalTime;
+                    }
+                }
+
+                // Determine if offer or normal prices require verification against available merchants
+                // Verification is required if a candidate deal trigger fired, or if a lowered historic minimum was recorded
+                let needsOfferVerification = Boolean((offerTrigger && offerTrigger !== 'CHANGED' && offerTrigger !== 'PENDING') || (stored.minOfferPrice < prevMinOffer));
+                let needsNormalVerification = Boolean((normalTrigger && normalTrigger !== 'CHANGED' && normalTrigger !== 'PENDING') || (stored.minNormalPrice < prevMinNormal));
+
+                // If a previous check already verified that currentOffer/Normal is an unsupported refurbished price,
+                // and the cached suppression is still valid, suppress immediately to avoid repeated API calls.
+                if (needsOfferVerification && stored.suppressedOfferPrice === currentOffer) {
+                    restoreOffer(previousOfferPrice);
+                    needsOfferVerification = false;
+                }
+                if (needsNormalVerification && stored.suppressedNormalPrice === currentNormal) {
+                    restoreNormal(previousNormalPrice);
+                    needsNormalVerification = false;
+                }
 
                 // Verify deal triggers against valid non-refurbished stock
-                const candidateTriggers = [offerTrigger, normalTrigger].filter(t => t && t !== 'CHANGED' && t !== 'PENDING');
                 let verifiedEntities = null;
 
-                if (candidateTriggers.length > 0) {
-                    try {
-                        const rawEntities = await solotodo.getAvailableEntities(product.id);
-                        const validEntities = solotodo.filterValidEntities(rawEntities, storeMap);
+                if (needsOfferVerification || needsNormalVerification) {
+                    if (!storeMap) {
+                        logger.warn('[DealMonitor] Store information unavailable. Reverting candidate deals for %s (ID: %s) to prevent unverified alerts.', product.name, productId);
+                        if (needsOfferVerification) restoreOffer(previousOfferPrice);
+                        if (needsNormalVerification) restoreNormal(previousNormalPrice);
+                    } else {
+                        try {
+                            const rawEntities = await solotodo.getAvailableEntities(product.id);
+                            const validEntities = solotodo.filterValidEntities(rawEntities, storeMap);
 
-                        let minValidOffer = Infinity;
-                        let minValidNormal = Infinity;
-                        for (const entity of validEntities) {
-                            const off = parseFloat(entity.active_registry?.offer_price);
-                            const norm = parseFloat(entity.active_registry?.normal_price);
-                            if (!isNaN(off) && off >= MIN_SANITY_PRICE && off < minValidOffer) {
-                                minValidOffer = off;
-                            }
-                            if (!isNaN(norm) && norm >= MIN_SANITY_PRICE && norm < minValidNormal) {
-                                minValidNormal = norm;
-                            }
-                        }
-
-                        const parsedTolerance = parseInt(this.config.priceTolerance, 10);
-                        const tolerance = !Number.isNaN(parsedTolerance) ? parsedTolerance : DEFAULT_PRICE_TOLERANCE;
-
-                        // Check offer deal validity
-                        if (offerTrigger && offerTrigger !== 'CHANGED' && offerTrigger !== 'PENDING') {
-                            const isOfferSupported = minValidOffer <= (currentOffer + tolerance);
-                            if (!isOfferSupported) {
-                                if (this.config.verboseLogging) {
-                                    logger.warn('[DealMonitor] Suppressing %s for %s (ID: %s) at %s: Not supported by any valid merchant (best valid: %s). Reverting min.',
-                                        offerTrigger, product.name, productId, formatCLP(currentOffer), formatCLP(minValidOffer));
+                            let minValidOffer = Infinity;
+                            let minValidNormal = Infinity;
+                            for (const entity of validEntities) {
+                                const off = parseFloat(entity.active_registry?.offer_price);
+                                const norm = parseFloat(entity.active_registry?.normal_price);
+                                if (!isNaN(off) && off >= MIN_SANITY_PRICE && off < minValidOffer) {
+                                    minValidOffer = off;
                                 }
-                                stored.minOfferPrice = prevMinOffer;
-                                stored.minOfferDate = prevMinOfferDate;
-                                stored.notifiedMinOfferPrice = prevNotifiedMinOffer;
-                                stored.lastOfferPrice = minValidOffer < Infinity ? minValidOffer : previousOfferPrice;
-                                offerTrigger = null;
-                            }
-                        }
-
-                        // Check normal deal validity
-                        if (normalTrigger && normalTrigger !== 'CHANGED' && normalTrigger !== 'PENDING') {
-                            const isNormalSupported = minValidNormal <= (currentNormal + tolerance);
-                            if (!isNormalSupported) {
-                                if (this.config.verboseLogging) {
-                                    logger.warn('[DealMonitor] Suppressing %s for %s (ID: %s) at %s: Not supported by any valid merchant (best valid: %s). Reverting min.',
-                                        normalTrigger, product.name, productId, formatCLP(currentNormal), formatCLP(minValidNormal));
+                                if (!isNaN(norm) && norm >= MIN_SANITY_PRICE && norm < minValidNormal) {
+                                    minValidNormal = norm;
                                 }
-                                stored.minNormalPrice = prevMinNormal;
-                                stored.minNormalDate = prevMinNormalDate;
-                                stored.notifiedMinNormalPrice = prevNotifiedMinNormal;
-                                stored.lastNormalPrice = minValidNormal < Infinity ? minValidNormal : previousNormalPrice;
-                                normalTrigger = null;
                             }
-                        }
 
-                        verifiedEntities = validEntities;
-                    } catch (entityError) {
-                        logger.error('Error verifying entities for product %s:', productId, entityError);
-                        // Fail safe: Revert mutations made by _checkPriceUpdate so unverified deals are not saved or notified
-                        stored.minOfferPrice = prevMinOffer;
-                        stored.minOfferDate = prevMinOfferDate;
-                        stored.notifiedMinOfferPrice = prevNotifiedMinOffer;
-                        stored.minNormalPrice = prevMinNormal;
-                        stored.minNormalDate = prevMinNormalDate;
-                        stored.notifiedMinNormalPrice = prevNotifiedMinNormal;
-                        stored.lastOfferPrice = previousOfferPrice;
-                        stored.lastNormalPrice = previousNormalPrice;
-                        offerTrigger = null;
-                        normalTrigger = null;
+                            const tolerance = this._getTolerance();
+
+                            // Check offer deal validity
+                            if (needsOfferVerification) {
+                                const isOfferSupported = minValidOffer <= (currentOffer + tolerance);
+                                if (!isOfferSupported) {
+                                    if (this.config.verboseLogging) {
+                                        logger.warn('[DealMonitor] Suppressing %s for %s (ID: %s) at %s: Not supported by any valid merchant (best valid: %s). Reverting min.',
+                                            offerTrigger || 'min drop', product.name, productId, formatCLP(currentOffer), formatCLP(minValidOffer));
+                                    }
+                                    const fallbackOfferPrice = minValidOffer < Infinity ? minValidOffer : previousOfferPrice;
+                                    restoreOffer(fallbackOfferPrice);
+                                    stored.suppressedOfferPrice = currentOffer;
+                                    stored.suppressedOfferValidMin = minValidOffer < Infinity ? minValidOffer : null;
+                                    stored.suppressedOfferTime = now;
+                                } else {
+                                    delete stored.suppressedOfferPrice;
+                                    delete stored.suppressedOfferValidMin;
+                                    delete stored.suppressedOfferTime;
+                                }
+                            }
+
+                            // Check normal deal validity
+                            if (needsNormalVerification) {
+                                const isNormalSupported = minValidNormal <= (currentNormal + tolerance);
+                                if (!isNormalSupported) {
+                                    if (this.config.verboseLogging) {
+                                        logger.warn('[DealMonitor] Suppressing %s for %s (ID: %s) at %s: Not supported by any valid merchant (best valid: %s). Reverting min.',
+                                            normalTrigger || 'min drop', product.name, productId, formatCLP(currentNormal), formatCLP(minValidNormal));
+                                    }
+                                    const fallbackNormalPrice = minValidNormal < Infinity ? minValidNormal : previousNormalPrice;
+                                    restoreNormal(fallbackNormalPrice);
+                                    stored.suppressedNormalPrice = currentNormal;
+                                    stored.suppressedNormalValidMin = minValidNormal < Infinity ? minValidNormal : null;
+                                    stored.suppressedNormalTime = now;
+                                } else {
+                                    delete stored.suppressedNormalPrice;
+                                    delete stored.suppressedNormalValidMin;
+                                    delete stored.suppressedNormalTime;
+                                }
+                            }
+
+                            verifiedEntities = validEntities;
+                        } catch (entityError) {
+                            logger.error('Error verifying entities for product %s:', productId, entityError);
+                            // Fail safe: Revert mutations made by _checkPriceUpdate so unverified deals are not saved or notified
+                            if (needsOfferVerification) restoreOffer(previousOfferPrice);
+                            if (needsNormalVerification) restoreNormal(previousNormalPrice);
+                        }
                     }
                 }
 
@@ -488,7 +593,8 @@ class DealMonitor extends Monitor {
                 }
 
                 const priceChanged = stored.lastOfferPrice !== previousOfferPrice || stored.lastNormalPrice !== previousNormalPrice;
-                let productChanged = !!(offerTrigger || normalTrigger) || priceChanged;
+                const suppressionChanged = stored.suppressedOfferPrice !== prevSuppressedOffer || stored.suppressedNormalPrice !== prevSuppressedNormal;
+                let productChanged = !!(offerTrigger || normalTrigger) || priceChanged || suppressionChanged;
 
                 if (offerTrigger || normalTrigger) {
                     const triggers = [offerTrigger, normalTrigger].filter(t => t && t !== 'CHANGED' && t !== 'PENDING');
@@ -500,7 +606,8 @@ class DealMonitor extends Monitor {
                             stored,
                             previousOfferPrice,
                             previousNormalPrice,
-                            validEntities: verifiedEntities
+                            validEntities: verifiedEntities,
+                            storeMap
                         });
                     }
                 }
@@ -613,7 +720,7 @@ class DealMonitor extends Monitor {
      * @returns {{storeName: string, safeUrl: string}} The sanitized store name and URL.
      */
     _formatStoreLink(product, entity, storeMap) {
-        const storeData = storeMap.get(entity.store);
+        const storeData = storeMap ? storeMap.get(entity.store) : null;
         const storeName = sanitizeLinkText(storeData?.name || 'Tienda');
         let safeUrl = '#';
         try {
@@ -642,7 +749,7 @@ class DealMonitor extends Monitor {
         if (!channel) return;
 
         // 1. Fetch Data
-        const storeMap = await solotodo.getStores();
+        const storeMap = change.storeMap || await solotodo.getStores();
         const validEntities = Array.isArray(change.validEntities)
             ? change.validEntities
             : solotodo.filterValidEntities(await solotodo.getAvailableEntities(product.id), storeMap);
@@ -671,7 +778,7 @@ class DealMonitor extends Monitor {
         let offerLabel = 'Precio Oferta';
         if (bestEntities.length === 1) {
             const entity = bestEntities[0];
-            const storeData = storeMap.get(entity.store);
+            const storeData = storeMap ? storeMap.get(entity.store) : null;
             if (product.offerPrice === product.normalPrice) {
                 offerLabel = 'Con todo medio de pago';
             } else if (storeData && storeData.preferred_payment_method) {

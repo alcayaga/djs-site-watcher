@@ -107,6 +107,22 @@ describe('Solotodo Entity Utils', () => {
             expect(valid[0].store).toBe(100);
         });
 
+        it('should filter out entities when store name in storeMap indicates CPO or refurbished', () => {
+            const storeMap = new Map([
+                [8888, { id: 8888, name: 'iStore CPO Chile' }],
+                [100, { id: 100, name: 'Falabella' }]
+            ]);
+
+            const entities = [
+                { store: 8888, external_url: 'https://somestore.cl/item', active_registry: { offer_price: "100", cell_monthly_payment: null }, condition: NEW_URL },
+                { store: 100, external_url: 'https://falabella.com/item', active_registry: { offer_price: "200", cell_monthly_payment: null }, condition: NEW_URL }
+            ];
+
+            const valid = solotodo.filterValidEntities(entities, storeMap);
+            expect(valid).toHaveLength(1);
+            expect(valid[0].store).toBe(100);
+        });
+
         it('should return empty list if all entities are filtered out', () => {
             const entities = [
                 { active_registry: { offer_price: "50", cell_monthly_payment: "10000" }, condition: NEW_URL }, // Plan
@@ -172,6 +188,41 @@ describe('Solotodo Entity Utils', () => {
                 active_registry: { offer_price: '399990', normal_price: '399990', cell_monthly_payment: null }
             };
             expect(solotodo.isValidEntity(entity, storeMap)).toBe(false);
+        });
+
+        it('should not reject entities when description contains generic terms like "usado" in usage instructions', () => {
+            const entity = {
+                name: 'Apple iPad 10th Gen',
+                description: 'Este producto puede ser usado con el Apple Pencil de 1ra generación.',
+                store: 260,
+                condition: NEW_URL,
+                active_registry: { offer_price: '399990', normal_price: '399990', cell_monthly_payment: null }
+            };
+            expect(solotodo.isValidEntity(entity)).toBe(true);
+        });
+
+        it('should reject entities when description contains unambiguous refurbished terms', () => {
+            const entity = {
+                name: 'Apple iPad 10th Gen',
+                description: 'Equipo reacondicionado grado A con 3 meses de garantía.',
+                store: 260,
+                condition: NEW_URL,
+                active_registry: { offer_price: '399990', normal_price: '399990', cell_monthly_payment: null }
+            };
+            expect(solotodo.isValidEntity(entity)).toBe(false);
+        });
+
+        it('should correctly match uppercase accented refurbished keywords with u flag', () => {
+            const entity = {
+                name: 'iPhone 13 128GB REACONDICIONADO GRADO A',
+                store: 260,
+                external_url: 'https://mercadolibre.cl/item',
+                condition: NEW_URL,
+                active_registry: { offer_price: '499990', normal_price: '499990', cell_monthly_payment: null }
+            };
+            expect(solotodo.isValidEntity(entity)).toBe(false);
+            expect(solotodo.containsRefurbishedKeyword('REACONDICIONADO')).toBe(true);
+            expect(solotodo.containsRefurbishedKeyword('SEMINUEVO')).toBe(true);
         });
     });
 
@@ -310,6 +361,20 @@ describe('Solotodo Entity Utils', () => {
             const { minPrice, bestEntities } = solotodo.findBestEntities(entities, 'offer_price', MIN_SANITY_PRICE);
             expect(minPrice).toBe(Infinity);
             expect(bestEntities).toEqual([]);
+        });
+    });
+
+    describe('Refurbished Keywords Constants', () => {
+        it('should derive UNAMBIGUOUS_REFURBISHED_KEYWORDS from REFURBISHED_KEYWORDS excluding ambiguous terms', () => {
+            const constants = require('../../src/utils/constants');
+            const ambiguousTerms = ['usado', 'usada', 'usados', 'usadas'];
+            for (const term of ambiguousTerms) {
+                expect(constants.REFURBISHED_KEYWORDS).toContain(term);
+                expect(constants.UNAMBIGUOUS_REFURBISHED_KEYWORDS).not.toContain(term);
+            }
+            for (const kw of constants.UNAMBIGUOUS_REFURBISHED_KEYWORDS) {
+                expect(constants.REFURBISHED_KEYWORDS).toContain(kw);
+            }
         });
     });
 });

@@ -31,6 +31,11 @@ try {
     console.log(`Found product ${productId}: ${currentEntry.name}`);
     console.log(`Current state: minOffer=${currentEntry.minOfferPrice}, lastOffer=${currentEntry.lastOfferPrice}`);
 
+    if (currentEntry.minOfferPrice !== 399990) {
+        console.log(`Product ${productId} does not have corrupted minimum (minOffer: ${currentEntry.minOfferPrice}). Nothing to fix.`);
+        process.exit(0);
+    }
+
     // Create a backup
     const backupPath = `${dealsFilePath}.backup_${Date.now()}`;
     fs.writeFileSync(backupPath, rawData, 'utf8');
@@ -45,15 +50,22 @@ try {
         minNormalPrice: 649990,
         minNormalDate: '2026-06-01T03:21:40.144191Z',
         notifiedMinNormalPrice: 649990,
-        lastOfferPrice: 777293,
-        lastNormalPrice: 777293
+        lastOfferPrice: currentEntry.lastOfferPrice === 399990 ? 777293 : (currentEntry.lastOfferPrice || 777293),
+        lastNormalPrice: currentEntry.lastNormalPrice === 399990 ? 777293 : (currentEntry.lastNormalPrice || 777293)
     };
     delete deals[productId].pendingExitOffer;
     delete deals[productId].pendingExitNormal;
+    delete deals[productId].suppressedOfferPrice;
+    delete deals[productId].suppressedNormalPrice;
+    delete deals[productId].suppressedOfferValidMin;
+    delete deals[productId].suppressedNormalValidMin;
+    delete deals[productId].suppressedOfferTime;
+    delete deals[productId].suppressedNormalTime;
 
     fs.writeFileSync(dealsFilePath, JSON.stringify(deals, null, 2) + '\n', 'utf8');
+    const updatedEntry = deals[productId];
     console.log(`Successfully restored product ${productId} in ${dealsFilePath}:`);
-    console.log(`New state: minOffer=649990, minNormal=649990, lastOffer=777293, lastNormal=777293`);
+    console.log(`New state: minOffer=${updatedEntry.minOfferPrice}, minNormal=${updatedEntry.minNormalPrice}, lastOffer=${updatedEntry.lastOfferPrice}, lastNormal=${updatedEntry.lastNormalPrice}`);
 } catch (error) {
     console.error('Failed to update deals file:', error);
     process.exit(1);

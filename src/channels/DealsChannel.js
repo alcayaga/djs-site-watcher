@@ -92,9 +92,7 @@ class DealsChannel extends ChannelHandler {
                             getStores()
                         ]);
 
-                        const validEntities = typeof filterValidEntities === 'function'
-                            ? filterValidEntities(entities, storeMap)
-                            : (entities || []).filter(e => e.active_registry?.cell_monthly_payment === null);
+                        const validEntities = filterValidEntities(entities, storeMap);
 
                         const filteredEntities = validEntities
                             .filter(e => e.active_registry?.is_available)

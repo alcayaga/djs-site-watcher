@@ -14,6 +14,7 @@ const {
     BANNED_REFURBISHED_STORE_IDS,
     BANNED_REFURBISHED_DOMAINS,
     REFURBISHED_KEYWORDS,
+    UNAMBIGUOUS_REFURBISHED_KEYWORDS,
     MIN_DESCRIPTIVE_SLUG_LENGTH,
     MAX_SKU_LIKE_SLUG_LENGTH,
     SOLOTODO_AVAILABILITY_CHECK_LIMIT,
@@ -397,22 +398,46 @@ async function getProductHistory(productId) {
 }
 
 /**
- * Checks if a string contains any refurbished keywords.
- * For short keywords (<= 3 chars, e.g. 'cpo'), ensures word boundaries.
+ * Helper to escape special characters for regex construction.
+ * @param {string} str The string to escape.
+ * @returns {string} The escaped string.
+ */
+function escapeRegExp(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Precompiled regex matching any refurbished keyword as a distinct whole term.
+ * Uses unicode-aware word boundaries supporting Spanish accented characters and alphanumerics.
+ */
+const REFURBISHED_REGEX = new RegExp(
+    '(?:^|[^a-záéíóúüñ0-9])(?:' +
+    REFURBISHED_KEYWORDS.map(escapeRegExp).join('|') +
+    ')(?:[^a-záéíóúüñ0-9]|$)',
+    'iu'
+);
+
+/**
+ * Precompiled regex matching only unambiguous refurbished keywords (for product descriptions).
+ * Excludes generic words like 'usado'/'usada' which may appear legitimately in specifications.
+ */
+const UNAMBIGUOUS_REFURBISHED_REGEX = new RegExp(
+    '(?:^|[^a-záéíóúüñ0-9])(?:' +
+    UNAMBIGUOUS_REFURBISHED_KEYWORDS.map(escapeRegExp).join('|') +
+    ')(?:[^a-záéíóúüñ0-9]|$)',
+    'iu'
+);
+
+/**
+ * Checks if a string contains any refurbished keywords as whole words.
  * @param {string} text The text to check.
+ * @param {object} [options] Matching options.
+ * @param {boolean} [options.strict=false] Whether to check only unambiguous keywords.
  * @returns {boolean} True if a refurbished keyword is found.
  */
-function containsRefurbishedKeyword(text) {
+function containsRefurbishedKeyword(text, { strict = false } = {}) {
     if (!text || typeof text !== 'string') return false;
-    const lower = text.toLowerCase();
-    return REFURBISHED_KEYWORDS.some(keyword => {
-        if (keyword.length <= 3) {
-            // Require word boundaries for short acronyms like 'cpo'
-            const regex = new RegExp(`(?:^|[^a-z0-9])${keyword}(?:[^a-z0-9]|$)`, 'i');
-            return regex.test(lower);
-        }
-        return lower.includes(keyword);
-    });
+    return strict ? UNAMBIGUOUS_REFURBISHED_REGEX.test(text) : REFURBISHED_REGEX.test(text);
 }
 
 /**
@@ -429,11 +454,8 @@ function isValidEntity(entity, storeMap = null) {
         return false;
     }
 
-    // 2. Strict condition check: Reject any non-new conditions (reject Refurbished, Used, OpenBox, Damaged, or null)
+    // 2. Strict condition check: Reject any non-new conditions (accepts missing condition key, but rejects Refurbished, Used, OpenBox, Damaged, or null)
     if (entity.condition !== undefined && entity.condition !== NEW_CONDITION_URL) {
-        return false;
-    }
-    if (entity.condition === null) {
         return false;
     }
 
@@ -460,7 +482,7 @@ function isValidEntity(entity, storeMap = null) {
     // 5. Store name check if storeObj is available
     if (storeObj && storeObj.name) {
         const storeNameLower = storeObj.name.toLowerCase();
-        if (containsRefurbishedKeyword(storeNameLower) || storeNameLower.includes('backonline')) {
+        if (containsRefurbishedKeyword(storeNameLower, { strict: true }) || storeNameLower.includes('backonline')) {
             return false;
         }
     }
@@ -470,7 +492,12 @@ function isValidEntity(entity, storeMap = null) {
         try {
             const parsedUrl = new URL(entity.external_url);
             const hostname = parsedUrl.hostname.toLowerCase();
-            const pathname = decodeURIComponent(parsedUrl.pathname).toLowerCase();
+            let pathname = parsedUrl.pathname.toLowerCase();
+            try {
+                pathname = decodeURIComponent(parsedUrl.pathname).toLowerCase();
+            } catch {
+                // Keep raw pathname if decoding fails
+            }
 
             // Check banned domains
             if (BANNED_REFURBISHED_DOMAINS.some(domain => hostname === domain || hostname.endsWith('.' + domain))) {
@@ -497,8 +524,8 @@ function isValidEntity(entity, storeMap = null) {
         return false;
     }
 
-    // 8. Description keyword check (if present)
-    if (entity.description && containsRefurbishedKeyword(entity.description)) {
+    // 8. Description keyword check (unambiguous refurbished keywords only)
+    if (entity.description && containsRefurbishedKeyword(entity.description, { strict: true })) {
         return false;
     }
 
@@ -618,6 +645,7 @@ module.exports = {
     isPictureUrlInvalid,
     filterValidEntities,
     isValidEntity,
+    containsRefurbishedKeyword,
     determinePriceKey,
     findBestEntities,
     getEffectivePrice

@@ -16,17 +16,29 @@ const DAMAGED_CONDITION_URL = 'https://schema.org/DamagedCondition';
 // Known stores specializing in refurbished, outlet, or second-hand products
 const BANNED_REFURBISHED_STORE_IDS = [6101, 2471, 2372, 6266];
 const BANNED_REFURBISHED_DOMAINS = ['backonline.cl', 'reuse.cl', 'refreshstore.cl'];
+// Ambiguous refurbished terms that can legitimately appear in product descriptions/specs
+const AMBIGUOUS_REFURBISHED_KEYWORDS = [
+    'usado', 'usada', 'usados', 'usadas'
+];
+
 const REFURBISHED_KEYWORDS = [
     'reacondicionado', 'reacondicionada', 'reacondicionados', 'reacondicionadas',
     'refurbished', 'refurb',
-    'seminuevo', 'seminueva', 'semi nuevo', 'semi nueva', 'semi-nuevo', 'semi-nueva',
-    'open box', 'open-box', 'openbox',
-    'usado', 'usada', 'usados', 'usadas',
+    'seminuevo', 'seminueva', 'seminuevos', 'seminuevas',
+    'semi nuevo', 'semi nueva', 'semi nuevos', 'semi nuevas',
+    'semi-nuevo', 'semi-nueva', 'semi-nuevos', 'semi-nuevas',
+    'open box', 'open-box', 'openbox', 'open boxes', 'open-boxes',
+    ...AMBIGUOUS_REFURBISHED_KEYWORDS,
     'segunda mano',
     'cpo',
-    'outlet',
     'grado a', 'grado b', 'grado c'
 ];
+
+// Unambiguous refurbished keywords safe for matching in product descriptions
+// Derived by excluding ambiguous terms like 'usado'/'usada' from REFURBISHED_KEYWORDS
+const UNAMBIGUOUS_REFURBISHED_KEYWORDS = REFURBISHED_KEYWORDS.filter(
+    keyword => !AMBIGUOUS_REFURBISHED_KEYWORDS.includes(keyword)
+);
 
 const MIN_DESCRIPTIVE_SLUG_LENGTH = 5;
 const MAX_SKU_LIKE_SLUG_LENGTH = 10;
@@ -116,6 +128,7 @@ module.exports = {
     BANNED_REFURBISHED_STORE_IDS,
     BANNED_REFURBISHED_DOMAINS,
     REFURBISHED_KEYWORDS,
+    UNAMBIGUOUS_REFURBISHED_KEYWORDS,
     MIN_DESCRIPTIVE_SLUG_LENGTH,
     MAX_SKU_LIKE_SLUG_LENGTH,
     DEFAULT_PRICE_TOLERANCE,
