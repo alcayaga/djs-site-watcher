@@ -71,10 +71,35 @@ function formatPriceValue(current, previous) {
     return `**${formattedCurrent}**`;
 }
 
+/**
+ * Validates and encodes a URL to ensure it is safe to use in Discord Markdown masked links.
+ * Requires HTTP or HTTPS protocols and percent-encodes markdown delimiters.
+ * Falls back to '#' for invalid or unsupported URLs.
+ * @param {string} url The URL to sanitize.
+ * @returns {string} The safe Markdown URL or '#'.
+ */
+function toSafeMarkdownUrl(url) {
+    if (!url || typeof url !== 'string') return '#';
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+            return parsed.href
+                .replace(/\)/g, '%29')
+                .replace(/\(/g, '%28')
+                .replace(/\[/g, '%5B')
+                .replace(/\]/g, '%5D');
+        }
+    } catch {
+        // Fallback for malformed URLs
+    }
+    return '#';
+}
+
 module.exports = {
     formatDiscordTimestamp,
     sanitizeMarkdown,
     sanitizeLinkText,
     formatCLP,
-    formatPriceValue
+    formatPriceValue,
+    toSafeMarkdownUrl
 };

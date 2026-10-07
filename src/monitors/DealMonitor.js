@@ -2,7 +2,7 @@ const Discord = require('discord.js');
 const Monitor = require('../Monitor');
 const config = require('../config');
 const got = require('got');
-const { formatCLP, sanitizeLinkText, formatDiscordTimestamp, formatPriceValue } = require('../utils/formatters');
+const { formatCLP, sanitizeLinkText, formatDiscordTimestamp, formatPriceValue, toSafeMarkdownUrl } = require('../utils/formatters');
 const solotodo = require('../utils/solotodo');
 const { DEFAULT_PRICE_TOLERANCE, DEFAULT_GRACE_PERIOD_HOURS, DEFAULT_MIN_DROP_PERCENTAGE } = require('../utils/constants');
 const { sleep } = require('../utils/helpers');
@@ -11,6 +11,7 @@ const { downloadImage } = require('../utils/image');
 const logger = require('../utils/logger');
 
 const MIN_SANITY_PRICE = 1000; // Anything below 1,000 CLP is likely an error for Apple products in these categories
+const NO_HISTORY_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours negative-cache TTL for products with no valid history
 
 /**
  * Predicate to check if a price entry corresponds to Chilean Pesos (CLP).
@@ -119,6 +120,16 @@ class DealMonitor extends Monitor {
     }
 
     /**
+     * Gets the configured price tolerance in CLP, falling back to DEFAULT_PRICE_TOLERANCE.
+     * @private
+     * @returns {number} The price tolerance.
+     */
+    _getTolerance() {
+        const parsedTolerance = parseInt(this.config.priceTolerance, 10);
+        return !Number.isNaN(parsedTolerance) ? parsedTolerance : DEFAULT_PRICE_TOLERANCE;
+    }
+
+    /**
      * Internal helper to check for price updates and determine notification type.
      * @private
      * @param {object} product The product object.
@@ -137,14 +148,22 @@ class DealMonitor extends Monitor {
         const notificationType = priceType.toUpperCase();
         
         let stateMigrated = false;
-        // Ensure notifiedMinKey exists for backward compatibility
-        if (stored[notifiedMinKey] === undefined) {
+        // Ensure notifiedMinKey exists for backward compatibility if minPrice is already set
+        if (stored[minPriceKey] !== undefined && stored[notifiedMinKey] === undefined) {
             stored[notifiedMinKey] = stored[minPriceKey];
             stateMigrated = true;
         }
+
+        // Initialize price type if it was not present in historic backfill
+        if (stored[minPriceKey] === undefined) {
+            stored[minPriceKey] = currentPrice;
+            stored[minDateKey] = now;
+            stored[notifiedMinKey] = currentPrice;
+            stored[lastPriceKey] = currentPrice;
+            return 'CHANGED';
+        }
         
-        const parsedTolerance = parseInt(this.config.priceTolerance, 10);
-        const tolerance = !Number.isNaN(parsedTolerance) ? parsedTolerance : DEFAULT_PRICE_TOLERANCE;
+        const tolerance = this._getTolerance();
         
         const parsedMinDropPct = parseFloat(this.config.minDropPercentage);
         const minDropPercentage = !Number.isNaN(parsedMinDropPct) ? parsedMinDropPct : DEFAULT_MIN_DROP_PERCENTAGE;
@@ -299,6 +318,12 @@ class DealMonitor extends Monitor {
         try {
             const data = await this.fetch();
             const products = this.parse(data);
+            let storeMap = null;
+            try {
+                storeMap = await solotodo.getStores();
+            } catch (storeError) {
+                logger.error('Error fetching stores for %s:', this.name, storeError);
+            }
             
             let hasChanges = false;
             const newState = { ...this.state };
@@ -309,17 +334,40 @@ class DealMonitor extends Monitor {
                 const productId = String(product.id);
                 if (productId === '__proto__' || productId === 'constructor' || productId === 'prototype') continue;
 
+                const now = new Date().toISOString();
+
                 // Create a shallow copy to ensure immutable updates
                 let stored = newState[productId] ? { ...newState[productId] } : null;
 
-                if (!stored) {
-                    // First time seeing this product
-                    let minOffer = product.offerPrice;
-                    let minNormal = product.normalPrice;
-                    let minOfferDate = new Date().toISOString();
-                    let minNormalDate = new Date().toISOString();
+                const isUninitialized = !stored || stored.uninitialized;
+
+                if (isUninitialized) {
+                    // First time seeing this product or retrying after negative cache expiry
+                    let minOffer = Infinity;
+                    let minNormal = Infinity;
+                    let minOfferDate = now;
+                    let minNormalDate = now;
+                    let foundOffer = false;
+                    let foundNormal = false;
 
                     if (!isSingleRun) {
+                        if (!storeMap) {
+                            logger.warn('[DealMonitor] Skipping initialization for %s (ID: %s): storeMap unavailable.', product.name, productId);
+                            continue;
+                        }
+
+                        // Check finite negative-cache expiry before calling getProductHistory
+                        const nowTime = new Date(now).getTime();
+                        if (stored?.uninitialized && stored.noHistoryUntil) {
+                            const expiryTime = new Date(stored.noHistoryUntil).getTime();
+                            if (nowTime < expiryTime) {
+                                if (this.config.verboseLogging) {
+                                    logger.info('[DealMonitor] Skipping history lookup for %s (ID: %s): negative cache active until %s.', product.name, productId, stored.noHistoryUntil);
+                                }
+                                continue;
+                            }
+                        }
+
                         logger.info('New product detected: %s (ID: %s). Backfilling history...', product.name, productId);
                         try {
                             const history = await solotodo.getProductHistory(productId);
@@ -330,59 +378,274 @@ class DealMonitor extends Monitor {
                                     continue;
                                 }
 
+                                // Skip non-new, refurbished, or banned stores
+                                if (!solotodo.isValidEntity(entity.entity, storeMap)) {
+                                    continue;
+                                }
+
                                 for (const record of entity.pricing_history) {
                                     if (!record.is_available) continue;
                                     const offer = parseFloat(record.offer_price);
                                     const normal = parseFloat(record.normal_price);
                                     
                                     // Update on <= to capture the LAST seen date of the minimum price
-                                    if (offer >= MIN_SANITY_PRICE && offer <= minOffer) {
+                                    if (offer >= MIN_SANITY_PRICE && (!foundOffer || offer <= minOffer)) {
                                         minOffer = offer;
                                         minOfferDate = record.timestamp;
+                                        foundOffer = true;
                                     }
-                                    if (normal >= MIN_SANITY_PRICE && normal <= minNormal) {
+                                    if (normal >= MIN_SANITY_PRICE && (!foundNormal || normal <= minNormal)) {
                                         minNormal = normal;
                                         minNormalDate = record.timestamp;
+                                        foundNormal = true;
                                     }
                                 }
                             }
+
+                            if (!foundOffer && !foundNormal) {
+                                logger.warn('[DealMonitor] Skipping initialization for %s (ID: %s): no valid history records found. Caching negative result.', product.name, productId);
+                                const retryAfter = new Date(nowTime + NO_HISTORY_CACHE_TTL_MS).toISOString();
+                                newState[productId] = {
+                                    uninitialized: true,
+                                    noHistoryUntil: retryAfter,
+                                    name: product.name
+                                };
+                                hasChanges = true;
+                                await sleep(this.config.apiDelay);
+                                continue;
+                            }
+
                             if (this.config.verboseLogging) {
-                                logger.info('[DealMonitor] Backfill for %s (ID: %s) complete. Min Offer: %s (%s), Min Normal: %s (%s)', product.name, productId, formatCLP(minOffer), minOfferDate, formatCLP(minNormal), minNormalDate);
+                                const offerStr = foundOffer ? `${formatCLP(minOffer)} (${minOfferDate})` : 'N/A';
+                                const normalStr = foundNormal ? `${formatCLP(minNormal)} (${minNormalDate})` : 'N/A';
+                                logger.info('[DealMonitor] Backfill for %s (ID: %s) complete. Min Offer: %s, Min Normal: %s', product.name, productId, offerStr, normalStr);
                             }
                             // Delay to avoid bursting API
                             await sleep(this.config.apiDelay);
                         } catch (historyError) {
                             logger.error('Error backfilling history for product %s:', productId, historyError);
+                            await sleep(this.config.apiDelay);
+                            continue;
                         }
+                    } else {
+                        minOffer = product.offerPrice;
+                        minNormal = product.normalPrice;
+                        foundOffer = true;
+                        foundNormal = true;
                     }
 
-                    newState[productId] = {
-                        minOfferPrice: minOffer,
-                        minOfferDate,
-                        notifiedMinOfferPrice: minOffer,
-                        minNormalPrice: minNormal,
-                        minNormalDate,
-                        notifiedMinNormalPrice: minNormal,
+                    const productState = {
                         lastOfferPrice: product.offerPrice,
                         lastNormalPrice: product.normalPrice,
                         name: product.name,
                         slug: product.slug,
                         pictureUrl: product.pictureUrl
                     };
+
+                    if (foundOffer) {
+                        productState.minOfferPrice = minOffer;
+                        productState.minOfferDate = minOfferDate;
+                        productState.notifiedMinOfferPrice = minOffer;
+                    }
+
+                    if (foundNormal) {
+                        productState.minNormalPrice = minNormal;
+                        productState.minNormalDate = minNormalDate;
+                        productState.notifiedMinNormalPrice = minNormal;
+                    }
+
+                    newState[productId] = productState;
                     hasChanges = true;
                     continue;
                 }
 
                 const currentOffer = product.offerPrice;
                 const currentNormal = product.normalPrice;
-                const now = new Date().toISOString();
                 
                 // Capture previous prices to detect drops that aren't new lows
                 const previousOfferPrice = stored.lastOfferPrice;
                 const previousNormalPrice = stored.lastNormalPrice;
-                
-                const offerTrigger = this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer');
-                const normalTrigger = this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal');
+
+                // Snapshot state before check in case candidate deals need to be reverted
+                const prevMinOffer = stored.minOfferPrice;
+                const prevMinOfferDate = stored.minOfferDate;
+                const prevNotifiedMinOffer = stored.notifiedMinOfferPrice;
+                const prevPendingExitOffer = stored.pendingExitOffer;
+
+                const prevMinNormal = stored.minNormalPrice;
+                const prevMinNormalDate = stored.minNormalDate;
+                const prevNotifiedMinNormal = stored.notifiedMinNormalPrice;
+                const prevPendingExitNormal = stored.pendingExitNormal;
+                const prevSuppressedOffer = stored.suppressedOfferPrice;
+                const prevSuppressedOfferTime = stored.suppressedOfferTime;
+                const prevSuppressedNormal = stored.suppressedNormalPrice;
+                const prevSuppressedNormalTime = stored.suppressedNormalTime;
+
+                let offerTrigger = null;
+                let normalTrigger = null;
+
+                /**
+                 * Restores offer price state to pre-check snapshot.
+                 * @param {number} [targetPrice=previousOfferPrice] Price to set as lastOfferPrice.
+                 */
+                const restoreOffer = (targetPrice = previousOfferPrice) => {
+                    stored.minOfferPrice = prevMinOffer;
+                    stored.minOfferDate = prevMinOfferDate;
+                    stored.notifiedMinOfferPrice = prevNotifiedMinOffer;
+                    if (prevPendingExitOffer !== undefined) {
+                        stored.pendingExitOffer = prevPendingExitOffer;
+                    } else {
+                        delete stored.pendingExitOffer;
+                    }
+                    stored.lastOfferPrice = targetPrice;
+                    offerTrigger = null;
+                };
+
+                /**
+                 * Restores normal price state to pre-check snapshot.
+                 * @param {number} [targetPrice=previousNormalPrice] Price to set as lastNormalPrice.
+                 */
+                const restoreNormal = (targetPrice = previousNormalPrice) => {
+                    stored.minNormalPrice = prevMinNormal;
+                    stored.minNormalDate = prevMinNormalDate;
+                    stored.notifiedMinNormalPrice = prevNotifiedMinNormal;
+                    if (prevPendingExitNormal !== undefined) {
+                        stored.pendingExitNormal = prevPendingExitNormal;
+                    } else {
+                        delete stored.pendingExitNormal;
+                    }
+                    stored.lastNormalPrice = targetPrice;
+                    normalTrigger = null;
+                };
+
+                offerTrigger = this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer');
+                normalTrigger = this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal');
+
+                // Expire cached suppression after TTL (6 hours) or when browse price changes
+                const SUPPRESSION_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+                const nowTime = new Date(now).getTime();
+
+                if (stored.suppressedOfferPrice !== undefined) {
+                    const isExpired = stored.suppressedOfferTime &&
+                        (nowTime - new Date(stored.suppressedOfferTime).getTime() >= SUPPRESSION_CACHE_TTL_MS);
+                    if (stored.suppressedOfferPrice !== currentOffer || isExpired) {
+                        delete stored.suppressedOfferPrice;
+                        delete stored.suppressedOfferValidMin;
+                        delete stored.suppressedOfferTime;
+                    }
+                }
+
+                if (stored.suppressedNormalPrice !== undefined) {
+                    const isExpired = stored.suppressedNormalTime &&
+                        (nowTime - new Date(stored.suppressedNormalTime).getTime() >= SUPPRESSION_CACHE_TTL_MS);
+                    if (stored.suppressedNormalPrice !== currentNormal || isExpired) {
+                        delete stored.suppressedNormalPrice;
+                        delete stored.suppressedNormalValidMin;
+                        delete stored.suppressedNormalTime;
+                    }
+                }
+
+                // Determine if offer or normal prices require verification against available merchants
+                // Verification is required if a candidate deal trigger fired, if a lowered historic minimum was recorded,
+                // or if a minimum transitioned from undefined to set
+                const isOfferMinNewOrLower = stored.minOfferPrice !== undefined && (prevMinOffer === undefined || stored.minOfferPrice < prevMinOffer);
+                const isNormalMinNewOrLower = stored.minNormalPrice !== undefined && (prevMinNormal === undefined || stored.minNormalPrice < prevMinNormal);
+
+                let needsOfferVerification = Boolean((offerTrigger && offerTrigger !== 'CHANGED' && offerTrigger !== 'PENDING') || isOfferMinNewOrLower);
+                let needsNormalVerification = Boolean((normalTrigger && normalTrigger !== 'CHANGED' && normalTrigger !== 'PENDING') || isNormalMinNewOrLower);
+
+                // If a previous check already verified that currentOffer/Normal is an unsupported refurbished price,
+                // and the cached suppression is still valid, suppress immediately to avoid repeated API calls.
+                if (needsOfferVerification && stored.suppressedOfferPrice === currentOffer) {
+                    restoreOffer(previousOfferPrice);
+                    needsOfferVerification = false;
+                }
+                if (needsNormalVerification && stored.suppressedNormalPrice === currentNormal) {
+                    restoreNormal(previousNormalPrice);
+                    needsNormalVerification = false;
+                }
+
+                // Verify deal triggers against valid non-refurbished stock
+                let verifiedEntities = null;
+
+                if (needsOfferVerification || needsNormalVerification) {
+                    if (!storeMap) {
+                        logger.warn('[DealMonitor] Store information unavailable. Reverting candidate deals for %s (ID: %s) to prevent unverified alerts.', product.name, productId);
+                        if (needsOfferVerification) restoreOffer(previousOfferPrice);
+                        if (needsNormalVerification) restoreNormal(previousNormalPrice);
+                    } else {
+                        try {
+                            const rawEntities = await solotodo.getAvailableEntities(product.id);
+                            const validEntities = solotodo.filterValidEntities(rawEntities, storeMap);
+
+                            let minValidOffer = Infinity;
+                            let minValidNormal = Infinity;
+                            for (const entity of validEntities) {
+                                const off = parseFloat(entity.active_registry?.offer_price);
+                                const norm = parseFloat(entity.active_registry?.normal_price);
+                                if (!isNaN(off) && off >= MIN_SANITY_PRICE && off < minValidOffer) {
+                                    minValidOffer = off;
+                                }
+                                if (!isNaN(norm) && norm >= MIN_SANITY_PRICE && norm < minValidNormal) {
+                                    minValidNormal = norm;
+                                }
+                            }
+
+                            const tolerance = this._getTolerance();
+
+                            // Check offer deal validity
+                            if (needsOfferVerification) {
+                                const isOfferSupported = minValidOffer <= (currentOffer + tolerance);
+                                if (!isOfferSupported) {
+                                    if (this.config.verboseLogging) {
+                                        logger.warn('[DealMonitor] Suppressing %s for %s (ID: %s) at %s: Not supported by any valid merchant (best valid: %s). Reverting min.',
+                                            offerTrigger || 'min drop', product.name, productId, formatCLP(currentOffer), formatCLP(minValidOffer));
+                                    }
+                                    restoreOffer(previousOfferPrice);
+                                    if (minValidOffer < Infinity) {
+                                        offerTrigger = this._checkPriceUpdate(product, now, minValidOffer, stored, 'Offer');
+                                    }
+                                    stored.suppressedOfferPrice = currentOffer;
+                                    stored.suppressedOfferValidMin = minValidOffer < Infinity ? minValidOffer : null;
+                                    stored.suppressedOfferTime = now;
+                                } else {
+                                    delete stored.suppressedOfferPrice;
+                                    delete stored.suppressedOfferValidMin;
+                                    delete stored.suppressedOfferTime;
+                                }
+                            }
+
+                            // Check normal deal validity
+                            if (needsNormalVerification) {
+                                const isNormalSupported = minValidNormal <= (currentNormal + tolerance);
+                                if (!isNormalSupported) {
+                                    if (this.config.verboseLogging) {
+                                        logger.warn('[DealMonitor] Suppressing %s for %s (ID: %s) at %s: Not supported by any valid merchant (best valid: %s). Reverting min.',
+                                            normalTrigger || 'min drop', product.name, productId, formatCLP(currentNormal), formatCLP(minValidNormal));
+                                    }
+                                    restoreNormal(previousNormalPrice);
+                                    if (minValidNormal < Infinity) {
+                                        normalTrigger = this._checkPriceUpdate(product, now, minValidNormal, stored, 'Normal');
+                                    }
+                                    stored.suppressedNormalPrice = currentNormal;
+                                    stored.suppressedNormalValidMin = minValidNormal < Infinity ? minValidNormal : null;
+                                    stored.suppressedNormalTime = now;
+                                } else {
+                                    delete stored.suppressedNormalPrice;
+                                    delete stored.suppressedNormalValidMin;
+                                    delete stored.suppressedNormalTime;
+                                }
+                            }
+
+                            verifiedEntities = validEntities;
+                        } catch (entityError) {
+                            logger.error('Error verifying entities for product %s:', productId, entityError);
+                            // Fail safe: Revert mutations made by _checkPriceUpdate so unverified deals are not saved or notified
+                            if (needsOfferVerification) restoreOffer(previousOfferPrice);
+                            if (needsNormalVerification) restoreNormal(previousNormalPrice);
+                        }
+                    }
+                }
 
                 // Log significant price drops that don't trigger a notification (Issue #83)
                 const priceChecks = [
@@ -396,12 +659,31 @@ class DealMonitor extends Monitor {
                     }
                 }
 
-                let productChanged = !!(offerTrigger || normalTrigger);
+                const priceChanged = stored.lastOfferPrice !== previousOfferPrice || stored.lastNormalPrice !== previousNormalPrice;
+                const suppressionChanged = stored.suppressedOfferPrice !== prevSuppressedOffer ||
+                    stored.suppressedOfferTime !== prevSuppressedOfferTime ||
+                    stored.suppressedNormalPrice !== prevSuppressedNormal ||
+                    stored.suppressedNormalTime !== prevSuppressedNormalTime;
+                let productChanged = !!(offerTrigger || normalTrigger) || priceChanged || suppressionChanged;
 
                 if (offerTrigger || normalTrigger) {
                     const triggers = [offerTrigger, normalTrigger].filter(t => t && t !== 'CHANGED' && t !== 'PENDING');
                     if (triggers.length > 0) {
-                        await this.notify({ product, triggers, date: now, stored, previousOfferPrice, previousNormalPrice });
+                        const effectiveProduct = {
+                            ...product,
+                            offerPrice: stored.lastOfferPrice ?? product.offerPrice,
+                            normalPrice: stored.lastNormalPrice ?? product.normalPrice
+                        };
+                        await this.notify({
+                            product: effectiveProduct,
+                            triggers,
+                            date: now,
+                            stored,
+                            previousOfferPrice,
+                            previousNormalPrice,
+                            validEntities: verifiedEntities,
+                            storeMap
+                        });
                     }
                 }
 
@@ -513,14 +795,10 @@ class DealMonitor extends Monitor {
      * @returns {{storeName: string, safeUrl: string}} The sanitized store name and URL.
      */
     _formatStoreLink(product, entity, storeMap) {
-        const storeData = storeMap.get(entity.store); const storeName = sanitizeLinkText(storeData?.name || 'Tienda');
-        let safeUrl = '#';
-        try {
-            const urlObj = new URL(entity.external_url);
-            if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
-                safeUrl = encodeURI(entity.external_url).replace(/\)/g, '%29').replace(/\(/g, '%28').replace(/\[/g, '%5B').replace(/\]/g, '%5D');
-            }
-        } catch (e) {
+        const storeData = storeMap ? storeMap.get(entity.store) : null;
+        const storeName = sanitizeLinkText(storeData?.name || 'Tienda');
+        const safeUrl = toSafeMarkdownUrl(entity.external_url);
+        if (safeUrl === '#' && entity.external_url) {
             logger.warn('[DealMonitor] Invalid external URL for product %s (store: %s): %s', product.id, entity.store, String(entity.external_url).replace(/[\n\r]/g, ' '));
         }
         return { storeName, safeUrl };
@@ -541,12 +819,11 @@ class DealMonitor extends Monitor {
         if (!channel) return;
 
         // 1. Fetch Data
-        const entities = await solotodo.getAvailableEntities(product.id);
-        const storeMap = await solotodo.getStores();
-        const pictureUrl = await solotodo.getBestPictureUrl(product, entities);
-        
-        // Filter valid entities (exclude plans and refurbished)
-        const validEntities = solotodo.filterValidEntities(entities);
+        const storeMap = change.storeMap || await solotodo.getStores();
+        const validEntities = Array.isArray(change.validEntities)
+            ? change.validEntities
+            : solotodo.filterValidEntities(await solotodo.getAvailableEntities(product.id), storeMap);
+        const pictureUrl = await solotodo.getBestPictureUrl(product, validEntities);
 
         // 2. Validate
         if (validEntities.length === 0) return;
@@ -571,7 +848,7 @@ class DealMonitor extends Monitor {
         let offerLabel = 'Precio Oferta';
         if (bestEntities.length === 1) {
             const entity = bestEntities[0];
-            const storeData = storeMap.get(entity.store);
+            const storeData = storeMap ? storeMap.get(entity.store) : null;
             if (product.offerPrice === product.normalPrice) {
                 offerLabel = 'Con todo medio de pago';
             } else if (storeData && storeData.preferred_payment_method) {
@@ -652,7 +929,7 @@ class DealMonitor extends Monitor {
         if (pictureUrl) {
             embed.setThumbnail(pictureUrl);
         } else {
-            attachment = await this._getFallbackAttachment(product, entities);
+            attachment = await this._getFallbackAttachment(product, validEntities);
             if (attachment) {
                 embed.setThumbnail(`attachment://${attachment.name}`);
             }
