@@ -9,7 +9,8 @@ jest.mock('../../src/utils/solotodo', () => ({
     getProductUrl: jest.fn(),
     getSearchUrl: jest.fn(),
     getAvailableEntities: jest.fn(),
-    getStores: jest.fn()
+    getStores: jest.fn(),
+    filterValidEntities: jest.fn((entities, storeMap) => jest.requireActual('../../src/utils/solotodo').filterValidEntities(entities, storeMap))
 }));
 
 const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl, getAvailableEntities, getStores } = require('../../src/utils/solotodo');

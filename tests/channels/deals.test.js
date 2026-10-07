@@ -18,6 +18,7 @@ describe('DealsChannel', () => {
             channelId: '456'
         };
         handler = new DealsChannel('Deals', handlerConfig);
+        solotodo.filterValidEntities.mockImplementation((entities, storeMap) => jest.requireActual('../../src/utils/solotodo').filterValidEntities(entities, storeMap));
         mockMessage = {
             author: { 
                 bot: false,

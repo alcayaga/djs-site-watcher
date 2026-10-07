@@ -11,6 +11,9 @@ const {
     CHILE_COUNTRY_ID,
     REFURBISHED_CONDITION_URL,
     NEW_CONDITION_URL,
+    BANNED_REFURBISHED_STORE_IDS,
+    BANNED_REFURBISHED_DOMAINS,
+    REFURBISHED_KEYWORDS,
     MIN_DESCRIPTIVE_SLUG_LENGTH,
     MAX_SKU_LIKE_SLUG_LENGTH,
     SOLOTODO_AVAILABILITY_CHECK_LIMIT,
@@ -75,6 +78,7 @@ async function searchSolotodo(query) {
             const topMatches = matches.slice(0, SOLOTODO_AVAILABILITY_CHECK_LIMIT);
             const availUrl = new URL(`${SOLOTODO_API_URL}/products/available_entities/`);
             availUrl.searchParams.set('countries', CHILE_COUNTRY_ID);
+            availUrl.searchParams.set('exclude_refurbished', 'true');
             // The API requires multiple 'ids' query parameters (e.g., ?ids=1&ids=2)
             topMatches.forEach(p => availUrl.searchParams.append('ids', String(p.id)));
 
@@ -393,17 +397,123 @@ async function getProductHistory(productId) {
 }
 
 /**
- * Filters valid entities from a list (excludes plans and refurbished).
+ * Checks if a string contains any refurbished keywords.
+ * For short keywords (<= 3 chars, e.g. 'cpo'), ensures word boundaries.
+ * @param {string} text The text to check.
+ * @returns {boolean} True if a refurbished keyword is found.
+ */
+function containsRefurbishedKeyword(text) {
+    if (!text || typeof text !== 'string') return false;
+    const lower = text.toLowerCase();
+    return REFURBISHED_KEYWORDS.some(keyword => {
+        if (keyword.length <= 3) {
+            // Require word boundaries for short acronyms like 'cpo'
+            const regex = new RegExp(`(?:^|[^a-z0-9])${keyword}(?:[^a-z0-9]|$)`, 'i');
+            return regex.test(lower);
+        }
+        return lower.includes(keyword);
+    });
+}
+
+/**
+ * Checks if an entity is valid (strictly new condition, not a cell plan, and not from a refurbished store).
+ * @param {object} entity The Solotodo entity.
+ * @param {Map<string|number, object>|null} [storeMap=null] Optional store map for resolving store details.
+ * @returns {boolean} True if the entity is valid.
+ */
+function isValidEntity(entity, storeMap = null) {
+    if (!entity) return false;
+
+    // 1. Mobile plan check: Entities with monthly payments are mobile plans, not standalone deals
+    if (entity.active_registry?.cell_monthly_payment != null) {
+        return false;
+    }
+
+    // 2. Strict condition check: Reject any non-new conditions (reject Refurbished, Used, OpenBox, Damaged, or null)
+    if (entity.condition !== undefined && entity.condition !== NEW_CONDITION_URL) {
+        return false;
+    }
+    if (entity.condition === null) {
+        return false;
+    }
+
+    // 3. Resolve store ID and store details
+    let storeId = entity.store_id || entity.store;
+    let storeObj = storeMap ? (storeMap.get(entity.store) || storeMap.get(entity.store_id)) : null;
+
+    if (storeObj && storeObj.id) {
+        storeId = parseInt(storeObj.id, 10);
+    } else if (typeof storeId === 'string' && storeId.includes('/')) {
+        const match = storeId.match(/\/stores\/(\d+)\/?/);
+        if (match) {
+            storeId = parseInt(match[1], 10);
+        }
+    } else {
+        storeId = parseInt(storeId, 10);
+    }
+
+    // 4. Banned refurbished store IDs
+    if (!isNaN(storeId) && BANNED_REFURBISHED_STORE_IDS.includes(storeId)) {
+        return false;
+    }
+
+    // 5. Store name check if storeObj is available
+    if (storeObj && storeObj.name) {
+        const storeNameLower = storeObj.name.toLowerCase();
+        if (containsRefurbishedKeyword(storeNameLower) || storeNameLower.includes('backonline')) {
+            return false;
+        }
+    }
+
+    // 6. External URL check (banned domains and keywords in path)
+    if (entity.external_url) {
+        try {
+            const parsedUrl = new URL(entity.external_url);
+            const hostname = parsedUrl.hostname.toLowerCase();
+            const pathname = decodeURIComponent(parsedUrl.pathname).toLowerCase();
+
+            // Check banned domains
+            if (BANNED_REFURBISHED_DOMAINS.some(domain => hostname === domain || hostname.endsWith('.' + domain))) {
+                return false;
+            }
+
+            // Check refurbished keywords in URL path
+            if (containsRefurbishedKeyword(pathname)) {
+                return false;
+            }
+        } catch {
+            const rawUrl = entity.external_url.toLowerCase();
+            if (BANNED_REFURBISHED_DOMAINS.some(domain => rawUrl.includes(domain))) {
+                return false;
+            }
+            if (containsRefurbishedKeyword(rawUrl)) {
+                return false;
+            }
+        }
+    }
+
+    // 7. Entity name keyword check
+    if (entity.name && containsRefurbishedKeyword(entity.name)) {
+        return false;
+    }
+
+    // 8. Description keyword check (if present)
+    if (entity.description && containsRefurbishedKeyword(entity.description)) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Filters valid entities from a list (excludes plans, non-new, and refurbished).
  * @param {Array} entities List of entities.
+ * @param {Map<string|number, object>|null} [storeMap=null] Optional store map.
  * @returns {Array} List of valid entities.
  */
-function filterValidEntities(entities) {
+function filterValidEntities(entities, storeMap = null) {
     if (!entities || !Array.isArray(entities)) return [];
-    return entities.filter(entity => {
-        const isPlan = entity.active_registry?.cell_monthly_payment != null;
-        const isRefurbished = entity.condition === REFURBISHED_CONDITION_URL;
-        return !isPlan && !isRefurbished;
-    });
+    return entities.filter(entity => isValidEntity(entity, storeMap));
 }
 
 /**
@@ -507,6 +617,7 @@ module.exports = {
     getBestPictureUrl,
     isPictureUrlInvalid,
     filterValidEntities,
+    isValidEntity,
     determinePriceKey,
     findBestEntities,
     getEffectivePrice

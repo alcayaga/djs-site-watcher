@@ -299,6 +299,7 @@ class DealMonitor extends Monitor {
         try {
             const data = await this.fetch();
             const products = this.parse(data);
+            const storeMap = await solotodo.getStores();
             
             let hasChanges = false;
             const newState = { ...this.state };
@@ -323,10 +324,16 @@ class DealMonitor extends Monitor {
                         logger.info('New product detected: %s (ID: %s). Backfilling history...', product.name, productId);
                         try {
                             const history = await solotodo.getProductHistory(productId);
+                            let foundValidHistory = false;
                             for (const entity of history) {
                                 // Only backfill history from CLP (Currency 1) entities
                                 const entityCurrency = entity.entity?.currency;
                                 if (entityCurrency !== solotodo.SOLOTODO_CLP_CURRENCY_URL && String(entityCurrency) !== solotodo.SOLOTODO_CLP_CURRENCY_ID) {
+                                    continue;
+                                }
+
+                                // Skip non-new, refurbished, or banned stores
+                                if (!solotodo.isValidEntity(entity.entity, storeMap)) {
                                     continue;
                                 }
 
@@ -336,14 +343,15 @@ class DealMonitor extends Monitor {
                                     const normal = parseFloat(record.normal_price);
                                     
                                     // Update on <= to capture the LAST seen date of the minimum price
-                                    if (offer >= MIN_SANITY_PRICE && offer <= minOffer) {
+                                    if (offer >= MIN_SANITY_PRICE && (!foundValidHistory || offer <= minOffer)) {
                                         minOffer = offer;
                                         minOfferDate = record.timestamp;
                                     }
-                                    if (normal >= MIN_SANITY_PRICE && normal <= minNormal) {
+                                    if (normal >= MIN_SANITY_PRICE && (!foundValidHistory || normal <= minNormal)) {
                                         minNormal = normal;
                                         minNormalDate = record.timestamp;
                                     }
+                                    foundValidHistory = true;
                                 }
                             }
                             if (this.config.verboseLogging) {
@@ -380,9 +388,92 @@ class DealMonitor extends Monitor {
                 // Capture previous prices to detect drops that aren't new lows
                 const previousOfferPrice = stored.lastOfferPrice;
                 const previousNormalPrice = stored.lastNormalPrice;
-                
-                const offerTrigger = this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer');
-                const normalTrigger = this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal');
+
+                // Snapshot state before check in case candidate deals need to be reverted
+                const prevMinOffer = stored.minOfferPrice;
+                const prevMinOfferDate = stored.minOfferDate;
+                const prevNotifiedMinOffer = stored.notifiedMinOfferPrice;
+
+                const prevMinNormal = stored.minNormalPrice;
+                const prevMinNormalDate = stored.minNormalDate;
+                const prevNotifiedMinNormal = stored.notifiedMinNormalPrice;
+
+                let offerTrigger = this._checkPriceUpdate(product, now, currentOffer, stored, 'Offer');
+                let normalTrigger = this._checkPriceUpdate(product, now, currentNormal, stored, 'Normal');
+
+                // Verify deal triggers against valid non-refurbished stock
+                const candidateTriggers = [offerTrigger, normalTrigger].filter(t => t && t !== 'CHANGED' && t !== 'PENDING');
+                let verifiedEntities = null;
+
+                if (candidateTriggers.length > 0) {
+                    try {
+                        const rawEntities = await solotodo.getAvailableEntities(product.id);
+                        const validEntities = solotodo.filterValidEntities(rawEntities, storeMap);
+
+                        let minValidOffer = Infinity;
+                        let minValidNormal = Infinity;
+                        for (const entity of validEntities) {
+                            const off = parseFloat(entity.active_registry?.offer_price);
+                            const norm = parseFloat(entity.active_registry?.normal_price);
+                            if (!isNaN(off) && off >= MIN_SANITY_PRICE && off < minValidOffer) {
+                                minValidOffer = off;
+                            }
+                            if (!isNaN(norm) && norm >= MIN_SANITY_PRICE && norm < minValidNormal) {
+                                minValidNormal = norm;
+                            }
+                        }
+
+                        const parsedTolerance = parseInt(this.config.priceTolerance, 10);
+                        const tolerance = !Number.isNaN(parsedTolerance) ? parsedTolerance : DEFAULT_PRICE_TOLERANCE;
+
+                        // Check offer deal validity
+                        if (offerTrigger && offerTrigger !== 'CHANGED' && offerTrigger !== 'PENDING') {
+                            const isOfferSupported = minValidOffer <= (currentOffer + tolerance);
+                            if (!isOfferSupported) {
+                                if (this.config.verboseLogging) {
+                                    logger.warn('[DealMonitor] Suppressing %s for %s (ID: %s) at %s: Not supported by any valid merchant (best valid: %s). Reverting min.',
+                                        offerTrigger, product.name, productId, formatCLP(currentOffer), formatCLP(minValidOffer));
+                                }
+                                stored.minOfferPrice = prevMinOffer;
+                                stored.minOfferDate = prevMinOfferDate;
+                                stored.notifiedMinOfferPrice = prevNotifiedMinOffer;
+                                stored.lastOfferPrice = minValidOffer < Infinity ? minValidOffer : previousOfferPrice;
+                                offerTrigger = null;
+                            }
+                        }
+
+                        // Check normal deal validity
+                        if (normalTrigger && normalTrigger !== 'CHANGED' && normalTrigger !== 'PENDING') {
+                            const isNormalSupported = minValidNormal <= (currentNormal + tolerance);
+                            if (!isNormalSupported) {
+                                if (this.config.verboseLogging) {
+                                    logger.warn('[DealMonitor] Suppressing %s for %s (ID: %s) at %s: Not supported by any valid merchant (best valid: %s). Reverting min.',
+                                        normalTrigger, product.name, productId, formatCLP(currentNormal), formatCLP(minValidNormal));
+                                }
+                                stored.minNormalPrice = prevMinNormal;
+                                stored.minNormalDate = prevMinNormalDate;
+                                stored.notifiedMinNormalPrice = prevNotifiedMinNormal;
+                                stored.lastNormalPrice = minValidNormal < Infinity ? minValidNormal : previousNormalPrice;
+                                normalTrigger = null;
+                            }
+                        }
+
+                        verifiedEntities = validEntities;
+                    } catch (entityError) {
+                        logger.error('Error verifying entities for product %s:', productId, entityError);
+                        // Fail safe: Revert mutations made by _checkPriceUpdate so unverified deals are not saved or notified
+                        stored.minOfferPrice = prevMinOffer;
+                        stored.minOfferDate = prevMinOfferDate;
+                        stored.notifiedMinOfferPrice = prevNotifiedMinOffer;
+                        stored.minNormalPrice = prevMinNormal;
+                        stored.minNormalDate = prevMinNormalDate;
+                        stored.notifiedMinNormalPrice = prevNotifiedMinNormal;
+                        stored.lastOfferPrice = previousOfferPrice;
+                        stored.lastNormalPrice = previousNormalPrice;
+                        offerTrigger = null;
+                        normalTrigger = null;
+                    }
+                }
 
                 // Log significant price drops that don't trigger a notification (Issue #83)
                 const priceChecks = [
@@ -396,12 +487,21 @@ class DealMonitor extends Monitor {
                     }
                 }
 
-                let productChanged = !!(offerTrigger || normalTrigger);
+                const priceChanged = stored.lastOfferPrice !== previousOfferPrice || stored.lastNormalPrice !== previousNormalPrice;
+                let productChanged = !!(offerTrigger || normalTrigger) || priceChanged;
 
                 if (offerTrigger || normalTrigger) {
                     const triggers = [offerTrigger, normalTrigger].filter(t => t && t !== 'CHANGED' && t !== 'PENDING');
                     if (triggers.length > 0) {
-                        await this.notify({ product, triggers, date: now, stored, previousOfferPrice, previousNormalPrice });
+                        await this.notify({
+                            product,
+                            triggers,
+                            date: now,
+                            stored,
+                            previousOfferPrice,
+                            previousNormalPrice,
+                            validEntities: verifiedEntities
+                        });
                     }
                 }
 
@@ -513,7 +613,8 @@ class DealMonitor extends Monitor {
      * @returns {{storeName: string, safeUrl: string}} The sanitized store name and URL.
      */
     _formatStoreLink(product, entity, storeMap) {
-        const storeData = storeMap.get(entity.store); const storeName = sanitizeLinkText(storeData?.name || 'Tienda');
+        const storeData = storeMap.get(entity.store);
+        const storeName = sanitizeLinkText(storeData?.name || 'Tienda');
         let safeUrl = '#';
         try {
             const urlObj = new URL(entity.external_url);
@@ -541,12 +642,11 @@ class DealMonitor extends Monitor {
         if (!channel) return;
 
         // 1. Fetch Data
-        const entities = await solotodo.getAvailableEntities(product.id);
         const storeMap = await solotodo.getStores();
-        const pictureUrl = await solotodo.getBestPictureUrl(product, entities);
-        
-        // Filter valid entities (exclude plans and refurbished)
-        const validEntities = solotodo.filterValidEntities(entities);
+        const validEntities = Array.isArray(change.validEntities)
+            ? change.validEntities
+            : solotodo.filterValidEntities(await solotodo.getAvailableEntities(product.id), storeMap);
+        const pictureUrl = await solotodo.getBestPictureUrl(product, validEntities);
 
         // 2. Validate
         if (validEntities.length === 0) return;
@@ -652,7 +752,7 @@ class DealMonitor extends Monitor {
         if (pictureUrl) {
             embed.setThumbnail(pictureUrl);
         } else {
-            attachment = await this._getFallbackAttachment(product, entities);
+            attachment = await this._getFallbackAttachment(product, validEntities);
             if (attachment) {
                 embed.setThumbnail(`attachment://${attachment.name}`);
             }

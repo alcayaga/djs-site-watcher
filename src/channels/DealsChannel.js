@@ -1,6 +1,6 @@
 const { ThreadAutoArchiveDuration, EmbedBuilder, RESTJSONErrorCodes } = require('discord.js');
 const ChannelHandler = require('../ChannelHandler');
-const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl, getAvailableEntities, getStores } = require('../utils/solotodo');
+const { extractQuery, searchSolotodo, searchByUrl, getProductUrl, getSearchUrl, getAvailableEntities, getStores, filterValidEntities } = require('../utils/solotodo');
 const { sanitizeLinkText, formatCLP, sanitizeMarkdown } = require('../utils/formatters');
 const logger = require('../utils/logger');
 
@@ -92,8 +92,12 @@ class DealsChannel extends ChannelHandler {
                             getStores()
                         ]);
 
-                        const filteredEntities = entities
-                            .filter(e => e.active_registry.cell_monthly_payment === null && e.active_registry.is_available)
+                        const validEntities = typeof filterValidEntities === 'function'
+                            ? filterValidEntities(entities, storeMap)
+                            : (entities || []).filter(e => e.active_registry?.cell_monthly_payment === null);
+
+                        const filteredEntities = validEntities
+                            .filter(e => e.active_registry?.is_available)
                             .map(e => ({
                                 ...e,
                                 offerPriceNum: parseFloat(e.active_registry.offer_price),
@@ -106,7 +110,8 @@ class DealsChannel extends ChannelHandler {
                             const priceList = filteredEntities.map(entity => {
                                 const storeData = storeMap.get(entity.store);
                                 const storeName = storeData?.name || 'Tienda';
-                                let line = `• [${sanitizeLinkText(storeName)}](${entity.external_url}): **${formatCLP(entity.offerPriceNum)}**`;
+                                const safeUrl = (entity.external_url || '#').replace(/\)/g, '%29').replace(/\(/g, '%28');
+                                let line = `• [${sanitizeLinkText(storeName)}](${safeUrl}): **${formatCLP(entity.offerPriceNum)}**`;
                                 if (Math.floor(entity.normalPriceNum) !== Math.floor(entity.offerPriceNum)) {
                                     line += ` (Normal: ${formatCLP(entity.normalPriceNum)})`;
                                 }
