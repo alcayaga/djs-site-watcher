@@ -1410,7 +1410,7 @@ describe('DealMonitor', () => {
             expect(monitor.state['99'].minOfferPrice).toBe(450000);
         });
 
-        it('should use found historic price instead of browse prices when only one price is found in history', async () => {
+        it('should leave uninitialized price type when only one price is found in history', async () => {
             const product = { id: 99, name: 'New iPad', offerPrice: 300000, normalPrice: 350000 };
             monitor.fetch = jest.fn().mockResolvedValue([product]);
             monitor.state = {};
@@ -1424,7 +1424,70 @@ describe('DealMonitor', () => {
             await monitor.check();
 
             expect(monitor.state['99'].minOfferPrice).toBe(450000);
-            expect(monitor.state['99'].minNormalPrice).toBe(450000);
+            expect(monitor.state['99'].notifiedMinOfferPrice).toBe(450000);
+            expect(monitor.state['99'].minNormalPrice).toBeUndefined();
+            expect(monitor.state['99'].notifiedMinNormalPrice).toBeUndefined();
+
+            // On next run, if normal price is observed and supported by valid merchant, it should be initialized cleanly without alerting
+            const product2 = { id: 99, name: 'New iPad', offerPrice: 450000, normalPrice: 460000 };
+            monitor.fetch = jest.fn().mockResolvedValue([product2]);
+            solotodo.getStores.mockResolvedValue(new Map([[100, { id: 100, name: 'Falabella' }]]));
+            solotodo.getAvailableEntities.mockResolvedValue([
+                {
+                    store: 100,
+                    condition: 'https://schema.org/NewCondition',
+                    external_url: 'https://falabella.com/products/ipad',
+                    active_registry: { offer_price: '450000', normal_price: '460000', cell_monthly_payment: null }
+                }
+            ]);
+            await monitor.check();
+
+            expect(monitor.state['99'].minNormalPrice).toBe(460000);
+            expect(monitor.state['99'].notifiedMinNormalPrice).toBe(460000);
+            expect(mockChannel.send).not.toHaveBeenCalled();
+        });
+
+        it('should verify uninitialized normal price and reset to valid merchant price when browse price is BackOnline-only', async () => {
+            const product = { id: 99, name: 'New iPad', offerPrice: 450000, normalPrice: 300000 };
+            monitor.fetch = jest.fn().mockResolvedValue([product]);
+            monitor.state = {
+                '99': {
+                    name: 'New iPad',
+                    minOfferPrice: 450000,
+                    notifiedMinOfferPrice: 450000,
+                    lastOfferPrice: 450000,
+                    lastNormalPrice: 500000
+                    // minNormalPrice is undefined (offer-only history)
+                }
+            };
+
+            solotodo.getStores.mockResolvedValue(new Map([
+                [6101, { id: 6101, name: 'BackOnline' }],
+                [100, { id: 100, name: 'Falabella' }]
+            ]));
+
+            solotodo.getAvailableEntities.mockResolvedValue([
+                {
+                    store: 6101,
+                    condition: 'https://schema.org/NewCondition',
+                    external_url: 'https://backonline.cl/products/ipad',
+                    active_registry: { offer_price: '450000', normal_price: '300000', cell_monthly_payment: null }
+                },
+                {
+                    store: 100,
+                    condition: 'https://schema.org/NewCondition',
+                    external_url: 'https://falabella.com/products/ipad',
+                    active_registry: { offer_price: '450000', normal_price: '480000', cell_monthly_payment: null }
+                }
+            ]);
+
+            await monitor.check();
+
+            expect(solotodo.getAvailableEntities).toHaveBeenCalledWith(99);
+            expect(monitor.state['99'].minNormalPrice).toBe(480000);
+            expect(monitor.state['99'].notifiedMinNormalPrice).toBe(480000);
+            expect(monitor.state['99'].suppressedNormalPrice).toBe(300000);
+            expect(mockChannel.send).not.toHaveBeenCalled();
         });
 
         it('should revert candidate deals when storeMap is unavailable', async () => {

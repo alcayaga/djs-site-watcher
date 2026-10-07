@@ -148,10 +148,19 @@ class DealMonitor extends Monitor {
         const notificationType = priceType.toUpperCase();
         
         let stateMigrated = false;
-        // Ensure notifiedMinKey exists for backward compatibility
-        if (stored[notifiedMinKey] === undefined) {
+        // Ensure notifiedMinKey exists for backward compatibility if minPrice is already set
+        if (stored[minPriceKey] !== undefined && stored[notifiedMinKey] === undefined) {
             stored[notifiedMinKey] = stored[minPriceKey];
             stateMigrated = true;
+        }
+
+        // Initialize price type if it was not present in historic backfill
+        if (stored[minPriceKey] === undefined) {
+            stored[minPriceKey] = currentPrice;
+            stored[minDateKey] = now;
+            stored[notifiedMinKey] = currentPrice;
+            stored[lastPriceKey] = currentPrice;
+            return 'CHANGED';
         }
         
         const tolerance = this._getTolerance();
@@ -338,6 +347,8 @@ class DealMonitor extends Monitor {
                     let minNormal = Infinity;
                     let minOfferDate = now;
                     let minNormalDate = now;
+                    let foundOffer = false;
+                    let foundNormal = false;
 
                     if (!isSingleRun) {
                         if (!storeMap) {
@@ -360,8 +371,6 @@ class DealMonitor extends Monitor {
                         logger.info('New product detected: %s (ID: %s). Backfilling history...', product.name, productId);
                         try {
                             const history = await solotodo.getProductHistory(productId);
-                            let foundOffer = false;
-                            let foundNormal = false;
                             for (const entity of history) {
                                 // Only backfill history from CLP (Currency 1) entities
                                 const entityCurrency = entity.entity?.currency;
@@ -406,17 +415,10 @@ class DealMonitor extends Monitor {
                                 continue;
                             }
 
-                            if (!foundOffer) {
-                                minOffer = minNormal;
-                                minOfferDate = minNormalDate;
-                            }
-                            if (!foundNormal) {
-                                minNormal = minOffer;
-                                minNormalDate = minOfferDate;
-                            }
-
                             if (this.config.verboseLogging) {
-                                logger.info('[DealMonitor] Backfill for %s (ID: %s) complete. Min Offer: %s (%s), Min Normal: %s (%s)', product.name, productId, formatCLP(minOffer), minOfferDate, formatCLP(minNormal), minNormalDate);
+                                const offerStr = foundOffer ? `${formatCLP(minOffer)} (${minOfferDate})` : 'N/A';
+                                const normalStr = foundNormal ? `${formatCLP(minNormal)} (${minNormalDate})` : 'N/A';
+                                logger.info('[DealMonitor] Backfill for %s (ID: %s) complete. Min Offer: %s, Min Normal: %s', product.name, productId, offerStr, normalStr);
                             }
                             // Delay to avoid bursting API
                             await sleep(this.config.apiDelay);
@@ -428,21 +430,31 @@ class DealMonitor extends Monitor {
                     } else {
                         minOffer = product.offerPrice;
                         minNormal = product.normalPrice;
+                        foundOffer = true;
+                        foundNormal = true;
                     }
 
-                    newState[productId] = {
-                        minOfferPrice: minOffer,
-                        minOfferDate,
-                        notifiedMinOfferPrice: minOffer,
-                        minNormalPrice: minNormal,
-                        minNormalDate,
-                        notifiedMinNormalPrice: minNormal,
+                    const productState = {
                         lastOfferPrice: product.offerPrice,
                         lastNormalPrice: product.normalPrice,
                         name: product.name,
                         slug: product.slug,
                         pictureUrl: product.pictureUrl
                     };
+
+                    if (foundOffer) {
+                        productState.minOfferPrice = minOffer;
+                        productState.minOfferDate = minOfferDate;
+                        productState.notifiedMinOfferPrice = minOffer;
+                    }
+
+                    if (foundNormal) {
+                        productState.minNormalPrice = minNormal;
+                        productState.minNormalDate = minNormalDate;
+                        productState.notifiedMinNormalPrice = minNormal;
+                    }
+
+                    newState[productId] = productState;
                     hasChanges = true;
                     continue;
                 }
@@ -534,9 +546,13 @@ class DealMonitor extends Monitor {
                 }
 
                 // Determine if offer or normal prices require verification against available merchants
-                // Verification is required if a candidate deal trigger fired, or if a lowered historic minimum was recorded
-                let needsOfferVerification = Boolean((offerTrigger && offerTrigger !== 'CHANGED' && offerTrigger !== 'PENDING') || (stored.minOfferPrice < prevMinOffer));
-                let needsNormalVerification = Boolean((normalTrigger && normalTrigger !== 'CHANGED' && normalTrigger !== 'PENDING') || (stored.minNormalPrice < prevMinNormal));
+                // Verification is required if a candidate deal trigger fired, if a lowered historic minimum was recorded,
+                // or if a minimum transitioned from undefined to set
+                const isOfferMinNewOrLower = stored.minOfferPrice !== undefined && (prevMinOffer === undefined || stored.minOfferPrice < prevMinOffer);
+                const isNormalMinNewOrLower = stored.minNormalPrice !== undefined && (prevMinNormal === undefined || stored.minNormalPrice < prevMinNormal);
+
+                let needsOfferVerification = Boolean((offerTrigger && offerTrigger !== 'CHANGED' && offerTrigger !== 'PENDING') || isOfferMinNewOrLower);
+                let needsNormalVerification = Boolean((normalTrigger && normalTrigger !== 'CHANGED' && normalTrigger !== 'PENDING') || isNormalMinNewOrLower);
 
                 // If a previous check already verified that currentOffer/Normal is an unsupported refurbished price,
                 // and the cached suppression is still valid, suppress immediately to avoid repeated API calls.
