@@ -29,48 +29,24 @@ if (!fs.existsSync(dealsFilePath)) {
 const PRODUCT_REPAIRS = {
     '125322': {
         name: 'Apple iPad Mini 8.3 2021 (64 GB / Space Gray)',
-        shouldRepair: (entry) => entry.minOfferPrice === 399990 || entry.suppressedOfferPrice === 399990,
-        apply: (entry) => ({
-            ...entry,
-            minOfferPrice: 649990,
-            minOfferDate: '2026-06-01T03:21:40.144191Z',
-            notifiedMinOfferPrice: 649990,
-            minNormalPrice: 649990,
-            minNormalDate: '2026-06-01T03:21:40.144191Z',
-            notifiedMinNormalPrice: 649990,
-            lastOfferPrice: entry.lastOfferPrice === 399990 ? 732293 : (entry.lastOfferPrice || 732293),
-            lastNormalPrice: entry.lastNormalPrice === 399990 ? 732293 : (entry.lastNormalPrice || 732293)
-        })
+        corruptPrice: 399990,
+        validMinOffer: 649990,
+        validMinNormal: 649990,
+        validMinDate: '2026-06-01T03:21:40.144191Z'
     },
     '256385': {
         name: 'Apple Watch Series 10 46mm (GPS / Black Aluminum Case / Ink Loop Band) [MWWR3AM/A]',
-        shouldRepair: (entry) => entry.minOfferPrice === 329990 || entry.suppressedOfferPrice === 329990,
-        apply: (entry) => ({
-            ...entry,
-            minOfferPrice: 473029,
-            minOfferDate: '2026-09-01T00:00:00.000000Z',
-            notifiedMinOfferPrice: 473029,
-            minNormalPrice: 473029,
-            minNormalDate: '2026-09-01T00:00:00.000000Z',
-            notifiedMinNormalPrice: 473029,
-            lastOfferPrice: entry.lastOfferPrice === 329990 ? 473029 : (entry.lastOfferPrice || 473029),
-            lastNormalPrice: entry.lastNormalPrice === 329990 ? 473029 : (entry.lastNormalPrice || 473029)
-        })
+        corruptPrice: 329990,
+        validMinOffer: 473029,
+        validMinNormal: 473029,
+        validMinDate: '2026-09-01T00:00:00.000000Z'
     },
     '383406': {
         name: 'Apple iPad Air 13 2026 (Wi-Fi / 128 GB / Space Gray) [MH5N4CI/A]',
-        shouldRepair: (entry) => entry.minOfferPrice === 899990 || entry.minNormalPrice === 899990 || entry.suppressedOfferPrice === 899990,
-        apply: (entry) => ({
-            ...entry,
-            minOfferPrice: 979990,
-            minOfferDate: '2026-08-27T00:00:00.000000Z',
-            notifiedMinOfferPrice: 979990,
-            minNormalPrice: 999990,
-            minNormalDate: '2026-08-27T00:00:00.000000Z',
-            notifiedMinNormalPrice: 999990,
-            lastOfferPrice: entry.lastOfferPrice === 899990 ? 1141802 : (entry.lastOfferPrice || 1141802),
-            lastNormalPrice: entry.lastNormalPrice === 899990 ? 1181990 : (entry.lastNormalPrice || 1181990)
-        })
+        corruptPrice: 899990,
+        validMinOffer: 979990,
+        validMinNormal: 999990,
+        validMinDate: '2026-08-27T00:00:00.000000Z'
     }
 };
 
@@ -98,20 +74,45 @@ try {
             continue;
         }
 
-        if (!config.shouldRepair(entry)) {
-            console.log(`Product ${productId} (${entry.name || config.name}) does not match corruption criteria. Skipping.`);
+        const isMinCorrupt = entry.minOfferPrice === config.corruptPrice || entry.minNormalPrice === config.corruptPrice;
+        const hasSuppression = SUPPRESSION_FIELDS.some(field => field in entry);
+        const hasCorruptLast = entry.lastOfferPrice === config.corruptPrice || entry.lastNormalPrice === config.corruptPrice;
+
+        if (!isMinCorrupt && !hasSuppression && !hasCorruptLast) {
+            console.log(`Product ${productId} (${entry.name || config.name}) does not require repair. Skipping.`);
             continue;
         }
 
-        deals[productId] = config.apply(entry);
-        for (const field of SUPPRESSION_FIELDS) {
-            delete deals[productId][field];
+        const updated = { ...entry };
+
+        if (entry.minOfferPrice === config.corruptPrice) {
+            updated.minOfferPrice = config.validMinOffer;
+            updated.minOfferDate = config.validMinDate;
+            updated.notifiedMinOfferPrice = config.validMinOffer;
+            console.log(`Restored minOfferPrice for ${productId}: ${updated.minOfferPrice}`);
         }
 
+        if (entry.minNormalPrice === config.corruptPrice) {
+            updated.minNormalPrice = config.validMinNormal;
+            updated.minNormalDate = config.validMinDate;
+            updated.notifiedMinNormalPrice = config.validMinNormal;
+            console.log(`Restored minNormalPrice for ${productId}: ${updated.minNormalPrice}`);
+        }
+
+        if (updated.lastOfferPrice === config.corruptPrice) {
+            delete updated.lastOfferPrice;
+        }
+        if (updated.lastNormalPrice === config.corruptPrice) {
+            delete updated.lastNormalPrice;
+        }
+
+        for (const field of SUPPRESSION_FIELDS) {
+            delete updated[field];
+        }
+
+        deals[productId] = updated;
         repairedCount++;
-        const updated = deals[productId];
-        console.log(`Repaired product ${productId} (${updated.name || config.name}):`);
-        console.log(`  minOffer=${updated.minOfferPrice}, minNormal=${updated.minNormalPrice}, lastOffer=${updated.lastOfferPrice}, lastNormal=${updated.lastNormalPrice}`);
+        console.log(`Repaired product ${productId} (${updated.name || config.name}) state.`);
     }
 
     if (repairedCount === 0) {
@@ -130,8 +131,12 @@ try {
         fs.writeFileSync(tempDealsFilePath, JSON.stringify(deals, null, 2) + '\n', 'utf8');
         fs.renameSync(tempDealsFilePath, dealsFilePath);
     } finally {
-        if (fs.existsSync(tempDealsFilePath)) {
-            fs.unlinkSync(tempDealsFilePath);
+        try {
+            if (fs.existsSync(tempDealsFilePath)) {
+                fs.unlinkSync(tempDealsFilePath);
+            }
+        } catch {
+            // Preserve the original write or rename error.
         }
     }
 
