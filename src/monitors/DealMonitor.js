@@ -60,6 +60,7 @@ class DealMonitor extends Monitor {
             const baseUrl = urls[i];
             try {
                 const url = new URL(baseUrl);
+                url.searchParams.set('countries', '1');
                 url.searchParams.set('exclude_refurbished', 'true');
                 
                 const response = await got(url.toString(), getSafeGotOptions());

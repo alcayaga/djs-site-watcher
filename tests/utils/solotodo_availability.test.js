@@ -57,6 +57,8 @@ describe('Solotodo Utils - searchSolotodo Availability', () => {
         const url = new URL(availabilityCall[0]);
         const ids = new Set(url.searchParams.getAll('ids'));
         expect(ids).toEqual(new Set(['70846', '224175']));
+        expect(url.searchParams.get('exclude_with_monthly_payment')).toBe('1');
+        expect(url.searchParams.get('countries')).toBe('1');
     });
 
     it('should return null if no matches contain all query words', async () => {

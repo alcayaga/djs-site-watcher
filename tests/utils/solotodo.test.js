@@ -175,6 +175,8 @@ describe('Solotodo Utils - API functions', () => {
         expect(entities).toHaveLength(1);
         expect(entities[0].id).toBe(1);
         expect(got).toHaveBeenCalledWith(expect.stringContaining('exclude_refurbished=true'), expect.any(Object));
+        expect(got).toHaveBeenCalledWith(expect.stringContaining('exclude_with_monthly_payment=1'), expect.any(Object));
+        expect(got).toHaveBeenCalledWith(expect.stringContaining('countries=1'), expect.any(Object));
     });
 
     it('getAvailableEntities should allow including refurbished if explicitly requested', async () => {
@@ -215,6 +217,8 @@ describe('Solotodo Utils - API functions', () => {
         expect(result).toHaveLength(1);
         expect(got).toHaveBeenCalledWith(expect.stringContaining('products/123/pricing_history/'), expect.any(Object));
         expect(got).toHaveBeenCalledWith(expect.stringContaining('exclude_refurbished=true'), expect.any(Object));
+        expect(got).toHaveBeenCalledWith(expect.stringContaining('exclude_unavailable=1'), expect.any(Object));
+        expect(got).toHaveBeenCalledWith(expect.stringContaining('countries=1'), expect.any(Object));
     });
 
     describe('isPictureUrlInvalid', () => {

@@ -80,6 +80,7 @@ async function searchSolotodo(query) {
             const availUrl = new URL(`${SOLOTODO_API_URL}/products/available_entities/`);
             availUrl.searchParams.set('countries', CHILE_COUNTRY_ID);
             availUrl.searchParams.set('exclude_refurbished', 'true');
+            availUrl.searchParams.set('exclude_with_monthly_payment', '1');
             // The API requires multiple 'ids' query parameters (e.g., ?ids=1&ids=2)
             topMatches.forEach(p => availUrl.searchParams.append('ids', String(p.id)));
 
@@ -263,6 +264,7 @@ async function getAvailableEntities(productId, excludeRefurbished = true) {
     const url = new URL(`${SOLOTODO_API_URL}/products/available_entities/`);
     url.searchParams.set('countries', CHILE_COUNTRY_ID);
     url.searchParams.set('ids', String(productId));
+    url.searchParams.set('exclude_with_monthly_payment', '1');
     if (excludeRefurbished) {
         url.searchParams.set('exclude_refurbished', 'true');
     }
@@ -385,6 +387,8 @@ async function getProductHistory(productId) {
     const timestampAfter = sixMonthsAgo.toISOString();
 
     const url = new URL(`${SOLOTODO_API_URL}/products/${productId}/pricing_history/`);
+    url.searchParams.set('countries', CHILE_COUNTRY_ID);
+    url.searchParams.set('exclude_unavailable', '1');
     url.searchParams.set('timestamp_after', timestampAfter);
     url.searchParams.set('timestamp_before', timestampBefore);
     url.searchParams.set('exclude_refurbished', 'true');
