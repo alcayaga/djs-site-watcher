@@ -75,10 +75,9 @@ try {
         }
 
         const isMinCorrupt = entry.minOfferPrice === config.corruptPrice || entry.minNormalPrice === config.corruptPrice;
-        const hasSuppression = SUPPRESSION_FIELDS.some(field => field in entry);
         const hasCorruptLast = entry.lastOfferPrice === config.corruptPrice || entry.lastNormalPrice === config.corruptPrice;
 
-        if (!isMinCorrupt && !hasSuppression && !hasCorruptLast) {
+        if (!isMinCorrupt && !hasCorruptLast) {
             console.log(`Product ${productId} (${entry.name || config.name}) does not require repair. Skipping.`);
             continue;
         }
