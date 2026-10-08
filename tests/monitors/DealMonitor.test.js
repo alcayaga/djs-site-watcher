@@ -548,6 +548,7 @@ describe('DealMonitor', () => {
 
         expect(got).toHaveBeenCalledTimes(2);
         expect(got.mock.calls[0][0]).toContain('exclude_refurbished=true');
+        expect(got.mock.calls[0][0]).toContain('countries=1');
         expect(monitor.state['1']).toBeDefined();
         expect(monitor.state['2']).toBeDefined();
     });

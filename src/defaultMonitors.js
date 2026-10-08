@@ -57,9 +57,9 @@ const defaultMonitors = [
         name: 'Deal',
         enabled: true,
         url: [
-            `${SOLOTODO_API_URL}/categories/50/browse/?brands=756403&brands=769114`,
-            `${SOLOTODO_API_URL}/categories/6/browse/?brands=149039`,
-            `${SOLOTODO_API_URL}/categories/25/browse/?brands=944507`
+            `${SOLOTODO_API_URL}/categories/50/browse/?countries=1&exclude_refurbished=true&brands=756403&brands=769114`,
+            `${SOLOTODO_API_URL}/categories/6/browse/?countries=1&exclude_refurbished=true&brands=149039`,
+            `${SOLOTODO_API_URL}/categories/25/browse/?countries=1&exclude_refurbished=true&brands=944507`
         ],
         file: './config/deals.json',
     },
