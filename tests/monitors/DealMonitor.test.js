@@ -1749,7 +1749,9 @@ describe('DealMonitor', () => {
             expect(startSpy).toHaveBeenCalledWith({
                 baseUrl: 'https://deals.example.com',
                 port: 3000,
-                trustProxy: false
+                trustProxy: false,
+                trustedHeader: undefined,
+                owner: 'Deal'
             });
             expect(monitor.isTrackingActive).toBe(true);
 
@@ -1769,7 +1771,31 @@ describe('DealMonitor', () => {
             expect(startSpy).toHaveBeenCalledWith({
                 baseUrl: 'https://deals.example.com',
                 port: 3000,
-                trustProxy: true
+                trustProxy: true,
+                trustedHeader: undefined,
+                owner: 'Deal'
+            });
+
+            startSpy.mockRestore();
+            isRunningSpy.mockRestore();
+        });
+
+        it('should pass trustedHeader when configured in monitor config', async () => {
+            monitor.config.trackingBaseUrl = 'https://deals.example.com';
+            monitor.config.trackingPort = 3000;
+            monitor.config.trustProxy = true;
+            monitor.config.trustedHeader = 'cf-connecting-ip';
+            const startSpy = jest.spyOn(linkTracker, 'start').mockResolvedValue();
+            const isRunningSpy = jest.spyOn(linkTracker, 'isRunning').mockReturnValue(true);
+
+            await monitor.initialize(mockClient);
+
+            expect(startSpy).toHaveBeenCalledWith({
+                baseUrl: 'https://deals.example.com',
+                port: 3000,
+                trustProxy: true,
+                trustedHeader: 'cf-connecting-ip',
+                owner: 'Deal'
             });
 
             startSpy.mockRestore();
@@ -1850,9 +1876,55 @@ describe('DealMonitor', () => {
 
             monitor.stop();
 
-            expect(stopSpy).toHaveBeenCalled();
+            expect(stopSpy).toHaveBeenCalledWith({ owner: 'Deal' });
             expect(monitor.isTrackingActive).toBe(false);
             stopSpy.mockRestore();
+        });
+
+        it('should continue processing remaining products and save state if notify throws an error for one product', async () => {
+            monitor.state = {
+                '1': { 
+                    id: 1, name: 'iPhone 1', 
+                    minOfferPrice: 500000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                    lastOfferPrice: 500000, 
+                    minNormalPrice: 600000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                    lastNormalPrice: 600000 
+                },
+                '2': { 
+                    id: 2, name: 'iPhone 2', 
+                    minOfferPrice: 500000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                    lastOfferPrice: 500000, 
+                    minNormalPrice: 600000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                    lastNormalPrice: 600000 
+                }
+            };
+
+            got.mockResolvedValue({
+                body: mockApiResponse([
+                    { id: 1, name: 'iPhone 1', offerPrice: 450000, normalPrice: 600000 },
+                    { id: 2, name: 'iPhone 2', offerPrice: 450000, normalPrice: 600000 }
+                ])
+            });
+
+            const entitiesSpy = jest.spyOn(solotodo, 'getAvailableEntities').mockResolvedValue([
+                { active_registry: { offer_price: "450000", normal_price: "600000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
+            ]);
+
+            const notifySpy = jest.spyOn(monitor, 'notify')
+                .mockRejectedValueOnce(new Error('Discord notification failure for prod 1'))
+                .mockResolvedValueOnce();
+            const saveStateSpy = jest.spyOn(monitor, 'saveState').mockResolvedValue();
+
+            await monitor.check();
+
+            expect(notifySpy).toHaveBeenCalledTimes(2);
+            expect(saveStateSpy).toHaveBeenCalled();
+            expect(monitor.state['1'].lastOfferPrice).toBe(450000);
+            expect(monitor.state['2'].lastOfferPrice).toBe(450000);
+
+            entitiesSpy.mockRestore();
+            notifySpy.mockRestore();
+            saveStateSpy.mockRestore();
         });
     });
 });

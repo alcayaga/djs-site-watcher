@@ -173,7 +173,7 @@ if (require.main === module) {
 const shutdown = async () => {
     logger.info('Shutdown signal received. Shutting down gracefully...');
     try {
-        await linkTracker.stop();
+        await linkTracker.stop({ force: true });
     } catch (err) {
         logger.error('Error stopping linkTracker during shutdown:', err);
     }

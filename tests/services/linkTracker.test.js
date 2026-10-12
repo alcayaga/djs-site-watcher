@@ -55,15 +55,16 @@ describe('LinkTracker Service', () => {
         linkTracker.archivedLinks.clear();
         linkTracker.rateLimitMap.clear();
         linkTracker.recentClicksMap.clear();
+        linkTracker.activeOwners.clear();
         linkTracker.isLoaded = true;
         linkTracker.baseUrl = BASE_URL;
         if (linkTracker.server) {
-            await linkTracker.stop();
+            await linkTracker.stop({ force: true });
         }
     });
 
     afterAll(async () => {
-        await linkTracker.stop();
+        await linkTracker.stop({ force: true });
     });
 
     describe('trackUrl', () => {
@@ -280,7 +281,7 @@ describe('LinkTracker Service', () => {
         });
 
         afterEach(async () => {
-            await linkTracker.stop();
+            await linkTracker.stop({ force: true });
         });
 
         it('should respond with 200 OK on /health with security headers', async () => {
@@ -439,26 +440,9 @@ describe('LinkTracker Service', () => {
             expect(res.headers['retry-after']).toBe('60');
         });
 
-        it('should prioritize CF-Connecting-IP and X-Real-IP over X-Forwarded-For and socket when trustProxy is enabled', () => {
+        it('should use rightmost X-Forwarded-For when trustProxy is enabled without explicit trustedHeader', () => {
             linkTracker.trustProxy = true;
-            const reqCf = {
-                headers: {
-                    'cf-connecting-ip': '203.0.113.195',
-                    'x-real-ip': '198.51.100.10',
-                    'x-forwarded-for': '192.0.2.1, 198.51.100.10'
-                },
-                socket: { remoteAddress: '172.18.0.5' }
-            };
-            expect(linkTracker.getClientIp(reqCf)).toBe('203.0.113.195');
-
-            const reqNginx = {
-                headers: {
-                    'x-real-ip': '198.51.100.10',
-                    'x-forwarded-for': '192.0.2.1, 198.51.100.10'
-                },
-                socket: { remoteAddress: '172.18.0.5' }
-            };
-            expect(linkTracker.getClientIp(reqNginx)).toBe('198.51.100.10');
+            linkTracker.trustedHeader = null;
 
             const reqForwarded = {
                 headers: {
@@ -468,18 +452,105 @@ describe('LinkTracker Service', () => {
             };
             expect(linkTracker.getClientIp(reqForwarded)).toBe('198.51.100.10');
 
+            // Headers like cf-connecting-ip or x-real-ip are ignored in default path without trustedHeader
+            const reqUntrustedHeaders = {
+                headers: {
+                    'cf-connecting-ip': '203.0.113.195',
+                    'x-real-ip': '203.0.113.196',
+                    'x-forwarded-for': '192.0.2.1, 198.51.100.10'
+                },
+                socket: { remoteAddress: '172.18.0.5' }
+            };
+            expect(linkTracker.getClientIp(reqUntrustedHeaders)).toBe('198.51.100.10');
+
+            // IPv6 mapped in X-Forwarded-For
             const reqIpv6Mapped = {
                 headers: {
-                    'cf-connecting-ip': '::ffff:203.0.113.195'
+                    'x-forwarded-for': '::ffff:198.51.100.10'
                 },
                 socket: { remoteAddress: '127.0.0.1' }
             };
-            expect(linkTracker.getClientIp(reqIpv6Mapped)).toBe('203.0.113.195');
+            expect(linkTracker.getClientIp(reqIpv6Mapped)).toBe('198.51.100.10');
 
             // When trustProxy is disabled, ignores headers and uses socket IP
             linkTracker.trustProxy = false;
-            expect(linkTracker.getClientIp(reqCf)).toBe('172.18.0.5');
+            expect(linkTracker.getClientIp(reqUntrustedHeaders)).toBe('172.18.0.5');
             linkTracker.trustProxy = true;
+        });
+
+        it('should not change serverPort if start is called again while server is running', async () => {
+            expect(linkTracker.serverPort).toBe(TEST_PORT);
+            await linkTracker.start({ port: 9999 });
+            expect(linkTracker.serverPort).toBe(TEST_PORT);
+        });
+
+        it('should strictly use only trustedHeader when configured, ignoring other forwarded headers', () => {
+            linkTracker.trustProxy = true;
+            linkTracker.trustedHeader = 'cf-connecting-ip';
+
+            // Spoofed headers should NOT be picked up if cf-connecting-ip is missing
+            const spoofedReq = {
+                headers: {
+                    'x-real-ip': '1.2.3.4',
+                    'x-forwarded-for': '5.6.7.8'
+                },
+                socket: { remoteAddress: '172.18.0.5' }
+            };
+            expect(linkTracker.getClientIp(spoofedReq)).toBe('172.18.0.5');
+
+            // Legitimate cf-connecting-ip header should be extracted
+            const legitimateReq = {
+                headers: {
+                    'cf-connecting-ip': '203.0.113.50',
+                    'x-real-ip': '1.2.3.4',
+                    'x-forwarded-for': '5.6.7.8'
+                },
+                socket: { remoteAddress: '172.18.0.5' }
+            };
+            expect(linkTracker.getClientIp(legitimateReq)).toBe('203.0.113.50');
+
+            // Handle comma-separated list in trusted header taking rightmost
+            const commaReq = {
+                headers: {
+                    'cf-connecting-ip': '198.51.100.1, 203.0.113.60'
+                },
+                socket: { remoteAddress: '172.18.0.5' }
+            };
+            expect(linkTracker.getClientIp(commaReq)).toBe('203.0.113.60');
+
+            linkTracker.trustedHeader = null;
+        });
+
+        it('should manage owner ref-counting across start and stop calls', async () => {
+            const OWNER_PORT = 39872;
+            const OWNER_BASE = `http://127.0.0.1:${OWNER_PORT}`;
+
+            await linkTracker.start({ port: OWNER_PORT, baseUrl: OWNER_BASE, owner: 'Monitor1' });
+            expect(linkTracker.isRunning()).toBe(true);
+            expect(linkTracker.activeOwners.has('Monitor1')).toBe(true);
+
+            // Register second owner
+            await linkTracker.start({ port: OWNER_PORT, baseUrl: OWNER_BASE, owner: 'Monitor2' });
+            expect(linkTracker.activeOwners.has('Monitor2')).toBe(true);
+            expect(linkTracker.activeOwners.size).toBe(2);
+
+            // Stop first owner: server must still be running
+            await linkTracker.stop({ owner: 'Monitor1' });
+            expect(linkTracker.isRunning()).toBe(true);
+            expect(linkTracker.activeOwners.has('Monitor1')).toBe(false);
+            expect(linkTracker.activeOwners.has('Monitor2')).toBe(true);
+
+            // Stop second owner: server shuts down
+            await linkTracker.stop({ owner: 'Monitor2' });
+            expect(linkTracker.isRunning()).toBe(false);
+            expect(linkTracker.activeOwners.size).toBe(0);
+
+            // Restart with owner and test force stop
+            await linkTracker.start({ port: OWNER_PORT, baseUrl: OWNER_BASE, owner: 'Monitor1' });
+            expect(linkTracker.isRunning()).toBe(true);
+            await linkTracker.stop({ force: true });
+            expect(linkTracker.isRunning()).toBe(false);
+            expect(linkTracker.activeOwners.size).toBe(0);
         });
     });
 });

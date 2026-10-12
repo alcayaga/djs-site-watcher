@@ -43,6 +43,8 @@ class LinkTracker {
         this.isLoaded = false;
         this._loadPromise = null;
         this.trustProxy = false;
+        this.trustedHeader = null;
+        this.activeOwners = new Set();
         this.saveTimeout = null;
         this.rateLimitMap = new Map();
         this.recentClicksMap = new Map();
@@ -52,6 +54,7 @@ class LinkTracker {
     /**
      * Extracts and validates the client IP from the request.
      * Respects reverse proxy headers when trustProxy is enabled.
+     * If trustedHeader is configured, only inspects that header.
      * @param {import('node:http').IncomingMessage} req The HTTP request.
      * @returns {string} The resolved client IP.
      */
@@ -68,34 +71,40 @@ class LinkTracker {
             return (socketIp && net.isIP(socketIp)) ? socketIp : '127.0.0.1';
         }
 
-        // 1. Cloudflare's verified visitor IP (when proxied through Cloudflare)
-        const cfIp = req.headers['cf-connecting-ip'];
-        if (typeof cfIp === 'string') {
-            let cleanCfIp = cfIp.trim();
-            if (cleanCfIp.startsWith('::ffff:')) {
-                cleanCfIp = cleanCfIp.slice(7);
+        // If a specific trustedHeader is configured, only inspect that header
+        if (this.trustedHeader) {
+            const rawHeader = req.headers[this.trustedHeader];
+            const headerVal = Array.isArray(rawHeader)
+                ? rawHeader[rawHeader.length - 1]
+                : rawHeader;
+
+            if (typeof headerVal === 'string' && headerVal.length > 0) {
+                const parts = headerVal.split(',');
+                let headerIp = parts[parts.length - 1].trim();
+                if (headerIp.startsWith('::ffff:')) {
+                    headerIp = headerIp.slice(7);
+                }
+                if (net.isIP(headerIp)) {
+                    return headerIp;
+                }
             }
-            if (net.isIP(cleanCfIp)) {
-                return cleanCfIp;
+
+            // Fallback to socket IP when trusted header is absent or invalid
+            if (socketIp && net.isIP(socketIp)) {
+                return socketIp;
             }
+            return '127.0.0.1';
         }
 
-        // 2. NGINX Proxy Manager / reverse proxy real IP
-        const realIp = req.headers['x-real-ip'];
-        if (typeof realIp === 'string') {
-            let cleanRealIp = realIp.trim();
-            if (cleanRealIp.startsWith('::ffff:')) {
-                cleanRealIp = cleanRealIp.slice(7);
-            }
-            if (net.isIP(cleanRealIp)) {
-                return cleanRealIp;
-            }
-        }
-
-        // 3. X-Forwarded-For proxy chain: use the rightmost entry appended by the trusted proxy
+        // Default path when trustProxy is enabled without an explicit trustedHeader:
+        // Use the rightmost entry of X-Forwarded-For appended by the trusted reverse proxy
         const xForwardedFor = req.headers['x-forwarded-for'];
-        if (typeof xForwardedFor === 'string' && xForwardedFor.length > 0) {
-            const parts = xForwardedFor.split(',');
+        const forwardedVal = Array.isArray(xForwardedFor)
+            ? xForwardedFor[xForwardedFor.length - 1]
+            : xForwardedFor;
+
+        if (typeof forwardedVal === 'string' && forwardedVal.length > 0) {
+            const parts = forwardedVal.split(',');
             let trustedIp = parts[parts.length - 1].trim();
             if (trustedIp.startsWith('::ffff:')) {
                 trustedIp = trustedIp.slice(7);
@@ -105,7 +114,7 @@ class LinkTracker {
             }
         }
 
-        // 4. Fallback to direct TCP socket address
+        // Fallback to direct TCP socket address
         if (socketIp && net.isIP(socketIp)) {
             return socketIp;
         }
@@ -599,14 +608,23 @@ class LinkTracker {
      * @param {object} [options]
      * @param {number} [options.port] The port to listen on.
      * @param {string} [options.baseUrl] The base tracking URL.
-     * @param {boolean} [options.trustProxy] Whether to trust reverse proxy headers (default: true).
+     * @param {boolean} [options.trustProxy] Whether to trust reverse proxy headers.
+     * @param {string} [options.trustedHeader] Specific proxy header to trust exclusively (e.g. 'cf-connecting-ip').
+     * @param {string} [options.owner] Identifier of the caller owning this server reference.
      * @returns {Promise<void>}
      */
-    async start({ port = DEFAULT_TRACKING_PORT, baseUrl, trustProxy } = {}) {
+    async start({ port = DEFAULT_TRACKING_PORT, baseUrl, trustProxy, trustedHeader, owner } = {}) {
         this.baseUrl = baseUrl || this.baseUrl;
-        this.serverPort = port;
         if (trustProxy !== undefined) {
             this.trustProxy = Boolean(trustProxy);
+        }
+        if (trustedHeader !== undefined) {
+            this.trustedHeader = typeof trustedHeader === 'string' && trustedHeader.trim()
+                ? trustedHeader.trim().toLowerCase()
+                : null;
+        }
+        if (owner) {
+            this.activeOwners.add(owner);
         }
 
         await this.loadState();
@@ -614,6 +632,8 @@ class LinkTracker {
         if (this.server) {
             return;
         }
+
+        this.serverPort = port;
 
         this.server = http.createServer((req, res) => {
             this.handleRequest(req, res).catch(err => {
@@ -644,11 +664,15 @@ class LinkTracker {
              */
             const onError = (err) => {
                 logger.error('[LinkTracker] Server error on port %d:', this.serverPort, err);
+                if (owner) {
+                    this.activeOwners.delete(owner);
+                }
                 if (this._cleanupInterval) {
                     clearInterval(this._cleanupInterval);
                     this._cleanupInterval = null;
                 }
                 this.server = null;
+                this.serverPort = null;
                 reject(err);
             };
 
@@ -667,9 +691,23 @@ class LinkTracker {
 
     /**
      * Gracefully stops the HTTP redirect server and flushes pending writes.
+     * Decrements the active owners count; only stops the server when no owners remain or when forced.
+     * @param {object} [options]
+     * @param {string} [options.owner] Identifier of the caller releasing its reference.
+     * @param {boolean} [options.force] Whether to forcefully stop regardless of active owners.
      * @returns {Promise<void>}
      */
-    async stop() {
+    async stop({ owner, force = false } = {}) {
+        if (owner) {
+            this.activeOwners.delete(owner);
+        }
+
+        if (!force && owner && this.activeOwners.size > 0) {
+            return;
+        }
+
+        this.activeOwners.clear();
+
         if (this._cleanupInterval) {
             clearInterval(this._cleanupInterval);
             this._cleanupInterval = null;
@@ -684,6 +722,7 @@ class LinkTracker {
         if (this.server) {
             const serverToClose = this.server;
             this.server = null;
+            this.serverPort = null;
             return new Promise((resolve) => {
                 if (typeof serverToClose.closeAllConnections === 'function') {
                     serverToClose.closeAllConnections();

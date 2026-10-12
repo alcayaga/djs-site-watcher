@@ -59,7 +59,9 @@ class DealMonitor extends Monitor {
                 await linkTracker.start({
                     baseUrl: this.config.trackingBaseUrl,
                     port: this.config.trackingPort,
-                    trustProxy: Boolean(this.config.trustProxy)
+                    trustProxy: Boolean(this.config.trustProxy),
+                    trustedHeader: this.config.trustedHeader,
+                    owner: this.name
                 });
                 this.isTrackingActive = linkTracker.isRunning();
             } catch (err) {
@@ -76,7 +78,7 @@ class DealMonitor extends Monitor {
         super.stop();
         this.isTrackingActive = false;
         if (this.config.trackingBaseUrl) {
-            linkTracker.stop().catch(err => {
+            linkTracker.stop({ owner: this.name }).catch(err => {
                 logger.error('[DealMonitor] Error stopping linkTracker server:', err);
             });
         }
@@ -711,16 +713,20 @@ class DealMonitor extends Monitor {
                             offerPrice: stored.lastOfferPrice ?? product.offerPrice,
                             normalPrice: stored.lastNormalPrice ?? product.normalPrice
                         };
-                        await this.notify({
-                            product: effectiveProduct,
-                            triggers,
-                            date: now,
-                            stored,
-                            previousOfferPrice,
-                            previousNormalPrice,
-                            validEntities: verifiedEntities,
-                            storeMap
-                        });
+                        try {
+                            await this.notify({
+                                product: effectiveProduct,
+                                triggers,
+                                date: now,
+                                stored,
+                                previousOfferPrice,
+                                previousNormalPrice,
+                                validEntities: verifiedEntities,
+                                storeMap
+                            });
+                        } catch (notifyErr) {
+                            logger.error('[DealMonitor] Error sending deal notification for %s (ID: %s):', product.name, productId, notifyErr);
+                        }
                     }
                 }
 
