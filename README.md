@@ -171,6 +171,14 @@ Enforces a "deals-only" policy in a specific channel.
     *   Allows messages containing a link or an image.
     *   Deletes all other messages and sends a private message to the user asking them to use threads for discussion.
 
+### Deal Link Tracking (`Deal`)
+The `Deal` monitor can run an internal HTTP redirect server to track click engagement on published deals:
+*   `trackingBaseUrl`: Base public URL for redirect links (e.g. `https://deals.example.com`). If omitted, direct store links are used.
+*   `trackingPort`: Local HTTP port to listen on (default: `3000`).
+*   `trackingHost`: Interface/IP to bind to. When `trustProxy` is `true`, this defaults to `127.0.0.1` so the server is not exposed directly to untrusted clients. When `trustProxy` is `false`, it defaults to `0.0.0.0`.
+*   `trustProxy`: Set to `false` for direct exposure. When deployed behind a reverse proxy (e.g. Cloudflare, Nginx, Caddy), set to `true` to enable proxy header parsing.
+*   `trustedHeader`: When `trustProxy` is `true`, specify the exact reverse proxy client IP header to inspect (e.g. `cf-connecting-ip`). If unset, the rightmost `x-forwarded-for` entry is used, falling back to the direct TCP socket address.
+
 ## Migration to v3.1.0
 Version 3.1.0 moves advanced configuration (channel IDs and delays) from environment variables to `config/settings.json`.
 

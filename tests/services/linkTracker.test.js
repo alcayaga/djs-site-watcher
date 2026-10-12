@@ -57,6 +57,7 @@ describe('LinkTracker Service', () => {
         linkTracker.recentClicksMap.clear();
         linkTracker.activeOwners.clear();
         linkTracker.isLoaded = true;
+        linkTracker.isDirty = false;
         linkTracker.baseUrl = BASE_URL;
         if (linkTracker.server) {
             await linkTracker.stop({ force: true });
@@ -273,6 +274,24 @@ describe('LinkTracker Service', () => {
             expect(linkTracker.archivedLinks.has('00000004')).toBe(true);
             expect(linkTracker.archivedLinks.has('00000005')).toBe(true);
         });
+
+        it('should mark isDirty on changes and only saveState on stop if isDirty or saveTimeout pending', async () => {
+            expect(linkTracker.isDirty).toBe(false);
+
+            // Modifying state sets isDirty
+            linkTracker.trackUrl({ targetUrl: 'https://store.com/item', productId: 1 });
+            expect(linkTracker.isDirty).toBe(true);
+
+            // Calling saveState clears isDirty
+            await linkTracker.saveState();
+            expect(linkTracker.isDirty).toBe(false);
+
+            // Stopping when not dirty does not call saveState
+            const saveSpy = jest.spyOn(linkTracker, 'saveState');
+            await linkTracker.stop({ force: true });
+            expect(saveSpy).not.toHaveBeenCalled();
+            saveSpy.mockRestore();
+        });
     });
 
     describe('HTTP Redirect Server & Security', () => {
@@ -484,6 +503,34 @@ describe('LinkTracker Service', () => {
             expect(linkTracker.serverPort).toBe(TEST_PORT);
         });
 
+        it('should preserve running settings and log warnings when start is called with conflicting options', async () => {
+            const logger = require('../../src/utils/logger');
+            const initialBaseUrl = linkTracker.baseUrl;
+            const initialTrustProxy = linkTracker.trustProxy;
+            const initialTrustedHeader = linkTracker.trustedHeader;
+
+            await linkTracker.start({
+                baseUrl: 'https://conflicting.example.com',
+                trustProxy: !initialTrustProxy,
+                trustedHeader: 'x-conflicting-header',
+                owner: 'SecondCaller'
+            });
+
+            // Settings must not be mutated
+            expect(linkTracker.baseUrl).toBe(initialBaseUrl);
+            expect(linkTracker.trustProxy).toBe(initialTrustProxy);
+            expect(linkTracker.trustedHeader).toBe(initialTrustedHeader);
+            expect(linkTracker.activeOwners.has('SecondCaller')).toBe(true);
+
+            // Warnings logged for conflicts
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('Server already running with baseUrl'),
+                expect.anything(),
+                expect.anything(),
+                expect.anything()
+            );
+        });
+
         it('should strictly use only trustedHeader when configured, ignoring other forwarded headers', () => {
             linkTracker.trustProxy = true;
             linkTracker.trustedHeader = 'cf-connecting-ip';
@@ -552,5 +599,94 @@ describe('LinkTracker Service', () => {
             expect(linkTracker.isRunning()).toBe(false);
             expect(linkTracker.activeOwners.size).toBe(0);
         });
+
+        it('should handle synchronous listen errors and clean up state', async () => {
+            await linkTracker.stop({ force: true });
+            const createServerSpy = jest.spyOn(http, 'createServer').mockReturnValueOnce({
+                on: jest.fn(),
+                once: jest.fn(),
+                removeListener: jest.fn(),
+                listen: jest.fn().mockImplementation(() => {
+                    throw new Error('Sync listen failure');
+                })
+            });
+
+            await expect(linkTracker.start({ port: TEST_PORT, baseUrl: BASE_URL, owner: 'Test' }))
+                .rejects.toThrow('Sync listen failure');
+            expect(linkTracker.isRunning()).toBe(false);
+            expect(linkTracker.activeOwners.has('Test')).toBe(false);
+
+            createServerSpy.mockRestore();
+        });
+
+        it('should redirect using targetParsed.href with encoded special characters', async () => {
+            const rawTargetUrl = 'https://example.com/producto/café-y-té?query=áéí';
+            const link = linkTracker.trackUrl({
+                targetUrl: rawTargetUrl,
+                productId: 77,
+                baseUrl: BASE_URL
+            });
+
+            const res = await request({
+                hostname: TEST_HOST,
+                port: TEST_PORT,
+                path: `/r/${link.id}`,
+                method: 'GET'
+            });
+
+            expect(res.statusCode).toBe(302);
+            expect(res.headers['location']).toBe(new URL(rawTargetUrl).href);
+        });
+
+        it('should handle HEAD requests on redirect without incrementing clicks or sending body', async () => {
+            const link = linkTracker.trackUrl({
+                targetUrl: 'https://falabella.com/oferta/head-test',
+                productId: 101,
+                baseUrl: BASE_URL
+            });
+
+            const res = await request({
+                hostname: TEST_HOST,
+                port: TEST_PORT,
+                path: `/r/${link.id}`,
+                method: 'HEAD'
+            });
+
+            expect(res.statusCode).toBe(302);
+            expect(res.headers['location']).toBe('https://falabella.com/oferta/head-test');
+            expect(res.body).toBe('');
+
+            const record = linkTracker.activeLinks.get(link.id);
+            expect(record.clicks || 0).toBe(0);
+        });
+
+        it('should handle HEAD requests on /health without sending body', async () => {
+            const res = await request({
+                hostname: TEST_HOST,
+                port: TEST_PORT,
+                path: '/health',
+                method: 'HEAD'
+            });
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body).toBe('');
+        });
+
+        it('should default host to 127.0.0.1 when trustProxy is true', async () => {
+            await linkTracker.stop({ force: true });
+            await linkTracker.start({ port: TEST_PORT, baseUrl: BASE_URL, trustProxy: true });
+
+            expect(linkTracker.serverHost).toBe('127.0.0.1');
+            await linkTracker.stop({ force: true });
+        });
+
+        it('should default host to 0.0.0.0 when trustProxy is false', async () => {
+            await linkTracker.stop({ force: true });
+            await linkTracker.start({ port: TEST_PORT, baseUrl: BASE_URL, trustProxy: false });
+
+            expect(linkTracker.serverHost).toBe('0.0.0.0');
+            await linkTracker.stop({ force: true });
+        });
     });
 });
+

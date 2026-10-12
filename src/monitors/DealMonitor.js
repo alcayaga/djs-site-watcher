@@ -56,9 +56,14 @@ class DealMonitor extends Monitor {
         await super.initialize(client);
         if (this.config.trackingBaseUrl) {
             try {
+                const parsedUrl = new URL(this.config.trackingBaseUrl);
+                if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+                    throw new Error(`Invalid protocol '${parsedUrl.protocol}', must be http: or https:`);
+                }
                 await linkTracker.start({
                     baseUrl: this.config.trackingBaseUrl,
                     port: this.config.trackingPort,
+                    host: this.config.trackingHost,
                     trustProxy: Boolean(this.config.trustProxy),
                     trustedHeader: this.config.trustedHeader,
                     owner: this.name
@@ -726,6 +731,18 @@ class DealMonitor extends Monitor {
                             });
                         } catch (notifyErr) {
                             logger.error('[DealMonitor] Error sending deal notification for %s (ID: %s):', product.name, productId, notifyErr);
+                            const isDefinitive = notifyErr?.isDefinitiveRejection ??
+                                (typeof notifyErr?.status === 'number' && notifyErr.status >= 400 && notifyErr.status < 500);
+                            if (isDefinitive) {
+                                if (offerTrigger && offerTrigger !== 'CHANGED' && offerTrigger !== 'PENDING') {
+                                    restoreOffer(previousOfferPrice);
+                                }
+                                if (normalTrigger && normalTrigger !== 'CHANGED' && normalTrigger !== 'PENDING') {
+                                    restoreNormal(previousNormalPrice);
+                                }
+                                const restoredPriceChanged = stored.lastOfferPrice !== previousOfferPrice || stored.lastNormalPrice !== previousNormalPrice;
+                                productChanged = !!(offerTrigger || normalTrigger) || restoredPriceChanged || suppressionChanged;
+                            }
                         }
                     }
                 }
@@ -1025,6 +1042,9 @@ class DealMonitor extends Monitor {
             const isDefinitiveRejection = !isSendAttempted || (typeof err?.status === 'number' && err.status >= 400 && err.status < 500);
             if (isDefinitiveRejection && createdLinkIds.length > 0) {
                 linkTracker.untrack(createdLinkIds);
+            }
+            if (err && typeof err === 'object') {
+                err.isDefinitiveRejection = isDefinitiveRejection;
             }
             throw err;
         }

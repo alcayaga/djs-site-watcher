@@ -23,8 +23,6 @@ const {
     ENV_SOLOTODO_API_URL,
     ENV_REQUEST_TIMEOUT,
     ENV_RETRY_LIMIT,
-    ENV_TRACKING_BASE_URL,
-    ENV_TRACKING_PORT,
     DEFAULT_TRACKING_PORT,
 } = require('./utils/constants.js');
 
@@ -127,8 +125,8 @@ const monitorDefaults = {
     'Deal': {
         channelId: process.env[ENV_DISCORDJS_DEALS_CHANNEL_ID],
         apiDelay: config.SOLOTODO_API_DELAY,
-        trackingBaseUrl: process.env[ENV_TRACKING_BASE_URL] || '',
-        trackingPort: parseEnvInt(process.env[ENV_TRACKING_PORT], DEFAULT_TRACKING_PORT)
+        trackingBaseUrl: '',
+        trackingPort: DEFAULT_TRACKING_PORT
     }
 };
 

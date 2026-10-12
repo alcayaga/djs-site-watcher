@@ -1881,7 +1881,19 @@ describe('DealMonitor', () => {
             stopSpy.mockRestore();
         });
 
-        it('should continue processing remaining products and save state if notify throws an error for one product', async () => {
+        it('should leave isTrackingActive false when trackingBaseUrl is invalid', async () => {
+            monitor.config.trackingBaseUrl = 'not-a-valid-url';
+            await monitor.initialize(mockClient);
+            expect(monitor.isTrackingActive).toBe(false);
+        });
+
+        it('should leave isTrackingActive false when trackingBaseUrl has non-http/https protocol', async () => {
+            monitor.config.trackingBaseUrl = 'ftp://example.com';
+            await monitor.initialize(mockClient);
+            expect(monitor.isTrackingActive).toBe(false);
+        });
+
+        it('should continue processing remaining products and restore price state if notify throws an error for one product', async () => {
             monitor.state = {
                 '1': { 
                     id: 1, name: 'iPhone 1', 
@@ -1910,8 +1922,10 @@ describe('DealMonitor', () => {
                 { active_registry: { offer_price: "450000", normal_price: "600000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
             ]);
 
+            const defError = new Error('Discord notification failure for prod 1');
+            defError.isDefinitiveRejection = true;
             const notifySpy = jest.spyOn(monitor, 'notify')
-                .mockRejectedValueOnce(new Error('Discord notification failure for prod 1'))
+                .mockRejectedValueOnce(defError)
                 .mockResolvedValueOnce();
             const saveStateSpy = jest.spyOn(monitor, 'saveState').mockResolvedValue();
 
@@ -1919,8 +1933,51 @@ describe('DealMonitor', () => {
 
             expect(notifySpy).toHaveBeenCalledTimes(2);
             expect(saveStateSpy).toHaveBeenCalled();
-            expect(monitor.state['1'].lastOfferPrice).toBe(450000);
+            // Product 1 failed notify with definitive rejection: state is restored to previous values
+            expect(monitor.state['1'].lastOfferPrice).toBe(500000);
+            expect(monitor.state['1'].minOfferPrice).toBe(500000);
+            // Product 2 succeeded notify: state is updated to new values
             expect(monitor.state['2'].lastOfferPrice).toBe(450000);
+            expect(monitor.state['2'].minOfferPrice).toBe(450000);
+
+            entitiesSpy.mockRestore();
+            notifySpy.mockRestore();
+            saveStateSpy.mockRestore();
+        });
+
+        it('should leave verified price state intact when notify fails due to non-definitive network error', async () => {
+            monitor.state = {
+                '1': { 
+                    id: 1, name: 'iPhone 1', 
+                    minOfferPrice: 500000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                    lastOfferPrice: 500000, 
+                    minNormalPrice: 600000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                    lastNormalPrice: 600000 
+                }
+            };
+
+            got.mockResolvedValue({
+                body: mockApiResponse([
+                    { id: 1, name: 'iPhone 1', offerPrice: 450000, normalPrice: 600000 }
+                ])
+            });
+
+            const entitiesSpy = jest.spyOn(solotodo, 'getAvailableEntities').mockResolvedValue([
+                { active_registry: { offer_price: "450000", normal_price: "600000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
+            ]);
+
+            const netError = new Error('Network timeout');
+            netError.isDefinitiveRejection = false;
+            const notifySpy = jest.spyOn(monitor, 'notify').mockRejectedValueOnce(netError);
+            const saveStateSpy = jest.spyOn(monitor, 'saveState').mockResolvedValue();
+
+            await monitor.check();
+
+            expect(notifySpy).toHaveBeenCalledTimes(1);
+            expect(saveStateSpy).toHaveBeenCalled();
+            // Non-definitive error leaves verified price intact
+            expect(monitor.state['1'].lastOfferPrice).toBe(450000);
+            expect(monitor.state['1'].minOfferPrice).toBe(450000);
 
             entitiesSpy.mockRestore();
             notifySpy.mockRestore();

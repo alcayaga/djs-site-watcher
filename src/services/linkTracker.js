@@ -39,6 +39,7 @@ class LinkTracker {
         this.archivedLinks = new Map();
         this.server = null;
         this.serverPort = null;
+        this.serverHost = null;
         this.baseUrl = null;
         this.isLoaded = false;
         this._loadPromise = null;
@@ -46,6 +47,7 @@ class LinkTracker {
         this.trustedHeader = null;
         this.activeOwners = new Set();
         this.saveTimeout = null;
+        this.isDirty = false;
         this.rateLimitMap = new Map();
         this.recentClicksMap = new Map();
         this._cleanupInterval = null;
@@ -249,6 +251,7 @@ class LinkTracker {
      * Schedules a debounced atomic write to disk.
      */
     scheduleSave() {
+        this.isDirty = true;
         if (this.saveTimeout) return;
         this.saveTimeout = setTimeout(() => {
             this.saveTimeout = null;
@@ -291,6 +294,8 @@ class LinkTracker {
             storage.write(DEAL_ENGAGEMENT_FILE, activeObj),
             storage.write(DEAL_ENGAGEMENT_ARCHIVE_FILE, archiveObj)
         ]);
+
+        this.isDirty = false;
     }
 
     /**
@@ -523,7 +528,11 @@ class LinkTracker {
                 'Content-Type': 'text/plain; charset=utf-8',
                 ...SECURITY_HEADERS
             });
-            res.end('OK');
+            if (req.method === 'HEAD') {
+                res.end();
+            } else {
+                res.end('OK');
+            }
             return;
         }
 
@@ -559,22 +568,25 @@ class LinkTracker {
                     res.end('Not Found');
                     return;
                 }
+                targetUrl = targetParsed.href;
             } catch {
                 res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
                 res.end('Not Found');
                 return;
             }
 
-            // Click deduplication: don't count rapid clicks from the same IP within 10s
-            const dedupKey = `${clientIp}:${id}`;
-            const lastClickTime = this.recentClicksMap.get(dedupKey);
-            const now = Date.now();
+            // Click deduplication: only count GET requests and skip rapid clicks from same IP within 10s
+            if (req.method === 'GET') {
+                const dedupKey = `${clientIp}:${id}`;
+                const lastClickTime = this.recentClicksMap.get(dedupKey);
+                const now = Date.now();
 
-            if (!lastClickTime || now - lastClickTime > CLICK_DEDUP_WINDOW_MS) {
-                record.clicks = (record.clicks || 0) + 1;
-                record.lastClicked = new Date(now).toISOString();
-                this.recentClicksMap.set(dedupKey, now);
-                this.scheduleSave();
+                if (!lastClickTime || now - lastClickTime > CLICK_DEDUP_WINDOW_MS) {
+                    record.clicks = (record.clicks || 0) + 1;
+                    record.lastClicked = new Date(now).toISOString();
+                    this.recentClicksMap.set(dedupKey, now);
+                    this.scheduleSave();
+                }
             }
 
             // Return 302 Found redirect
@@ -583,7 +595,11 @@ class LinkTracker {
                 'Content-Type': 'text/plain; charset=utf-8',
                 ...SECURITY_HEADERS
             });
-            res.end('Redirecting...');
+            if (req.method === 'HEAD') {
+                res.end();
+            } else {
+                res.end('Redirecting...');
+            }
             return;
         }
 
@@ -607,13 +623,32 @@ class LinkTracker {
      * Starts the HTTP redirect server if not already running.
      * @param {object} [options]
      * @param {number} [options.port] The port to listen on.
+     * @param {string} [options.host] The host/IP to bind to (defaults to 127.0.0.1 if trustProxy is enabled, else 0.0.0.0).
      * @param {string} [options.baseUrl] The base tracking URL.
      * @param {boolean} [options.trustProxy] Whether to trust reverse proxy headers.
      * @param {string} [options.trustedHeader] Specific proxy header to trust exclusively (e.g. 'cf-connecting-ip').
      * @param {string} [options.owner] Identifier of the caller owning this server reference.
      * @returns {Promise<void>}
      */
-    async start({ port = DEFAULT_TRACKING_PORT, baseUrl, trustProxy, trustedHeader, owner } = {}) {
+    async start({ port = DEFAULT_TRACKING_PORT, host, baseUrl, trustProxy, trustedHeader, owner } = {}) {
+        if (owner) {
+            this.activeOwners.add(owner);
+        }
+
+        if (this.server) {
+            if (baseUrl && this.baseUrl && baseUrl !== this.baseUrl) {
+                logger.warn('[LinkTracker] Server already running with baseUrl %s; ignoring conflicting baseUrl %s from %s.', this.baseUrl, baseUrl, owner || 'caller');
+            }
+            if (trustProxy !== undefined && Boolean(trustProxy) !== this.trustProxy) {
+                logger.warn('[LinkTracker] Server already running with trustProxy=%s; ignoring conflicting trustProxy=%s from %s.', this.trustProxy, trustProxy, owner || 'caller');
+            }
+            const normalizedHeader = typeof trustedHeader === 'string' && trustedHeader.trim() ? trustedHeader.trim().toLowerCase() : null;
+            if (trustedHeader !== undefined && normalizedHeader !== this.trustedHeader) {
+                logger.warn('[LinkTracker] Server already running with trustedHeader=%s; ignoring conflicting trustedHeader=%s from %s.', this.trustedHeader, normalizedHeader, owner || 'caller');
+            }
+            return;
+        }
+
         this.baseUrl = baseUrl || this.baseUrl;
         if (trustProxy !== undefined) {
             this.trustProxy = Boolean(trustProxy);
@@ -623,17 +658,11 @@ class LinkTracker {
                 ? trustedHeader.trim().toLowerCase()
                 : null;
         }
-        if (owner) {
-            this.activeOwners.add(owner);
-        }
 
         await this.loadState();
 
-        if (this.server) {
-            return;
-        }
-
         this.serverPort = port;
+        this.serverHost = host || (this.trustProxy ? '127.0.0.1' : '0.0.0.0');
 
         this.server = http.createServer((req, res) => {
             this.handleRequest(req, res).catch(err => {
@@ -663,7 +692,7 @@ class LinkTracker {
              * @param {Error} err The listen error.
              */
             const onError = (err) => {
-                logger.error('[LinkTracker] Server error on port %d:', this.serverPort, err);
+                logger.error('[LinkTracker] Server error on %s:%d:', this.serverHost, this.serverPort, err);
                 if (owner) {
                     this.activeOwners.delete(owner);
                 }
@@ -673,19 +702,25 @@ class LinkTracker {
                 }
                 this.server = null;
                 this.serverPort = null;
+                this.serverHost = null;
                 reject(err);
             };
 
             this.server.once('error', onError);
 
-            this.server.listen(this.serverPort, () => {
-                this.server.removeListener('error', onError);
-                this.server.on('error', (err) => {
-                    logger.error('[LinkTracker] Runtime server error on port %d:', this.serverPort, err);
+            try {
+                this.server.listen(this.serverPort, this.serverHost, () => {
+                    this.server.removeListener('error', onError);
+                    this.server.on('error', (err) => {
+                        logger.error('[LinkTracker] Runtime server error on %s:%d:', this.serverHost, this.serverPort, err);
+                    });
+                    logger.info('[LinkTracker] Redirect server running on %s:%d with base URL %s.', this.serverHost, this.serverPort, this.baseUrl || '(none)');
+                    resolve();
                 });
-                logger.info('[LinkTracker] Redirect server running on port %d with base URL %s.', this.serverPort, this.baseUrl || '(none)');
-                resolve();
-            });
+            } catch (err) {
+                this.server.removeListener('error', onError);
+                onError(err);
+            }
         });
     }
 
@@ -713,7 +748,7 @@ class LinkTracker {
             this._cleanupInterval = null;
         }
 
-        if (this.server || this.activeLinks.size > 0 || this.saveTimeout) {
+        if (this.isDirty || this.saveTimeout) {
             await this.saveState().catch(err => {
                 logger.error('[LinkTracker] Error saving state on stop:', err);
             });
@@ -723,6 +758,7 @@ class LinkTracker {
             const serverToClose = this.server;
             this.server = null;
             this.serverPort = null;
+            this.serverHost = null;
             return new Promise((resolve) => {
                 if (typeof serverToClose.closeAllConnections === 'function') {
                     serverToClose.closeAllConnections();

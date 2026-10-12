@@ -48,7 +48,10 @@
       "apiDelay": 5000,
       "verboseLogging": false,
       "trackingBaseUrl": "",
-      "trackingPort": 3000
+      "trackingPort": 3000,
+      "trackingHost": "",
+      "trustProxy": false,
+      "trustedHeader": ""
     },
     {
       "name": "Site",

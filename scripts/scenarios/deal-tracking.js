@@ -6,8 +6,8 @@
 module.exports = {
     // Monitor configuration overrides for tracking
     monitorConfig: {
-        trackingBaseUrl: process.env.TRACKING_BASE_URL || 'http://localhost:3000',
-        trackingPort: parseInt(process.env.TRACKING_PORT || '3000', 10),
+        trackingBaseUrl: 'http://localhost:3000',
+        trackingPort: 3000,
         trustProxy: true,
         trustedHeader: 'cf-connecting-ip'
     },
