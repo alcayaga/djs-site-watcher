@@ -32,6 +32,7 @@ const monitorManager = require('./MonitorManager');
 const fs = require('fs');
 const path = require('path');
 const logger = require('./utils/logger');
+const linkTracker = require('./services/linkTracker');
 
 // Load configuration and state
 const storage = require('./storage');
@@ -169,8 +170,13 @@ if (require.main === module) {
  * Gracefully shuts down the Discord client before process termination.
  * Handles both SIGINT and SIGTERM to guarantee cleanup.
  */
-const shutdown = () => {
+const shutdown = async () => {
     logger.info('Shutdown signal received. Shutting down gracefully...');
+    try {
+        await linkTracker.stop();
+    } catch (err) {
+        logger.error('Error stopping linkTracker during shutdown:', err);
+    }
     client.destroy();
     process.exit(0);
 };

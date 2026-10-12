@@ -9,6 +9,7 @@ const { sleep } = require('../utils/helpers');
 const { getSafeGotOptions } = require('../utils/network');
 const { downloadImage } = require('../utils/image');
 const logger = require('../utils/logger');
+const linkTracker = require('../services/linkTracker');
 
 const MIN_SANITY_PRICE = 1000; // Anything below 1,000 CLP is likely an error for Apple products in these categories
 const NO_HISTORY_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours negative-cache TTL for products with no valid history
@@ -38,12 +39,47 @@ class DealMonitor extends Monitor {
      */
     constructor(name, monitorConfig) {
         super(name, monitorConfig);
+        this.isTrackingActive = false;
         // Custom interval for DealMonitor: run once per hour (0 0 * * * *)
         // or as specified in config.
         if (!this.config.interval) {
             this.config.interval = '0 0 * * * *';
         }
         this.setInterval(this.config.interval);
+    }
+
+    /**
+     * Initializes the monitor and tracking server if configured.
+     * @param {import('discord.js').Client} client The Discord client.
+     */
+    async initialize(client) {
+        await super.initialize(client);
+        if (this.config.trackingBaseUrl) {
+            try {
+                await linkTracker.start({
+                    baseUrl: this.config.trackingBaseUrl,
+                    port: this.config.trackingPort,
+                    trustProxy: Boolean(this.config.trustProxy)
+                });
+                this.isTrackingActive = linkTracker.isRunning();
+            } catch (err) {
+                logger.error('[DealMonitor] Failed to start linkTracker redirect server:', err);
+                this.isTrackingActive = false;
+            }
+        }
+    }
+
+    /**
+     * Stops the monitor's cron job and link tracker server.
+     */
+    stop() {
+        super.stop();
+        this.isTrackingActive = false;
+        if (this.config.trackingBaseUrl) {
+            linkTracker.stop().catch(err => {
+                logger.error('[DealMonitor] Error stopping linkTracker server:', err);
+            });
+        }
     }
 
     /**
@@ -793,16 +829,32 @@ class DealMonitor extends Monitor {
      * @param {object} product The product object.
      * @param {object} entity The Solotodo entity.
      * @param {Map<string, string>} storeMap Map of store URLs to names.
-     * @returns {{storeName: string, safeUrl: string}} The sanitized store name and URL.
+     * @returns {{storeName: string, safeUrl: string, linkId: string|null}} The sanitized store name, URL, and link ID.
      */
     _formatStoreLink(product, entity, storeMap) {
         const storeData = storeMap ? storeMap.get(entity.store) : null;
         const storeName = sanitizeLinkText(storeData?.name || 'Tienda');
-        const safeUrl = toSafeMarkdownUrl(entity.external_url);
+        let safeUrl = toSafeMarkdownUrl(entity.external_url);
         if (safeUrl === '#' && entity.external_url) {
             logger.warn('[DealMonitor] Invalid external URL for product %s (store: %s): %s', product.id, entity.store, String(entity.external_url).replace(/[\n\r]/g, ' '));
         }
-        return { storeName, safeUrl };
+
+        let linkId = null;
+        if (safeUrl !== '#' && this.config.trackingBaseUrl && this.isTrackingActive) {
+            const tracked = linkTracker.trackUrl({
+                targetUrl: safeUrl,
+                productId: product.id,
+                productName: product.name,
+                storeName,
+                baseUrl: this.config.trackingBaseUrl
+            });
+            if (tracked && tracked.url) {
+                safeUrl = tracked.url;
+                linkId = tracked.id;
+            }
+        }
+
+        return { storeName, safeUrl, linkId };
     }
 
     /**
@@ -859,94 +911,124 @@ class DealMonitor extends Monitor {
             }
         }
 
-        // Determine the primary store link for the embed title
-        let primaryStoreUrl = solotodo.getProductUrl(product); // fallback
-        if (bestEntities.length > 0) {
-            const sortedBest = [...bestEntities].sort((a, b) => {
-                const aNoCard = parseFloat(a.active_registry.offer_price) === parseFloat(a.active_registry.normal_price);
-                const bNoCard = parseFloat(b.active_registry.offer_price) === parseFloat(b.active_registry.normal_price);
-                if (aNoCard && !bNoCard) return -1;
-                if (!aNoCard && bNoCard) return 1;
+        // Pre-format and track all bestEntities links
+        const entityLinkMap = new Map();
+        const createdLinkIds = [];
+        let message;
+        let isSendAttempted = false;
 
-                const aNormal = parseFloat(a.active_registry.normal_price);
-                const bNormal = parseFloat(b.active_registry.normal_price);
-                if (aNormal !== bNormal) return aNormal - bNormal;
-
-                return 0;
-            });
-            const { safeUrl } = this._formatStoreLink(product, sortedBest[0], storeMap);
-            if (safeUrl !== '#') {
-                primaryStoreUrl = safeUrl;
-            }
-        }
-
-        const embed = new Discord.EmbedBuilder()
-            .setTitle(sanitizedName)
-            .setURL(primaryStoreUrl)
-            .setDescription(description)
-            .setColor(color)
-            .setTimestamp()
-            .setFooter({ text: 'powered by Solotodo'});
-
-        if (product.offerPrice === product.normalPrice && previousOfferPrice === previousNormalPrice) {
-            embed.addFields([
-                { name: offerLabel === 'Precio Oferta' ? 'Precio (Todo medio de pago)' : offerLabel, value: offerPriceValue, inline: false }
-            ]);
-        } else {
-            embed.addFields([
-                { name: offerLabel, value: offerPriceValue, inline: true },
-                { name: 'Precio Normal', value: normalPriceValue, inline: true }
-            ]);
-        }
-
-        if (bestEntities.length > 0) {
-            let fieldLines = [];
-            let currentLength = 0;
-            
-            const MAX_VALUE_LENGTH = 1024;
-            const TRUNCATION_BUFFER = 35;
-            const SAFE_MAX_LENGTH = MAX_VALUE_LENGTH - TRUNCATION_BUFFER;
-
+        try {
             for (const entity of bestEntities) {
-                const { storeName, safeUrl } = this._formatStoreLink(product, entity, storeMap);
-                let line = `• [**${storeName}** ↗](${safeUrl})`;
+                const formatted = this._formatStoreLink(product, entity, storeMap);
+                entityLinkMap.set(entity, formatted);
+                if (formatted.linkId && !createdLinkIds.includes(formatted.linkId)) {
+                    createdLinkIds.push(formatted.linkId);
+                }
+            }
+
+            // Determine the primary store link for the embed title
+            let primaryStoreUrl = solotodo.getProductUrl(product); // fallback
+            if (bestEntities.length > 0) {
+                const sortedBest = [...bestEntities].sort((a, b) => {
+                    const aNoCard = parseFloat(a.active_registry.offer_price) === parseFloat(a.active_registry.normal_price);
+                    const bNoCard = parseFloat(b.active_registry.offer_price) === parseFloat(b.active_registry.normal_price);
+                    if (aNoCard && !bNoCard) return -1;
+                    if (!aNoCard && bNoCard) return 1;
+
+                    const aNormal = parseFloat(a.active_registry.normal_price);
+                    const bNormal = parseFloat(b.active_registry.normal_price);
+                    if (aNormal !== bNormal) return aNormal - bNormal;
+
+                    return 0;
+                });
+                const primaryFormatted = entityLinkMap.get(sortedBest[0]);
+                if (primaryFormatted && primaryFormatted.safeUrl !== '#') {
+                    primaryStoreUrl = primaryFormatted.safeUrl;
+                }
+            }
+
+            const embed = new Discord.EmbedBuilder()
+                .setTitle(sanitizedName)
+                .setURL(primaryStoreUrl)
+                .setDescription(description)
+                .setColor(color)
+                .setTimestamp()
+                .setFooter({ text: 'powered by Solotodo'});
+
+            if (product.offerPrice === product.normalPrice && previousOfferPrice === previousNormalPrice) {
+                embed.addFields([
+                    { name: offerLabel === 'Precio Oferta' ? 'Precio (Todo medio de pago)' : offerLabel, value: offerPriceValue, inline: false }
+                ]);
+            } else {
+                embed.addFields([
+                    { name: offerLabel, value: offerPriceValue, inline: true },
+                    { name: 'Precio Normal', value: normalPriceValue, inline: true }
+                ]);
+            }
+
+            if (bestEntities.length > 0) {
+                let fieldLines = [];
+                let currentLength = 0;
                 
-                if (entity.best_coupon && entity.best_coupon.code) {
-                    line += `\n  ↳ Cupón: \`${entity.best_coupon.code}\``;
+                const MAX_VALUE_LENGTH = 1024;
+                const TRUNCATION_BUFFER = 35;
+                const SAFE_MAX_LENGTH = MAX_VALUE_LENGTH - TRUNCATION_BUFFER;
+
+                for (const entity of bestEntities) {
+                    const { storeName, safeUrl } = entityLinkMap.get(entity);
+                    let line = `• [**${storeName}** ↗](${safeUrl})`;
+                    
+                    if (entity.best_coupon && entity.best_coupon.code) {
+                        line += `\n  ↳ Cupón: \`${entity.best_coupon.code}\``;
+                    }
+
+                    if (currentLength + line.length + 2 > SAFE_MAX_LENGTH) {
+                        fieldLines.push(`*... y ${bestEntities.length - fieldLines.length} tienda(s) más*`);
+                        break;
+                    }
+                    fieldLines.push(line);
+                    currentLength += line.length + 2; 
                 }
+                embed.addFields([{ name: 'Dónde comprar', value: fieldLines.join('\n'), inline: false }]);
+            }
 
-                if (currentLength + line.length + 2 > SAFE_MAX_LENGTH) {
-                    fieldLines.push(`*... y ${bestEntities.length - fieldLines.length} tienda(s) más*`);
-                    break;
+            // 5. Handle Image / Attachment
+            let attachment = null;
+            if (pictureUrl) {
+                embed.setThumbnail(pictureUrl);
+            } else {
+                attachment = await this._getFallbackAttachment(product, validEntities);
+                if (attachment) {
+                    embed.setThumbnail(`attachment://${attachment.name}`);
                 }
-                fieldLines.push(line);
-                currentLength += line.length + 2; 
             }
-            embed.addFields([{ name: 'Dónde comprar', value: fieldLines.join('\n'), inline: false }]);
-        }
 
-        // 5. Handle Image / Attachment
-        let attachment = null;
-        if (pictureUrl) {
-            embed.setThumbnail(pictureUrl);
-        } else {
-            attachment = await this._getFallbackAttachment(product, validEntities);
-            if (attachment) {
-                embed.setThumbnail(`attachment://${attachment.name}`);
+            // 6. Send
+            if (this.config.verboseLogging) {
+                const minOffer = stored?.minOfferPrice != null ? formatCLP(stored.minOfferPrice) : 'N/A';
+                const minNormal = stored?.minNormalPrice != null ? formatCLP(stored.minNormalPrice) : 'N/A';
+                logger.info('[DealMonitor] Raising Discord alert for %s (ID: %s). Triggers: %s. Current: %s/%s. Min: %s/%s', product.name, product.id, triggers.join(', '), formatCLP(product.offerPrice), formatCLP(product.normalPrice), minOffer, minNormal);
             }
+
+            const messageOptions = { embeds: [embed] };
+            if (attachment) messageOptions.files = [attachment];
+
+            isSendAttempted = true;
+            message = await channel.send(messageOptions);
+        } catch (err) {
+            const isDefinitiveRejection = !isSendAttempted || (typeof err?.status === 'number' && err.status >= 400 && err.status < 500);
+            if (isDefinitiveRejection && createdLinkIds.length > 0) {
+                linkTracker.untrack(createdLinkIds);
+            }
+            throw err;
         }
 
-        // 6. Send
-        if (this.config.verboseLogging) {
-            const minOffer = stored?.minOfferPrice != null ? formatCLP(stored.minOfferPrice) : 'N/A';
-            const minNormal = stored?.minNormalPrice != null ? formatCLP(stored.minNormalPrice) : 'N/A';
-            logger.info('[DealMonitor] Raising Discord alert for %s (ID: %s). Triggers: %s. Current: %s/%s. Min: %s/%s', product.name, product.id, triggers.join(', '), formatCLP(product.offerPrice), formatCLP(product.normalPrice), minOffer, minNormal);
+        if (message && message.id && createdLinkIds.length > 0) {
+            linkTracker.associateMessageId(createdLinkIds, message.id, {
+                offerPrice: product.offerPrice,
+                normalPrice: product.normalPrice
+            });
         }
-
-        const messageOptions = { embeds: [embed] };
-        if (attachment) messageOptions.files = [attachment];
-
-        const message = await channel.send(messageOptions);
 
         // 7. Create Thread
         if (message && typeof message.startThread === 'function') {

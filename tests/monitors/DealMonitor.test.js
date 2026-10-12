@@ -1655,4 +1655,204 @@ describe('DealMonitor', () => {
             expect(monitor.state['1'].suppressedNormalPrice).toBe(399990);
         });
     });
+
+    describe('Link Engagement Tracking', () => {
+        const linkTracker = require('../../src/services/linkTracker');
+
+        it('should use direct links when trackingBaseUrl is not configured', () => {
+            const product = { id: 1, name: 'iPhone 16', offerPrice: 10000, normalPrice: 10000 };
+            const entity = { external_url: 'https://store.com/iphone', store: 'https://api.com/stores/1/' };
+            const storeMap = new Map([['https://api.com/stores/1/', { name: 'Store 1' }]]);
+
+            const result = monitor._formatStoreLink(product, entity, storeMap);
+            expect(result.safeUrl).toBe('https://store.com/iphone');
+            expect(result.linkId).toBeNull();
+        });
+
+        it('should generate tracked URLs when trackingBaseUrl is configured and active', () => {
+            monitor.config.trackingBaseUrl = 'https://deals.example.com';
+            monitor.isTrackingActive = true;
+            const trackSpy = jest.spyOn(linkTracker, 'trackUrl').mockReturnValue({
+                url: 'https://deals.example.com/r/a1b2c3d4',
+                id: 'a1b2c3d4'
+            });
+
+            const product = { id: 1, name: 'iPhone 16', offerPrice: 10000, normalPrice: 10000 };
+            const entity = { external_url: 'https://store.com/iphone', store: 'https://api.com/stores/1/' };
+            const storeMap = new Map([['https://api.com/stores/1/', { name: 'Store 1' }]]);
+
+            const result = monitor._formatStoreLink(product, entity, storeMap);
+            expect(result.safeUrl).toBe('https://deals.example.com/r/a1b2c3d4');
+            expect(result.linkId).toBe('a1b2c3d4');
+            expect(trackSpy).toHaveBeenCalledWith(expect.objectContaining({
+                targetUrl: 'https://store.com/iphone',
+                productId: 1,
+                productName: 'iPhone 16',
+                storeName: 'Store 1',
+                baseUrl: 'https://deals.example.com'
+            }));
+
+            trackSpy.mockRestore();
+        });
+
+        it('should preserve direct store URLs when tracking is not active', () => {
+            monitor.config.trackingBaseUrl = 'https://deals.example.com';
+            monitor.isTrackingActive = false;
+            const product = { id: 1, name: 'iPhone 16', offerPrice: 10000, normalPrice: 10000 };
+            const entity = { external_url: 'https://store.com/iphone', store: 'https://api.com/stores/1/' };
+            const storeMap = new Map([['https://api.com/stores/1/', { name: 'Store 1' }]]);
+
+            const result = monitor._formatStoreLink(product, entity, storeMap);
+            expect(result.safeUrl).toBe('https://store.com/iphone');
+            expect(result.linkId).toBeNull();
+        });
+
+        it('should format embed with tracked URLs and associate messageId upon notify', async () => {
+            monitor.config.trackingBaseUrl = 'https://deals.example.com';
+            monitor.isTrackingActive = true;
+            const trackSpy = jest.spyOn(linkTracker, 'trackUrl').mockReturnValue({
+                url: 'https://deals.example.com/r/a1b2c3d4',
+                id: 'a1b2c3d4'
+            });
+            const associateSpy = jest.spyOn(linkTracker, 'associateMessageId').mockReturnValue();
+
+            mockMessage.id = 'msg_test_123';
+            const product = { id: 1, name: 'iPhone 16', offerPrice: 10000, normalPrice: 10000 };
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'] });
+
+            expect(mockChannel.send).toHaveBeenCalled();
+            const sentEmbed = mockChannel.send.mock.calls[0][0].embeds[0];
+            expect(sentEmbed.data.url).toBe('https://deals.example.com/r/a1b2c3d4');
+
+            const buyField = sentEmbed.data.fields.find(f => f.name === 'Dónde comprar');
+            expect(buyField.value).toContain('https://deals.example.com/r/a1b2c3d4');
+
+            expect(associateSpy).toHaveBeenCalledWith(
+                ['a1b2c3d4'],
+                'msg_test_123',
+                expect.objectContaining({ offerPrice: 10000, normalPrice: 10000 })
+            );
+
+            trackSpy.mockRestore();
+            associateSpy.mockRestore();
+        });
+
+        it('should start linkTracker on initialize with trustProxy false by default', async () => {
+            monitor.config.trackingBaseUrl = 'https://deals.example.com';
+            monitor.config.trackingPort = 3000;
+            delete monitor.config.trustProxy;
+            const startSpy = jest.spyOn(linkTracker, 'start').mockResolvedValue();
+            const isRunningSpy = jest.spyOn(linkTracker, 'isRunning').mockReturnValue(true);
+
+            await monitor.initialize(mockClient);
+
+            expect(startSpy).toHaveBeenCalledWith({
+                baseUrl: 'https://deals.example.com',
+                port: 3000,
+                trustProxy: false
+            });
+            expect(monitor.isTrackingActive).toBe(true);
+
+            startSpy.mockRestore();
+            isRunningSpy.mockRestore();
+        });
+
+        it('should pass trustProxy true when configured in monitor config', async () => {
+            monitor.config.trackingBaseUrl = 'https://deals.example.com';
+            monitor.config.trackingPort = 3000;
+            monitor.config.trustProxy = true;
+            const startSpy = jest.spyOn(linkTracker, 'start').mockResolvedValue();
+            const isRunningSpy = jest.spyOn(linkTracker, 'isRunning').mockReturnValue(true);
+
+            await monitor.initialize(mockClient);
+
+            expect(startSpy).toHaveBeenCalledWith({
+                baseUrl: 'https://deals.example.com',
+                port: 3000,
+                trustProxy: true
+            });
+
+            startSpy.mockRestore();
+            isRunningSpy.mockRestore();
+        });
+
+        it('should untrack created links when channel.send fails with definitive 4xx error', async () => {
+            monitor.config.trackingBaseUrl = 'https://deals.example.com';
+            monitor.isTrackingActive = true;
+            const trackSpy = jest.spyOn(linkTracker, 'trackUrl').mockReturnValue({
+                url: 'https://deals.example.com/r/deadbeef',
+                id: 'deadbeef'
+            });
+            const untrackSpy = jest.spyOn(linkTracker, 'untrack').mockReturnValue();
+            const clientError = new Error('Discord 400 error');
+            clientError.status = 400;
+            mockChannel.send.mockRejectedValueOnce(clientError);
+
+            const product = { id: 1, name: 'iPhone 16', offerPrice: 10000, normalPrice: 10000 };
+            await expect(monitor.notify({ product, triggers: ['NEW_LOW_OFFER'] })).rejects.toThrow('Discord 400 error');
+
+            expect(untrackSpy).toHaveBeenCalledWith(['deadbeef']);
+            trackSpy.mockRestore();
+            untrackSpy.mockRestore();
+        });
+
+        it('should retain created links on ambiguous network error during send', async () => {
+            monitor.config.trackingBaseUrl = 'https://deals.example.com';
+            monitor.isTrackingActive = true;
+            const trackSpy = jest.spyOn(linkTracker, 'trackUrl').mockReturnValue({
+                url: 'https://deals.example.com/r/deadbeef',
+                id: 'deadbeef'
+            });
+            const untrackSpy = jest.spyOn(linkTracker, 'untrack').mockReturnValue();
+            const networkError = new Error('ETIMEDOUT');
+            mockChannel.send.mockRejectedValueOnce(networkError);
+
+            const product = { id: 1, name: 'iPhone 16', offerPrice: 10000, normalPrice: 10000 };
+            await expect(monitor.notify({ product, triggers: ['NEW_LOW_OFFER'] })).rejects.toThrow('ETIMEDOUT');
+
+            expect(untrackSpy).not.toHaveBeenCalled();
+            trackSpy.mockRestore();
+            untrackSpy.mockRestore();
+        });
+
+        it('should retain created links when channel.send returns a message without an id', async () => {
+            monitor.config.trackingBaseUrl = 'https://deals.example.com';
+            monitor.isTrackingActive = true;
+            const trackSpy = jest.spyOn(linkTracker, 'trackUrl').mockReturnValue({
+                url: 'https://deals.example.com/r/deadbeef',
+                id: 'deadbeef'
+            });
+            const untrackSpy = jest.spyOn(linkTracker, 'untrack').mockReturnValue();
+            mockChannel.send.mockResolvedValueOnce({}); // No id
+
+            const product = { id: 1, name: 'iPhone 16', offerPrice: 10000, normalPrice: 10000 };
+            await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'] });
+
+            expect(untrackSpy).not.toHaveBeenCalled();
+            trackSpy.mockRestore();
+            untrackSpy.mockRestore();
+        });
+
+        it('should handle start failure on initialize and set isTrackingActive to false', async () => {
+            monitor.config.trackingBaseUrl = 'https://deals.example.com';
+            const startSpy = jest.spyOn(linkTracker, 'start').mockRejectedValue(new Error('EADDRINUSE'));
+
+            await monitor.initialize(mockClient);
+
+            expect(monitor.isTrackingActive).toBe(false);
+            startSpy.mockRestore();
+        });
+
+        it('should stop linkTracker on stop when trackingBaseUrl is configured', async () => {
+            monitor.config.trackingBaseUrl = 'https://deals.example.com';
+            monitor.isTrackingActive = true;
+            const stopSpy = jest.spyOn(linkTracker, 'stop').mockResolvedValue();
+
+            monitor.stop();
+
+            expect(stopSpy).toHaveBeenCalled();
+            expect(monitor.isTrackingActive).toBe(false);
+            stopSpy.mockRestore();
+        });
+    });
 });

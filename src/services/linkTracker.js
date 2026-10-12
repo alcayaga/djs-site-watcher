@@ -1,0 +1,700 @@
+const http = require('node:http');
+const crypto = require('node:crypto');
+const net = require('node:net');
+const storage = require('../storage');
+const logger = require('../utils/logger');
+const {
+    DEAL_ENGAGEMENT_FILE,
+    DEAL_ENGAGEMENT_ARCHIVE_FILE,
+    DEFAULT_TRACKING_PORT,
+    MAX_ACTIVE_TRACKED_LINKS,
+    MAX_ARCHIVED_TRACKED_LINKS
+} = require('../utils/constants');
+
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 60; // 60 requests per minute per IP
+const CLICK_DEDUP_WINDOW_MS = 10 * 1000; // 10 seconds cooldown per IP per link
+const DEBOUNCE_SAVE_MS = 1500; // 1.5 seconds
+
+const SECURITY_HEADERS = {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+    'Referrer-Policy': 'no-referrer-when-downgrade',
+    'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+};
+
+/**
+ * Service to manage redirect link generation, security-hardened HTTP redirects,
+ * and engagement analytics for DealMonitor links.
+ */
+class LinkTracker {
+    /**
+     * Creates an instance of LinkTracker.
+     */
+    constructor() {
+        this.activeLinks = new Map();
+        this.archivedLinks = new Map();
+        this.server = null;
+        this.serverPort = null;
+        this.baseUrl = null;
+        this.isLoaded = false;
+        this._loadPromise = null;
+        this.trustProxy = false;
+        this.saveTimeout = null;
+        this.rateLimitMap = new Map();
+        this.recentClicksMap = new Map();
+        this._cleanupInterval = null;
+    }
+
+    /**
+     * Extracts and validates the client IP from the request.
+     * Respects reverse proxy headers when trustProxy is enabled.
+     * @param {import('node:http').IncomingMessage} req The HTTP request.
+     * @returns {string} The resolved client IP.
+     */
+    getClientIp(req) {
+        let socketIp = req.socket?.remoteAddress;
+        if (socketIp) {
+            if (socketIp.startsWith('::ffff:')) {
+                socketIp = socketIp.slice(7);
+            }
+        }
+
+        // If proxy trusting is disabled, only use direct TCP socket IP
+        if (!this.trustProxy) {
+            return (socketIp && net.isIP(socketIp)) ? socketIp : '127.0.0.1';
+        }
+
+        // 1. Cloudflare's verified visitor IP (when proxied through Cloudflare)
+        const cfIp = req.headers['cf-connecting-ip'];
+        if (typeof cfIp === 'string') {
+            let cleanCfIp = cfIp.trim();
+            if (cleanCfIp.startsWith('::ffff:')) {
+                cleanCfIp = cleanCfIp.slice(7);
+            }
+            if (net.isIP(cleanCfIp)) {
+                return cleanCfIp;
+            }
+        }
+
+        // 2. NGINX Proxy Manager / reverse proxy real IP
+        const realIp = req.headers['x-real-ip'];
+        if (typeof realIp === 'string') {
+            let cleanRealIp = realIp.trim();
+            if (cleanRealIp.startsWith('::ffff:')) {
+                cleanRealIp = cleanRealIp.slice(7);
+            }
+            if (net.isIP(cleanRealIp)) {
+                return cleanRealIp;
+            }
+        }
+
+        // 3. X-Forwarded-For proxy chain: use the rightmost entry appended by the trusted proxy
+        const xForwardedFor = req.headers['x-forwarded-for'];
+        if (typeof xForwardedFor === 'string' && xForwardedFor.length > 0) {
+            const parts = xForwardedFor.split(',');
+            let trustedIp = parts[parts.length - 1].trim();
+            if (trustedIp.startsWith('::ffff:')) {
+                trustedIp = trustedIp.slice(7);
+            }
+            if (net.isIP(trustedIp)) {
+                return trustedIp;
+            }
+        }
+
+        // 4. Fallback to direct TCP socket address
+        if (socketIp && net.isIP(socketIp)) {
+            return socketIp;
+        }
+        return '127.0.0.1';
+    }
+
+    /**
+     * Checks if a client IP has exceeded the rate limit.
+     * @param {string} ip The client IP.
+     * @returns {boolean} True if the request should be blocked.
+     */
+    isRateLimited(ip) {
+        const now = Date.now();
+        const entry = this.rateLimitMap.get(ip);
+        if (!entry || now > entry.resetTime) {
+            this.rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+            return false;
+        }
+        entry.count++;
+        return entry.count > RATE_LIMIT_MAX_REQUESTS;
+    }
+
+    /**
+     * Periodic cleanup for rate limit and click deduplication maps to prevent memory leaks.
+     * @private
+     */
+    _cleanupMemoryMaps() {
+        const now = Date.now();
+        for (const [ip, entry] of this.rateLimitMap.entries()) {
+            if (now > entry.resetTime) {
+                this.rateLimitMap.delete(ip);
+            }
+        }
+        for (const [key, timestamp] of this.recentClicksMap.entries()) {
+            if (now - timestamp > CLICK_DEDUP_WINDOW_MS * 2) {
+                this.recentClicksMap.delete(key);
+            }
+        }
+    }
+
+    /**
+     * Loads engagement state and archive from storage.
+     * @returns {Promise<void>}
+     */
+    async loadState() {
+        if (this.isLoaded) return;
+        if (this._loadPromise) return this._loadPromise;
+
+        this._loadPromise = (async () => {
+            try {
+                const activeData = await storage.read(DEAL_ENGAGEMENT_FILE);
+                if (activeData && typeof activeData.links === 'object' && activeData.links !== null) {
+                    for (const [id, record] of Object.entries(activeData.links)) {
+                        if (id && typeof record === 'object' && record !== null) {
+                            if (!this.activeLinks.has(id)) {
+                                this.activeLinks.set(id, record);
+                            }
+                        }
+                    }
+                }
+
+                const archiveData = await storage.read(DEAL_ENGAGEMENT_ARCHIVE_FILE);
+                if (archiveData && typeof archiveData.archivedLinks === 'object' && archiveData.archivedLinks !== null) {
+                    for (const [id, record] of Object.entries(archiveData.archivedLinks)) {
+                        if (id && typeof record === 'object' && record !== null) {
+                            if (!this.archivedLinks.has(id)) {
+                                this.archivedLinks.set(id, record);
+                            }
+                        }
+                    }
+                }
+
+                this.isLoaded = true;
+                logger.info('[LinkTracker] Loaded %d active links and %d archived links.', this.activeLinks.size, this.archivedLinks.size);
+            } catch (error) {
+                logger.error('[LinkTracker] Failed to load link engagement state:', error);
+                this.isLoaded = false;
+            } finally {
+                this._loadPromise = null;
+            }
+        })();
+
+        return this._loadPromise;
+    }
+
+    /**
+     * Moves oldest links to archive if active links exceed maxLimit,
+     * and bounds the archive to maxArchivedLimit to prevent unbounded growth.
+     * @param {number} [maxLimit=MAX_ACTIVE_TRACKED_LINKS] Maximum active links threshold.
+     * @param {number} [maxArchivedLimit=MAX_ARCHIVED_TRACKED_LINKS] Maximum archived links threshold.
+     * @private
+     */
+    _enforceActiveLimit(maxLimit = MAX_ACTIVE_TRACKED_LINKS, maxArchivedLimit = MAX_ARCHIVED_TRACKED_LINKS) {
+        if (this.activeLinks.size > maxLimit) {
+            const entries = Array.from(this.activeLinks.entries());
+            // Sort ascending by createdAt (oldest first)
+            entries.sort((a, b) => {
+                const timeA = new Date(a[1].createdAt || 0).getTime();
+                const timeB = new Date(b[1].createdAt || 0).getTime();
+                return timeA - timeB;
+            });
+
+            const numToArchive = this.activeLinks.size - maxLimit;
+            const now = new Date().toISOString();
+
+            for (let i = 0; i < numToArchive; i++) {
+                const [id, record] = entries[i];
+                this.activeLinks.delete(id);
+                record.archivedAt = now;
+                this.archivedLinks.set(id, record);
+            }
+
+            logger.info('[LinkTracker] Archived %d old links. Active: %d, Archived: %d.', numToArchive, this.activeLinks.size, this.archivedLinks.size);
+        }
+
+        if (this.archivedLinks.size > maxArchivedLimit) {
+            const archiveEntries = Array.from(this.archivedLinks.entries());
+            archiveEntries.sort((a, b) => {
+                const timeA = new Date(a[1].archivedAt || a[1].createdAt || 0).getTime();
+                const timeB = new Date(b[1].archivedAt || b[1].createdAt || 0).getTime();
+                return timeA - timeB;
+            });
+            const toPurge = this.archivedLinks.size - maxArchivedLimit;
+            for (let i = 0; i < toPurge; i++) {
+                this.archivedLinks.delete(archiveEntries[i][0]);
+            }
+            logger.info('[LinkTracker] Purged %d excess archived links beyond retention limit.', toPurge);
+        }
+    }
+
+    /**
+     * Schedules a debounced atomic write to disk.
+     */
+    scheduleSave() {
+        if (this.saveTimeout) return;
+        this.saveTimeout = setTimeout(() => {
+            this.saveTimeout = null;
+            this.saveState().catch(err => {
+                logger.error('[LinkTracker] Error saving link engagement state:', err);
+            });
+        }, DEBOUNCE_SAVE_MS);
+        if (typeof this.saveTimeout.unref === 'function') {
+            this.saveTimeout.unref();
+        }
+    }
+
+    /**
+     * Flushes active and archived links to storage immediately.
+     * @returns {Promise<void>}
+     */
+    async saveState() {
+        if (this.saveTimeout) {
+            clearTimeout(this.saveTimeout);
+            this.saveTimeout = null;
+        }
+
+        if (this._loadPromise) {
+            await this._loadPromise;
+        } else if (!this.isLoaded) {
+            await this.loadState();
+        }
+
+        if (!this.isLoaded) {
+            logger.warn('[LinkTracker] Skipping saveState: state is not loaded.');
+            return;
+        }
+
+        this._enforceActiveLimit();
+
+        const activeObj = { links: Object.fromEntries(this.activeLinks) };
+        const archiveObj = { archivedLinks: Object.fromEntries(this.archivedLinks) };
+
+        await Promise.all([
+            storage.write(DEAL_ENGAGEMENT_FILE, activeObj),
+            storage.write(DEAL_ENGAGEMENT_ARCHIVE_FILE, archiveObj)
+        ]);
+    }
+
+    /**
+     * Generates a tracked redirect URL for an outbound deal link.
+     * If tracking is disabled or targetUrl is invalid, returns the targetUrl untouched.
+     * 
+     * @param {object} params
+     * @param {string} params.targetUrl The original destination URL.
+     * @param {string|number} params.productId The Solotodo product ID.
+     * @param {string} [params.productName] The product name.
+     * @param {string} [params.storeName] The merchant store name.
+     * @param {string} [params.baseUrl] The base URL for tracking redirects (from monitor config).
+     * @returns {{ url: string, id: string|null }} The resulting URL and link ID.
+     */
+    trackUrl({ targetUrl, productId, productName, storeName, baseUrl } = {}) {
+        const effectiveBaseUrl = (baseUrl !== undefined && baseUrl !== null) ? baseUrl : this.baseUrl;
+        if (!effectiveBaseUrl || typeof targetUrl !== 'string' || !targetUrl) {
+            return { url: targetUrl, id: null };
+        }
+
+        // Validate destination URL protocol
+        try {
+            const parsed = new URL(targetUrl);
+            if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+                return { url: targetUrl, id: null };
+            }
+        } catch {
+            return { url: targetUrl, id: null };
+        }
+
+        if (!this.isLoaded) {
+            return { url: targetUrl, id: null };
+        }
+
+        // Generate unique 8-character hex ID
+        let id;
+        let attempts = 0;
+        do {
+            id = crypto.randomBytes(4).toString('hex');
+            attempts++;
+        } while ((this.activeLinks.has(id) || this.archivedLinks.has(id)) && attempts < 10);
+
+        if (this.activeLinks.has(id) || this.archivedLinks.has(id)) {
+            logger.error('[LinkTracker] Failed to generate a unique link ID after 10 attempts.');
+            return { url: targetUrl, id: null };
+        }
+
+        const record = {
+            targetUrl,
+            productId: String(productId || ''),
+            productName: String(productName || ''),
+            storeName: String(storeName || 'Tienda'),
+            messageId: null,
+            offerPrice: null,
+            normalPrice: null,
+            createdAt: new Date().toISOString(),
+            clicks: 0,
+            lastClicked: null
+        };
+
+        this.activeLinks.set(id, record);
+        this.scheduleSave();
+
+        const sanitizedBase = effectiveBaseUrl.replace(/\/+$/, '');
+        return {
+            url: `${sanitizedBase}/r/${id}`,
+            id
+        };
+    }
+
+    /**
+     * Removes tracked link records by IDs (e.g. if sending Discord message fails).
+     * @param {string|string[]} ids Link ID or list of IDs.
+     */
+    untrack(ids) {
+        if (!ids) return;
+        const list = Array.isArray(ids) ? ids : [ids];
+        let deletedAny = false;
+        for (const id of list) {
+            if (typeof id === 'string' && this.activeLinks.delete(id)) {
+                deletedAny = true;
+            }
+        }
+        if (deletedAny) {
+            this.scheduleSave();
+        }
+    }
+
+    /**
+     * Associates Discord message ID and pricing metadata with generated link IDs.
+     * @param {Array<string>} linkIds The generated link IDs.
+     * @param {string} messageId The published Discord message ID.
+     * @param {object} [metadata] Optional price and timestamp metadata.
+     */
+    associateMessageId(linkIds, messageId, metadata = {}) {
+        if (!Array.isArray(linkIds) || !messageId) return;
+
+        let modified = false;
+        for (const id of linkIds) {
+            if (!id || typeof id !== 'string') continue;
+            let record = this.activeLinks.get(id) || this.archivedLinks.get(id);
+            if (record) {
+                record.messageId = String(messageId);
+                if (metadata.offerPrice !== undefined) record.offerPrice = metadata.offerPrice;
+                if (metadata.normalPrice !== undefined) record.normalPrice = metadata.normalPrice;
+                modified = true;
+            }
+        }
+
+        if (modified) {
+            this.scheduleSave();
+        }
+    }
+
+    /**
+     * Dynamically computes aggregated metrics from active and archived links.
+     * @param {object} [options]
+     * @param {boolean} [options.includeArchive=true] Whether to include archived links in rollups.
+     * @returns {object} Derived analytics data.
+     */
+    getStats({ includeArchive = true } = {}) {
+        let totalClicks = 0;
+        const byProduct = {};
+        const byStore = {};
+
+        /**
+         * Accumulates metrics from a link record into rollups.
+         * @param {object} record The link record.
+         */
+        const processRecord = (record) => {
+            const clicks = record.clicks || 0;
+            totalClicks += clicks;
+
+            // Product Rollup
+            const pId = record.productId || 'unknown';
+            if (!byProduct[pId]) {
+                byProduct[pId] = {
+                    name: record.productName || '',
+                    totalClicks: 0,
+                    alerts: {}
+                };
+            }
+            byProduct[pId].totalClicks += clicks;
+
+            if (record.messageId) {
+                const mId = record.messageId;
+                if (!byProduct[pId].alerts[mId]) {
+                    byProduct[pId].alerts[mId] = {
+                        clicks: 0,
+                        offerPrice: record.offerPrice,
+                        normalPrice: record.normalPrice
+                    };
+                }
+                byProduct[pId].alerts[mId].clicks += clicks;
+            }
+
+            // Store Rollup
+            const sName = record.storeName || 'Tienda';
+            byStore[sName] = (byStore[sName] || 0) + clicks;
+        };
+
+        for (const record of this.activeLinks.values()) {
+            processRecord(record);
+        }
+
+        if (includeArchive) {
+            for (const record of this.archivedLinks.values()) {
+                processRecord(record);
+            }
+        }
+
+        return {
+            totalClicks,
+            byProduct,
+            byStore,
+            activeCount: this.activeLinks.size,
+            archivedCount: this.archivedLinks.size
+        };
+    }
+
+    /**
+     * Handles an incoming HTTP request on the redirect server.
+     * @param {import('node:http').IncomingMessage} req
+     * @param {import('node:http').ServerResponse} res
+     */
+    async handleRequest(req, res) {
+        // Enforce strict HTTP method whitelist (GET and HEAD only)
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+            res.writeHead(405, {
+                'Allow': 'GET, HEAD',
+                'Content-Type': 'text/plain; charset=utf-8',
+                ...SECURITY_HEADERS
+            });
+            res.end('Method Not Allowed');
+            return;
+        }
+
+        // Prevent body buffering
+        req.resume();
+
+        // Enforce rate limit per client IP
+        const clientIp = this.getClientIp(req);
+        if (this.isRateLimited(clientIp)) {
+            res.writeHead(429, {
+                'Content-Type': 'text/plain; charset=utf-8',
+                'Retry-After': '60',
+                ...SECURITY_HEADERS
+            });
+            res.end('Too Many Requests');
+            return;
+        }
+
+        let parsedUrl;
+        try {
+            parsedUrl = new URL(req.url, 'http://localhost');
+        } catch {
+            res.writeHead(400, {
+                'Content-Type': 'text/plain; charset=utf-8',
+                ...SECURITY_HEADERS
+            });
+            res.end('Bad Request');
+            return;
+        }
+
+        const pathname = parsedUrl.pathname;
+
+        // Health check endpoint for reverse proxy monitoring
+        if (pathname === '/health') {
+            res.writeHead(200, {
+                'Content-Type': 'text/plain; charset=utf-8',
+                ...SECURITY_HEADERS
+            });
+            res.end('OK');
+            return;
+        }
+
+        // Redirect endpoint: /r/:id (strictly 8 hex chars)
+        if (pathname.startsWith('/r/')) {
+            const id = pathname.slice(3);
+            if (!/^[a-f0-9]{8}$/.test(id)) {
+                res.writeHead(404, {
+                    'Content-Type': 'text/plain; charset=utf-8',
+                    ...SECURITY_HEADERS
+                });
+                res.end('Not Found');
+                return;
+            }
+
+            // Look up link in active or archived store
+            const record = this.activeLinks.get(id) || this.archivedLinks.get(id);
+            if (!record || !record.targetUrl) {
+                res.writeHead(404, {
+                    'Content-Type': 'text/plain; charset=utf-8',
+                    ...SECURITY_HEADERS
+                });
+                res.end('Not Found');
+                return;
+            }
+
+            // Re-validate destination URL
+            let targetUrl = record.targetUrl;
+            try {
+                const targetParsed = new URL(targetUrl);
+                if (targetParsed.protocol !== 'http:' && targetParsed.protocol !== 'https:') {
+                    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+                    res.end('Not Found');
+                    return;
+                }
+            } catch {
+                res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+                res.end('Not Found');
+                return;
+            }
+
+            // Click deduplication: don't count rapid clicks from the same IP within 10s
+            const dedupKey = `${clientIp}:${id}`;
+            const lastClickTime = this.recentClicksMap.get(dedupKey);
+            const now = Date.now();
+
+            if (!lastClickTime || now - lastClickTime > CLICK_DEDUP_WINDOW_MS) {
+                record.clicks = (record.clicks || 0) + 1;
+                record.lastClicked = new Date(now).toISOString();
+                this.recentClicksMap.set(dedupKey, now);
+                this.scheduleSave();
+            }
+
+            // Return 302 Found redirect
+            res.writeHead(302, {
+                'Location': targetUrl,
+                'Content-Type': 'text/plain; charset=utf-8',
+                ...SECURITY_HEADERS
+            });
+            res.end('Redirecting...');
+            return;
+        }
+
+        // Any other route returns 404
+        res.writeHead(404, {
+            'Content-Type': 'text/plain; charset=utf-8',
+            ...SECURITY_HEADERS
+        });
+        res.end('Not Found');
+    }
+
+    /**
+     * Checks if the redirect server is running.
+     * @returns {boolean} True if running and listening.
+     */
+    isRunning() {
+        return Boolean(this.server && this.server.listening);
+    }
+
+    /**
+     * Starts the HTTP redirect server if not already running.
+     * @param {object} [options]
+     * @param {number} [options.port] The port to listen on.
+     * @param {string} [options.baseUrl] The base tracking URL.
+     * @param {boolean} [options.trustProxy] Whether to trust reverse proxy headers (default: true).
+     * @returns {Promise<void>}
+     */
+    async start({ port = DEFAULT_TRACKING_PORT, baseUrl, trustProxy } = {}) {
+        this.baseUrl = baseUrl || this.baseUrl;
+        this.serverPort = port;
+        if (trustProxy !== undefined) {
+            this.trustProxy = Boolean(trustProxy);
+        }
+
+        await this.loadState();
+
+        if (this.server) {
+            return;
+        }
+
+        this.server = http.createServer((req, res) => {
+            this.handleRequest(req, res).catch(err => {
+                logger.error('[LinkTracker] Unhandled error handling request:', err);
+                if (!res.headersSent) {
+                    res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+                    res.end('Internal Server Error');
+                }
+            });
+        });
+
+        // Enforce socket timeouts for Slowloris protection
+        this.server.requestTimeout = 5000;
+        this.server.headersTimeout = 6000;
+        this.server.keepAliveTimeout = 5000;
+        this.server.maxHeadersCount = 50;
+
+        // Periodic map cleanup
+        if (!this._cleanupInterval) {
+            this._cleanupInterval = setInterval(() => this._cleanupMemoryMaps(), 60000);
+            if (this._cleanupInterval.unref) this._cleanupInterval.unref();
+        }
+
+        return new Promise((resolve, reject) => {
+            /**
+             * Handles initial server listen errors and cleans up resources.
+             * @param {Error} err The listen error.
+             */
+            const onError = (err) => {
+                logger.error('[LinkTracker] Server error on port %d:', this.serverPort, err);
+                if (this._cleanupInterval) {
+                    clearInterval(this._cleanupInterval);
+                    this._cleanupInterval = null;
+                }
+                this.server = null;
+                reject(err);
+            };
+
+            this.server.once('error', onError);
+
+            this.server.listen(this.serverPort, () => {
+                this.server.removeListener('error', onError);
+                this.server.on('error', (err) => {
+                    logger.error('[LinkTracker] Runtime server error on port %d:', this.serverPort, err);
+                });
+                logger.info('[LinkTracker] Redirect server running on port %d with base URL %s.', this.serverPort, this.baseUrl || '(none)');
+                resolve();
+            });
+        });
+    }
+
+    /**
+     * Gracefully stops the HTTP redirect server and flushes pending writes.
+     * @returns {Promise<void>}
+     */
+    async stop() {
+        if (this._cleanupInterval) {
+            clearInterval(this._cleanupInterval);
+            this._cleanupInterval = null;
+        }
+
+        if (this.server || this.activeLinks.size > 0 || this.saveTimeout) {
+            await this.saveState().catch(err => {
+                logger.error('[LinkTracker] Error saving state on stop:', err);
+            });
+        }
+
+        if (this.server) {
+            const serverToClose = this.server;
+            this.server = null;
+            return new Promise((resolve) => {
+                if (typeof serverToClose.closeAllConnections === 'function') {
+                    serverToClose.closeAllConnections();
+                }
+                serverToClose.close(() => {
+                    logger.info('[LinkTracker] Redirect server stopped.');
+                    resolve();
+                });
+            });
+        }
+    }
+}
+
+module.exports = new LinkTracker();

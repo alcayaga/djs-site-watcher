@@ -46,7 +46,9 @@
       "enabled": true,
       "channelId": "YOUR_CHANNEL_ID",
       "apiDelay": 5000,
-      "verboseLogging": false
+      "verboseLogging": false,
+      "trackingBaseUrl": "",
+      "trackingPort": 3000
     },
     {
       "name": "Site",
