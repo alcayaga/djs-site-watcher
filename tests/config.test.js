@@ -154,7 +154,7 @@ describe('config', () => {
         const config = require('../src/config');
         
         // They should be merged into a single AppleFeature:iOS monitor (last one wins for overrides)
-        expect(config.monitors.length).toBe(1);
+        expect(config.monitors).toHaveLength(1);
         
         const mergedMonitor = config.monitors[0];
         expect(mergedMonitor.name).toBe('AppleFeature:iOS');
@@ -220,5 +220,23 @@ describe('config', () => {
                 delete process.env.TRACKING_PORT;
             }
         }
+    });
+
+    it('should fallback to DEFAULT_TRACKING_PORT when trackingPort is outside 1-65535', () => {
+        const customMonitors = [
+            {
+                name: 'Deal',
+                channelId: 'deals-123',
+                trackingPort: 70000
+            }
+        ];
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({ monitors: customMonitors });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+        const config = require('../src/config');
+
+        const dealMonitor = config.monitors.find(m => m.name === 'Deal');
+        expect(dealMonitor).toBeDefined();
+        expect(dealMonitor.trackingPort).toBe(3000);
     });
 });

@@ -1,6 +1,7 @@
 const http = require('node:http');
 const crypto = require('node:crypto');
 const net = require('node:net');
+const ipaddr = require('ipaddr.js');
 const storage = require('../storage');
 const logger = require('../utils/logger');
 const {
@@ -10,6 +11,25 @@ const {
     MAX_ACTIVE_TRACKED_LINKS,
     MAX_ARCHIVED_TRACKED_LINKS
 } = require('../utils/constants');
+
+/**
+ * Checks whether an IP address belongs to a trusted local or private reverse proxy.
+ * @param {string} ip The IP address to check.
+ * @returns {boolean} True if the IP is loopback, private, or link-local.
+ */
+function isTrustedProxySocket(ip) {
+    if (!ip || !net.isIP(ip)) return false;
+    try {
+        let addr = ipaddr.parse(ip);
+        if (addr.kind() === 'ipv6' && addr.isIPv4MappedAddress()) {
+            addr = addr.toIPv4Address();
+        }
+        const range = addr.range();
+        return range === 'loopback' || range === 'private' || range === 'uniqueLocal' || range === 'linkLocal';
+    } catch {
+        return false;
+    }
+}
 
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 const RATE_LIMIT_MAX_REQUESTS = 60; // 60 requests per minute per IP
@@ -43,6 +63,7 @@ class LinkTracker {
         this.baseUrl = null;
         this.isLoaded = false;
         this._loadPromise = null;
+        this._startPromise = null;
         this.trustProxy = false;
         this.trustedHeader = null;
         this.activeOwners = new Set();
@@ -51,6 +72,7 @@ class LinkTracker {
         this.rateLimitMap = new Map();
         this.recentClicksMap = new Map();
         this._cleanupInterval = null;
+        this._warnedMissingForwardedHeader = false;
     }
 
     /**
@@ -73,21 +95,28 @@ class LinkTracker {
             return (socketIp && net.isIP(socketIp)) ? socketIp : '127.0.0.1';
         }
 
-        // If a specific trustedHeader is configured, only inspect that header
+        // If a specific trustedHeader is configured, only inspect that header from a trusted proxy socket
         if (this.trustedHeader) {
-            const rawHeader = req.headers[this.trustedHeader];
-            const headerVal = Array.isArray(rawHeader)
-                ? rawHeader[rawHeader.length - 1]
-                : rawHeader;
+            if (isTrustedProxySocket(socketIp)) {
+                const rawHeader = req.headers[this.trustedHeader];
+                const headerVal = Array.isArray(rawHeader)
+                    ? rawHeader[rawHeader.length - 1]
+                    : rawHeader;
 
-            if (typeof headerVal === 'string' && headerVal.length > 0) {
-                const parts = headerVal.split(',');
-                let headerIp = parts[parts.length - 1].trim();
-                if (headerIp.startsWith('::ffff:')) {
-                    headerIp = headerIp.slice(7);
+                if (typeof headerVal === 'string' && headerVal.length > 0) {
+                    const parts = headerVal.split(',');
+                    let headerIp = parts[parts.length - 1].trim();
+                    if (headerIp.startsWith('::ffff:')) {
+                        headerIp = headerIp.slice(7);
+                    }
+                    if (net.isIP(headerIp)) {
+                        return headerIp;
+                    }
                 }
-                if (net.isIP(headerIp)) {
-                    return headerIp;
+
+                if (!this._warnedMissingForwardedHeader) {
+                    this._warnedMissingForwardedHeader = true;
+                    logger.warn('[LinkTracker] Request from trusted proxy is missing expected forwarded IP header; falling back to socket address.');
                 }
             }
 
@@ -99,20 +128,29 @@ class LinkTracker {
         }
 
         // Default path when trustProxy is enabled without an explicit trustedHeader:
-        // Use the rightmost entry of X-Forwarded-For appended by the trusted reverse proxy
-        const xForwardedFor = req.headers['x-forwarded-for'];
-        const forwardedVal = Array.isArray(xForwardedFor)
-            ? xForwardedFor[xForwardedFor.length - 1]
-            : xForwardedFor;
+        // Use the rightmost entry of X-Forwarded-For appended by the trusted single-hop reverse proxy.
+        // Only accept forwarded addresses when the connecting socket peer is a trusted local/private proxy,
+        // preventing direct untrusted clients from supplying spoofed headers.
+        if (isTrustedProxySocket(socketIp)) {
+            const xForwardedFor = req.headers['x-forwarded-for'];
+            const forwardedVal = Array.isArray(xForwardedFor)
+                ? xForwardedFor[xForwardedFor.length - 1]
+                : xForwardedFor;
 
-        if (typeof forwardedVal === 'string' && forwardedVal.length > 0) {
-            const parts = forwardedVal.split(',');
-            let trustedIp = parts[parts.length - 1].trim();
-            if (trustedIp.startsWith('::ffff:')) {
-                trustedIp = trustedIp.slice(7);
+            if (typeof forwardedVal === 'string' && forwardedVal.length > 0) {
+                const parts = forwardedVal.split(',');
+                let trustedIp = parts[parts.length - 1].trim();
+                if (trustedIp.startsWith('::ffff:')) {
+                    trustedIp = trustedIp.slice(7);
+                }
+                if (net.isIP(trustedIp)) {
+                    return trustedIp;
+                }
             }
-            if (net.isIP(trustedIp)) {
-                return trustedIp;
+
+            if (!this._warnedMissingForwardedHeader) {
+                this._warnedMissingForwardedHeader = true;
+                logger.warn('[LinkTracker] Request from trusted proxy is missing expected forwarded IP header; falling back to socket address.');
             }
         }
 
@@ -285,17 +323,21 @@ class LinkTracker {
             return;
         }
 
+        this.isDirty = false;
         this._enforceActiveLimit();
 
         const activeObj = { links: Object.fromEntries(this.activeLinks) };
         const archiveObj = { archivedLinks: Object.fromEntries(this.archivedLinks) };
 
-        await Promise.all([
-            storage.write(DEAL_ENGAGEMENT_FILE, activeObj),
-            storage.write(DEAL_ENGAGEMENT_ARCHIVE_FILE, archiveObj)
-        ]);
-
-        this.isDirty = false;
+        try {
+            await Promise.all([
+                storage.write(DEAL_ENGAGEMENT_FILE, activeObj),
+                storage.write(DEAL_ENGAGEMENT_ARCHIVE_FILE, archiveObj)
+            ]);
+        } catch (err) {
+            this.isDirty = true;
+            throw err;
+        }
     }
 
     /**
@@ -637,91 +679,103 @@ class LinkTracker {
 
         if (this.server) {
             if (baseUrl && this.baseUrl && baseUrl !== this.baseUrl) {
-                logger.warn('[LinkTracker] Server already running with baseUrl %s; ignoring conflicting baseUrl %s from %s.', this.baseUrl, baseUrl, owner || 'caller');
+                logger.warn('[LinkTracker] Server already running; ignoring conflicting baseUrl.');
             }
             if (trustProxy !== undefined && Boolean(trustProxy) !== this.trustProxy) {
-                logger.warn('[LinkTracker] Server already running with trustProxy=%s; ignoring conflicting trustProxy=%s from %s.', this.trustProxy, trustProxy, owner || 'caller');
+                logger.warn('[LinkTracker] Server already running; ignoring conflicting trustProxy setting.');
             }
             const normalizedHeader = typeof trustedHeader === 'string' && trustedHeader.trim() ? trustedHeader.trim().toLowerCase() : null;
             if (trustedHeader !== undefined && normalizedHeader !== this.trustedHeader) {
-                logger.warn('[LinkTracker] Server already running with trustedHeader=%s; ignoring conflicting trustedHeader=%s from %s.', this.trustedHeader, normalizedHeader, owner || 'caller');
+                logger.warn('[LinkTracker] Server already running; ignoring conflicting trustedHeader setting.');
             }
             return;
         }
 
-        this.baseUrl = baseUrl || this.baseUrl;
-        if (trustProxy !== undefined) {
-            this.trustProxy = Boolean(trustProxy);
-        }
-        if (trustedHeader !== undefined) {
-            this.trustedHeader = typeof trustedHeader === 'string' && trustedHeader.trim()
-                ? trustedHeader.trim().toLowerCase()
-                : null;
+        if (this._startPromise) {
+            return this._startPromise;
         }
 
-        await this.loadState();
+        this._startPromise = (async () => {
+            this.baseUrl = baseUrl || this.baseUrl;
+            if (trustProxy !== undefined) {
+                this.trustProxy = Boolean(trustProxy);
+            }
+            if (trustedHeader !== undefined) {
+                this.trustedHeader = typeof trustedHeader === 'string' && trustedHeader.trim()
+                    ? trustedHeader.trim().toLowerCase()
+                    : null;
+            }
 
-        this.serverPort = port;
-        this.serverHost = host || (this.trustProxy ? '127.0.0.1' : '0.0.0.0');
+            await this.loadState();
 
-        this.server = http.createServer((req, res) => {
-            this.handleRequest(req, res).catch(err => {
-                logger.error('[LinkTracker] Unhandled error handling request:', err);
-                if (!res.headersSent) {
-                    res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
-                    res.end('Internal Server Error');
+            this.serverPort = port;
+            this.serverHost = host || (this.trustProxy ? '127.0.0.1' : '0.0.0.0');
+
+            this.server = http.createServer((req, res) => {
+                this.handleRequest(req, res).catch(err => {
+                    logger.error('[LinkTracker] Unhandled error handling request:', err);
+                    if (!res.headersSent) {
+                        res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+                        res.end('Internal Server Error');
+                    }
+                });
+            });
+
+            // Enforce socket timeouts for Slowloris protection
+            this.server.requestTimeout = 5000;
+            this.server.headersTimeout = 6000;
+            this.server.keepAliveTimeout = 5000;
+            this.server.maxHeadersCount = 50;
+
+            // Periodic map cleanup
+            if (!this._cleanupInterval) {
+                this._cleanupInterval = setInterval(() => this._cleanupMemoryMaps(), 60000);
+                if (this._cleanupInterval.unref) this._cleanupInterval.unref();
+            }
+
+            await new Promise((resolve, reject) => {
+                /**
+                 * Handles initial server listen errors and cleans up resources.
+                 * @param {Error} err The listen error.
+                 */
+                const onError = (err) => {
+                    logger.error('[LinkTracker] Server error:', err);
+                    if (owner) {
+                        this.activeOwners.delete(owner);
+                    }
+                    if (this._cleanupInterval) {
+                        clearInterval(this._cleanupInterval);
+                        this._cleanupInterval = null;
+                    }
+                    this.server = null;
+                    this.serverPort = null;
+                    this.serverHost = null;
+                    reject(err);
+                };
+
+                this.server.once('error', onError);
+
+                try {
+                    this.server.listen(this.serverPort, this.serverHost, () => {
+                        this.server.removeListener('error', onError);
+                        this.server.on('error', (err) => {
+                            logger.error('[LinkTracker] Runtime server error:', err);
+                        });
+                        logger.info('[LinkTracker] Redirect server running.');
+                        resolve();
+                    });
+                } catch (err) {
+                    this.server.removeListener('error', onError);
+                    onError(err);
                 }
             });
-        });
+        })();
 
-        // Enforce socket timeouts for Slowloris protection
-        this.server.requestTimeout = 5000;
-        this.server.headersTimeout = 6000;
-        this.server.keepAliveTimeout = 5000;
-        this.server.maxHeadersCount = 50;
-
-        // Periodic map cleanup
-        if (!this._cleanupInterval) {
-            this._cleanupInterval = setInterval(() => this._cleanupMemoryMaps(), 60000);
-            if (this._cleanupInterval.unref) this._cleanupInterval.unref();
+        try {
+            await this._startPromise;
+        } finally {
+            this._startPromise = null;
         }
-
-        return new Promise((resolve, reject) => {
-            /**
-             * Handles initial server listen errors and cleans up resources.
-             * @param {Error} err The listen error.
-             */
-            const onError = (err) => {
-                logger.error('[LinkTracker] Server error on %s:%d:', this.serverHost, this.serverPort, err);
-                if (owner) {
-                    this.activeOwners.delete(owner);
-                }
-                if (this._cleanupInterval) {
-                    clearInterval(this._cleanupInterval);
-                    this._cleanupInterval = null;
-                }
-                this.server = null;
-                this.serverPort = null;
-                this.serverHost = null;
-                reject(err);
-            };
-
-            this.server.once('error', onError);
-
-            try {
-                this.server.listen(this.serverPort, this.serverHost, () => {
-                    this.server.removeListener('error', onError);
-                    this.server.on('error', (err) => {
-                        logger.error('[LinkTracker] Runtime server error on %s:%d:', this.serverHost, this.serverPort, err);
-                    });
-                    logger.info('[LinkTracker] Redirect server running on %s:%d with base URL %s.', this.serverHost, this.serverPort, this.baseUrl || '(none)');
-                    resolve();
-                });
-            } catch (err) {
-                this.server.removeListener('error', onError);
-                onError(err);
-            }
-        });
     }
 
     /**
@@ -741,25 +795,24 @@ class LinkTracker {
             return;
         }
 
+        if (this._startPromise) {
+            await this._startPromise.catch(() => {});
+        }
+
         this.activeOwners.clear();
 
         if (this._cleanupInterval) {
             clearInterval(this._cleanupInterval);
             this._cleanupInterval = null;
         }
-
-        if (this.isDirty || this.saveTimeout) {
-            await this.saveState().catch(err => {
-                logger.error('[LinkTracker] Error saving state on stop:', err);
-            });
-        }
+        this._warnedMissingForwardedHeader = false;
 
         if (this.server) {
             const serverToClose = this.server;
             this.server = null;
             this.serverPort = null;
             this.serverHost = null;
-            return new Promise((resolve) => {
+            await new Promise((resolve) => {
                 if (typeof serverToClose.closeAllConnections === 'function') {
                     serverToClose.closeAllConnections();
                 }
@@ -767,6 +820,12 @@ class LinkTracker {
                     logger.info('[LinkTracker] Redirect server stopped.');
                     resolve();
                 });
+            });
+        }
+
+        if (this.isDirty || this.saveTimeout) {
+            await this.saveState().catch(err => {
+                logger.error('[LinkTracker] Error saving state on stop:', err);
             });
         }
     }

@@ -176,8 +176,8 @@ The `Deal` monitor can run an internal HTTP redirect server to track click engag
 *   `trackingBaseUrl`: Base public URL for redirect links (e.g. `https://deals.example.com`). If omitted, direct store links are used.
 *   `trackingPort`: Local HTTP port to listen on (default: `3000`).
 *   `trackingHost`: Interface/IP to bind to. When `trustProxy` is `true`, this defaults to `127.0.0.1` so the server is not exposed directly to untrusted clients. When `trustProxy` is `false`, it defaults to `0.0.0.0`.
-*   `trustProxy`: Set to `false` for direct exposure. When deployed behind a reverse proxy (e.g. Cloudflare, Nginx, Caddy), set to `true` to enable proxy header parsing.
-*   `trustedHeader`: When `trustProxy` is `true`, specify the exact reverse proxy client IP header to inspect (e.g. `cf-connecting-ip`). If unset, the rightmost `x-forwarded-for` entry is used, falling back to the direct TCP socket address.
+*   `trustProxy`: Set to `false` for direct exposure. When deployed behind a reverse proxy (e.g. Cloudflare, Nginx, Caddy), set to `true` to enable proxy header parsing. In the default configuration (without `trustedHeader`), single-hop proxy behavior is expected: the tracker only accepts `x-forwarded-for` when the connecting socket peer is a trusted local/private proxy address (loopback or private subnet), taking the rightmost forwarded IP to prevent spoofing from direct untrusted clients.
+*   `trustedHeader`: When `trustProxy` is `true`, specify the exact reverse proxy client IP header to inspect (e.g. `cf-connecting-ip`). If unset, the default single-hop `x-forwarded-for` path is used, falling back to the direct TCP socket address.
 
 ## Migration to v3.1.0
 Version 3.1.0 moves advanced configuration (channel IDs and delays) from environment variables to `config/settings.json`.

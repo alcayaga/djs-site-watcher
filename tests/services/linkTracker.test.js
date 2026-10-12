@@ -1,6 +1,7 @@
 const linkTracker = require('../../src/services/linkTracker');
 const http = require('node:http');
 const crypto = require('node:crypto');
+const logger = require('../../src/utils/logger');
 
 jest.mock('../../src/storage', () => ({
     read: jest.fn().mockResolvedValue({ links: {} }),
@@ -51,6 +52,10 @@ describe('LinkTracker Service', () => {
 
     beforeEach(async () => {
         jest.clearAllMocks();
+        if (linkTracker.saveTimeout) {
+            clearTimeout(linkTracker.saveTimeout);
+            linkTracker.saveTimeout = null;
+        }
         linkTracker.activeLinks.clear();
         linkTracker.archivedLinks.clear();
         linkTracker.rateLimitMap.clear();
@@ -58,6 +63,7 @@ describe('LinkTracker Service', () => {
         linkTracker.activeOwners.clear();
         linkTracker.isLoaded = true;
         linkTracker.isDirty = false;
+        linkTracker._warnedMissingForwardedHeader = false;
         linkTracker.baseUrl = BASE_URL;
         if (linkTracker.server) {
             await linkTracker.stop({ force: true });
@@ -292,6 +298,41 @@ describe('LinkTracker Service', () => {
             expect(saveSpy).not.toHaveBeenCalled();
             saveSpy.mockRestore();
         });
+
+        it('should preserve isDirty if state is mutated while storage.write is pending', async () => {
+            const storage = require('../../src/storage');
+            let resolveWrite;
+            storage.write.mockImplementationOnce(() => new Promise((resolve) => {
+                resolveWrite = resolve;
+            }));
+
+            linkTracker.trackUrl({ targetUrl: 'https://store.com/item1', productId: 1 });
+            expect(linkTracker.isDirty).toBe(true);
+
+            const savePromise = linkTracker.saveState();
+
+            // Mutate state while saveState write is in flight
+            linkTracker.trackUrl({ targetUrl: 'https://store.com/item2', productId: 2 });
+            expect(linkTracker.isDirty).toBe(true);
+
+            // Complete storage write
+            resolveWrite();
+            await savePromise;
+
+            // isDirty must remain true because a mutation occurred during save
+            expect(linkTracker.isDirty).toBe(true);
+        });
+
+        it('should restore isDirty to true if storage.write fails', async () => {
+            const storage = require('../../src/storage');
+            storage.write.mockRejectedValueOnce(new Error('Disk write error'));
+
+            linkTracker.trackUrl({ targetUrl: 'https://store.com/item1', productId: 1 });
+            expect(linkTracker.isDirty).toBe(true);
+
+            await expect(linkTracker.saveState()).rejects.toThrow('Disk write error');
+            expect(linkTracker.isDirty).toBe(true);
+        });
     });
 
     describe('HTTP Redirect Server & Security', () => {
@@ -491,10 +532,43 @@ describe('LinkTracker Service', () => {
             };
             expect(linkTracker.getClientIp(reqIpv6Mapped)).toBe('198.51.100.10');
 
+            // When socket remoteAddress is an untrusted public IP, X-Forwarded-For is ignored to prevent spoofing
+            const reqDirectUntrusted = {
+                headers: {
+                    'x-forwarded-for': '198.51.100.10'
+                },
+                socket: { remoteAddress: '203.0.113.50' }
+            };
+            expect(linkTracker.getClientIp(reqDirectUntrusted)).toBe('203.0.113.50');
+
             // When trustProxy is disabled, ignores headers and uses socket IP
             linkTracker.trustProxy = false;
             expect(linkTracker.getClientIp(reqUntrustedHeaders)).toBe('172.18.0.5');
             linkTracker.trustProxy = true;
+        });
+
+        it('should log a warning once when trusted proxy socket has no usable forwarded header', () => {
+            linkTracker.trustProxy = true;
+            linkTracker.trustedHeader = null;
+            linkTracker._warnedMissingForwardedHeader = false;
+
+            const reqMissing = {
+                headers: {},
+                socket: { remoteAddress: '127.0.0.1' }
+            };
+
+            const ip1 = linkTracker.getClientIp(reqMissing);
+            expect(ip1).toBe('127.0.0.1');
+            expect(logger.warn).toHaveBeenCalledWith(
+                '[LinkTracker] Request from trusted proxy is missing expected forwarded IP header; falling back to socket address.'
+            );
+
+            logger.warn.mockClear();
+
+            // Second request: warning should not be logged again
+            const ip2 = linkTracker.getClientIp(reqMissing);
+            expect(ip2).toBe('127.0.0.1');
+            expect(logger.warn).not.toHaveBeenCalled();
         });
 
         it('should not change serverPort if start is called again while server is running', async () => {
@@ -504,7 +578,6 @@ describe('LinkTracker Service', () => {
         });
 
         it('should preserve running settings and log warnings when start is called with conflicting options', async () => {
-            const logger = require('../../src/utils/logger');
             const initialBaseUrl = linkTracker.baseUrl;
             const initialTrustProxy = linkTracker.trustProxy;
             const initialTrustedHeader = linkTracker.trustedHeader;
@@ -524,10 +597,7 @@ describe('LinkTracker Service', () => {
 
             // Warnings logged for conflicts
             expect(logger.warn).toHaveBeenCalledWith(
-                expect.stringContaining('Server already running with baseUrl'),
-                expect.anything(),
-                expect.anything(),
-                expect.anything()
+                '[LinkTracker] Server already running; ignoring conflicting baseUrl.'
             );
         });
 
@@ -565,6 +635,15 @@ describe('LinkTracker Service', () => {
             };
             expect(linkTracker.getClientIp(commaReq)).toBe('203.0.113.60');
 
+            // When connecting from an untrusted public socket, trustedHeader is ignored to prevent spoofing
+            const directUntrustedReq = {
+                headers: {
+                    'cf-connecting-ip': '203.0.113.50'
+                },
+                socket: { remoteAddress: '198.51.100.99' }
+            };
+            expect(linkTracker.getClientIp(directUntrustedReq)).toBe('198.51.100.99');
+
             linkTracker.trustedHeader = null;
         });
 
@@ -596,6 +675,30 @@ describe('LinkTracker Service', () => {
             await linkTracker.start({ port: OWNER_PORT, baseUrl: OWNER_BASE, owner: 'Monitor1' });
             expect(linkTracker.isRunning()).toBe(true);
             await linkTracker.stop({ force: true });
+            expect(linkTracker.isRunning()).toBe(false);
+            expect(linkTracker.activeOwners.size).toBe(0);
+        });
+
+        it('should cleanly shut down when stop() is called while start() is awaiting loadState', async () => {
+            await linkTracker.stop({ force: true });
+            linkTracker.isLoaded = false;
+            let resolveLoad;
+            const storage = require('../../src/storage');
+            storage.read.mockImplementationOnce(() => new Promise((resolve) => {
+                resolveLoad = resolve;
+            }));
+
+            // Initiate start (will pause inside loadState)
+            const startPromise = linkTracker.start({ port: TEST_PORT, baseUrl: BASE_URL, owner: 'SlowLoad' });
+
+            // Call stop while start is pending
+            const stopPromise = linkTracker.stop({ force: true });
+
+            // Complete the loadState read
+            resolveLoad({ links: {} });
+
+            await Promise.all([startPromise, stopPromise]);
+
             expect(linkTracker.isRunning()).toBe(false);
             expect(linkTracker.activeOwners.size).toBe(0);
         });

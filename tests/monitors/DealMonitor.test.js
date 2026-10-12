@@ -1749,6 +1749,7 @@ describe('DealMonitor', () => {
             expect(startSpy).toHaveBeenCalledWith({
                 baseUrl: 'https://deals.example.com',
                 port: 3000,
+                host: undefined,
                 trustProxy: false,
                 trustedHeader: undefined,
                 owner: 'Deal'
@@ -1771,6 +1772,7 @@ describe('DealMonitor', () => {
             expect(startSpy).toHaveBeenCalledWith({
                 baseUrl: 'https://deals.example.com',
                 port: 3000,
+                host: undefined,
                 trustProxy: true,
                 trustedHeader: undefined,
                 owner: 'Deal'
@@ -1793,8 +1795,31 @@ describe('DealMonitor', () => {
             expect(startSpy).toHaveBeenCalledWith({
                 baseUrl: 'https://deals.example.com',
                 port: 3000,
+                host: undefined,
                 trustProxy: true,
                 trustedHeader: 'cf-connecting-ip',
+                owner: 'Deal'
+            });
+
+            startSpy.mockRestore();
+            isRunningSpy.mockRestore();
+        });
+
+        it('should pass trackingHost when configured in monitor config', async () => {
+            monitor.config.trackingBaseUrl = 'https://deals.example.com';
+            monitor.config.trackingPort = 3000;
+            monitor.config.trackingHost = '127.0.0.1';
+            const startSpy = jest.spyOn(linkTracker, 'start').mockResolvedValue();
+            const isRunningSpy = jest.spyOn(linkTracker, 'isRunning').mockReturnValue(true);
+
+            await monitor.initialize(mockClient);
+
+            expect(startSpy).toHaveBeenCalledWith({
+                baseUrl: 'https://deals.example.com',
+                port: 3000,
+                host: '127.0.0.1',
+                trustProxy: false,
+                trustedHeader: undefined,
                 owner: 'Deal'
             });
 
@@ -1837,6 +1862,34 @@ describe('DealMonitor', () => {
             await expect(monitor.notify({ product, triggers: ['NEW_LOW_OFFER'] })).rejects.toThrow('ETIMEDOUT');
 
             expect(untrackSpy).not.toHaveBeenCalled();
+            trackSpy.mockRestore();
+            untrackSpy.mockRestore();
+        });
+
+        it('should retain created links and mark isDefinitiveRejection false on HTTP 429 rate limit error', async () => {
+            monitor.config.trackingBaseUrl = 'https://deals.example.com';
+            monitor.isTrackingActive = true;
+            const trackSpy = jest.spyOn(linkTracker, 'trackUrl').mockReturnValue({
+                url: 'https://deals.example.com/r/deadbeef',
+                id: 'deadbeef'
+            });
+            const untrackSpy = jest.spyOn(linkTracker, 'untrack').mockReturnValue();
+            const rateLimitError = new Error('Discord 429 rate limit');
+            rateLimitError.status = 429;
+            mockChannel.send.mockRejectedValueOnce(rateLimitError);
+
+            const product = { id: 1, name: 'iPhone 16', offerPrice: 10000, normalPrice: 10000 };
+            let thrownError;
+            try {
+                await monitor.notify({ product, triggers: ['NEW_LOW_OFFER'] });
+            } catch (err) {
+                thrownError = err;
+            }
+
+            expect(thrownError).toBeDefined();
+            expect(thrownError.isDefinitiveRejection).toBe(false);
+            expect(untrackSpy).not.toHaveBeenCalled();
+
             trackSpy.mockRestore();
             untrackSpy.mockRestore();
         });
@@ -1978,6 +2031,44 @@ describe('DealMonitor', () => {
             // Non-definitive error leaves verified price intact
             expect(monitor.state['1'].lastOfferPrice).toBe(450000);
             expect(monitor.state['1'].minOfferPrice).toBe(450000);
+
+            entitiesSpy.mockRestore();
+            notifySpy.mockRestore();
+            saveStateSpy.mockRestore();
+        });
+
+        it('should treat notification errors without isDefinitiveRejection as definitive by default', async () => {
+            monitor.state = {
+                '1': { 
+                    id: 1, name: 'iPhone 1', 
+                    minOfferPrice: 500000, minOfferDate: '2025-01-01T00:00:00.000Z',
+                    lastOfferPrice: 500000, 
+                    minNormalPrice: 600000, minNormalDate: '2025-01-01T00:00:00.000Z',
+                    lastNormalPrice: 600000 
+                }
+            };
+
+            got.mockResolvedValue({
+                body: mockApiResponse([
+                    { id: 1, name: 'iPhone 1', offerPrice: 450000, normalPrice: 600000 }
+                ])
+            });
+
+            const entitiesSpy = jest.spyOn(solotodo, 'getAvailableEntities').mockResolvedValue([
+                { active_registry: { offer_price: "450000", normal_price: "600000", cell_monthly_payment: null }, store: "https://api.com/stores/1/", external_url: "https://store.com" }
+            ]);
+
+            const genericError = new Error('Generic error without isDefinitiveRejection');
+            const notifySpy = jest.spyOn(monitor, 'notify').mockRejectedValueOnce(genericError);
+            const saveStateSpy = jest.spyOn(monitor, 'saveState').mockResolvedValue();
+
+            await monitor.check();
+
+            expect(notifySpy).toHaveBeenCalledTimes(1);
+            expect(saveStateSpy).toHaveBeenCalled();
+            // Defaults to definitive, so state is restored to previous values
+            expect(monitor.state['1'].lastOfferPrice).toBe(500000);
+            expect(monitor.state['1'].minOfferPrice).toBe(500000);
 
             entitiesSpy.mockRestore();
             notifySpy.mockRestore();

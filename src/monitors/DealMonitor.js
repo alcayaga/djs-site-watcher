@@ -731,8 +731,7 @@ class DealMonitor extends Monitor {
                             });
                         } catch (notifyErr) {
                             logger.error('[DealMonitor] Error sending deal notification for %s (ID: %s):', product.name, productId, notifyErr);
-                            const isDefinitive = notifyErr?.isDefinitiveRejection ??
-                                (typeof notifyErr?.status === 'number' && notifyErr.status >= 400 && notifyErr.status < 500);
+                            const isDefinitive = notifyErr?.isDefinitiveRejection ?? true;
                             if (isDefinitive) {
                                 if (offerTrigger && offerTrigger !== 'CHANGED' && offerTrigger !== 'PENDING') {
                                     restoreOffer(previousOfferPrice);
@@ -1039,7 +1038,7 @@ class DealMonitor extends Monitor {
             isSendAttempted = true;
             message = await channel.send(messageOptions);
         } catch (err) {
-            const isDefinitiveRejection = !isSendAttempted || (typeof err?.status === 'number' && err.status >= 400 && err.status < 500);
+            const isDefinitiveRejection = !isSendAttempted || (typeof err?.status === 'number' && err.status >= 400 && err.status < 500 && err.status !== 429);
             if (isDefinitiveRejection && createdLinkIds.length > 0) {
                 linkTracker.untrack(createdLinkIds);
             }

@@ -148,7 +148,8 @@ config.monitors.forEach(monitor => {
     if (monitor.name === 'Deal') {
         monitor.trackingBaseUrl = monitor.trackingBaseUrl ?? defaults.trackingBaseUrl;
         if (monitor.trackingPort !== undefined) {
-            monitor.trackingPort = parseEnvInt(monitor.trackingPort, DEFAULT_TRACKING_PORT);
+            const parsedPort = parseEnvInt(monitor.trackingPort, DEFAULT_TRACKING_PORT);
+            monitor.trackingPort = (parsedPort >= 1 && parsedPort <= 65535) ? parsedPort : DEFAULT_TRACKING_PORT;
         } else {
             monitor.trackingPort = defaults.trackingPort ?? DEFAULT_TRACKING_PORT;
         }
