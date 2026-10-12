@@ -49,6 +49,13 @@ class LinkTracker {
      * Creates an instance of LinkTracker.
      */
     constructor() {
+        /**
+         * Map of active redirect links keyed by short ID.
+         * Links are preserved indefinitely without eviction so existing Discord alerts
+         * remain valid. Unbounded growth is mitigated by debounced serialization (see scheduleSave)
+         * and planned migration to SQLite (Issue #236).
+         * @type {Map<string, Object>}
+         */
         this.activeLinks = new Map();
         this.server = null;
         this.serverPort = null;
@@ -227,6 +234,8 @@ class LinkTracker {
 
     /**
      * Schedules a debounced atomic write to disk.
+     * Collapses high-frequency click tracking events within a 1.5s window
+     * into a single atomic write to minimize disk I/O on sustained traffic.
      */
     scheduleSave() {
         this.isDirty = true;
@@ -244,7 +253,10 @@ class LinkTracker {
 
     /**
      * Flushes active links to storage as a single atomic snapshot.
-     * Serializes concurrent calls to ensure older saves cannot overwrite newer ones.
+     * All tracked links are preserved indefinitely without eviction to guarantee
+     * historical redirect availability. Concurrent saves are serialized and queued
+     * if state becomes dirty during an in-flight write.
+     * Persistent indexing and database storage migration are tracked in Issue #236.
      * @returns {Promise<void>}
      */
     async saveState() {
@@ -482,18 +494,6 @@ class LinkTracker {
         // Prevent body buffering
         req.resume();
 
-        // Enforce rate limit per client IP
-        const clientIp = this.getClientIp(req);
-        if (this.isRateLimited(clientIp)) {
-            res.writeHead(429, {
-                'Content-Type': 'text/plain; charset=utf-8',
-                'Retry-After': '60',
-                ...SECURITY_HEADERS
-            });
-            res.end('Too Many Requests');
-            return;
-        }
-
         let parsedUrl;
         try {
             parsedUrl = new URL(req.url, 'http://localhost');
@@ -507,6 +507,19 @@ class LinkTracker {
         }
 
         const pathname = parsedUrl.pathname;
+
+        // Enforce rate limit per client IP
+        const clientIp = this.getClientIp(req);
+        const isLimited = this.isRateLimited(clientIp);
+        if (isLimited && !pathname.startsWith('/r/')) {
+            res.writeHead(429, {
+                'Content-Type': 'text/plain; charset=utf-8',
+                'Retry-After': '60',
+                ...SECURITY_HEADERS
+            });
+            res.end('Too Many Requests');
+            return;
+        }
 
         // Health check endpoint for reverse proxy monitoring
         if (pathname === '/health') {
@@ -561,8 +574,9 @@ class LinkTracker {
                 return;
             }
 
-            // Click deduplication: only count GET requests and skip rapid clicks from same IP within 10s
-            if (req.method === 'GET') {
+            // Click deduplication: only count GET requests and skip rapid clicks from same IP within 10s.
+            // When client IP is rate limited, skip click-counting and disk writes while still fulfilling redirect.
+            if (req.method === 'GET' && !isLimited) {
                 const dedupKey = `${clientIp}:${id}`;
                 const lastClickTime = this.recentClicksMap.get(dedupKey);
                 const now = Date.now();
@@ -741,6 +755,10 @@ class LinkTracker {
 
         if (this._startPromise) {
             await this._startPromise.catch(() => {});
+        }
+
+        if (!force && this.activeOwners.size > 0) {
+            return;
         }
 
         this.activeOwners.clear();

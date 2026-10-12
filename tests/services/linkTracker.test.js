@@ -445,6 +445,33 @@ describe('LinkTracker Service', () => {
             expect(res.headers['retry-after']).toBe('60');
         });
 
+        it('should still redirect with 302 for /r/:id when client is rate-limited but skip click counting', async () => {
+            const link = linkTracker.trackUrl({
+                targetUrl: 'https://falabella.com/oferta/limited',
+                productId: 'prod_lim'
+            });
+
+            linkTracker.rateLimitMap.set('127.0.0.1', {
+                count: 61,
+                resetTime: Date.now() + 60000
+            });
+            linkTracker.rateLimitMap.set('::1', {
+                count: 61,
+                resetTime: Date.now() + 60000
+            });
+
+            const res = await request({
+                hostname: TEST_HOST,
+                port: TEST_PORT,
+                path: `/r/${link.id}`,
+                method: 'GET'
+            });
+
+            expect(res.statusCode).toBe(302);
+            expect(res.headers['location']).toBe('https://falabella.com/oferta/limited');
+            expect(linkTracker.activeLinks.get(link.id).clicks).toBe(0);
+        });
+
         it('should use rightmost X-Forwarded-For when trustProxy is enabled without explicit trustedHeader', () => {
             linkTracker.trustProxy = true;
             linkTracker.trustedHeader = null;
@@ -653,6 +680,33 @@ describe('LinkTracker Service', () => {
 
             expect(linkTracker.isRunning()).toBe(false);
             expect(linkTracker.activeOwners.size).toBe(0);
+        });
+
+        it('should keep server running if another owner registers while start() is pending during owner stop()', async () => {
+            await linkTracker.stop({ force: true });
+            linkTracker.isLoaded = false;
+            let resolveLoad;
+            storage.readEngagement.mockImplementationOnce(() => new Promise((resolve) => {
+                resolveLoad = resolve;
+            }));
+
+            // Owner1 starts
+            const startPromise1 = linkTracker.start({ port: TEST_PORT, baseUrl: BASE_URL, owner: 'Owner1' });
+
+            // Owner1 stops while start is still resolving
+            const stopPromise1 = linkTracker.stop({ owner: 'Owner1' });
+
+            // Owner2 registers while start is still pending
+            const startPromise2 = linkTracker.start({ port: TEST_PORT, baseUrl: BASE_URL, owner: 'Owner2' });
+
+            // Complete the loadState read
+            resolveLoad({ links: {} });
+
+            await Promise.all([startPromise1, stopPromise1, startPromise2]);
+
+            expect(linkTracker.isRunning()).toBe(true);
+            expect(linkTracker.activeOwners.has('Owner1')).toBe(false);
+            expect(linkTracker.activeOwners.has('Owner2')).toBe(true);
         });
 
         it('should handle synchronous listen errors and clean up state', async () => {
