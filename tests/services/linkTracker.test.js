@@ -58,8 +58,6 @@ describe('LinkTracker Service', () => {
             linkTracker.saveTimeout = null;
         }
         linkTracker.activeLinks.clear();
-        linkTracker.archivedLinks.clear();
-        linkTracker.destinations.clear();
         linkTracker.rateLimitMap.clear();
         linkTracker.recentClicksMap.clear();
         linkTracker.activeOwners.clear();
@@ -214,76 +212,18 @@ describe('LinkTracker Service', () => {
             linkTracker.activeLinks.get(link1.id).clicks = 10;
             linkTracker.activeLinks.get(link2.id).clicks = 5;
 
-            // Add an archived link
-            linkTracker.archivedLinks.set('arch0001', {
-                targetUrl: 'https://paris.cl',
-                productId: 'prod2',
-                productName: 'MacBook Air',
-                storeName: 'Paris',
-                messageId: 'msg_old',
-                offerPrice: 1100000,
-                clicks: 20
-            });
+            const stats = linkTracker.getStats();
 
-            const stats = linkTracker.getStats({ includeArchive: true });
-
-            expect(stats.totalClicks).toBe(35);
+            expect(stats.totalClicks).toBe(15);
             expect(stats.byProduct['prod1'].totalClicks).toBe(15);
             expect(stats.byProduct['prod1'].alerts['msg_1'].clicks).toBe(15);
-            expect(stats.byProduct['prod2'].totalClicks).toBe(20);
             expect(stats.byStore['Falabella']).toBe(10);
             expect(stats.byStore['MacOnline']).toBe(5);
-            expect(stats.byStore['Paris']).toBe(20);
             expect(stats.activeCount).toBe(2);
-            expect(stats.archivedCount).toBe(1);
         });
     });
 
-    describe('Archiving (_enforceActiveLimit)', () => {
-        it('should move oldest links to archive when exceeding active threshold', () => {
-            // Fill 5 dummy links with explicit timestamps
-            for (let i = 1; i <= 5; i++) {
-                const id = `0000000${i}`;
-                linkTracker.activeLinks.set(id, {
-                    targetUrl: `https://store.com/${i}`,
-                    createdAt: new Date(2026, 0, i).toISOString(),
-                    clicks: i
-                });
-            }
-
-            // Exercise _enforceActiveLimit with custom threshold 3
-            linkTracker._enforceActiveLimit(3);
-
-            expect(linkTracker.activeLinks.size).toBe(3);
-            expect(linkTracker.archivedLinks.size).toBe(2);
-            expect(linkTracker.archivedLinks.has('00000001')).toBe(true);
-            expect(linkTracker.archivedLinks.has('00000002')).toBe(true);
-            expect(linkTracker.activeLinks.has('00000003')).toBe(true);
-            expect(linkTracker.activeLinks.has('00000004')).toBe(true);
-            expect(linkTracker.activeLinks.has('00000005')).toBe(true);
-        });
-
-        it('should purge excess archived links beyond retention limit', () => {
-            for (let i = 1; i <= 5; i++) {
-                const id = `0000000${i}`;
-                linkTracker.archivedLinks.set(id, {
-                    targetUrl: `https://store.com/${i}`,
-                    archivedAt: new Date(2026, 0, i).toISOString(),
-                    clicks: i
-                });
-            }
-
-            linkTracker._enforceActiveLimit(100, 3);
-
-            expect(linkTracker.archivedLinks.size).toBe(3);
-            expect(linkTracker.archivedLinks.has('00000001')).toBe(false);
-            expect(linkTracker.archivedLinks.has('00000002')).toBe(false);
-            expect(linkTracker.archivedLinks.has('00000003')).toBe(true);
-            expect(linkTracker.archivedLinks.has('00000004')).toBe(true);
-            expect(linkTracker.archivedLinks.has('00000005')).toBe(true);
-            expect(linkTracker.destinations.get('00000001')).toBe('https://store.com/1');
-            expect(linkTracker.destinations.get('00000002')).toBe('https://store.com/2');
-        });
+    describe('Persistence & Error Recovery', () => {
 
         it('should mark isDirty on changes and only saveState on stop if isDirty or saveTimeout pending', async () => {
             expect(linkTracker.isDirty).toBe(false);
@@ -339,14 +279,14 @@ describe('LinkTracker Service', () => {
             expect(linkTracker.isDirty).toBe(true);
         });
 
-        it('should load empty state when engagement files are missing', async () => {
+        it('should load empty state when engagement file is missing', async () => {
             linkTracker.isLoaded = false;
-            storage.readEngagement.mockResolvedValueOnce({}).mockResolvedValueOnce({});
+            storage.readEngagement.mockResolvedValueOnce({});
 
             await linkTracker.loadState();
             expect(linkTracker.isLoaded).toBe(true);
             expect(linkTracker.activeLinks.size).toBe(0);
-            expect(storage.readEngagement).toHaveBeenCalledTimes(2);
+            expect(storage.readEngagement).toHaveBeenCalledTimes(1);
         });
 
         it('should propagate read errors other than ENOENT and leave isLoaded false', async () => {
@@ -404,39 +344,6 @@ describe('LinkTracker Service', () => {
             const record = linkTracker.activeLinks.get(link.id);
             expect(record.clicks).toBe(1);
             expect(record.lastClicked).toBeDefined();
-        });
-
-        it('should return 302 Found redirect for an archived link without breaking', async () => {
-            linkTracker.archivedLinks.set('11223344', {
-                targetUrl: 'https://maconline.com/archived-deal',
-                productId: 88,
-                clicks: 5
-            });
-
-            const res = await request({
-                hostname: TEST_HOST,
-                port: TEST_PORT,
-                path: '/r/11223344',
-                method: 'GET'
-            });
-
-            expect(res.statusCode).toBe(302);
-            expect(res.headers['location']).toBe('https://maconline.com/archived-deal');
-            expect(linkTracker.archivedLinks.get('11223344').clicks).toBe(6);
-        });
-
-        it('should redirect successfully to preserved destination when link was purged from active/archive', async () => {
-            linkTracker.destinations.set('cafebabe', 'https://store.com/preserved-deal');
-
-            const res = await request({
-                hostname: TEST_HOST,
-                port: TEST_PORT,
-                path: '/r/cafebabe',
-                method: 'GET'
-            });
-
-            expect(res.statusCode).toBe(302);
-            expect(res.headers['location']).toBe('https://store.com/preserved-deal');
         });
 
         it('should deduplicate rapid consecutive clicks from the same IP within 10s', async () => {

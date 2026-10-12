@@ -5,10 +5,7 @@ const storage = require('../storage');
 const logger = require('../utils/logger');
 const {
     DEAL_ENGAGEMENT_FILE,
-    DEAL_ENGAGEMENT_ARCHIVE_FILE,
-    DEFAULT_TRACKING_PORT,
-    MAX_ACTIVE_TRACKED_LINKS,
-    MAX_ARCHIVED_TRACKED_LINKS
+    DEFAULT_TRACKING_PORT
 } = require('../utils/constants');
 
 const loopbackList = new net.BlockList();
@@ -53,8 +50,6 @@ class LinkTracker {
      */
     constructor() {
         this.activeLinks = new Map();
-        this.archivedLinks = new Map();
-        this.destinations = new Map();
         this.server = null;
         this.serverPort = null;
         this.serverHost = null;
@@ -196,7 +191,7 @@ class LinkTracker {
     }
 
     /**
-     * Loads engagement state and archive from storage.
+     * Loads link engagement state from storage.
      * @returns {Promise<void>}
      */
     async loadState() {
@@ -205,9 +200,9 @@ class LinkTracker {
 
         this._loadPromise = (async () => {
             try {
-                const activeData = await storage.readEngagement(DEAL_ENGAGEMENT_FILE);
-                if (activeData && typeof activeData.links === 'object' && activeData.links !== null) {
-                    for (const [id, record] of Object.entries(activeData.links)) {
+                const data = await storage.readEngagement(DEAL_ENGAGEMENT_FILE);
+                if (data && typeof data.links === 'object' && data.links !== null) {
+                    for (const [id, record] of Object.entries(data.links)) {
                         if (id && typeof record === 'object' && record !== null) {
                             if (!this.activeLinks.has(id)) {
                                 this.activeLinks.set(id, record);
@@ -216,42 +211,8 @@ class LinkTracker {
                     }
                 }
 
-                if (activeData && typeof activeData.archivedLinks === 'object' && activeData.archivedLinks !== null) {
-                    for (const [id, record] of Object.entries(activeData.archivedLinks)) {
-                        if (id && typeof record === 'object' && record !== null) {
-                            if (!this.archivedLinks.has(id)) {
-                                this.archivedLinks.set(id, record);
-                            }
-                        }
-                    }
-                }
-
-                if (activeData && typeof activeData.destinations === 'object' && activeData.destinations !== null) {
-                    for (const [id, targetUrl] of Object.entries(activeData.destinations)) {
-                        if (id && typeof targetUrl === 'string') {
-                            if (!this.destinations.has(id)) {
-                                this.destinations.set(id, targetUrl);
-                            }
-                        }
-                    }
-                }
-
-                // Fallback / legacy migration for separate archive file
-                if (this.archivedLinks.size === 0) {
-                    const archiveData = await storage.readEngagement(DEAL_ENGAGEMENT_ARCHIVE_FILE).catch(() => ({}));
-                    if (archiveData && typeof archiveData.archivedLinks === 'object' && archiveData.archivedLinks !== null) {
-                        for (const [id, record] of Object.entries(archiveData.archivedLinks)) {
-                            if (id && typeof record === 'object' && record !== null) {
-                                if (!this.archivedLinks.has(id)) {
-                                    this.archivedLinks.set(id, record);
-                                }
-                            }
-                        }
-                    }
-                }
-
                 this.isLoaded = true;
-                logger.info('[LinkTracker] Loaded %d active links and %d archived links.', this.activeLinks.size, this.archivedLinks.size);
+                logger.info('[LinkTracker] Loaded %d tracked links.', this.activeLinks.size);
             } catch (error) {
                 logger.error('[LinkTracker] Failed to load link engagement state:', error);
                 this.isLoaded = false;
@@ -262,56 +223,6 @@ class LinkTracker {
         })();
 
         return this._loadPromise;
-    }
-
-    /**
-     * Moves oldest links to archive if active links exceed maxLimit,
-     * bounds the archive to maxArchivedLimit to prevent unbounded growth,
-     * and preserves redirect destinations for expired archived records.
-     * @param {number} [maxLimit=MAX_ACTIVE_TRACKED_LINKS] Maximum active links threshold.
-     * @param {number} [maxArchivedLimit=MAX_ARCHIVED_TRACKED_LINKS] Maximum archived links threshold.
-     * @private
-     */
-    _enforceActiveLimit(maxLimit = MAX_ACTIVE_TRACKED_LINKS, maxArchivedLimit = MAX_ARCHIVED_TRACKED_LINKS) {
-        if (this.activeLinks.size > maxLimit) {
-            const entries = Array.from(this.activeLinks.entries());
-            // Sort ascending by createdAt (oldest first)
-            entries.sort((a, b) => {
-                const timeA = new Date(a[1].createdAt || 0).getTime();
-                const timeB = new Date(b[1].createdAt || 0).getTime();
-                return timeA - timeB;
-            });
-
-            const numToArchive = this.activeLinks.size - maxLimit;
-            const now = new Date().toISOString();
-
-            for (let i = 0; i < numToArchive; i++) {
-                const [id, record] = entries[i];
-                this.activeLinks.delete(id);
-                record.archivedAt = now;
-                this.archivedLinks.set(id, record);
-            }
-
-            logger.info('[LinkTracker] Archived %d old links. Active: %d, Archived: %d.', numToArchive, this.activeLinks.size, this.archivedLinks.size);
-        }
-
-        if (this.archivedLinks.size > maxArchivedLimit) {
-            const archiveEntries = Array.from(this.archivedLinks.entries());
-            archiveEntries.sort((a, b) => {
-                const timeA = new Date(a[1].archivedAt || a[1].createdAt || 0).getTime();
-                const timeB = new Date(b[1].archivedAt || b[1].createdAt || 0).getTime();
-                return timeA - timeB;
-            });
-            const toPurge = this.archivedLinks.size - maxArchivedLimit;
-            for (let i = 0; i < toPurge; i++) {
-                const [id, record] = archiveEntries[i];
-                if (record && record.targetUrl) {
-                    this.destinations.set(id, record.targetUrl);
-                }
-                this.archivedLinks.delete(id);
-            }
-            logger.info('[LinkTracker] Purged %d excess archived links beyond retention limit, preserving redirect destinations.', toPurge);
-        }
     }
 
     /**
@@ -332,7 +243,7 @@ class LinkTracker {
     }
 
     /**
-     * Flushes active links, archived links, and redirect destinations to storage as a single atomic snapshot.
+     * Flushes active links to storage as a single atomic snapshot.
      * Serializes concurrent calls to ensure older saves cannot overwrite newer ones.
      * @returns {Promise<void>}
      */
@@ -362,12 +273,9 @@ class LinkTracker {
             do {
                 this._needsSaveAgain = false;
                 this.isDirty = false;
-                this._enforceActiveLimit();
 
                 const snapshot = {
-                    links: Object.fromEntries(this.activeLinks),
-                    archivedLinks: Object.fromEntries(this.archivedLinks),
-                    destinations: Object.fromEntries(this.destinations)
+                    links: Object.fromEntries(this.activeLinks)
                 };
 
                 try {
@@ -422,9 +330,9 @@ class LinkTracker {
         do {
             id = crypto.randomBytes(4).toString('hex');
             attempts++;
-        } while ((this.activeLinks.has(id) || this.archivedLinks.has(id) || this.destinations.has(id)) && attempts < 10);
+        } while (this.activeLinks.has(id) && attempts < 10);
 
-        if (this.activeLinks.has(id) || this.archivedLinks.has(id) || this.destinations.has(id)) {
+        if (this.activeLinks.has(id)) {
             logger.error('[LinkTracker] Failed to generate a unique link ID after 10 attempts.');
             return { url: targetUrl, id: null };
         }
@@ -461,10 +369,8 @@ class LinkTracker {
         const list = Array.isArray(ids) ? ids : [ids];
         let deletedAny = false;
         for (const id of list) {
-            if (typeof id === 'string') {
-                if (this.activeLinks.delete(id)) deletedAny = true;
-                if (this.archivedLinks.delete(id)) deletedAny = true;
-                if (this.destinations.delete(id)) deletedAny = true;
+            if (typeof id === 'string' && this.activeLinks.delete(id)) {
+                deletedAny = true;
             }
         }
         if (deletedAny) {
@@ -484,7 +390,7 @@ class LinkTracker {
         let modified = false;
         for (const id of linkIds) {
             if (!id || typeof id !== 'string') continue;
-            let record = this.activeLinks.get(id) || this.archivedLinks.get(id);
+            let record = this.activeLinks.get(id);
             if (record) {
                 record.messageId = String(messageId);
                 if (metadata.offerPrice !== undefined) record.offerPrice = metadata.offerPrice;
@@ -499,20 +405,18 @@ class LinkTracker {
     }
 
     /**
-     * Dynamically computes aggregated metrics from active and archived links.
-     * @param {object} [options]
-     * @param {boolean} [options.includeArchive=true] Whether to include archived links in rollups.
+     * Dynamically computes aggregated metrics from tracked links.
      * @returns {object} Derived analytics data.
      */
-    getStats({ includeArchive = true } = {}) {
+    getStats() {
         let totalClicks = 0;
         const byProduct = {};
         const byStore = {};
 
         /**
-         * Accumulates metrics from a link record into rollups.
-         * @param {object} record The link record.
-         */
+          * Accumulates metrics from a link record into rollups.
+          * @param {object} record The link record.
+          */
         const processRecord = (record) => {
             const clicks = record.clicks || 0;
             totalClicks += clicks;
@@ -549,18 +453,12 @@ class LinkTracker {
             processRecord(record);
         }
 
-        if (includeArchive) {
-            for (const record of this.archivedLinks.values()) {
-                processRecord(record);
-            }
-        }
-
         return {
             totalClicks,
             byProduct,
             byStore,
             activeCount: this.activeLinks.size,
-            archivedCount: this.archivedLinks.size
+            trackedCount: this.activeLinks.size
         };
     }
 
@@ -636,10 +534,9 @@ class LinkTracker {
                 return;
             }
 
-            // Look up link in active or archived store, or preserved destinations map
-            const record = this.activeLinks.get(id) || this.archivedLinks.get(id);
-            const rawTarget = record ? record.targetUrl : this.destinations.get(id);
-            if (!rawTarget) {
+            // Look up link in tracked store
+            const record = this.activeLinks.get(id);
+            if (!record || !record.targetUrl) {
                 res.writeHead(404, {
                     'Content-Type': 'text/plain; charset=utf-8',
                     ...SECURITY_HEADERS
@@ -649,7 +546,7 @@ class LinkTracker {
             }
 
             // Re-validate destination URL
-            let targetUrl = rawTarget;
+            let targetUrl = record.targetUrl;
             try {
                 const targetParsed = new URL(targetUrl);
                 if (targetParsed.protocol !== 'http:' && targetParsed.protocol !== 'https:') {
@@ -664,8 +561,8 @@ class LinkTracker {
                 return;
             }
 
-            // Click deduplication: only count GET requests on active/archived records
-            if (req.method === 'GET' && record) {
+            // Click deduplication: only count GET requests and skip rapid clicks from same IP within 10s
+            if (req.method === 'GET') {
                 const dedupKey = `${clientIp}:${id}`;
                 const lastClickTime = this.recentClicksMap.get(dedupKey);
                 const now = Date.now();
