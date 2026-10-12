@@ -64,6 +64,7 @@ class LinkTracker {
         this.isLoaded = false;
         this._loadPromise = null;
         this._startPromise = null;
+        this._startupOwners = null;
         this._savingPromise = null;
         this._needsSaveAgain = false;
         this.trustProxy = false;
@@ -507,69 +508,45 @@ class LinkTracker {
         }
 
         const pathname = parsedUrl.pathname;
-
-        // Enforce rate limit per client IP
         const clientIp = this.getClientIp(req);
         const isLimited = this.isRateLimited(clientIp);
-        if (isLimited && !pathname.startsWith('/r/')) {
-            res.writeHead(429, {
-                'Content-Type': 'text/plain; charset=utf-8',
-                'Retry-After': '60',
-                ...SECURITY_HEADERS
-            });
-            res.end('Too Many Requests');
-            return;
-        }
-
-        // Health check endpoint for reverse proxy monitoring
-        if (pathname === '/health') {
-            res.writeHead(200, {
-                'Content-Type': 'text/plain; charset=utf-8',
-                ...SECURITY_HEADERS
-            });
-            if (req.method === 'HEAD') {
-                res.end();
-            } else {
-                res.end('OK');
-            }
-            return;
-        }
 
         // Redirect endpoint: /r/:id (strictly 8 hex chars)
         if (pathname.startsWith('/r/')) {
             const id = pathname.slice(3);
-            if (!/^[a-f0-9]{8}$/.test(id)) {
-                res.writeHead(404, {
-                    'Content-Type': 'text/plain; charset=utf-8',
-                    ...SECURITY_HEADERS
-                });
-                res.end('Not Found');
-                return;
-            }
-
-            // Look up link in tracked store
-            const record = this.activeLinks.get(id);
-            if (!record || !record.targetUrl) {
-                res.writeHead(404, {
-                    'Content-Type': 'text/plain; charset=utf-8',
-                    ...SECURITY_HEADERS
-                });
-                res.end('Not Found');
-                return;
-            }
+            const isValidId = /^[a-f0-9]{8}$/.test(id);
+            const record = isValidId ? this.activeLinks.get(id) : null;
+            let targetUrl = record?.targetUrl;
 
             // Re-validate destination URL
-            let targetUrl = record.targetUrl;
-            try {
-                const targetParsed = new URL(targetUrl);
-                if (targetParsed.protocol !== 'http:' && targetParsed.protocol !== 'https:') {
-                    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
-                    res.end('Not Found');
+            if (targetUrl) {
+                try {
+                    const targetParsed = new URL(targetUrl);
+                    if (targetParsed.protocol !== 'http:' && targetParsed.protocol !== 'https:') {
+                        targetUrl = null;
+                    } else {
+                        targetUrl = targetParsed.href;
+                    }
+                } catch {
+                    targetUrl = null;
+                }
+            }
+
+            // Unknown or invalid links: return 429 if client is rate-limited, otherwise 404
+            if (!targetUrl) {
+                if (isLimited) {
+                    res.writeHead(429, {
+                        'Content-Type': 'text/plain; charset=utf-8',
+                        'Retry-After': '60',
+                        ...SECURITY_HEADERS
+                    });
+                    res.end('Too Many Requests');
                     return;
                 }
-                targetUrl = targetParsed.href;
-            } catch {
-                res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+                res.writeHead(404, {
+                    'Content-Type': 'text/plain; charset=utf-8',
+                    ...SECURITY_HEADERS
+                });
                 res.end('Not Found');
                 return;
             }
@@ -599,6 +576,31 @@ class LinkTracker {
                 res.end();
             } else {
                 res.end('Redirecting...');
+            }
+            return;
+        }
+
+        // For all non-redirect endpoints: enforce rate limit
+        if (isLimited) {
+            res.writeHead(429, {
+                'Content-Type': 'text/plain; charset=utf-8',
+                'Retry-After': '60',
+                ...SECURITY_HEADERS
+            });
+            res.end('Too Many Requests');
+            return;
+        }
+
+        // Health check endpoint for reverse proxy monitoring
+        if (pathname === '/health') {
+            res.writeHead(200, {
+                'Content-Type': 'text/plain; charset=utf-8',
+                ...SECURITY_HEADERS
+            });
+            if (req.method === 'HEAD') {
+                res.end();
+            } else {
+                res.end('OK');
             }
             return;
         }
@@ -650,83 +652,107 @@ class LinkTracker {
         }
 
         if (this._startPromise) {
+            if (owner && this._startupOwners) {
+                this._startupOwners.add(owner);
+            }
             return this._startPromise;
         }
 
+        const currentStartupOwners = new Set();
+        if (owner) {
+            currentStartupOwners.add(owner);
+        }
+        this._startupOwners = currentStartupOwners;
+
         this._startPromise = (async () => {
-            this.baseUrl = baseUrl || this.baseUrl;
-            if (trustProxy !== undefined) {
-                this.trustProxy = Boolean(trustProxy);
-            }
-            if (trustedHeader !== undefined) {
-                this.trustedHeader = typeof trustedHeader === 'string' && trustedHeader.trim()
-                    ? trustedHeader.trim().toLowerCase()
-                    : null;
-            }
+            try {
+                this.baseUrl = baseUrl || this.baseUrl;
+                if (trustProxy !== undefined) {
+                    this.trustProxy = Boolean(trustProxy);
+                }
+                if (trustedHeader !== undefined) {
+                    this.trustedHeader = typeof trustedHeader === 'string' && trustedHeader.trim()
+                        ? trustedHeader.trim().toLowerCase()
+                        : null;
+                }
 
-            await this.loadState();
+                await this.loadState();
 
-            this.serverPort = port;
-            this.serverHost = host || (this.trustProxy ? '127.0.0.1' : '0.0.0.0');
+                this.serverPort = port;
+                this.serverHost = host || (this.trustProxy ? '127.0.0.1' : '0.0.0.0');
 
-            this.server = http.createServer((req, res) => {
-                this.handleRequest(req, res).catch(err => {
-                    logger.error('[LinkTracker] Unhandled error handling request:', err);
-                    if (!res.headersSent) {
-                        res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
-                        res.end('Internal Server Error');
+                this.server = http.createServer((req, res) => {
+                    this.handleRequest(req, res).catch(err => {
+                        logger.error('[LinkTracker] Unhandled error handling request:', err);
+                        if (!res.headersSent) {
+                            res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+                            res.end('Internal Server Error');
+                        }
+                    });
+                });
+
+                // Enforce socket timeouts for Slowloris protection
+                this.server.requestTimeout = 5000;
+                this.server.headersTimeout = 6000;
+                this.server.keepAliveTimeout = 5000;
+                this.server.maxHeadersCount = 50;
+
+                // Periodic map cleanup
+                if (!this._cleanupInterval) {
+                    this._cleanupInterval = setInterval(() => this._cleanupMemoryMaps(), 60000);
+                    if (this._cleanupInterval.unref) this._cleanupInterval.unref();
+                }
+
+                await new Promise((resolve, reject) => {
+                    /**
+                     * Handles initial server listen errors and cleans up resources.
+                     * @param {Error} err The listen error.
+                     */
+                    const onError = (err) => {
+                        logger.error('[LinkTracker] Server error:', err);
+                        reject(err);
+                    };
+
+                    this.server.once('error', onError);
+
+                    try {
+                        this.server.listen(this.serverPort, this.serverHost, () => {
+                            this.server.removeListener('error', onError);
+                            this.server.on('error', (err) => {
+                                logger.error('[LinkTracker] Runtime server error:', err);
+                            });
+                            logger.info('[LinkTracker] Redirect server running.');
+                            resolve();
+                        });
+                    } catch (err) {
+                        this.server.removeListener('error', onError);
+                        onError(err);
                     }
                 });
-            });
-
-            // Enforce socket timeouts for Slowloris protection
-            this.server.requestTimeout = 5000;
-            this.server.headersTimeout = 6000;
-            this.server.keepAliveTimeout = 5000;
-            this.server.maxHeadersCount = 50;
-
-            // Periodic map cleanup
-            if (!this._cleanupInterval) {
-                this._cleanupInterval = setInterval(() => this._cleanupMemoryMaps(), 60000);
-                if (this._cleanupInterval.unref) this._cleanupInterval.unref();
-            }
-
-            await new Promise((resolve, reject) => {
-                /**
-                 * Handles initial server listen errors and cleans up resources.
-                 * @param {Error} err The listen error.
-                 */
-                const onError = (err) => {
-                    logger.error('[LinkTracker] Server error:', err);
-                    if (owner) {
-                        this.activeOwners.delete(owner);
-                    }
-                    if (this._cleanupInterval) {
-                        clearInterval(this._cleanupInterval);
-                        this._cleanupInterval = null;
-                    }
-                    this.server = null;
-                    this.serverPort = null;
-                    this.serverHost = null;
-                    reject(err);
-                };
-
-                this.server.once('error', onError);
-
-                try {
-                    this.server.listen(this.serverPort, this.serverHost, () => {
-                        this.server.removeListener('error', onError);
-                        this.server.on('error', (err) => {
-                            logger.error('[LinkTracker] Runtime server error:', err);
-                        });
-                        logger.info('[LinkTracker] Redirect server running.');
-                        resolve();
-                    });
-                } catch (err) {
-                    this.server.removeListener('error', onError);
-                    onError(err);
+            } catch (err) {
+                for (const o of currentStartupOwners) {
+                    this.activeOwners.delete(o);
                 }
-            });
+                if (this._cleanupInterval) {
+                    clearInterval(this._cleanupInterval);
+                    this._cleanupInterval = null;
+                }
+                if (this.server) {
+                    try {
+                        this.server.close();
+                    } catch {
+                        // Ignore server close error during failed startup teardown
+                    }
+                }
+                this.server = null;
+                this.serverPort = null;
+                this.serverHost = null;
+                throw err;
+            } finally {
+                if (this._startupOwners === currentStartupOwners) {
+                    this._startupOwners = null;
+                }
+            }
         })();
 
         try {
@@ -778,8 +804,12 @@ class LinkTracker {
                 if (typeof serverToClose.closeAllConnections === 'function') {
                     serverToClose.closeAllConnections();
                 }
-                serverToClose.close(() => {
-                    logger.info('[LinkTracker] Redirect server stopped.');
+                serverToClose.close((err) => {
+                    if (err) {
+                        logger.warn('[LinkTracker] Error closing server:', err);
+                    } else {
+                        logger.info('[LinkTracker] Redirect server stopped.');
+                    }
                     resolve();
                 });
             });

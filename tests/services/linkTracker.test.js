@@ -472,6 +472,37 @@ describe('LinkTracker Service', () => {
             expect(linkTracker.activeLinks.get(link.id).clicks).toBe(0);
         });
 
+        it('should return 429 when rate-limited client requests unknown or malformed /r/ path', async () => {
+            linkTracker.rateLimitMap.set('127.0.0.1', {
+                count: 61,
+                resetTime: Date.now() + 60000
+            });
+            linkTracker.rateLimitMap.set('::1', {
+                count: 61,
+                resetTime: Date.now() + 60000
+            });
+
+            // Unknown valid-format ID
+            const resUnknown = await request({
+                hostname: TEST_HOST,
+                port: TEST_PORT,
+                path: '/r/00000000',
+                method: 'GET'
+            });
+            expect(resUnknown.statusCode).toBe(429);
+            expect(resUnknown.headers['retry-after']).toBe('60');
+
+            // Malformed ID
+            const resMalformed = await request({
+                hostname: TEST_HOST,
+                port: TEST_PORT,
+                path: '/r/invalid-id',
+                method: 'GET'
+            });
+            expect(resMalformed.statusCode).toBe(429);
+            expect(resMalformed.headers['retry-after']).toBe('60');
+        });
+
         it('should use rightmost X-Forwarded-For when trustProxy is enabled without explicit trustedHeader', () => {
             linkTracker.trustProxy = true;
             linkTracker.trustedHeader = null;
@@ -724,6 +755,31 @@ describe('LinkTracker Service', () => {
                 .rejects.toThrow('Sync listen failure');
             expect(linkTracker.isRunning()).toBe(false);
             expect(linkTracker.activeOwners.has('Test')).toBe(false);
+
+            createServerSpy.mockRestore();
+        });
+
+        it('should remove all joined owners when a shared startup fails', async () => {
+            await linkTracker.stop({ force: true });
+            const createServerSpy = jest.spyOn(http, 'createServer').mockReturnValueOnce({
+                on: jest.fn(),
+                once: jest.fn(),
+                removeListener: jest.fn(),
+                listen: jest.fn().mockImplementation(() => {
+                    throw new Error('Shared listen failure');
+                })
+            });
+
+            const startPromise1 = linkTracker.start({ port: TEST_PORT, baseUrl: BASE_URL, owner: 'FailedOwner1' });
+            const startPromise2 = linkTracker.start({ port: TEST_PORT, baseUrl: BASE_URL, owner: 'FailedOwner2' });
+
+            await expect(startPromise1).rejects.toThrow('Shared listen failure');
+            await expect(startPromise2).rejects.toThrow('Shared listen failure');
+
+            expect(linkTracker.isRunning()).toBe(false);
+            expect(linkTracker.activeOwners.has('FailedOwner1')).toBe(false);
+            expect(linkTracker.activeOwners.has('FailedOwner2')).toBe(false);
+            expect(linkTracker.activeOwners.size).toBe(0);
 
             createServerSpy.mockRestore();
         });
