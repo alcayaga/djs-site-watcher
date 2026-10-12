@@ -5,6 +5,7 @@ const solotodo = require('../src/utils/solotodo');
 const config = require('../src/config');
 const channelManager = require('../src/ChannelManager');
 const logger = require('../src/utils/logger');
+const linkTracker = require('../src/services/linkTracker');
 
 // Ensure we have a scenario argument
 const scenarioName = process.argv[2];
@@ -38,6 +39,7 @@ async function runSimulation() {
     
     const originalGetStores = solotodo.getStores;
     const originalGetAvailableEntities = solotodo.getAvailableEntities;
+    let monitor = null;
 
     try {
         // Apply scenario mocks
@@ -55,9 +57,10 @@ async function runSimulation() {
                 url: 'https://www.apple.com/ios/feature-availability/',
                 file: './config/apple_features_ios.json',
                 channelId: config.defaultChannelId,
+                ...(scenario.monitorConfig || {})
             };
             
-            const monitor = new AppleFeatureMonitor(monitorConfig.name, monitorConfig);
+            monitor = new AppleFeatureMonitor(monitorConfig.name, monitorConfig);
             await monitor.initialize(client);
             
             const channel = monitor.getNotificationChannel();
@@ -70,14 +73,23 @@ async function runSimulation() {
             await monitor.notify(scenario.changes);
         } else {
             // Default to DealMonitor for backward compatibility
+            const existingDealConfig = { ...(config.monitors?.find(m => m.name === 'Deal') || {}) };
+            delete existingDealConfig.trackingBaseUrl;
+            delete existingDealConfig.trackingPort;
+            delete existingDealConfig.trackingHost;
+            delete existingDealConfig.trustProxy;
+            delete existingDealConfig.trustedHeader;
+
             const monitorConfig = {
                 name: 'Deal',
                 enabled: true,
                 interval: '* * * * * *',
                 file: './config/deals.json',
+                ...existingDealConfig,
+                ...(scenario.monitorConfig || {})
             };
             
-            const monitor = new DealMonitor('Deal', monitorConfig);
+            monitor = new DealMonitor('Deal', monitorConfig);
             await monitor.initialize(client);
             
             // Cache the Deals channel
@@ -112,6 +124,16 @@ async function runSimulation() {
         solotodo.getStores = originalGetStores;
         solotodo.getAvailableEntities = originalGetAvailableEntities;
         
+        if (monitor && typeof monitor.stop === 'function') {
+            monitor.stop();
+        }
+
+        try {
+            await linkTracker.stop({ force: true });
+        } catch (stopErr) {
+            logger.error('Error stopping linkTracker during simulation cleanup:', stopErr);
+        }
+
         // Clean teardown
         logger.info('Destroying Discord client connection...');
         client.destroy();

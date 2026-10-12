@@ -69,4 +69,63 @@ describe('storage', () => {
             expect(savedSettings.channels[0].name).toBe('QA');
         });
     });
+
+    describe('readEngagement', () => {
+        it('should return parsed JSON when file exists', async () => {
+            const mockData = { links: { abc: { url: 'https://ex.com' } } };
+            fs.readJSON.mockResolvedValueOnce(mockData);
+
+            const result = await storage.readEngagement('some/file.json');
+            expect(result).toEqual(mockData);
+        });
+
+        it('should return empty object on ENOENT error', async () => {
+            const enoentErr = new Error('File not found');
+            enoentErr.code = 'ENOENT';
+            fs.readJSON.mockRejectedValueOnce(enoentErr);
+
+            const result = await storage.readEngagement('missing.json');
+            expect(result).toEqual({});
+        });
+
+        it('should propagate other errors such as corrupt JSON or permission errors', async () => {
+            const parseErr = new Error('Unexpected token');
+            parseErr.code = 'EIO';
+            fs.readJSON.mockRejectedValueOnce(parseErr);
+
+            await expect(storage.readEngagement('corrupt.json')).rejects.toThrow('Unexpected token');
+        });
+    });
+
+    describe('writeAtomic', () => {
+        it('should write to a temporary file and move it atomically over target', async () => {
+            fs.outputJSON.mockResolvedValueOnce();
+            fs.rename.mockResolvedValueOnce();
+
+            const testData = { links: {} };
+            await storage.writeAtomic('config/deals.json', testData);
+
+            expect(fs.outputJSON).toHaveBeenCalledWith(
+                expect.stringMatching(/config\/deals\.json\.\d+\.\d+\.[a-f0-9]+\.tmp$/),
+                testData,
+                { spaces: 2 }
+            );
+            expect(fs.rename).toHaveBeenCalledWith(
+                expect.stringMatching(/config\/deals\.json\.\d+\.\d+\.[a-f0-9]+\.tmp$/),
+                'config/deals.json'
+            );
+        });
+
+        it('should clean up temporary file and rethrow when writing or moving fails', async () => {
+            const writeErr = new Error('Disk full');
+            fs.outputJSON.mockRejectedValueOnce(writeErr);
+            fs.remove.mockResolvedValueOnce();
+
+            await expect(storage.writeAtomic('config/deals.json', {})).rejects.toThrow('Disk full');
+
+            expect(fs.remove).toHaveBeenCalledWith(
+                expect.stringMatching(/config\/deals\.json\.\d+\.\d+\.[a-f0-9]+\.tmp$/)
+            );
+        });
+    });
 });

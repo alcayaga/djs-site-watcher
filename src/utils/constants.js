@@ -112,6 +112,9 @@ const ENV_LOG_LEVEL = 'LOG_LEVEL';
 const ENV_REQUEST_TIMEOUT = 'REQUEST_TIMEOUT';
 const ENV_RETRY_LIMIT = 'RETRY_LIMIT';
 
+const DEAL_ENGAGEMENT_FILE = './config/deal_engagement.json';
+const DEFAULT_TRACKING_PORT = 3000;
+
 module.exports = {
     SOLOTODO_BASE_URL,
     SOLOTODO_API_URL,
@@ -152,4 +155,6 @@ module.exports = {
     ENV_LOG_LEVEL,
     ENV_REQUEST_TIMEOUT,
     ENV_RETRY_LIMIT,
+    DEAL_ENGAGEMENT_FILE,
+    DEFAULT_TRACKING_PORT,
 };

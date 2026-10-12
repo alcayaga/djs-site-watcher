@@ -23,6 +23,7 @@ const {
     ENV_SOLOTODO_API_URL,
     ENV_REQUEST_TIMEOUT,
     ENV_RETRY_LIMIT,
+    DEFAULT_TRACKING_PORT,
 } = require('./utils/constants.js');
 
 const config = storage.loadSettings();
@@ -123,7 +124,9 @@ if (!config.monitors) {
 const monitorDefaults = {
     'Deal': {
         channelId: process.env[ENV_DISCORDJS_DEALS_CHANNEL_ID],
-        apiDelay: config.SOLOTODO_API_DELAY
+        apiDelay: config.SOLOTODO_API_DELAY,
+        trackingBaseUrl: '',
+        trackingPort: DEFAULT_TRACKING_PORT
     }
 };
 
@@ -140,6 +143,20 @@ config.monitors.forEach(monitor => {
 
     if (defaults.apiDelay !== undefined) {
         monitor.apiDelay = monitor.apiDelay ?? defaults.apiDelay;
+    }
+
+    if (monitor.name === 'Deal') {
+        monitor.trackingBaseUrl = monitor.trackingBaseUrl ?? defaults.trackingBaseUrl;
+        if (monitor.trackingPort !== undefined) {
+            const rawPort = typeof monitor.trackingPort === 'number'
+                ? monitor.trackingPort
+                : (typeof monitor.trackingPort === 'string' && /^\d+$/.test(monitor.trackingPort.trim())
+                    ? Number(monitor.trackingPort.trim())
+                    : NaN);
+            monitor.trackingPort = (Number.isInteger(rawPort) && rawPort >= 1 && rawPort <= 65535) ? rawPort : DEFAULT_TRACKING_PORT;
+        } else {
+            monitor.trackingPort = defaults.trackingPort ?? DEFAULT_TRACKING_PORT;
+        }
     }
 });
 

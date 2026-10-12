@@ -154,7 +154,7 @@ describe('config', () => {
         const config = require('../src/config');
         
         // They should be merged into a single AppleFeature:iOS monitor (last one wins for overrides)
-        expect(config.monitors.length).toBe(1);
+        expect(config.monitors).toHaveLength(1);
         
         const mergedMonitor = config.monitors[0];
         expect(mergedMonitor.name).toBe('AppleFeature:iOS');
@@ -164,5 +164,97 @@ describe('config', () => {
         
         // No monitor should remain with the legacy name
         expect(config.monitors.find(m => m.name === 'AppleFeature')).toBeUndefined();
+    });
+
+    it('should load Deal monitor tracking configuration from settings', () => {
+        const customMonitors = [
+            {
+                name: 'Deal',
+                channelId: 'deals-123',
+                trackingBaseUrl: 'https://deals.example.com',
+                trackingPort: 8080
+            }
+        ];
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({ monitors: customMonitors });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+        const config = require('../src/config');
+
+        const dealMonitor = config.monitors.find(m => m.name === 'Deal');
+        expect(dealMonitor).toBeDefined();
+        expect(dealMonitor.trackingBaseUrl).toBe('https://deals.example.com');
+        expect(dealMonitor.trackingPort).toBe(8080);
+    });
+
+    it('should default Deal monitor tracking configuration and ignore tracking environment variables', () => {
+        const originalBaseUrl = process.env.TRACKING_BASE_URL;
+        const originalPort = process.env.TRACKING_PORT;
+        try {
+            process.env.TRACKING_BASE_URL = 'https://env.deals.example.com';
+            process.env.TRACKING_PORT = '9999';
+
+            const customMonitors = [
+                {
+                    name: 'Deal',
+                    channelId: 'deals-123'
+                }
+            ];
+            const storage = require('../src/storage');
+            storage.loadSettings.mockReturnValue({ monitors: customMonitors });
+            storage.SENSITIVE_SETTINGS_KEYS = [];
+            const config = require('../src/config');
+
+            const dealMonitor = config.monitors.find(m => m.name === 'Deal');
+            expect(dealMonitor).toBeDefined();
+            expect(dealMonitor.trackingBaseUrl).toBe('');
+            expect(dealMonitor.trackingPort).toBe(3000);
+        } finally {
+            if (originalBaseUrl !== undefined) {
+                process.env.TRACKING_BASE_URL = originalBaseUrl;
+            } else {
+                delete process.env.TRACKING_BASE_URL;
+            }
+            if (originalPort !== undefined) {
+                process.env.TRACKING_PORT = originalPort;
+            } else {
+                delete process.env.TRACKING_PORT;
+            }
+        }
+    });
+
+    it('should fallback to DEFAULT_TRACKING_PORT when trackingPort is outside 1-65535', () => {
+        const customMonitors = [
+            {
+                name: 'Deal',
+                channelId: 'deals-123',
+                trackingPort: 70000
+            }
+        ];
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({ monitors: customMonitors });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+        const config = require('../src/config');
+
+        const dealMonitor = config.monitors.find(m => m.name === 'Deal');
+        expect(dealMonitor).toBeDefined();
+        expect(dealMonitor.trackingPort).toBe(3000);
+    });
+
+    it('should fallback to DEFAULT_TRACKING_PORT when trackingPort contains non-numeric suffix', () => {
+        const customMonitors = [
+            {
+                name: 'Deal',
+                channelId: 'deals-123',
+                trackingPort: '8080oops'
+            }
+        ];
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({ monitors: customMonitors });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+        const config = require('../src/config');
+
+        const dealMonitor = config.monitors.find(m => m.name === 'Deal');
+        expect(dealMonitor).toBeDefined();
+        expect(dealMonitor.trackingPort).toBe(3000);
     });
 });

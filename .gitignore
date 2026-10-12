@@ -13,3 +13,5 @@ docs/production.md
 config/apple_features_ios.json
 config/apple_features_macos.json
 config/apple_features_watchos.json
+config/deal_engagement.json
+config/deal_engagement_archive.json

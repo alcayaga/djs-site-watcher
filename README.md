@@ -171,6 +171,15 @@ Enforces a "deals-only" policy in a specific channel.
     *   Allows messages containing a link or an image.
     *   Deletes all other messages and sends a private message to the user asking them to use threads for discussion.
 
+### Deal Link Tracking (`Deal`)
+The `Deal` monitor can run an internal HTTP redirect server to track click engagement on published deals:
+*   `trackingBaseUrl`: Base public URL for redirect links (e.g. `https://deals.example.com`). If omitted, direct store links are used.
+*   `trackingPort`: Local HTTP port to listen on (default: `3000`).
+*   `trackingHost`: Interface/IP to bind to. When `trustProxy` is `true`, this defaults to `127.0.0.1` so the server is not exposed directly to untrusted clients. When `trustProxy` is `false`, it defaults to `0.0.0.0`.
+*   `trustProxy`: Set to `false` for direct exposure. When deployed behind a reverse proxy (e.g. Cloudflare, Nginx, Caddy), set to `true` to enable proxy header parsing. In the default configuration (without `trustedHeader`), single-hop proxy behavior is expected: the tracker only accepts `x-forwarded-for` when the connecting socket peer is a trusted loopback proxy address (`127.0.0.1` or `::1`), taking the rightmost forwarded IP to prevent spoofing from direct untrusted clients.
+*   `trustedHeader`: When `trustProxy` is `true`, specify the exact reverse proxy client IP header to inspect (e.g. `cf-connecting-ip`). If unset, the default single-hop `x-forwarded-for` path is used, falling back to the direct TCP socket address.
+*   **Proxy placement**: In both header modes (`trustedHeader` or default `x-forwarded-for`), forwarded headers are only accepted when the proxy connects from a loopback address (`127.0.0.1` or `::1`). For Cloudflare, run `cloudflared` or a local reverse proxy on the same host. A proxy connecting from a non-loopback host or external Docker bridge network is treated as an untrusted direct client, falling back to the direct socket IP for rate limiting and click deduplication.
+
 ## Migration to v3.1.0
 Version 3.1.0 moves advanced configuration (channel IDs and delays) from environment variables to `config/settings.json`.
 

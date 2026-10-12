@@ -1,5 +1,6 @@
 const fs = require('fs-extra');
 const path = require('path');
+const crypto = require('node:crypto');
 const logger = require('./utils/logger');
 const {
     ENV_DISCORDJS_BOT_TOKEN,
@@ -205,6 +206,39 @@ async function write(file, data) {
     await fs.outputJSON(file, data, { spaces: 2 });
 }
 
+/**
+ * Reads a JSON file, returning empty object on ENOENT and throwing any other errors.
+ * @param {string} file - The path to the file.
+ * @returns {Promise<object>} The parsed JSON object.
+ */
+async function readEngagement(file) {
+    try {
+        return await fs.readJSON(file);
+    } catch (err) {
+        if (err && err.code === 'ENOENT') {
+            return {};
+        }
+        throw err;
+    }
+}
+
+/**
+ * Atomically writes data to a JSON file via a temporary file and atomic rename.
+ * @param {string} file - The path to the file.
+ * @param {object} data - The data to write.
+ * @returns {Promise<void>} A promise that resolves when the file is saved.
+ */
+async function writeAtomic(file, data) {
+    const tmp = `${file}.${process.pid}.${Date.now()}.${crypto.randomBytes(4).toString('hex')}.tmp`;
+    try {
+        await fs.outputJSON(tmp, data, { spaces: 2 });
+        await fs.rename(tmp, file);
+    } catch (err) {
+        await fs.remove(tmp).catch(() => {});
+        throw err;
+    }
+}
+
 module.exports = {
   migrateLegacyData,
   loadSites,
@@ -214,6 +248,8 @@ module.exports = {
   loadResponses,
   read,
   write,
+  readEngagement,
+  writeAtomic,
   SENSITIVE_SETTINGS_KEYS,
   REQUIRED_ENV_VARS,
   OPTIONAL_ENV_VARS,
