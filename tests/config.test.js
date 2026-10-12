@@ -239,4 +239,22 @@ describe('config', () => {
         expect(dealMonitor).toBeDefined();
         expect(dealMonitor.trackingPort).toBe(3000);
     });
+
+    it('should fallback to DEFAULT_TRACKING_PORT when trackingPort contains non-numeric suffix', () => {
+        const customMonitors = [
+            {
+                name: 'Deal',
+                channelId: 'deals-123',
+                trackingPort: '8080oops'
+            }
+        ];
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({ monitors: customMonitors });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+        const config = require('../src/config');
+
+        const dealMonitor = config.monitors.find(m => m.name === 'Deal');
+        expect(dealMonitor).toBeDefined();
+        expect(dealMonitor.trackingPort).toBe(3000);
+    });
 });

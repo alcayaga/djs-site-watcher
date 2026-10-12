@@ -731,8 +731,8 @@ class DealMonitor extends Monitor {
                             });
                         } catch (notifyErr) {
                             logger.error('[DealMonitor] Error sending deal notification for %s (ID: %s):', product.name, productId, notifyErr);
-                            const isDefinitive = notifyErr?.isDefinitiveRejection ?? true;
-                            if (isDefinitive) {
+                            const mayHaveBeenSent = notifyErr?.isDefinitiveRejection === false;
+                            if (!mayHaveBeenSent) {
                                 if (offerTrigger && offerTrigger !== 'CHANGED' && offerTrigger !== 'PENDING') {
                                     restoreOffer(previousOfferPrice);
                                 }

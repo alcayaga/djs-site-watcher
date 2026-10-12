@@ -1998,7 +1998,7 @@ describe('DealMonitor', () => {
             saveStateSpy.mockRestore();
         });
 
-        it('should leave verified price state intact when notify fails due to non-definitive network error', async () => {
+        it('should leave verified price state intact when notify fails due to ambiguous delivery (isDefinitiveRejection === false)', async () => {
             monitor.state = {
                 '1': { 
                     id: 1, name: 'iPhone 1', 
@@ -2028,7 +2028,7 @@ describe('DealMonitor', () => {
 
             expect(notifySpy).toHaveBeenCalledTimes(1);
             expect(saveStateSpy).toHaveBeenCalled();
-            // Non-definitive error leaves verified price intact
+            // Ambiguous delivery leaves verified price intact to avoid duplicate alerts
             expect(monitor.state['1'].lastOfferPrice).toBe(450000);
             expect(monitor.state['1'].minOfferPrice).toBe(450000);
 

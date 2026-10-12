@@ -1,7 +1,6 @@
 const http = require('node:http');
 const crypto = require('node:crypto');
 const net = require('node:net');
-const ipaddr = require('ipaddr.js');
 const storage = require('../storage');
 const logger = require('../utils/logger');
 const {
@@ -12,23 +11,21 @@ const {
     MAX_ARCHIVED_TRACKED_LINKS
 } = require('../utils/constants');
 
+const loopbackList = new net.BlockList();
+loopbackList.addSubnet('127.0.0.0', 8, 'ipv4');
+loopbackList.addAddress('::1', 'ipv6');
+
 /**
- * Checks whether an IP address belongs to a trusted local or private reverse proxy.
+ * Checks whether an IP address belongs to a trusted loopback reverse proxy.
  * @param {string} ip The IP address to check.
- * @returns {boolean} True if the IP is loopback, private, or link-local.
+ * @returns {boolean} True if the IP is loopback.
  */
 function isTrustedProxySocket(ip) {
-    if (!ip || !net.isIP(ip)) return false;
-    try {
-        let addr = ipaddr.parse(ip);
-        if (addr.kind() === 'ipv6' && addr.isIPv4MappedAddress()) {
-            addr = addr.toIPv4Address();
-        }
-        const range = addr.range();
-        return range === 'loopback' || range === 'private' || range === 'uniqueLocal' || range === 'linkLocal';
-    } catch {
-        return false;
-    }
+    if (!ip) return false;
+    const normalized = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+    const family = net.isIP(normalized);
+    if (!family) return false;
+    return loopbackList.check(normalized, family === 4 ? 'ipv4' : 'ipv6');
 }
 
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
@@ -57,6 +54,7 @@ class LinkTracker {
     constructor() {
         this.activeLinks = new Map();
         this.archivedLinks = new Map();
+        this.destinations = new Map();
         this.server = null;
         this.serverPort = null;
         this.serverHost = null;
@@ -64,6 +62,8 @@ class LinkTracker {
         this.isLoaded = false;
         this._loadPromise = null;
         this._startPromise = null;
+        this._savingPromise = null;
+        this._needsSaveAgain = false;
         this.trustProxy = false;
         this.trustedHeader = null;
         this.activeOwners = new Set();
@@ -205,7 +205,7 @@ class LinkTracker {
 
         this._loadPromise = (async () => {
             try {
-                const activeData = await storage.read(DEAL_ENGAGEMENT_FILE);
+                const activeData = await storage.readEngagement(DEAL_ENGAGEMENT_FILE);
                 if (activeData && typeof activeData.links === 'object' && activeData.links !== null) {
                     for (const [id, record] of Object.entries(activeData.links)) {
                         if (id && typeof record === 'object' && record !== null) {
@@ -216,12 +216,35 @@ class LinkTracker {
                     }
                 }
 
-                const archiveData = await storage.read(DEAL_ENGAGEMENT_ARCHIVE_FILE);
-                if (archiveData && typeof archiveData.archivedLinks === 'object' && archiveData.archivedLinks !== null) {
-                    for (const [id, record] of Object.entries(archiveData.archivedLinks)) {
+                if (activeData && typeof activeData.archivedLinks === 'object' && activeData.archivedLinks !== null) {
+                    for (const [id, record] of Object.entries(activeData.archivedLinks)) {
                         if (id && typeof record === 'object' && record !== null) {
                             if (!this.archivedLinks.has(id)) {
                                 this.archivedLinks.set(id, record);
+                            }
+                        }
+                    }
+                }
+
+                if (activeData && typeof activeData.destinations === 'object' && activeData.destinations !== null) {
+                    for (const [id, targetUrl] of Object.entries(activeData.destinations)) {
+                        if (id && typeof targetUrl === 'string') {
+                            if (!this.destinations.has(id)) {
+                                this.destinations.set(id, targetUrl);
+                            }
+                        }
+                    }
+                }
+
+                // Fallback / legacy migration for separate archive file
+                if (this.archivedLinks.size === 0) {
+                    const archiveData = await storage.readEngagement(DEAL_ENGAGEMENT_ARCHIVE_FILE).catch(() => ({}));
+                    if (archiveData && typeof archiveData.archivedLinks === 'object' && archiveData.archivedLinks !== null) {
+                        for (const [id, record] of Object.entries(archiveData.archivedLinks)) {
+                            if (id && typeof record === 'object' && record !== null) {
+                                if (!this.archivedLinks.has(id)) {
+                                    this.archivedLinks.set(id, record);
+                                }
                             }
                         }
                     }
@@ -232,6 +255,7 @@ class LinkTracker {
             } catch (error) {
                 logger.error('[LinkTracker] Failed to load link engagement state:', error);
                 this.isLoaded = false;
+                throw error;
             } finally {
                 this._loadPromise = null;
             }
@@ -242,7 +266,8 @@ class LinkTracker {
 
     /**
      * Moves oldest links to archive if active links exceed maxLimit,
-     * and bounds the archive to maxArchivedLimit to prevent unbounded growth.
+     * bounds the archive to maxArchivedLimit to prevent unbounded growth,
+     * and preserves redirect destinations for expired archived records.
      * @param {number} [maxLimit=MAX_ACTIVE_TRACKED_LINKS] Maximum active links threshold.
      * @param {number} [maxArchivedLimit=MAX_ARCHIVED_TRACKED_LINKS] Maximum archived links threshold.
      * @private
@@ -279,9 +304,13 @@ class LinkTracker {
             });
             const toPurge = this.archivedLinks.size - maxArchivedLimit;
             for (let i = 0; i < toPurge; i++) {
-                this.archivedLinks.delete(archiveEntries[i][0]);
+                const [id, record] = archiveEntries[i];
+                if (record && record.targetUrl) {
+                    this.destinations.set(id, record.targetUrl);
+                }
+                this.archivedLinks.delete(id);
             }
-            logger.info('[LinkTracker] Purged %d excess archived links beyond retention limit.', toPurge);
+            logger.info('[LinkTracker] Purged %d excess archived links beyond retention limit, preserving redirect destinations.', toPurge);
         }
     }
 
@@ -303,7 +332,8 @@ class LinkTracker {
     }
 
     /**
-     * Flushes active and archived links to storage immediately.
+     * Flushes active links, archived links, and redirect destinations to storage as a single atomic snapshot.
+     * Serializes concurrent calls to ensure older saves cannot overwrite newer ones.
      * @returns {Promise<void>}
      */
     async saveState() {
@@ -313,9 +343,9 @@ class LinkTracker {
         }
 
         if (this._loadPromise) {
-            await this._loadPromise;
+            await this._loadPromise.catch(() => {});
         } else if (!this.isLoaded) {
-            await this.loadState();
+            await this.loadState().catch(() => {});
         }
 
         if (!this.isLoaded) {
@@ -323,21 +353,35 @@ class LinkTracker {
             return;
         }
 
-        this.isDirty = false;
-        this._enforceActiveLimit();
-
-        const activeObj = { links: Object.fromEntries(this.activeLinks) };
-        const archiveObj = { archivedLinks: Object.fromEntries(this.archivedLinks) };
-
-        try {
-            await Promise.all([
-                storage.write(DEAL_ENGAGEMENT_FILE, activeObj),
-                storage.write(DEAL_ENGAGEMENT_ARCHIVE_FILE, archiveObj)
-            ]);
-        } catch (err) {
-            this.isDirty = true;
-            throw err;
+        if (this._savingPromise) {
+            this._needsSaveAgain = true;
+            return this._savingPromise;
         }
+
+        this._savingPromise = (async () => {
+            do {
+                this._needsSaveAgain = false;
+                this.isDirty = false;
+                this._enforceActiveLimit();
+
+                const snapshot = {
+                    links: Object.fromEntries(this.activeLinks),
+                    archivedLinks: Object.fromEntries(this.archivedLinks),
+                    destinations: Object.fromEntries(this.destinations)
+                };
+
+                try {
+                    await storage.writeAtomic(DEAL_ENGAGEMENT_FILE, snapshot);
+                } catch (err) {
+                    this.isDirty = true;
+                    throw err;
+                }
+            } while (this._needsSaveAgain || this.isDirty);
+        })().finally(() => {
+            this._savingPromise = null;
+        });
+
+        return this._savingPromise;
     }
 
     /**
@@ -378,9 +422,9 @@ class LinkTracker {
         do {
             id = crypto.randomBytes(4).toString('hex');
             attempts++;
-        } while ((this.activeLinks.has(id) || this.archivedLinks.has(id)) && attempts < 10);
+        } while ((this.activeLinks.has(id) || this.archivedLinks.has(id) || this.destinations.has(id)) && attempts < 10);
 
-        if (this.activeLinks.has(id) || this.archivedLinks.has(id)) {
+        if (this.activeLinks.has(id) || this.archivedLinks.has(id) || this.destinations.has(id)) {
             logger.error('[LinkTracker] Failed to generate a unique link ID after 10 attempts.');
             return { url: targetUrl, id: null };
         }
@@ -417,8 +461,10 @@ class LinkTracker {
         const list = Array.isArray(ids) ? ids : [ids];
         let deletedAny = false;
         for (const id of list) {
-            if (typeof id === 'string' && this.activeLinks.delete(id)) {
-                deletedAny = true;
+            if (typeof id === 'string') {
+                if (this.activeLinks.delete(id)) deletedAny = true;
+                if (this.archivedLinks.delete(id)) deletedAny = true;
+                if (this.destinations.delete(id)) deletedAny = true;
             }
         }
         if (deletedAny) {
@@ -590,9 +636,10 @@ class LinkTracker {
                 return;
             }
 
-            // Look up link in active or archived store
+            // Look up link in active or archived store, or preserved destinations map
             const record = this.activeLinks.get(id) || this.archivedLinks.get(id);
-            if (!record || !record.targetUrl) {
+            const rawTarget = record ? record.targetUrl : this.destinations.get(id);
+            if (!rawTarget) {
                 res.writeHead(404, {
                     'Content-Type': 'text/plain; charset=utf-8',
                     ...SECURITY_HEADERS
@@ -602,7 +649,7 @@ class LinkTracker {
             }
 
             // Re-validate destination URL
-            let targetUrl = record.targetUrl;
+            let targetUrl = rawTarget;
             try {
                 const targetParsed = new URL(targetUrl);
                 if (targetParsed.protocol !== 'http:' && targetParsed.protocol !== 'https:') {
@@ -617,8 +664,8 @@ class LinkTracker {
                 return;
             }
 
-            // Click deduplication: only count GET requests and skip rapid clicks from same IP within 10s
-            if (req.method === 'GET') {
+            // Click deduplication: only count GET requests on active/archived records
+            if (req.method === 'GET' && record) {
                 const dedupKey = `${clientIp}:${id}`;
                 const lastClickTime = this.recentClicksMap.get(dedupKey);
                 const now = Date.now();

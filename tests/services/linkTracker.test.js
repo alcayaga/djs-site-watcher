@@ -1,11 +1,12 @@
 const linkTracker = require('../../src/services/linkTracker');
 const http = require('node:http');
 const crypto = require('node:crypto');
+const storage = require('../../src/storage');
 const logger = require('../../src/utils/logger');
 
 jest.mock('../../src/storage', () => ({
-    read: jest.fn().mockResolvedValue({ links: {} }),
-    write: jest.fn().mockResolvedValue()
+    readEngagement: jest.fn().mockResolvedValue({ links: {} }),
+    writeAtomic: jest.fn().mockResolvedValue()
 }));
 
 jest.mock('../../src/utils/logger', () => ({
@@ -58,6 +59,7 @@ describe('LinkTracker Service', () => {
         }
         linkTracker.activeLinks.clear();
         linkTracker.archivedLinks.clear();
+        linkTracker.destinations.clear();
         linkTracker.rateLimitMap.clear();
         linkTracker.recentClicksMap.clear();
         linkTracker.activeOwners.clear();
@@ -279,6 +281,8 @@ describe('LinkTracker Service', () => {
             expect(linkTracker.archivedLinks.has('00000003')).toBe(true);
             expect(linkTracker.archivedLinks.has('00000004')).toBe(true);
             expect(linkTracker.archivedLinks.has('00000005')).toBe(true);
+            expect(linkTracker.destinations.get('00000001')).toBe('https://store.com/1');
+            expect(linkTracker.destinations.get('00000002')).toBe('https://store.com/2');
         });
 
         it('should mark isDirty on changes and only saveState on stop if isDirty or saveTimeout pending', async () => {
@@ -299,12 +303,13 @@ describe('LinkTracker Service', () => {
             saveSpy.mockRestore();
         });
 
-        it('should preserve isDirty if state is mutated while storage.write is pending', async () => {
-            const storage = require('../../src/storage');
-            let resolveWrite;
-            storage.write.mockImplementationOnce(() => new Promise((resolve) => {
-                resolveWrite = resolve;
-            }));
+        it('should flush mutations made during an in-progress save and serialize writes', async () => {
+            let resolveFirstWrite;
+            storage.writeAtomic
+                .mockImplementationOnce(() => new Promise((resolve) => {
+                    resolveFirstWrite = resolve;
+                }))
+                .mockResolvedValueOnce();
 
             linkTracker.trackUrl({ targetUrl: 'https://store.com/item1', productId: 1 });
             expect(linkTracker.isDirty).toBe(true);
@@ -315,23 +320,42 @@ describe('LinkTracker Service', () => {
             linkTracker.trackUrl({ targetUrl: 'https://store.com/item2', productId: 2 });
             expect(linkTracker.isDirty).toBe(true);
 
-            // Complete storage write
-            resolveWrite();
+            // Complete first storage write
+            resolveFirstWrite();
             await savePromise;
 
-            // isDirty must remain true because a mutation occurred during save
-            expect(linkTracker.isDirty).toBe(true);
+            // Second write flushed item2, state is marked clean
+            expect(storage.writeAtomic).toHaveBeenCalledTimes(2);
+            expect(linkTracker.isDirty).toBe(false);
         });
 
-        it('should restore isDirty to true if storage.write fails', async () => {
-            const storage = require('../../src/storage');
-            storage.write.mockRejectedValueOnce(new Error('Disk write error'));
+        it('should restore isDirty to true if storage write fails', async () => {
+            storage.writeAtomic.mockRejectedValueOnce(new Error('Disk write error'));
 
             linkTracker.trackUrl({ targetUrl: 'https://store.com/item1', productId: 1 });
             expect(linkTracker.isDirty).toBe(true);
 
             await expect(linkTracker.saveState()).rejects.toThrow('Disk write error');
             expect(linkTracker.isDirty).toBe(true);
+        });
+
+        it('should load empty state when engagement files are missing', async () => {
+            linkTracker.isLoaded = false;
+            storage.readEngagement.mockResolvedValueOnce({}).mockResolvedValueOnce({});
+
+            await linkTracker.loadState();
+            expect(linkTracker.isLoaded).toBe(true);
+            expect(linkTracker.activeLinks.size).toBe(0);
+            expect(storage.readEngagement).toHaveBeenCalledTimes(2);
+        });
+
+        it('should propagate read errors other than ENOENT and leave isLoaded false', async () => {
+            linkTracker.isLoaded = false;
+            const corruptErr = new Error('Corrupt JSON: Unexpected token');
+            storage.readEngagement.mockRejectedValueOnce(corruptErr);
+
+            await expect(linkTracker.loadState()).rejects.toThrow('Corrupt JSON: Unexpected token');
+            expect(linkTracker.isLoaded).toBe(false);
         });
     });
 
@@ -399,6 +423,20 @@ describe('LinkTracker Service', () => {
             expect(res.statusCode).toBe(302);
             expect(res.headers['location']).toBe('https://maconline.com/archived-deal');
             expect(linkTracker.archivedLinks.get('11223344').clicks).toBe(6);
+        });
+
+        it('should redirect successfully to preserved destination when link was purged from active/archive', async () => {
+            linkTracker.destinations.set('cafebabe', 'https://store.com/preserved-deal');
+
+            const res = await request({
+                hostname: TEST_HOST,
+                port: TEST_PORT,
+                path: '/r/cafebabe',
+                method: 'GET'
+            });
+
+            expect(res.statusCode).toBe(302);
+            expect(res.headers['location']).toBe('https://store.com/preserved-deal');
         });
 
         it('should deduplicate rapid consecutive clicks from the same IP within 10s', async () => {
@@ -508,7 +546,7 @@ describe('LinkTracker Service', () => {
                 headers: {
                     'x-forwarded-for': '192.0.2.1, 198.51.100.10'
                 },
-                socket: { remoteAddress: '172.18.0.5' }
+                socket: { remoteAddress: '127.0.0.1' }
             };
             expect(linkTracker.getClientIp(reqForwarded)).toBe('198.51.100.10');
 
@@ -519,7 +557,7 @@ describe('LinkTracker Service', () => {
                     'x-real-ip': '203.0.113.196',
                     'x-forwarded-for': '192.0.2.1, 198.51.100.10'
                 },
-                socket: { remoteAddress: '172.18.0.5' }
+                socket: { remoteAddress: '127.0.0.1' }
             };
             expect(linkTracker.getClientIp(reqUntrustedHeaders)).toBe('198.51.100.10');
 
@@ -532,7 +570,7 @@ describe('LinkTracker Service', () => {
             };
             expect(linkTracker.getClientIp(reqIpv6Mapped)).toBe('198.51.100.10');
 
-            // When socket remoteAddress is an untrusted public IP, X-Forwarded-For is ignored to prevent spoofing
+            // When socket remoteAddress is an untrusted public or non-loopback IP, X-Forwarded-For is ignored
             const reqDirectUntrusted = {
                 headers: {
                     'x-forwarded-for': '198.51.100.10'
@@ -541,9 +579,17 @@ describe('LinkTracker Service', () => {
             };
             expect(linkTracker.getClientIp(reqDirectUntrusted)).toBe('203.0.113.50');
 
+            const reqPrivateUntrusted = {
+                headers: {
+                    'x-forwarded-for': '198.51.100.10'
+                },
+                socket: { remoteAddress: '172.18.0.5' }
+            };
+            expect(linkTracker.getClientIp(reqPrivateUntrusted)).toBe('172.18.0.5');
+
             // When trustProxy is disabled, ignores headers and uses socket IP
             linkTracker.trustProxy = false;
-            expect(linkTracker.getClientIp(reqUntrustedHeaders)).toBe('172.18.0.5');
+            expect(linkTracker.getClientIp(reqUntrustedHeaders)).toBe('127.0.0.1');
             linkTracker.trustProxy = true;
         });
 
@@ -611,9 +657,9 @@ describe('LinkTracker Service', () => {
                     'x-real-ip': '1.2.3.4',
                     'x-forwarded-for': '5.6.7.8'
                 },
-                socket: { remoteAddress: '172.18.0.5' }
+                socket: { remoteAddress: '127.0.0.1' }
             };
-            expect(linkTracker.getClientIp(spoofedReq)).toBe('172.18.0.5');
+            expect(linkTracker.getClientIp(spoofedReq)).toBe('127.0.0.1');
 
             // Legitimate cf-connecting-ip header should be extracted
             const legitimateReq = {
@@ -622,7 +668,7 @@ describe('LinkTracker Service', () => {
                     'x-real-ip': '1.2.3.4',
                     'x-forwarded-for': '5.6.7.8'
                 },
-                socket: { remoteAddress: '172.18.0.5' }
+                socket: { remoteAddress: '127.0.0.1' }
             };
             expect(linkTracker.getClientIp(legitimateReq)).toBe('203.0.113.50');
 
@@ -631,7 +677,7 @@ describe('LinkTracker Service', () => {
                 headers: {
                     'cf-connecting-ip': '198.51.100.1, 203.0.113.60'
                 },
-                socket: { remoteAddress: '172.18.0.5' }
+                socket: { remoteAddress: '127.0.0.1' }
             };
             expect(linkTracker.getClientIp(commaReq)).toBe('203.0.113.60');
 
@@ -683,8 +729,7 @@ describe('LinkTracker Service', () => {
             await linkTracker.stop({ force: true });
             linkTracker.isLoaded = false;
             let resolveLoad;
-            const storage = require('../../src/storage');
-            storage.read.mockImplementationOnce(() => new Promise((resolve) => {
+            storage.readEngagement.mockImplementationOnce(() => new Promise((resolve) => {
                 resolveLoad = resolve;
             }));
 

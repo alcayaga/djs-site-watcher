@@ -73,7 +73,13 @@ async function runSimulation() {
             await monitor.notify(scenario.changes);
         } else {
             // Default to DealMonitor for backward compatibility
-            const existingDealConfig = config.monitors?.find(m => m.name === 'Deal') || {};
+            const existingDealConfig = { ...(config.monitors?.find(m => m.name === 'Deal') || {}) };
+            delete existingDealConfig.trackingBaseUrl;
+            delete existingDealConfig.trackingPort;
+            delete existingDealConfig.trackingHost;
+            delete existingDealConfig.trustProxy;
+            delete existingDealConfig.trustedHeader;
+
             const monitorConfig = {
                 name: 'Deal',
                 enabled: true,
