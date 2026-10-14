@@ -190,6 +190,7 @@ process.on('SIGTERM', shutdown);
 if (process.env.NODE_ENV !== 'test') {
     process.on('unhandledRejection', (reason) => {
         logger.error('Unhandled Promise Rejection:', reason);
+        process.exit(1);
     });
 
     process.on('uncaughtExceptionMonitor', (error, origin) => {

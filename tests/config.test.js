@@ -147,6 +147,46 @@ describe('config', () => {
         expect(config.dnsLookupIpVersion).toBe('ipv6');
     });
 
+    it('should normalize case-insensitive valid DNS_LOOKUP_IP_VERSION', () => {
+        try {
+            process.env[ENV_DNS_LOOKUP_IP_VERSION] = '  IPV6  ';
+            const storage = require('../src/storage');
+            storage.loadSettings.mockReturnValue({});
+            storage.SENSITIVE_SETTINGS_KEYS = [];
+
+            const config = require('../src/config');
+            expect(config.dnsLookupIpVersion).toBe('ipv6');
+        } finally {
+            delete process.env[ENV_DNS_LOOKUP_IP_VERSION];
+        }
+    });
+
+    it('should fallback to ipv4 when DNS_LOOKUP_IP_VERSION has invalid value', () => {
+        try {
+            process.env[ENV_DNS_LOOKUP_IP_VERSION] = '4';
+            const storage = require('../src/storage');
+            storage.loadSettings.mockReturnValue({});
+            storage.SENSITIVE_SETTINGS_KEYS = [];
+
+            const config = require('../src/config');
+            expect(config.dnsLookupIpVersion).toBe('ipv4');
+        } finally {
+            delete process.env[ENV_DNS_LOOKUP_IP_VERSION];
+        }
+    });
+
+    it('should fallback to ipv4 when config file dnsLookupIpVersion is invalid', () => {
+        delete process.env[ENV_DNS_LOOKUP_IP_VERSION];
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({
+            dnsLookupIpVersion: 'unsupported'
+        });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+
+        const config = require('../src/config');
+        expect(config.dnsLookupIpVersion).toBe('ipv4');
+    });
+
     /**
      * Guards against regressions by ensuring settings.json remains the single
      * supported source for the heartbeat URL after the removal of the 

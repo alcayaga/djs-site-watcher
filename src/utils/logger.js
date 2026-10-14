@@ -19,7 +19,9 @@ const useJsonFormat = process.env[ENV_LOG_FORMAT_JSON] === 'true';
  * @type {RegExp[]}
  */
 const SENSITIVE_PATTERNS = [
-    /[MNOR][A-Za-z\d]{23,25}\.[\w-]{6}\.[\w-]{27,39}/g // Discord User Tokens
+    /[A-Za-z\d_-]{23,28}\.[\w-]{6}\.[\w-]{27,39}/g, // Discord User and Bot Tokens
+    /(?<=[?&](?:token|api_?key|auth|secret|password)=)[^&\s]+/gi, // Sensitive URL Query Parameters
+    /(?<=bearer\s+)[A-Za-z0-9._~+/-]+=*/gi // Bearer Tokens
 ];
 
 /**
@@ -108,5 +110,8 @@ const logger = winston.createLogger({
         new winston.transports.Console()
     ]
 });
+
+logger.maskSensitive = maskSensitive;
+logger.SENSITIVE_PATTERNS = SENSITIVE_PATTERNS;
 
 module.exports = logger;

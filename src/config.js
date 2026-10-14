@@ -73,6 +73,22 @@ const parseEnvInt = (value, defaultValue) => {
     return Number.isFinite(parsed) ? parsed : defaultValue;
 };
 
+/**
+ * Parses and validates the DNS lookup IP version for Got v11.
+ * Supported values: 'auto', 'ipv4', 'ipv6'. Defaults to 'ipv4'.
+ * @param {string} value The value to validate.
+ * @returns {'auto' | 'ipv4' | 'ipv6'} The validated IP version.
+ */
+const parseDnsLookupIpVersion = (value) => {
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (['auto', 'ipv4', 'ipv6'].includes(normalized)) {
+            return normalized;
+        }
+    }
+    return 'ipv4';
+};
+
 // Type conversions and defaults
 config.AP_RESPONSE_DELAY = parseEnvInt(config.AP_RESPONSE_DELAY, 5000);
 config.SOLOTODO_API_DELAY = parseEnvInt(config.SOLOTODO_API_DELAY, 5000);
@@ -81,7 +97,7 @@ config.ALLOW_PRIVATE_IPS = String(config.ALLOW_PRIVATE_IPS).toLowerCase() === 't
 // Network Configuration
 config.requestTimeout = parseEnvInt(process.env[ENV_REQUEST_TIMEOUT] || config.requestTimeout, 10000);
 config.retryLimit = parseEnvInt(process.env[ENV_RETRY_LIMIT] || config.retryLimit, 2);
-config.dnsLookupIpVersion = process.env[ENV_DNS_LOOKUP_IP_VERSION] || config.dnsLookupIpVersion || 'ipv4';
+config.dnsLookupIpVersion = parseDnsLookupIpVersion(process.env[ENV_DNS_LOOKUP_IP_VERSION] || config.dnsLookupIpVersion);
 
 // Solotodo Configuration
 config.solotodoBaseUrl = process.env[ENV_SOLOTODO_BASE_URL] || 'https://www.solotodo.cl';
