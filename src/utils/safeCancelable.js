@@ -7,7 +7,24 @@
 
 const OriginalPCancelable = require('p-cancelable');
 
-const SETTLED_ONCANCEL_ERROR_MESSAGE = 'The `onCancel` handler was attached after the promise settled.';
+/**
+ * Detect the exact post-settlement onCancel error message emitted by the installed
+ * version of p-cancelable to guard against version drift.
+ */
+let settledOnCancelErrorMessage = 'The `onCancel` handler was attached after the promise settled.';
+try {
+    let capturedOnCancel;
+    const probe = new OriginalPCancelable((resolve, reject, onCancel) => {
+        resolve();
+        capturedOnCancel = onCancel;
+    });
+    probe.catch(() => {});
+    capturedOnCancel(() => {});
+} catch (err) {
+    if (err && typeof err.message === 'string') {
+        settledOnCancelErrorMessage = err.message;
+    }
+}
 
 /**
  * Enhanced PCancelable class that gracefully ignores onCancel registrations
@@ -68,7 +85,7 @@ class SafePCancelable extends OriginalPCancelable {
      * @param {Error} err The error to handle.
      */
     static _handleOnCancelError(err) {
-        if (err && err.message === SETTLED_ONCANCEL_ERROR_MESSAGE) {
+        if (err && err.message === settledOnCancelErrorMessage) {
             return;
         }
         throw err;
@@ -97,6 +114,7 @@ class SafePCancelable extends OriginalPCancelable {
 // Preserve static methods and properties from OriginalPCancelable
 Object.setPrototypeOf(SafePCancelable, OriginalPCancelable);
 SafePCancelable.CancelError = OriginalPCancelable.CancelError;
+SafePCancelable.SETTLED_ONCANCEL_ERROR_MESSAGE = settledOnCancelErrorMessage;
 
 /**
  * Note on module load order:

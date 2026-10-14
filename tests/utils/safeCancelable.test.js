@@ -71,7 +71,7 @@ describe('SafePCancelable', () => {
 
         expect(() => {
             SafePCancelable._handleOnCancelError(
-                new Error('The `onCancel` handler was attached after the promise settled.')
+                new Error(SafePCancelable.SETTLED_ONCANCEL_ERROR_MESSAGE)
             );
         }).not.toThrow();
     });
@@ -115,7 +115,7 @@ describe('SafePCancelable', () => {
 
     it('should ensure got instances use SafePCancelable', () => {
         const got = jest.requireActual('got');
-        const p = got('https://example.com');
+        const p = got('http://127.0.0.1:1', { retry: 0 });
         p.catch(() => {});
         expect(p).toBeInstanceOf(SafePCancelable);
         p.cancel();
