@@ -508,6 +508,23 @@ class LinkTracker {
         }
 
         const pathname = parsedUrl.pathname;
+
+        // Health check endpoint for internal monitors (e.g. Uptime Kuma) and reverse proxies.
+        // Served immediately without client IP resolution or rate limiting to prevent
+        // false-positive missing forwarded header warnings and health check denial-of-service.
+        if (pathname === '/health') {
+            res.writeHead(200, {
+                'Content-Type': 'text/plain; charset=utf-8',
+                ...SECURITY_HEADERS
+            });
+            if (req.method === 'HEAD') {
+                res.end();
+            } else {
+                res.end('OK');
+            }
+            return;
+        }
+
         const clientIp = this.getClientIp(req);
         const isLimited = this.isRateLimited(clientIp);
 
@@ -588,20 +605,6 @@ class LinkTracker {
                 ...SECURITY_HEADERS
             });
             res.end('Too Many Requests');
-            return;
-        }
-
-        // Health check endpoint for reverse proxy monitoring
-        if (pathname === '/health') {
-            res.writeHead(200, {
-                'Content-Type': 'text/plain; charset=utf-8',
-                ...SECURITY_HEADERS
-            });
-            if (req.method === 'HEAD') {
-                res.end();
-            } else {
-                res.end('OK');
-            }
             return;
         }
 

@@ -424,7 +424,28 @@ describe('LinkTracker Service', () => {
             expect(res.statusCode).toBe(404);
         });
 
-        it('should return 429 Too Many Requests when IP rate limit is exceeded', async () => {
+        it('should return 429 Too Many Requests when IP rate limit is exceeded on non-redirect endpoints', async () => {
+            linkTracker.rateLimitMap.set('127.0.0.1', {
+                count: 61,
+                resetTime: Date.now() + 60000
+            });
+            linkTracker.rateLimitMap.set('::1', {
+                count: 61,
+                resetTime: Date.now() + 60000
+            });
+
+            const res = await request({
+                hostname: TEST_HOST,
+                port: TEST_PORT,
+                path: '/unknown-route',
+                method: 'GET'
+            });
+
+            expect(res.statusCode).toBe(429);
+            expect(res.headers['retry-after']).toBe('60');
+        });
+
+        it('should respond with 200 OK on /health even when IP rate limit is exceeded', async () => {
             linkTracker.rateLimitMap.set('127.0.0.1', {
                 count: 61,
                 resetTime: Date.now() + 60000
@@ -441,8 +462,26 @@ describe('LinkTracker Service', () => {
                 method: 'GET'
             });
 
-            expect(res.statusCode).toBe(429);
-            expect(res.headers['retry-after']).toBe('60');
+            expect(res.statusCode).toBe(200);
+            expect(res.body).toBe('OK');
+        });
+
+        it('should not log missing forwarded header warning when /health is called directly without proxy headers', async () => {
+            linkTracker.trustProxy = true;
+            linkTracker.trustedHeader = 'cf-connecting-ip';
+            linkTracker._warnedMissingForwardedHeader = false;
+            logger.warn.mockClear();
+
+            const res = await request({
+                hostname: TEST_HOST,
+                port: TEST_PORT,
+                path: '/health',
+                method: 'GET'
+            });
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body).toBe('OK');
+            expect(logger.warn).not.toHaveBeenCalled();
         });
 
         it('should still redirect with 302 for /r/:id when client is rate-limited but skip click counting', async () => {
