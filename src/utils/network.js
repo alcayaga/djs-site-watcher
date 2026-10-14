@@ -28,13 +28,61 @@ function isPrivateIP(ip) {
  * @returns {object} The options object for 'got'.
  */
 function getSafeGotOptions() {
+    /**
+     * Custom DNS lookup to prevent access to private IP addresses.
+     * @param {string} hostname The hostname to lookup.
+     * @param {object} options The lookup options.
+     * @param {function} callback The callback function.
+     */
+    const dnsLookup = (hostname, options, callback) => {
+        let normalizedOptions = options;
+        let cb = callback;
+
+        if (typeof normalizedOptions === 'function') {
+            cb = normalizedOptions;
+            normalizedOptions = {};
+        } else if (typeof normalizedOptions === 'number') {
+            normalizedOptions = { family: normalizedOptions };
+        } else if (!normalizedOptions) {
+            normalizedOptions = {};
+        }
+
+        dns.lookup(hostname, normalizedOptions, (err, address, family) => {
+            if (err) return cb(err);
+
+            const addresses = Array.isArray(address) ? address : [{ address, family }];
+            if (addresses.length === 0) {
+                return cb(new Error(`DNS Lookup failed for ${hostname}: No addresses found.`));
+            }
+
+            for (const entry of addresses) {
+                if (isPrivateIP(entry.address)) {
+                    return cb(new Error(`SSRF Prevention: Access to private IP ${entry.address} is denied.`));
+                }
+            }
+
+            // If 'all' option was true, we must return the original array of objects.
+            // Otherwise, return the first address and family as strings/numbers.
+            if (normalizedOptions.all) {
+                cb(null, address);
+            } else {
+                cb(null, addresses[0].address, addresses[0].family);
+            }
+        });
+    };
+
     return {
+        // Prefer IPv4 by default to avoid Node 20+ Happy Eyeballs socket collisions on systems lacking IPv6 routes
+        dnsLookupIpVersion: config.dnsLookupIpVersion || 'ipv4',
+        dnsCache: false,
         timeout: {
             request: config.requestTimeout
         },
         retry: {
             limit: config.retryLimit
         },
+        lookup: dnsLookup,
+        dnsLookup: dnsLookup,
         hooks: {
             beforeRequest: [
                 (options) => {
@@ -44,36 +92,6 @@ function getSafeGotOptions() {
                     }
                 }
             ]
-        },
-        /**
-         * Custom DNS lookup to prevent access to private IP addresses.
-         * @param {string} hostname The hostname to lookup.
-         * @param {object} options The lookup options.
-         * @param {function} callback The callback function.
-         */
-        dnsLookup: (hostname, options, callback) => {
-            dns.lookup(hostname, options, (err, address, family) => {
-                if (err) return callback(err);
-
-                const addresses = Array.isArray(address) ? address : [{ address, family }];
-                for (const entry of addresses) {
-                    if (isPrivateIP(entry.address)) {
-                        return callback(new Error(`SSRF Prevention: Access to private IP ${entry.address} is denied.`));
-                    }
-                }
-
-                if (addresses.length === 0) {
-                    return callback(new Error(`DNS Lookup failed for ${hostname}: No addresses found.`));
-                }
-
-                // If 'all' option was true, we must return the original array of objects.
-                // Otherwise, return the first address and family as strings/numbers.
-                if (options.all) {
-                    callback(null, address);
-                } else {
-                    callback(null, addresses[0].address, addresses[0].family);
-                }
-            });
         }
     };
 }
