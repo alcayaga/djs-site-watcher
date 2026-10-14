@@ -45,7 +45,7 @@ describe('SafePCancelable', () => {
         }).not.toThrow();
     });
 
-    it('should execute cleanup handler when onCancel is registered after settlement', async () => {
+    it('should not execute cancellation handler when onCancel is registered after settlement', async () => {
         let capturedOnCancel;
         const p = new SafePCancelable((resolve, reject, onCancel) => {
             capturedOnCancel = onCancel;
@@ -54,14 +54,14 @@ describe('SafePCancelable', () => {
 
         await expect(p).resolves.toBe('settled');
 
-        let cleanupRan = false;
+        let handlerRan = false;
         expect(() => {
             capturedOnCancel(() => {
-                cleanupRan = true;
+                handlerRan = true;
             });
         }).not.toThrow();
 
-        expect(cleanupRan).toBe(true);
+        expect(handlerRan).toBe(false);
     });
 
     it('should rethrow unrelated errors thrown during onCancel registration', () => {
@@ -114,8 +114,15 @@ describe('SafePCancelable', () => {
     });
 
     it('should ensure got instances use SafePCancelable', () => {
+        const { PassThrough } = require('stream');
         const got = jest.requireActual('got');
-        const p = got('http://127.0.0.1:1', { retry: 0 });
+        const mockRequest = () => {
+            const stream = new PassThrough();
+            stream.abort = jest.fn();
+            return stream;
+        };
+
+        const p = got('http://mock.test', { request: mockRequest });
         p.catch(() => {});
         expect(p).toBeInstanceOf(SafePCancelable);
         p.cancel();

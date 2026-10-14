@@ -22,6 +22,11 @@ describe('logger masking', () => {
         const oauthMasked = logger.maskSensitive(`Request failed for ${oauthUrl}`);
         expect(oauthMasked).not.toContain('secret_oauth_token');
         expect(oauthMasked).toContain('access_token=******************');
+
+        const apiKeyUrl = 'https://api.example.com/check?api-key=my_custom_api_key_456';
+        const apiKeyMasked = logger.maskSensitive(`Request failed for ${apiKeyUrl}`);
+        expect(apiKeyMasked).not.toContain('my_custom_api_key_456');
+        expect(apiKeyMasked).toContain('api-key=*********************');
     });
 
     it('should mask Bearer tokens', () => {

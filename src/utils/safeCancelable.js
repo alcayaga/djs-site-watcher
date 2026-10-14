@@ -46,15 +46,6 @@ class SafePCancelable extends OriginalPCancelable {
                     onCancel(handler);
                 } catch (err) {
                     SafePCancelable._handleOnCancelError(err);
-                    // If the promise has already settled, run the cleanup handler immediately
-                    // so resources (such as late retry requests) are destroyed rather than orphaned.
-                    if (typeof handler === 'function') {
-                        try {
-                            handler();
-                        } catch {
-                            // Suppress errors during late cleanup execution
-                        }
-                    }
                 }
             };
 
