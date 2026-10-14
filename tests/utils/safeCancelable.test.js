@@ -45,6 +45,25 @@ describe('SafePCancelable', () => {
         }).not.toThrow();
     });
 
+    it('should execute cleanup handler when onCancel is registered after settlement', async () => {
+        let capturedOnCancel;
+        const p = new SafePCancelable((resolve, reject, onCancel) => {
+            capturedOnCancel = onCancel;
+            resolve('settled');
+        });
+
+        await expect(p).resolves.toBe('settled');
+
+        let cleanupRan = false;
+        expect(() => {
+            capturedOnCancel(() => {
+                cleanupRan = true;
+            });
+        }).not.toThrow();
+
+        expect(cleanupRan).toBe(true);
+    });
+
     it('should rethrow unrelated errors thrown during onCancel registration', () => {
         expect(() => {
             SafePCancelable._handleOnCancelError(new Error('Unrelated error'));

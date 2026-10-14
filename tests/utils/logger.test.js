@@ -11,12 +11,17 @@ describe('logger masking', () => {
         expect(masked).toContain('************************.******.*******************************');
     });
 
-    it('should mask sensitive query parameters', () => {
+    it('should mask sensitive query parameters including access_token', () => {
         const url = 'https://api.example.com/check?token=my_secret_token_123&other=val';
         const masked = logger.maskSensitive(`Request failed for ${url}`);
         expect(masked).not.toContain('my_secret_token_123');
         expect(masked).toContain('token=*******************');
         expect(masked).toContain('other=val');
+
+        const oauthUrl = 'https://api.example.com/check?access_token=secret_oauth_token&type=user';
+        const oauthMasked = logger.maskSensitive(`Request failed for ${oauthUrl}`);
+        expect(oauthMasked).not.toContain('secret_oauth_token');
+        expect(oauthMasked).toContain('access_token=******************');
     });
 
     it('should mask Bearer tokens', () => {

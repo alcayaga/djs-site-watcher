@@ -20,7 +20,7 @@ const useJsonFormat = process.env[ENV_LOG_FORMAT_JSON] === 'true';
  */
 const SENSITIVE_PATTERNS = [
     /[A-Za-z\d_-]{23,28}\.[\w-]{6}\.[\w-]{27,39}/g, // Discord User and Bot Tokens
-    /(?<=[?&](?:token|api_?key|auth|secret|password)=)[^&\s]+/gi, // Sensitive URL Query Parameters
+    /(?<=[?&](?:access_?token|token|api_?key|auth|secret|password)=)[^&\s]+/gi, // Sensitive URL Query Parameters
     /(?<=bearer\s+)[A-Za-z0-9._~+/-]+=*/gi // Bearer Tokens
 ];
 
