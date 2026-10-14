@@ -51,14 +51,14 @@ function getSafeGotOptions() {
             if (err) return cb(err);
 
             const addresses = Array.isArray(address) ? address : [{ address, family }];
+            if (addresses.length === 0) {
+                return cb(new Error(`DNS Lookup failed for ${hostname}: No addresses found.`));
+            }
+
             for (const entry of addresses) {
                 if (isPrivateIP(entry.address)) {
                     return cb(new Error(`SSRF Prevention: Access to private IP ${entry.address} is denied.`));
                 }
-            }
-
-            if (addresses.length === 0) {
-                return cb(new Error(`DNS Lookup failed for ${hostname}: No addresses found.`));
             }
 
             // If 'all' option was true, we must return the original array of objects.
@@ -74,6 +74,7 @@ function getSafeGotOptions() {
     return {
         // Prefer IPv4 by default to avoid Node 20+ Happy Eyeballs socket collisions on systems lacking IPv6 routes
         dnsLookupIpVersion: config.dnsLookupIpVersion || 'ipv4',
+        dnsCache: false,
         timeout: {
             request: config.requestTimeout
         },

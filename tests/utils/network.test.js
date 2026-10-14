@@ -24,6 +24,7 @@ describe('Network Utils', () => {
             it('should return default timeout and retry options', () => {
                 const options = getSafeGotOptions();
                 expect(options.dnsLookupIpVersion).toBe('ipv4');
+                expect(options.dnsCache).toBe(false);
                 expect(options.timeout.request).toBe(10000);
                 expect(options.retry.limit).toBe(2);
                 expect(typeof options.dnsLookup).toBe('function');
@@ -64,6 +65,16 @@ describe('Network Utils', () => {
 
                     await expect(promisifiedDnsLookup(options, 'localhost'))
                         .rejects.toThrow('SSRF Prevention');
+                });
+
+                it('should reject when no addresses are found', async () => {
+                    const options = getSafeGotOptions();
+                    jest.spyOn(dns, 'lookup').mockImplementation((hostname, opts, cb) => {
+                        cb(null, []);
+                    });
+
+                    await expect(promisifiedDnsLookup(options, 'empty.com'))
+                        .rejects.toThrow('No addresses found');
                 });
 
                 it('should block if any address in multi-IP result is private', async () => {

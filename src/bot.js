@@ -190,14 +190,11 @@ process.on('SIGTERM', shutdown);
 if (process.env.NODE_ENV !== 'test') {
     let shuttingDown = false;
     process.on('unhandledRejection', (reason) => {
-        logger.error('Unhandled Promise Rejection:', reason);
-        process.exitCode = 1;
         if (shuttingDown) return;
         shuttingDown = true;
-        const exitTimeout = setTimeout(() => process.exit(1), 1000);
-        exitTimeout.unref();
-        logger.once('finish', () => process.exit(1));
-        logger.end();
+        process.exitCode = 1;
+        logger.error('Unhandled Promise Rejection:', reason);
+        setTimeout(() => process.exit(1), 1000);
     });
 
     process.on('uncaughtExceptionMonitor', (error, origin) => {

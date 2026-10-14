@@ -5,26 +5,19 @@
  * handlers after the promise has already settled.
  */
 
-const OriginalPCancelable = require('p-cancelable');
+let OriginalPCancelable;
+try {
+    const gotPath = require.resolve('got');
+    const pCancelablePath = require.resolve('p-cancelable', { paths: [gotPath] });
+    OriginalPCancelable = require(pCancelablePath);
+} catch {
+    OriginalPCancelable = require('p-cancelable');
+}
 
 /**
- * Detect the exact post-settlement onCancel error message emitted by the installed
- * version of p-cancelable to guard against version drift.
+ * The post-settlement onCancel error message emitted by p-cancelable.
  */
-let settledOnCancelErrorMessage = 'The `onCancel` handler was attached after the promise settled.';
-try {
-    let capturedOnCancel;
-    const probe = new OriginalPCancelable((resolve, reject, onCancel) => {
-        resolve();
-        capturedOnCancel = onCancel;
-    });
-    probe.catch(() => {});
-    capturedOnCancel(() => {});
-} catch (err) {
-    if (err && typeof err.message === 'string') {
-        settledOnCancelErrorMessage = err.message;
-    }
-}
+const settledOnCancelErrorMessage = 'The `onCancel` handler was attached after the promise settled.';
 
 /**
  * Enhanced PCancelable class that gracefully ignores onCancel registrations
@@ -46,6 +39,15 @@ class SafePCancelable extends OriginalPCancelable {
                     onCancel(handler);
                 } catch (err) {
                     SafePCancelable._handleOnCancelError(err);
+                    // If the promise has already settled, run the cleanup handler immediately
+                    // so resources (such as late retry requests) are destroyed rather than orphaned.
+                    if (typeof handler === 'function') {
+                        try {
+                            handler();
+                        } catch {
+                            // Suppress errors during late cleanup execution
+                        }
+                    }
                 }
             };
 

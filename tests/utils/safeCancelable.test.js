@@ -45,7 +45,7 @@ describe('SafePCancelable', () => {
         }).not.toThrow();
     });
 
-    it('should not execute cancellation handler when onCancel is registered after settlement', async () => {
+    it('should execute cleanup handler when onCancel is registered after settlement to abort late requests', async () => {
         let capturedOnCancel;
         const p = new SafePCancelable((resolve, reject, onCancel) => {
             capturedOnCancel = onCancel;
@@ -54,14 +54,33 @@ describe('SafePCancelable', () => {
 
         await expect(p).resolves.toBe('settled');
 
-        let handlerRan = false;
+        let cleanupRan = false;
         expect(() => {
             capturedOnCancel(() => {
-                handlerRan = true;
+                cleanupRan = true;
             });
         }).not.toThrow();
 
-        expect(handlerRan).toBe(false);
+        expect(cleanupRan).toBe(true);
+    });
+
+    it('should destroy late Got retry request if onCancel handler is registered after settlement', async () => {
+        let capturedOnCancel;
+        const p = new SafePCancelable((resolve, reject, onCancel) => {
+            capturedOnCancel = onCancel;
+            resolve('done');
+        });
+        await p;
+
+        const mockLateRequest = {
+            destroy: jest.fn()
+        };
+
+        expect(() => {
+            capturedOnCancel(() => mockLateRequest.destroy());
+        }).not.toThrow();
+
+        expect(mockLateRequest.destroy).toHaveBeenCalledTimes(1);
     });
 
     it('should rethrow unrelated errors thrown during onCancel registration', () => {
@@ -118,7 +137,9 @@ describe('SafePCancelable', () => {
         const got = jest.requireActual('got');
         const mockRequest = () => {
             const stream = new PassThrough();
-            stream.abort = jest.fn();
+            stream.abort = jest.fn(() => {
+                stream.destroy();
+            });
             return stream;
         };
 
