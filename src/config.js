@@ -125,7 +125,11 @@ if (!config.monitors) {
         // Transparently migrate users from the old singular AppleFeature monitor 
         // to the multi-OS format, defaulting to iOS to preserve existing behavior.
         if (userMonitor.name === 'AppleFeature') {
+            logger.warn('⚠️ Legacy monitor \'AppleFeature\' detected. Please update settings.json to use \'AppleFeature:iOS\', \'AppleFeature:macOS\', and \'AppleFeature:watchOS\'.');
             userMonitor.name = 'AppleFeature:iOS';
+            if (userMonitor.file === './config/apple_features.json') {
+                userMonitor.file = './config/apple_features_ios.json';
+            }
         }
 
         const baseName = userMonitor.name.split(':')[0];

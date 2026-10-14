@@ -263,6 +263,22 @@ describe('config', () => {
         expect(config.monitors.find(m => m.name === 'AppleFeature')).toBeUndefined();
     });
 
+    it('should remap legacy apple_features.json file path to apple_features_ios.json when migrating AppleFeature', () => {
+        const customMonitors = [
+            { name: 'AppleFeature', file: './config/apple_features.json', channelId: '123' }
+        ];
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({ monitors: customMonitors });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+        const config = require('../src/config');
+
+        expect(config.monitors).toHaveLength(1);
+        const migratedMonitor = config.monitors[0];
+        expect(migratedMonitor.name).toBe('AppleFeature:iOS');
+        expect(migratedMonitor.file).toBe('./config/apple_features_ios.json');
+        expect(migratedMonitor.channelId).toBe('123');
+    });
+
     it('should load Deal monitor tracking configuration from settings', () => {
         const customMonitors = [
             {
