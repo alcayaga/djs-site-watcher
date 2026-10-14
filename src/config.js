@@ -23,6 +23,7 @@ const {
     ENV_SOLOTODO_API_URL,
     ENV_REQUEST_TIMEOUT,
     ENV_RETRY_LIMIT,
+    ENV_DNS_LOOKUP_IP_VERSION,
     DEFAULT_TRACKING_PORT,
 } = require('./utils/constants.js');
 
@@ -80,6 +81,7 @@ config.ALLOW_PRIVATE_IPS = String(config.ALLOW_PRIVATE_IPS).toLowerCase() === 't
 // Network Configuration
 config.requestTimeout = parseEnvInt(process.env[ENV_REQUEST_TIMEOUT] || config.requestTimeout, 10000);
 config.retryLimit = parseEnvInt(process.env[ENV_RETRY_LIMIT] || config.retryLimit, 2);
+config.dnsLookupIpVersion = process.env[ENV_DNS_LOOKUP_IP_VERSION] || config.dnsLookupIpVersion || 'ipv4';
 
 // Solotodo Configuration
 config.solotodoBaseUrl = process.env[ENV_SOLOTODO_BASE_URL] || 'https://www.solotodo.cl';

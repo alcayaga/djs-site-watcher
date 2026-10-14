@@ -5,7 +5,8 @@ const {
     ENV_DISCORDJS_APCHANNEL_ID,
     ENV_ALLOW_PRIVATE_IPS,
     ENV_REQUEST_TIMEOUT,
-    ENV_RETRY_LIMIT
+    ENV_RETRY_LIMIT,
+    ENV_DNS_LOOKUP_IP_VERSION
 } = require('../src/utils/constants');
 
 /**
@@ -17,6 +18,10 @@ describe('config', () => {
      */
     beforeEach(() => {
         jest.resetModules();
+    });
+
+    afterEach(() => {
+        delete process.env[ENV_DNS_LOOKUP_IP_VERSION];
     });
 
     /**
@@ -104,6 +109,42 @@ describe('config', () => {
         const config = require('../src/config');
         expect(config.requestTimeout).toBe(8000);
         expect(config.retryLimit).toBe(3);
+    });
+
+    it('should default dnsLookupIpVersion to ipv4', () => {
+        delete process.env[ENV_DNS_LOOKUP_IP_VERSION];
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({});
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+
+        const config = require('../src/config');
+        expect(config.dnsLookupIpVersion).toBe('ipv4');
+    });
+
+    it('should load DNS_LOOKUP_IP_VERSION from env', () => {
+        try {
+            process.env[ENV_DNS_LOOKUP_IP_VERSION] = 'auto';
+            const storage = require('../src/storage');
+            storage.loadSettings.mockReturnValue({});
+            storage.SENSITIVE_SETTINGS_KEYS = [];
+
+            const config = require('../src/config');
+            expect(config.dnsLookupIpVersion).toBe('auto');
+        } finally {
+            delete process.env[ENV_DNS_LOOKUP_IP_VERSION];
+        }
+    });
+
+    it('should load dnsLookupIpVersion from config file', () => {
+        delete process.env[ENV_DNS_LOOKUP_IP_VERSION];
+        const storage = require('../src/storage');
+        storage.loadSettings.mockReturnValue({
+            dnsLookupIpVersion: 'ipv6'
+        });
+        storage.SENSITIVE_SETTINGS_KEYS = [];
+
+        const config = require('../src/config');
+        expect(config.dnsLookupIpVersion).toBe('ipv6');
     });
 
     /**

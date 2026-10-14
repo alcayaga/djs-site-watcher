@@ -23,9 +23,12 @@ describe('Network Utils', () => {
 
             it('should return default timeout and retry options', () => {
                 const options = getSafeGotOptions();
+                expect(options.dnsLookupIpVersion).toBe('ipv4');
                 expect(options.timeout.request).toBe(10000);
                 expect(options.retry.limit).toBe(2);
                 expect(typeof options.dnsLookup).toBe('function');
+                expect(typeof options.lookup).toBe('function');
+                expect(options.lookup).toBe(options.dnsLookup);
                 expect(options.hooks.beforeRequest).toHaveLength(1);
             });
 
@@ -104,6 +107,40 @@ describe('Network Utils', () => {
                     const { address } = await promisifiedDnsLookup(options, 'public.com', { all: true });
                     expect(address).toEqual(results);
                 });
+
+                it('should handle options passed as number (family)', async () => {
+                    const options = getSafeGotOptions();
+                    jest.spyOn(dns, 'lookup').mockImplementation((hostname, opts, cb) => {
+                        expect(opts).toEqual({ family: 4 });
+                        cb(null, '93.184.216.34', 4);
+                    });
+
+                    await new Promise((resolve) => {
+                        options.dnsLookup('example.com', 4, (err, address, family) => {
+                            expect(err).toBeNull();
+                            expect(address).toBe('93.184.216.34');
+                            expect(family).toBe(4);
+                            resolve();
+                        });
+                    });
+                });
+
+                it('should handle callback passed as second argument', async () => {
+                    const options = getSafeGotOptions();
+                    jest.spyOn(dns, 'lookup').mockImplementation((hostname, opts, cb) => {
+                        expect(opts).toEqual({});
+                        cb(null, '93.184.216.34', 4);
+                    });
+
+                    await new Promise((resolve) => {
+                        options.dnsLookup('example.com', (err, address, family) => {
+                            expect(err).toBeNull();
+                            expect(address).toBe('93.184.216.34');
+                            expect(family).toBe(4);
+                            resolve();
+                        });
+                    });
+                });
             });
         });
 
@@ -114,7 +151,8 @@ describe('Network Utils', () => {
                 jest.doMock('../../src/config', () => ({ 
                     ALLOW_PRIVATE_IPS: false,
                     requestTimeout: 5000,
-                    retryLimit: 5
+                    retryLimit: 5,
+                    dnsLookupIpVersion: 'auto'
                 }));
                 getSafeGotOptions = require('../../src/utils/network').getSafeGotOptions;
             });
@@ -123,6 +161,7 @@ describe('Network Utils', () => {
                 const options = getSafeGotOptions();
                 expect(options.timeout.request).toBe(5000);
                 expect(options.retry.limit).toBe(5);
+                expect(options.dnsLookupIpVersion).toBe('auto');
             });
         });
 

@@ -1,3 +1,6 @@
+// Harden PCancelable against post-settlement onCancel calls in Got v11
+require('./utils/safeCancelable');
+
 // Load configuration and environment as early as possible
 const config = require('./config');
 
@@ -183,5 +186,15 @@ const shutdown = async () => {
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+
+if (process.env.NODE_ENV !== 'test') {
+    process.on('unhandledRejection', (reason) => {
+        logger.error('Unhandled Promise Rejection:', reason);
+    });
+
+    process.on('uncaughtExceptionMonitor', (error, origin) => {
+        logger.error('Uncaught Exception [%s]:', origin, error);
+    });
+}
 
 module.exports = { client };
