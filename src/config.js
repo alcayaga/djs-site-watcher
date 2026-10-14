@@ -97,7 +97,10 @@ config.ALLOW_PRIVATE_IPS = String(config.ALLOW_PRIVATE_IPS).toLowerCase() === 't
 // Network Configuration
 config.requestTimeout = parseEnvInt(process.env[ENV_REQUEST_TIMEOUT] || config.requestTimeout, 10000);
 config.retryLimit = parseEnvInt(process.env[ENV_RETRY_LIMIT] || config.retryLimit, 2);
-config.dnsLookupIpVersion = parseDnsLookupIpVersion(process.env[ENV_DNS_LOOKUP_IP_VERSION] || config.dnsLookupIpVersion);
+const envDnsLookupIpVersion = process.env[ENV_DNS_LOOKUP_IP_VERSION];
+config.dnsLookupIpVersion = parseDnsLookupIpVersion(
+    envDnsLookupIpVersion !== undefined ? envDnsLookupIpVersion : config.dnsLookupIpVersion
+);
 
 // Solotodo Configuration
 config.solotodoBaseUrl = process.env[ENV_SOLOTODO_BASE_URL] || 'https://www.solotodo.cl';

@@ -11,6 +11,16 @@ describe('logger masking', () => {
         expect(masked).toContain('************************.******.*******************************');
     });
 
+    it('should mask Discord tokens ending in a hyphen', () => {
+        const p1 = 'dummyTokenPartOne1234567';
+        const p2 = 'dummy2';
+        const p3 = 'dummySecretKeyPartThree1234567-';
+        const token = `${p1}.${p2}.${p3}`;
+        const masked = logger.maskSensitive(`Failed token with hyphen: ${token}`);
+        expect(masked).not.toContain(token);
+        expect(masked).toContain('************************.******.*******************************');
+    });
+
     it('should mask sensitive query parameters including access_token', () => {
         const url = 'https://api.example.com/check?token=my_secret_token_123&other=val';
         const masked = logger.maskSensitive(`Request failed for ${url}`);

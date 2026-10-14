@@ -187,6 +187,22 @@ describe('config', () => {
         expect(config.dnsLookupIpVersion).toBe('ipv4');
     });
 
+    it('should fallback to ipv4 when DNS_LOOKUP_IP_VERSION is an empty string and config file specifies ipv6', () => {
+        try {
+            process.env[ENV_DNS_LOOKUP_IP_VERSION] = '';
+            const storage = require('../src/storage');
+            storage.loadSettings.mockReturnValue({
+                dnsLookupIpVersion: 'ipv6'
+            });
+            storage.SENSITIVE_SETTINGS_KEYS = [];
+
+            const config = require('../src/config');
+            expect(config.dnsLookupIpVersion).toBe('ipv4');
+        } finally {
+            delete process.env[ENV_DNS_LOOKUP_IP_VERSION];
+        }
+    });
+
     /**
      * Guards against regressions by ensuring settings.json remains the single
      * supported source for the heartbeat URL after the removal of the 
