@@ -30,7 +30,7 @@
     "winston": "^3.19.0"
   },
   "overrides": {
-    "undici": "^6.29.0"
+    "undici": "^6.29.1"
   },
   "devDependencies": {
     "@eslint/json": "^0.14.0",
